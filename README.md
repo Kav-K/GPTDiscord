@@ -25,6 +25,10 @@ DISCORD_TOKEN="TOKEN"
 
 `!g` - Display help text for the bot
 
+`!g converse` - Start a conversation with the bot, like ChatGPT
+
+`!g end` - End a conversation with the bot.
+
 `!gp` - Display settings for the model (temperature, top_p, etc)
 
 `!gs <setting> <value>` - Change a model setting to a new value
