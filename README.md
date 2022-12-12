@@ -9,6 +9,8 @@ OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)
 
 Discord Bot Token (https://discord.com/developers/applications)
 
+You can learn how to add the discord bot to your server via https://www.ionos.co.uk/digitalguide/server/know-how/creating-discord-bot/
+
 Both the OpenAI API key and the Discord bot token needed to be loaded into a .env file in the same local directory as the bot file.
 
 ```
@@ -34,3 +36,7 @@ DISCORD_TOKEN="TOKEN"
 `!gs <setting> <value>` - Change a model setting to a new value
 
 `!g <prompt>` Ask the GPT3 Davinci 003 model a question.
+
+`!gu` Estimate current usage details (based on davinci)
+
+`!gs low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
