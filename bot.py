@@ -7,6 +7,7 @@ import openai
 from discord import client
 from discord.ext import commands
 from dotenv import load_dotenv
+from transformers import GPT2TokenizerFast
 
 load_dotenv()
 import os
@@ -57,6 +58,8 @@ class UsageService:
             with open("usage.txt", "w") as f:
                 f.write("0.00")
                 f.close()
+        self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+
 
     def update_usage(self, tokens_used):
         tokens_used = int(tokens_used)
@@ -73,6 +76,10 @@ class UsageService:
             usage = float(f.read().strip())
             f.close()
         return usage
+
+    def count_tokens(self, input):
+        res = self.tokenizer(input)['input_ids']
+        return len(res)
 
 
 # An enum of two modes, TOP_P or TEMPERATURE
@@ -115,7 +122,7 @@ class Model:
         self._mode = Mode.TEMPERATURE
         self._temp = 0.6  # Higher value means more random, lower value means more likely to be a coherent sentence
         self._top_p = 0.9  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
-        self._max_tokens = 3000  # The maximum number of tokens the model can generate
+        self._max_tokens = 4000  # The maximum number of tokens the model can generate
         self._presence_penalty = 0  # Penalize new tokens based on whether they appear in the text so far
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
@@ -144,7 +151,7 @@ class Model:
             self.max_tokens = 1900
         else:
             self._model = Models.DAVINCI
-            self.max_tokens = 3000
+            self.max_tokens = 4000
 
     @property
     def model(self):
@@ -270,13 +277,16 @@ class Model:
             raise ValueError("Prompt must be greater than 25 characters, it is currently " + str(len(prompt)))
 
         print("The prompt about to be sent is " + prompt)
+        prompt_tokens = usage_service.count_tokens(prompt)
+        print(f"The prompt tokens will be {prompt_tokens}")
+        print(f"The total max tokens will then be {self.max_tokens - prompt_tokens}")
 
         response = openai.Completion.create(
             model=Models.DAVINCI if any(role.name in DAVINCI_ROLES for role in message.author.roles) else self.model, # Davinci override for admin users
             prompt=prompt,
             temperature=self.temp,
             top_p=self.top_p,
-            max_tokens=self.max_tokens,
+            max_tokens=self.max_tokens - prompt_tokens,
             presence_penalty=self.presence_penalty,
             frequency_penalty=self.frequency_penalty,
             best_of=self.best_of,
