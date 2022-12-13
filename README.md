@@ -9,10 +9,16 @@ You can learn how to add the discord bot to your server via https://www.ionos.co
 
 Both the OpenAI API key and the Discord bot token needed to be loaded into a .env file in the same local directory as the bot file.
 
+You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id is a server id, and the debug channel id is a text-channel id in Discord. Your final .env file should look like the following:
+
 ```
 OPENAI_TOKEN="TOKEN"
 
 DISCORD_TOKEN="TOKEN"
+
+DEBUG_GUILD="974519864045756446"
+
+DEBUG_CHANNEL="977697652147892304"
 ```
 
 # Usage
