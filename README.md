@@ -1,7 +1,7 @@
 # Requirements
 `python3.7 -m pip install openai`
 
-`python3.7 -m pip install dotenv`
+`python3.7 -m pip install dotenv-python`
 
 `python3.7 -m pip install discord` (This should be the discord.py rewrite, not the pycord library)
 
