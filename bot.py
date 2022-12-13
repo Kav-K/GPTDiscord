@@ -96,7 +96,7 @@ class Models:
 """
 Settings for the bot
 """
-bot = commands.Bot(command_prefix="'")
+bot = commands.Bot(intents=discord.Intents.all(), command_prefix="'")
 last_used = {}
 GLOBAL_COOLDOWN_TIME = 1  # In seconds
 conversating_users = {}
