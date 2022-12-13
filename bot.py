@@ -111,6 +111,8 @@ CONVERSATION_STARTER_TEXT = "You are an artificial intelligence that is able to 
                             "and I want you to make well-informed decisions using the data that you have been trained on, " \
                             "and be sure to tell me if any assumptions I make during our conversation are incorrect."
 usage_service = UsageService()
+DEBUG_GUILD = int(os.getenv("DEBUG_GUILD"))
+DEBUG_CHANNEL = int(os.getenv("DEBUG_CHANNEL"))
 
 """
 An encapsulating wrapper for the OpenAI Model
@@ -335,6 +337,8 @@ class DiscordBot:
     def __init__(self, bot):
         self.bot = bot
         bot.run(os.getenv('DISCORD_TOKEN'))
+        self.debug_guild = int(os.getenv('DEBUG_GUILD'))
+        self.debug_channel = int(os.getenv('DEBUG_CHANNEL'))
         self.last_used = {}
 
     @staticmethod
@@ -559,7 +563,7 @@ class DiscordBot:
                     conversating_users[message.author.id].history += response_text + "\n"
 
                 # If the response text is > 3500 characters, paginate and send
-                debug_channel = bot.get_guild(1050348392544489502).get_channel(1050392491226054697)
+                debug_channel = bot.get_guild(DEBUG_GUILD).get_channel(DEBUG_CHANNEL)
                 debug_message = DiscordBot.generate_debug_message(prompt, response)
 
                 # Paginate and send the response back to the users
