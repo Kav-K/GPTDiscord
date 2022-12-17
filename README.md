@@ -12,14 +12,28 @@ Both the OpenAI API key and the Discord bot token needed to be loaded into a .en
 You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id is a server id, and the debug channel id is a text-channel id in Discord. Your final .env file should look like the following:
 
 ```
-OPENAI_TOKEN="TOKEN"
+OPENAI_TOKEN="<openai_api_token>"
 
-DISCORD_TOKEN="TOKEN"
+DISCORD_TOKEN="<discord_bot_token>"
 
-DEBUG_GUILD="974519864045756446"
+DEBUG_GUILD="974519864045756446"   #discord_server_id
 
-DEBUG_CHANNEL="977697652147892304"
+DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 ```
+
+## Bot on discord:
+
+- Create a new Bot on Discord Developer Portal:
+    - Applications -> New Application
+- Generate Toker for the app (discord_bot_token)
+    - Select App (Bot) -> Bot -> Reset Token
+- Toogle PRESENCE INTENT:
+    - Select App (Bot) -> Bot -> PRESENCE INTENT
+- Add Bot the the server.
+    - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot
+    - Bot Permissions will appear, select the desired permissions
+    - Copy the link generated below and paste it on the browser
+    - On add to server select the desired server to add the bot
 
 # Usage
 
