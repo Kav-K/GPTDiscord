@@ -1,7 +1,10 @@
+# Features
+
+
 # Requirements
 `python3.9 -m pip install -r requirements.txt`
 
-**I reccomend using python 3.9!**
+**I recommend using python 3.9!**
 
 OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)
 

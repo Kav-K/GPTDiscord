@@ -374,7 +374,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
 
 
 class RedoButtonView(discord.ui.View):  # Create a class called MyView that subclasses discord.ui.View
-    @discord.ui.button(label="Redo", style=discord.ButtonStyle.primary,
+    @discord.ui.button(label="", style=discord.ButtonStyle.primary,
                        emoji="🔄")  # Create a button with the label "😎 Click me!" with color Blurple
 
     async def button_callback(self, button, interaction):
