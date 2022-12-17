@@ -23,6 +23,8 @@ DEBUG_GUILD="974519864045756446"   #discord_server_id
 DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 ```
 
+Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
+
 ## Bot on discord:
 
 - Create a new Bot on Discord Developer Portal:
