@@ -1,4 +1,14 @@
 # Features
+- **Directly prompt GPT3 with `!g <prompt>`**
+- **Have conversations with the bot, just like chatgpt, with `!g converse`**. Conversations happen in threads!
+- **Redo Requests**, A simple button after the GPT3 response allows you to redo it!
+- **DALL-E Image Prompt Optimization**, given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly!
+- Change and view model parameters such as temp, top_p, and etc directly within discord. 
+- Tracks token usage automatically
+- Automatic pagination and discord support, the bot will automatically send very long message as multiple messages, and is able to send discord code blocks and emoji, gifs, etc.
+- A low usage mode, use a command to automatically switch to a cheaper and faster model to conserve your tokens during times of peak usage. 
+- Prints debug to a channel of your choice, so you can view the raw response JSON
+- Ability to specify a limit to how long a conversation can be with the bot, to conserve your tokens.
 
 
 # Requirements
@@ -63,3 +73,5 @@ Optionally, you can include your own conversation starter text for the bot that'
 `!gu` Estimate current usage details (based on davinci)
 
 `!gs low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
+
+`!imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
