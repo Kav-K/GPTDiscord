@@ -74,7 +74,8 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
             return
         for guild in self.bot.guilds:
             for thread in guild.threads:
-                if "with gpt" in thread.name.lower():
+                thread_name = thread.name.lower()
+                if "with gpt" in thread_name or "closed-gpt" in thread_name:
                     await thread.delete()
         await ctx.reply("All conversation threads have been deleted.")
 
@@ -105,7 +106,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
             try:
                 thread = await self.bot.fetch_channel(thread_id)
                 await thread.edit(locked=True)
-                await thread.edit(name="Closed")
+                await thread.edit(name="Closed-GPT")
             except:
                 pass
 
@@ -275,6 +276,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         except Exception as e:
             await message.reply("Something went wrong, please try again later")
             await message.channel.send(e)
+            await self.end_conversation(message)
             # print a stack trace
             traceback.print_exc()
             return
