@@ -79,7 +79,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         await ctx.reply("All conversation threads have been deleted.")
 
     def check_conversing(self, message):
-        cond1 = message.author.id in self.conversating_users and message.channel.name in ["gpt3", "offtopic",
+        cond1 = message.author.id in self.conversating_users and message.channel.name in ["gpt3",
                                                                                           "general-bot",
                                                                                           "bot"]
         cond2 = message.author.id in self.conversating_users and message.author.id in self.conversation_threads \
@@ -336,7 +336,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
             prompt = message.content if conversing else message.content[2:].lstrip()
 
             # If the prompt is just "converse", start a conversation with GPT3
-            if prompt == "converse":
+            if prompt == "converse" or prompt == "converse nothread":
                 # If the user is already conversating, don't let them start another conversation
                 if message.author.id in self.conversating_users:
                     await message.reply(
@@ -350,13 +350,17 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
                     message.author.id].history += self.CONVERSATION_STARTER_TEXT
 
                 # Create a new discord thread, and then send the conversation starting message inside of that thread
-                message_thread = await message.channel.send(message.author.name + "'s conversation with GPT3")
-                thread = await message_thread.create_thread(name=message.author.name + "'s conversation with GPT3",
-                                                            auto_archive_duration=60)
+                if not ("nothread" in prompt):
+                    message_thread = await message.channel.send(message.author.name + "'s conversation with GPT3")
+                    thread = await message_thread.create_thread(name=message.author.name + "'s conversation with GPT3",
+                                                                auto_archive_duration=60)
 
-                await thread.send("<@" + str(
-                    message.author.id) + "> You are now conversing with GPT3. End the conversation with !g end or just say end")
-                self.conversation_threads[message.author.id] = thread.id
+                    await thread.send("<@" + str(
+                        message.author.id) + "> You are now conversing with GPT3. End the conversation with !g end or just say end")
+                    self.conversation_threads[message.author.id] = thread.id
+                else:
+                    await message.reply(
+                        "You are now conversing with GPT3. End the conversation with !g end or just say end")
                 return
 
             # If the prompt is just "end", end the conversation with GPT3
@@ -394,7 +398,7 @@ class RedoButtonView(discord.ui.View):  # Create a class called MyView that subc
 
         # Put the message into the deletion queue with a timestamp of 10 seconds from now to be deleted
         deletion = Deletion(msg, (datetime.datetime.now() + datetime.timedelta(seconds=10)).timestamp())
-        await self.bot.deletion_queue.put(deletion) #TODO this isn't supported by discord yet!
+        await self.bot.deletion_queue.put(deletion)
 
         # Get the user
         user_id = interaction.user.id
