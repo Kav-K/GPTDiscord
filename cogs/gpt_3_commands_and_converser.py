@@ -32,7 +32,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         self.DEBUG_CHANNEL = DEBUG_CHANNEL
         self.TEXT_CUTOFF = 1900
         self.message_queue = message_queue
-        self.conversation_threads = defaultdict(list)
+        self.conversation_threads = {}
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -42,13 +42,33 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         cond1= message.author.id in self.conversating_users and message.channel.name in ["gpt3", "offtopic",
                                                                                          "general-bot",
                                                                                          "bot"]
-        cond2= message.author.id in self.conversating_users and message.channel.id in self.conversation_threads[message.author.id]
+        cond2= message.author.id in self.conversating_users and message.author.id in self.conversation_threads \
+               and message.channel.id == self.conversation_threads[message.author.id]
+
         return cond1 or cond2
 
     async def end_conversation(self, message):
         self.conversating_users.pop(message.author.id)
+
         await message.reply(
             "You have ended the conversation with GPT3. Start a conversation with !g converse")
+
+        # Close all conversation threads for the user
+        channel = self.bot.get_channel(self.conversation_threads[message.author.id])
+        # await channel.delete() TODO Schedule a delete 1 hour from now if discord's auto deletes aren't nice.
+
+        if message.author.id in self.conversation_threads:
+            thread_id = self.conversation_threads[message.author.id]
+            self.conversation_threads.pop(message.author.id)
+
+            # Attempt to close and lock the thread.
+            try:
+                thread = await self.bot.fetch_channel(thread_id)
+                await thread.edit(locked=True)
+                await thread.edit(name="Closed")
+            except:
+                pass
+
 
     async def send_help_text(self, message):
         embed = discord.Embed(title="GPT3Bot Help", description="The current commands", color=0x00ff00)
@@ -221,7 +241,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
                                                              auto_archive_duration=60)
 
                 await thread.send("<@"+str(message.author.id)+"> You are now conversing with GPT3. End the conversation with !g end or just say end")
-                self.conversation_threads[message.author.id].append(thread.id)
+                self.conversation_threads[message.author.id] = thread.id
                 return
 
             # If the prompt is just "end", end the conversation with GPT3
