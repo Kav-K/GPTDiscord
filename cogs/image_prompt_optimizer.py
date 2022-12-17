@@ -14,10 +14,16 @@ class ImgPromptOptimizer(commands.Cog, name='ImgPromptOptimizer'):
         self.usage_service = usage_service
         self.model = model
         self.message_queue = message_queue
+        self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
         try:
-            self.OPTIMIZER_PRETEXT = os.getenv('OPTIMIZER_PRETEXT')
+            # Try to read the image optimizer pretext from
+            # the file system
+            with open('image_optimizer_pretext.txt', 'r') as file:
+                self.OPTIMIZER_PRETEXT = file.read()
+            print("Loaded image optimizer pretext from file system")
         except:
+            traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
     @commands.command()
