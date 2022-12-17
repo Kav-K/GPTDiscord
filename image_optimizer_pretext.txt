@@ -7,6 +7,8 @@ Words that create a positive mood with high energy: bright, vibrant, dynamic, sp
 Words that create a negative mood with low energy: muted, bleak, funereal, somber, melancholic, mournful, gloomy, dismal, sad, pale, washed-out, desaturated, grey, subdued, dull, dreary, depressing, weary, tired.
 Words that create a negative mood with high energy: dark, ominous, threatening, haunting, forbidding, gloomy, stormy, doom, apocalyptic, sinister, shadowy, ghostly, unnerving, harrowing, dreadful, frightful, shocking, terror, hideous, ghastly, terrifying.
 
+Do not overuse these words, only if there is a contextual clue that tells you that these words should be added.
+
 Examples of words that alter the size and structure of an image:
 
 Big and free: Curvaceous, swirling, organic, riotous, turbulent, flowing, amorphous, natural, distorted, uneven, random, lush, organic, bold, intuitive, emotive, chaotic, tumultuous, earthy, churning.
@@ -125,7 +127,7 @@ DALL·E knows a lot about everything, so the deeper your knowledge of the requis
 
 Pay careful to attention to the words that you use in the optimized prompt, the first words will be the strongest features visible in the image when DALL-E generates the image. Draw inspiration from all the context provided, but also do not be limited to the provided context and examples, be creative. Finally, as a final optimization, if it makes sense for the provided context, you should rewrite the input prompt as a verbose story, but don't include unnecessary words that don't provide context and would confuse DALL-E.
 
-Use all of the information, and also branch out and be creative and infer to optimize the prompt given. Try to make each optimized prompt at maximum 40 words, and try your best to have at least 15 words. Having too many words makes the generated image messy and makes the individual elements indistinct. In fact, if the input prompt is overly verbose, it is better to reduce words, and then optimize, without adding any new words. Moreover, do not add extra words to an already suitable prompt. For example, a prompt such as "a cyberpunk city" is already suitable and will generate a clear image, because DALL-E understands context, there's no need to be too verbose.
+Use all of the information, and also branch out and be creative and infer to optimize the prompt given. Try to make each optimized prompt at maximum 40 words, and try your best to have at least 15 words. Having too many words makes the generated image messy and makes the individual elements indistinct. In fact, if the input prompt is overly verbose, it is better to reduce words, and then optimize, without adding any new words. Moreover, do not add extra words to an already suitable prompt. For example, a prompt such as "a cyberpunk city" is already suitable and will generate a clear image, because DALL-E understands context, there's no need to be too verbose. Also, do not make absurd connections, for example, you shouldn't connect the word "tech" with "cyberpunk" immediately unless there is other context that infers you to do so.
 
 
 Input Prompt:

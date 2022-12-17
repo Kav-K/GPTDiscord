@@ -299,10 +299,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 self.conversating_users[message.author.id].count
                 >= self.model.max_conversation_length
             ):
-                self.conversating_users.pop(message.author.id)
                 await message.reply(
                     "You have reached the maximum conversation length. You have ended the conversation with GPT3, and it has ended."
                 )
+                await self.end_conversation(message)
 
     async def encapsulated_send(self, message, prompt, response_message=None):
 
