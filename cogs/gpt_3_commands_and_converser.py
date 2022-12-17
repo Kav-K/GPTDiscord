@@ -21,8 +21,6 @@ class RedoUser:
 
 redo_users = {}
 
-
-
 class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
 
     def __init__(self, bot, usage_service, model, message_queue, DEBUG_GUILD, DEBUG_CHANNEL):
@@ -52,7 +50,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
 
         self.DEBUG_GUILD = DEBUG_GUILD
         self.DEBUG_CHANNEL = DEBUG_CHANNEL
-        print(f"The debuf channel and guild IDs are {self.DEBUG_GUILD} and {self.DEBUG_CHANNEL}")
+        print(f"The debug channel and guild IDs are {self.DEBUG_GUILD} and {self.DEBUG_CHANNEL}")
         self.TEXT_CUTOFF = 1900
         self.message_queue = message_queue
         self.conversation_threads = {}

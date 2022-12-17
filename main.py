@@ -5,6 +5,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
+from cogs.image_prompt_optimizer import ImgPromptOptimizer
 from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
@@ -22,7 +23,7 @@ asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
 """
 Settings for the bot
 """
-bot = commands.Bot(intents=discord.Intents.all(), command_prefix="'")
+bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!")
 usage_service = UsageService()
 model = Model(usage_service)
 
@@ -40,8 +41,9 @@ async def main():
     debug_guild = int(os.getenv('DEBUG_GUILD'))
     debug_channel = int(os.getenv('DEBUG_CHANNEL'))
 
-    # Load te main GPT3 Bot service
+    # Load the main GPT3 Bot service
     bot.add_cog(GPT3ComCon(bot, usage_service, model, message_queue, debug_guild, debug_channel))
+    bot.add_cog(ImgPromptOptimizer(bot, usage_service, model, message_queue))
 
     await bot.start(os.getenv('DISCORD_TOKEN'))
 
