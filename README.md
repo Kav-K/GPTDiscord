@@ -1,5 +1,7 @@
 # Requirements
-`pip3 install -r requirements.txt`
+`python3.9 -m pip install -r requirements.txt`
+
+**I reccomend using python 3.9!**
 
 OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)
 
@@ -37,7 +39,7 @@ DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 
 # Usage
 
-`python3.7 bot.py`
+`python3.9 main.py`
 
 # Commands
 
