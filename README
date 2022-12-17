@@ -13,7 +13,7 @@ DISCORD_TOKEN="TOKEN"
 ```
 
 # Usage
-`python3.7 bot.py`
+`python3.7 main.py`
 
 # Commands
 `!g` - Display help text for the bot
