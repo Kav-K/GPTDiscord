@@ -4,14 +4,15 @@ from datetime import datetime
 
 
 class Deletion:
-
     def __init__(self, message, timestamp):
         self.message = message
         self.timestamp = timestamp
 
     # This function will be called by the bot to process the message queue
     @staticmethod
-    async def process_deletion_queue(deletion_queue, PROCESS_WAIT_TIME, EMPTY_WAIT_TIME):
+    async def process_deletion_queue(
+        deletion_queue, PROCESS_WAIT_TIME, EMPTY_WAIT_TIME
+    ):
         while True:
             try:
                 # If the queue is empty, sleep for a short time before checking again

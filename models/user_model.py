@@ -2,8 +2,9 @@
 Store information about a discord user, for the purposes of enabling conversations. We store a message
 history, message count, and the id of the user in order to track them.
 """
-class User:
 
+
+class User:
     def __init__(self, id):
         self.id = id
         self.history = ""

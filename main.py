@@ -38,24 +38,29 @@ An encapsulating wrapper for the discord.py client. This uses the old re-write w
 
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by
-    print('We have logged in as {0.user}'.format(bot))
+    print("We have logged in as {0.user}".format(bot))
 
 
 async def main():
-    debug_guild = int(os.getenv('DEBUG_GUILD'))
-    debug_channel = int(os.getenv('DEBUG_CHANNEL'))
+    debug_guild = int(os.getenv("DEBUG_GUILD"))
+    debug_channel = int(os.getenv("DEBUG_CHANNEL"))
 
     # Load the main GPT3 Bot service
-    bot.add_cog(GPT3ComCon(bot, usage_service, model, message_queue, deletion_queue, debug_guild, debug_channel))
-    bot.add_cog(ImgPromptOptimizer(bot, usage_service, model, message_queue, deletion_queue))
+    bot.add_cog(
+        GPT3ComCon(
+            bot,
+            usage_service,
+            model,
+            message_queue,
+            deletion_queue,
+            debug_guild,
+            debug_channel,
+        )
+    )
 
-    await bot.start(os.getenv('DISCORD_TOKEN'))
+    await bot.start(os.getenv("DISCORD_TOKEN"))
 
 
 # Run the bot with a token taken from an environment file.
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())
-
-
-
-
