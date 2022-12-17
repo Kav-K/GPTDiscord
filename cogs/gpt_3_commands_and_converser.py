@@ -57,8 +57,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.deletion_queue = deletion_queue
 
         try:
-            # Attempt to read a conversation starter text string from the environment variables
-            self.CONVERSATION_STARTER_TEXT = os.getenv("CONVERSATION_STARTER_TEXT")
+            # Attempt to read a conversation starter text string from the file.
+            with open("conversation_starter_pretext.txt", "r") as f:
+                self.CONVERSATION_STARTER_TEXT = f.read()
+                print("Conversation starter text loaded from file.")
+
             assert self.CONVERSATION_STARTER_TEXT is not None
         except:
             self.CONVERSATION_STARTER_TEXT = (
@@ -488,7 +491,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     self.conversating_users[message.author.id].history
                     + "\nHuman: "
                     + prompt
-                    + "\nAI:"
+                    + "\nGPTie:"
                 )
                 # Now, add overwrite the user's history with the new prompt
                 self.conversating_users[message.author.id].history = prompt
