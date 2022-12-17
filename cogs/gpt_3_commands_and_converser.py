@@ -75,8 +75,8 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         for guild in self.bot.guilds:
             for thread in guild.threads:
                 if "with gpt" in thread.name.lower():
-                    print(f"Deleting thread {thread.name}")
                     await thread.delete()
+        await ctx.reply("All conversation threads have been deleted.")
 
     def check_conversing(self, message):
         cond1 = message.author.id in self.conversating_users and message.channel.name in ["gpt3", "offtopic",
