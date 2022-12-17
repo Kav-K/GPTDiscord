@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
+from models.deletion_service import Deletion
 from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
@@ -17,7 +18,9 @@ import os
 Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
 """
 message_queue = asyncio.Queue()
+deletion_queue = asyncio.Queue()
 asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
+asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 
 
 """
@@ -37,13 +40,14 @@ An encapsulating wrapper for the discord.py client. This uses the old re-write w
 async def on_ready():  # I can make self optional by
     print('We have logged in as {0.user}'.format(bot))
 
+
 async def main():
     debug_guild = int(os.getenv('DEBUG_GUILD'))
     debug_channel = int(os.getenv('DEBUG_CHANNEL'))
 
     # Load the main GPT3 Bot service
-    bot.add_cog(GPT3ComCon(bot, usage_service, model, message_queue, debug_guild, debug_channel))
-    bot.add_cog(ImgPromptOptimizer(bot, usage_service, model, message_queue))
+    bot.add_cog(GPT3ComCon(bot, usage_service, model, message_queue, deletion_queue, debug_guild, debug_channel))
+    bot.add_cog(ImgPromptOptimizer(bot, usage_service, model, message_queue, deletion_queue))
 
     await bot.start(os.getenv('DISCORD_TOKEN'))
 

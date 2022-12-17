@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -7,6 +8,7 @@ import traceback
 import discord
 from discord.ext import commands
 
+from models.deletion_service import Deletion
 from models.message_model import Message
 from models.user_model import User
 from collections import defaultdict
@@ -23,7 +25,7 @@ redo_users = {}
 
 class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
 
-    def __init__(self, bot, usage_service, model, message_queue, DEBUG_GUILD, DEBUG_CHANNEL):
+    def __init__(self, bot, usage_service, model, message_queue, deletion_queue, DEBUG_GUILD, DEBUG_CHANNEL):
         self.debug_channel = None
         self.bot = bot
         self._last_member_ = None
@@ -36,6 +38,7 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
         self.GLOBAL_COOLDOWN_TIME = 1
         self.usage_service = usage_service
         self.model = model
+        self.deletion_queue = deletion_queue
 
         try:
             # Attempt to read a conversation starter text string from the environment variables
@@ -63,6 +66,17 @@ class GPT3ComCon(commands.Cog, name='GPT3ComCon'):
     async def on_ready(self):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(self.DEBUG_CHANNEL)
         print(f"The debug channel was acquired")
+
+    @commands.command()
+    async def delete_all_conversation_threads(self, ctx):
+        # If the user has ADMIN_ROLES
+        if not any(role.name in self.ADMIN_ROLES for role in ctx.author.roles):
+            return
+        for guild in self.bot.guilds:
+            for thread in guild.threads:
+                if "with gpt" in thread.name.lower():
+                    print(f"Deleting thread {thread.name}")
+                    await thread.delete()
 
     def check_conversing(self, message):
         cond1 = message.author.id in self.conversating_users and message.channel.name in ["gpt3", "offtopic",
@@ -376,7 +390,11 @@ class RedoButtonView(discord.ui.View):  # Create a class called MyView that subc
                        emoji="🔄")  # Create a button with the label "😎 Click me!" with color Blurple
 
     async def button_callback(self, button, interaction):
-        await interaction.response.send_message("Redoing your original request...", ephemeral=True)
+        msg = await interaction.response.send_message("Redoing your original request...", ephemeral=True)
+
+        # Put the message into the deletion queue with a timestamp of 10 seconds from now to be deleted
+        deletion = Deletion(msg, (datetime.datetime.now() + datetime.timedelta(seconds=10)).timestamp())
+        await self.bot.deletion_queue.put(deletion) #TODO this isn't supported by discord yet!
 
         # Get the user
         user_id = interaction.user.id

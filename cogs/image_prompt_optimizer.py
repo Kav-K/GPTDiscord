@@ -9,7 +9,7 @@ class ImgPromptOptimizer(commands.Cog, name='ImgPromptOptimizer'):
 
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
-    def __init__(self, bot, usage_service, model, message_queue):
+    def __init__(self, bot, usage_service, model, message_queue, deletion_queue):
         self.bot = bot
         self.usage_service = usage_service
         self.model = model
