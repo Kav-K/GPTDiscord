@@ -41,13 +41,13 @@ class Model:
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
         self._prompt_min_length = 12
-        self._max_conversation_length = 12
+        self._max_conversation_length = 25
         self._model = Models.DAVINCI
         self._low_usage_mode = False
         self.usage_service = usage_service
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
         self._image_size = ImageSize.MEDIUM
-        self._num_images = 1
+        self._num_images = 2
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
