@@ -8,6 +8,7 @@ import traceback
 import discord
 from discord.ext import commands
 
+from cogs.draw_image_generation import DrawDallEService
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
 from models.deletion_service import Deletion
 from models.message_model import Message
@@ -55,6 +56,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.usage_service = usage_service
         self.model = model
         self.deletion_queue = deletion_queue
+        self.users_to_interactions = defaultdict(list)
 
         try:
             # Attempt to read a conversation starter text string from the file.
@@ -91,8 +93,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             self.DEBUG_CHANNEL
         )
         print(f"The debug channel was acquired")
+
+        # Add the draw service to the bot.
         self.bot.add_cog(
-            ImgPromptOptimizer(
+            DrawDallEService(
                 self.bot,
                 self.usage_service,
                 self.model,
@@ -101,7 +105,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 self,
             )
         )
-        print(f"Image prompt optimizer was added")
+        print(f"Draw service was added")
+
 
     @commands.command()
     async def delete_all_conversation_threads(self, ctx):
@@ -126,7 +131,14 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             and message.channel.id == self.conversation_threads[message.author.id]
         )
 
-        return cond1 or cond2
+        # If the trimmed message starts with a Tilde, then we want to not contribute this to the conversation
+        try:
+            cond3 = not message.content.strip().startswith("~")
+        except Exception as e:
+            print(e)
+            cond3 = False
+
+        return (cond1 or cond2) and cond3
 
     async def end_conversation(self, message):
         self.conversating_users.pop(message.author.id)
@@ -200,9 +212,19 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             description="The current settings of the model",
             color=0x00FF00,
         )
-        for key, value in self.model.__dict__.items():
-            embed.add_field(name=key, value=value, inline=False)
-        await message.reply(embed=embed)
+        # Create a two-column embed to display the settings, use \u200b to create a blank space
+        embed.add_field(
+            name="Setting",
+            value="\n".join([key for key in self.model.__dict__.keys() if key not in self.model._hidden_attributes]),
+            inline=True,
+        )
+        embed.add_field(
+            name="Value",
+            value="\n".join([str(value) for key, value in self.model.__dict__.items() if key not in self.model._hidden_attributes]),
+            inline=True,
+        )
+        await message.channel.send(embed=embed)
+
 
     async def process_settings_command(self, message):
         # Extract the parameter and the value
@@ -461,12 +483,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     await thread.send(
                         "<@"
                         + str(message.author.id)
-                        + "> You are now conversing with GPT3. End the conversation with !g end or just say end"
+                        + "> You are now conversing with GPT3. *Say hi to start!*\n End the conversation by saying `end`.\n\n If you want GPT3 to ignore your messages, start your messages with `~`\n\nYour conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
                     )
                     self.conversation_threads[message.author.id] = thread.id
                 else:
                     await message.reply(
-                        "You are now conversing with GPT3. End the conversation with !g end or just say end"
+                        "You are now conversing with GPT3. *Say hi to start!*\n End the conversation by saying `end`.\n\n If you want GPT3 to ignore your messages, start your messages with `~`\n\nYour conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
                     )
                 return
 
@@ -475,7 +497,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 # If the user is not conversating, don't let them end the conversation
                 if message.author.id not in self.conversating_users:
                     await message.reply(
-                        "You are not conversing with GPT3. Start a conversation with !g converse"
+                        "**You are not conversing with GPT3.** Start a conversation with `!g converse`"
                     )
                     return
 
@@ -507,11 +529,11 @@ class RedoButtonView(
     discord.ui.View
 ):  # Create a class called MyView that subclasses discord.ui.View
     @discord.ui.button(
-        label="", style=discord.ButtonStyle.primary, emoji="🔄"
+        label="Retry", style=discord.ButtonStyle.danger,
     )  # Create a button with the label "😎 Click me!" with color Blurple
     async def button_callback(self, button, interaction):
         msg = await interaction.response.send_message(
-            "Redoing your original request...", ephemeral=True
+            "Retrying your original request...", ephemeral=True
         )
 
         # Put the message into the deletion queue with a timestamp of 10 seconds from now to be deleted

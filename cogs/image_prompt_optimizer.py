@@ -2,6 +2,7 @@ import datetime
 import os
 import re
 import traceback
+from collections import defaultdict
 
 import discord
 from discord.ext import commands
@@ -9,7 +10,6 @@ from discord.ext import commands
 from models.deletion_service import Deletion
 
 redo_users = {}
-
 
 class RedoUser:
     def __init__(self, prompt, message, response):
@@ -22,7 +22,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
     def __init__(
-        self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
+        self, bot, usage_service, model, message_queue, deletion_queue, converser_cog, image_service_cog
     ):
         self.bot = bot
         self.usage_service = usage_service
@@ -30,6 +30,8 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         self.message_queue = message_queue
         self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
         self.converser_cog = converser_cog
+        self.image_service_cog = image_service_cog
+        self.deletion_queue = deletion_queue
 
         try:
             # Try to read the image optimizer pretext from
@@ -40,6 +42,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         except:
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
+
 
     @commands.command()
     async def imgoptimize(self, ctx, *args):
@@ -75,10 +78,11 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
                 return
 
             response_message = await ctx.reply(response_text)
+            self.converser_cog.users_to_interactions[ctx.message.author.id] = []
+            self.converser_cog.users_to_interactions[ctx.message.author.id].append(response_message.id)
 
             redo_users[ctx.author.id] = RedoUser(prompt, ctx.message, response_message)
-            RedoButtonView.bot = self.converser_cog
-            await response_message.edit(view=RedoButtonView())
+            await response_message.edit(view=OptimizeView(self.converser_cog, self.image_service_cog, self.deletion_queue))
 
         # Catch the value errors raised by the Model object
         except ValueError as e:
@@ -94,13 +98,71 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             return
 
 
-class RedoButtonView(
-    discord.ui.View
-):  # Create a class called MyView that subclasses discord.ui.View
-    @discord.ui.button(
-        label="", style=discord.ButtonStyle.primary, emoji="🔄"
-    )  # Create a button with the label "😎 Click me!" with color Blurple
-    async def button_callback(self, button, interaction):
+class OptimizeView(discord.ui.View):
+    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+        super().__init__()
+        self.cog = converser_cog
+        self.image_service_cog = image_service_cog
+        self.deletion_queue = deletion_queue
+        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue))
+        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue))
+
+class DrawButton(discord.ui.Button['OptimizeView']):
+
+    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+        super().__init__(style=discord.ButtonStyle.green, label='Draw')
+        self.converser_cog = converser_cog
+        self.image_service_cog = image_service_cog
+        self.deletion_queue = deletion_queue
+
+    async def callback(self, interaction: discord.Interaction):
+
+        user_id = interaction.user.id
+        interaction_id = interaction.message.id
+
+        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
+            await interaction.response.send_message(
+                content="You can only draw for prompts that you generated yourself!", ephemeral=True
+            )
+            return
+
+        msg = await interaction.response.send_message(
+            "Drawing this prompt!", ephemeral=False
+        )
+        self.converser_cog.users_to_interactions[interaction.user.id].append(msg.id)
+        self.converser_cog.users_to_interactions[interaction.user.id].append(interaction.id)
+        self.converser_cog.users_to_interactions[interaction.user.id].append(interaction.message.id)
+
+
+        # get the text content of the message that was interacted with
+        prompt = interaction.message.content
+
+        # Use regex to replace "Output Prompt:" loosely with nothing.
+        # This is to ensure that the prompt is formatted correctly
+        prompt = re.sub(r"Output Prompt: ?", "", prompt)
+
+        # Call the image service cog to draw the image
+        await self.image_service_cog.encapsulated_send(prompt, None, msg, True, True, user_id)
+
+
+class RedoButton(discord.ui.Button['OptimizeView']):
+
+    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+        super().__init__(style=discord.ButtonStyle.danger, label='Retry')
+        self.converser_cog = converser_cog
+        self.image_service_cog = image_service_cog
+        self.deletion_queue = deletion_queue
+
+    async def callback(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
+        interaction_id = interaction.message.id
+
+        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
+            await interaction.response.send_message(
+                content="You can only redo for prompts that you generated yourself!", ephemeral=True
+            )
+            return
+
         msg = await interaction.response.send_message(
             "Redoing your original request...", ephemeral=True
         )
@@ -109,7 +171,7 @@ class RedoButtonView(
         deletion = Deletion(
             msg, (datetime.datetime.now() + datetime.timedelta(seconds=10)).timestamp()
         )
-        await self.bot.deletion_queue.put(deletion)
+        await self.deletion_queue.put(deletion)
 
         # Get the user
         user_id = interaction.user.id
@@ -119,4 +181,4 @@ class RedoButtonView(
             message = redo_users[user_id].message
             prompt = redo_users[user_id].prompt
             response_message = redo_users[user_id].response
-            await self.bot.encapsulated_send(message, prompt, response_message)
+            await self.converser_cog.encapsulated_send(message, prompt, response_message)

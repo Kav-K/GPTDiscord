@@ -31,3 +31,23 @@ class UsageService:
     def count_tokens(self, input):
         res = self.tokenizer(input)["input_ids"]
         return len(res)
+
+    def update_usage_image(self, image_size):
+        # 1024×1024    $0.020 / image
+        # 512×512    $0.018 / image
+        # 256×256    $0.016 / image
+
+        if image_size == "1024x1024":
+            price = 0.02
+        elif image_size == "512x512":
+            price = 0.018
+        elif image_size == "256x256":
+            price = 0.016
+        else:
+            raise ValueError("Invalid image size")
+
+        usage = self.get_usage()
+
+        with open("usage.txt", "w") as f:
+            f.write(str(usage + float(price)))
+            f.close()
