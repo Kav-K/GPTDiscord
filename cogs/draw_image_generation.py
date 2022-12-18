@@ -213,13 +213,14 @@ class SaveView(discord.ui.View):
         self.converser_cog = converser_cog
         for x in range(1, len(image_urls) + 1):
             self.add_item(SaveButton(x, image_urls[x - 1]))
+        if not no_retry:
+            self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog))
+        for x in range(1, len(image_urls) + 1):
             self.add_item(
                 VaryButton(
                     x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog
                 )
             )
-        if not no_retry:
-            self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog))
 
 
 class VaryButton(discord.ui.Button):

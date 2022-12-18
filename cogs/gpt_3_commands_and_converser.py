@@ -164,7 +164,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
     async def send_help_text(self, message):
         embed = discord.Embed(
-            title="GPT3Bot Help", description="The current commands", color=0x00FF00
+            title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
             name="!g <prompt>",

@@ -141,7 +141,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
             return
 
         msg = await interaction.response.send_message(
-            "Drawing this prompt!", ephemeral=False
+            "Drawing this prompt...", ephemeral=False
         )
         self.converser_cog.users_to_interactions[interaction.user.id].append(msg.id)
         self.converser_cog.users_to_interactions[interaction.user.id].append(
@@ -156,7 +156,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
 
         # Use regex to replace "Output Prompt:" loosely with nothing.
         # This is to ensure that the prompt is formatted correctly
-        prompt = re.sub(r"Output Prompt: ?", "", prompt)
+        prompt = re.sub(r"Optimized Prompt: ?", "", prompt)
 
         # Call the image service cog to draw the image
         await self.image_service_cog.encapsulated_send(

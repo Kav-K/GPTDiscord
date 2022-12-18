@@ -1,7 +1,10 @@
 # Screenshots
 
-<p align="center"><img src="https://i.imgur.com/ub9EAEe.png"/>
-<img src="https://i.imgur.com/DDQWJIy.png"/></p>
+<p align="center">
+<img width=80% height=80% src="https://i.imgur.com/KeLpDgj.png"/>
+<img width=80% height=80% src="https://i.imgur.com/AFCwxgJ.png"/>
+
+</p>
 
 
 

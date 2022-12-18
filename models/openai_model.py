@@ -389,8 +389,10 @@ class Model:
         # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
         # image and try again
         safety_counter = 0
-        while image_size > 8 or safety_counter >= 2:
+        while image_size > 8:
             safety_counter += 1
+            if safety_counter >= 2:
+                break
             print(
                 f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
             )
