@@ -22,6 +22,7 @@ class Models:
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
 
+
 class ImageSize:
     LARGE = "1024x1024"
     MEDIUM = "512x512"
@@ -58,7 +59,13 @@ class Model:
                 os.makedirs(self.IMAGE_SAVE_PATH)
             self.custom_image_path = False
 
-        self._hidden_attributes = ["usage_service", "DAVINCI_ROLES", "custom_image_path", "custom_web_root", "_hidden_attributes"]
+        self._hidden_attributes = [
+            "usage_service",
+            "DAVINCI_ROLES",
+            "custom_image_path",
+            "custom_web_root",
+            "_hidden_attributes",
+        ]
 
         openai.api_key = os.getenv("OPENAI_TOKEN")
 
@@ -73,7 +80,9 @@ class Model:
         if value in ImageSize.__dict__.values():
             self._image_size = value
         else:
-            raise ValueError("Image size must be one of the following: SMALL(256x256), MEDIUM(512x512), LARGE(1024x1024)")
+            raise ValueError(
+                "Image size must be one of the following: SMALL(256x256), MEDIUM(512x512), LARGE(1024x1024)"
+            )
 
     @property
     def num_images(self):
@@ -320,8 +329,8 @@ class Model:
         print(response.__dict__)
 
         image_urls = []
-        for result in response['data']:
-            image_urls.append(result['url'])
+        for result in response["data"]:
+            image_urls.append(result["url"])
 
         # For each image url, open it as an image object using PIL
         images = [Image.open(requests.get(url, stream=True).raw) for url in image_urls]
@@ -348,10 +357,10 @@ class Model:
         height = max(heights) * num_rows
 
         # Create a transparent image with the same size as the images
-        transparent = Image.new('RGBA', (max(widths), max(heights)))
+        transparent = Image.new("RGBA", (max(widths), max(heights)))
 
         # Create a new image with the calculated size
-        new_im = Image.new('RGBA', (width, height))
+        new_im = Image.new("RGBA", (width, height))
 
         # Paste the images and transparent segments into the grid
         x_offset = y_offset = 0
@@ -370,7 +379,6 @@ class Model:
             x_offset = 0
             y_offset += transparent.size[1]
 
-
         # Save the new_im to a temporary file and return it as a discord.File
         temp_file = tempfile.NamedTemporaryFile(suffix=".png")
         new_im.save(temp_file.name)
@@ -383,8 +391,12 @@ class Model:
         safety_counter = 0
         while image_size > 8 or safety_counter >= 2:
             safety_counter += 1
-            print(f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again")
-            new_im = new_im.resize((int(new_im.width / 1.05), int(new_im.height / 1.05)))
+            print(
+                f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
+            )
+            new_im = new_im.resize(
+                (int(new_im.width / 1.05), int(new_im.height / 1.05))
+            )
             temp_file = tempfile.NamedTemporaryFile(suffix=".png")
             new_im.save(temp_file.name)
             image_size = os.path.getsize(temp_file.name) / 1000000

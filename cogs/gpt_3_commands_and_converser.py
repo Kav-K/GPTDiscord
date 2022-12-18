@@ -107,7 +107,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         )
         print(f"Draw service was added")
 
-
     @commands.command()
     async def delete_all_conversation_threads(self, ctx):
         # If the user has ADMIN_ROLES
@@ -215,16 +214,27 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         # Create a two-column embed to display the settings, use \u200b to create a blank space
         embed.add_field(
             name="Setting",
-            value="\n".join([key for key in self.model.__dict__.keys() if key not in self.model._hidden_attributes]),
+            value="\n".join(
+                [
+                    key
+                    for key in self.model.__dict__.keys()
+                    if key not in self.model._hidden_attributes
+                ]
+            ),
             inline=True,
         )
         embed.add_field(
             name="Value",
-            value="\n".join([str(value) for key, value in self.model.__dict__.items() if key not in self.model._hidden_attributes]),
+            value="\n".join(
+                [
+                    str(value)
+                    for key, value in self.model.__dict__.items()
+                    if key not in self.model._hidden_attributes
+                ]
+            ),
             inline=True,
         )
         await message.channel.send(embed=embed)
-
 
     async def process_settings_command(self, message):
         # Extract the parameter and the value
@@ -529,7 +539,8 @@ class RedoButtonView(
     discord.ui.View
 ):  # Create a class called MyView that subclasses discord.ui.View
     @discord.ui.button(
-        label="Retry", style=discord.ButtonStyle.danger,
+        label="Retry",
+        style=discord.ButtonStyle.danger,
     )  # Create a button with the label "😎 Click me!" with color Blurple
     async def button_callback(self, button, interaction):
         msg = await interaction.response.send_message(
