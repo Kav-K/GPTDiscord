@@ -6,7 +6,7 @@ name: CI
 # events but only for the master branch
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -23,13 +23,49 @@ jobs:
     # Runs a single command using the runners shell
     - name: Run a one-line script
       run: echo Hello, world!
+
     # Runs a set of commands using the runners shell
     - uses: actions/checkout@master
+    - name: copy file via ssh password
+      uses: appleboy/scp-action@master
+      with:
+        host: bot.kaveenk.com
+        username: root
+        password: ${{ secrets.SSH_PASS }}
+        port: 22
+        source: "main.py"
+        target: "/home/gptbot/"
+    - name: copy file via ssh password
+      uses: appleboy/scp-action@master
+      with:
+        host: bot.kaveenk.com
+        username: root
+        password: ${{ secrets.SSH_PASS }}
+        port: 22
+        source: "conversation_starter_pretext.txt"
+        target: "/home/gptbot/" 
+    - name: copy file via ssh password
+      uses: appleboy/scp-action@master
+      with:
+        host: bot.kaveenk.com
+        username: root
+        password: ${{ secrets.SSH_PASS }}
+        port: 22
+        source: "image_optimizer_pretext.txt"
+        target: "/home/gptbot/" 
     - name: Copy via ssh
       uses: garygrossgarten/github-action-scp@release
       with:
-        local: /*
-        remote: /home/gptbot
+        local: cogs
+        remote: /home/gptbot/cogs
+        host: bot.kaveenk.com
+        username: root
+        password: ${{ secrets.SSH_PASS }}
+    - name: Copy via ssh
+      uses: garygrossgarten/github-action-scp@release
+      with:
+        local: models
+        remote: /home/gptbot/models
         host: bot.kaveenk.com
         username: root
         password: ${{ secrets.SSH_PASS }}
