@@ -1,3 +1,10 @@
+# Screenshots
+
+<p align="center"><img src="https://i.imgur.com/ub9EAEe.png"/>
+<img src="https://i.imgur.com/DDQWJIy.png"/></p>
+
+
+
 # Features
 - **Directly prompt GPT3 with `!g <prompt>`**
 
