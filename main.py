@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 import discord
 from discord.ext import commands
@@ -63,4 +64,24 @@ async def main():
 
 # Run the bot with a token taken from an environment file.
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(main())
+
+    PID_FILE = "bot.pid"
+    if os.path.exists(PID_FILE):
+        print("Process ID file already exists")
+        sys.exit(1)
+    else:
+        with open(PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+            print("Wrote PID to file bot.pid")
+            f.close()
+    try:
+        asyncio.get_event_loop().run_until_complete(main())
+    except KeyboardInterrupt:
+        print("Caught keyboard interrupt, killing and removing PID")
+        os.remove(PID_FILE)
+    except Exception as e:
+        print(str(e))
+        print("Removing PID file")
+        os.remove(PID_FILE)
+    finally:
+        sys.exit(0)
