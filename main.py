@@ -72,9 +72,7 @@ if __name__ == "__main__":
     else:
         with open(PID_FILE, "w") as f:
             f.write(str(os.getpid()))
-            print(""
-                  "Wrote PID to f"
-                  "ile the file "+PID_FILE)
+            print("" "Wrote PID to f" "ile the file " + PID_FILE)
             f.close()
     try:
         asyncio.get_event_loop().run_until_complete(main())
@@ -87,6 +85,3 @@ if __name__ == "__main__":
         os.remove(PID_FILE)
     finally:
         sys.exit(0)
-
-
-
