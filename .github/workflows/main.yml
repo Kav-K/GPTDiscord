@@ -28,7 +28,7 @@ jobs:
     - name: Copy via ssh
       uses: garygrossgarten/github-action-scp@release
       with:
-        local: /
+        local: /*
         remote: /home/gptbot
         host: bot.kaveenk.com
         username: root
