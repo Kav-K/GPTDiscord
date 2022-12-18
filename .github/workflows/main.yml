@@ -1,0 +1,69 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run a one-line script
+        run: echo Hello, world!
+      - uses: actions/checkout@master
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: bot.kaveenk.com
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: main.py
+          target: /home/gptbot/
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: bot.kaveenk.com
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: conversation_starter_pretext.txt
+          target: /home/gptbot/
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: bot.kaveenk.com
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: image_optimizer_pretext.txt
+          target: /home/gptbot/
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: cogs
+          remote: /home/gptbot/cogs
+          host: bot.kaveenk.com
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: models
+          remote: /home/gptbot/models
+          host: bot.kaveenk.com
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: Restart bot!
+        uses: fifsky/ssh-action@master
+        with:
+          command: |
+            cd /home/gptbot
+            kill -9 $(cat bot.pid)
+            rm bot.pid
+            screen -dmS GPTBot python3.9 main.py
+            logout
+            exit
+          host: bot.kaveenk.com
+          user: root
+          pass: ${{ secrets.SSH_PASS}}
