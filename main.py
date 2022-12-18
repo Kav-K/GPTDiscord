@@ -87,8 +87,3 @@ if __name__ == "__main__":
         os.remove(PID_FILE)
     finally:
         sys.exit(0)
-
-
-
-
-
