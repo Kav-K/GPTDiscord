@@ -1,8 +1,8 @@
 # Screenshots
 
 <p align="center">
-<img width=80% height=80% src="https://i.imgur.com/KeLpDgj.png"/>
-<img width=80% height=80% src="https://i.imgur.com/AFCwxgJ.png"/>
+<img src="https://i.imgur.com/KeLpDgj.png"/>
+<img  src="https://i.imgur.com/AFCwxgJ.png"/>
 
 </p>
 
