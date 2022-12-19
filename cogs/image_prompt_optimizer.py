@@ -113,7 +113,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
 
 class OptimizeView(discord.ui.View):
     def __init__(self, converser_cog, image_service_cog, deletion_queue):
-        super().__init__()
+        super().__init__(timeout=None)
         self.cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue

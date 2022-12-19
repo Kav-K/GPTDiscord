@@ -207,20 +207,35 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 
 class SaveView(discord.ui.View):
-    def __init__(self, image_urls, cog, converser_cog, no_retry=False):
-        super().__init__()
+    def __init__(self, image_urls, cog, converser_cog, no_retry=False, only_save=None):
+        super().__init__(timeout=600 if not only_save else None) # 10 minute timeout for Retry, Save
+        self.image_urls = image_urls
         self.cog = cog
+        self.no_retry = no_retry
         self.converser_cog = converser_cog
         for x in range(1, len(image_urls) + 1):
             self.add_item(SaveButton(x, image_urls[x - 1]))
-        if not no_retry:
-            self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog))
-        for x in range(1, len(image_urls) + 1):
-            self.add_item(
-                VaryButton(
-                    x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog
+        if not only_save:
+            if not no_retry:
+                self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog))
+            for x in range(1, len(image_urls) + 1):
+                self.add_item(
+                    VaryButton(
+                        x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog
+                    )
                 )
-            )
+
+    # On the timeout event, override it and we want to clear the items.
+    async def on_timeout(self):
+        # Save all the SaveButton items, then clear all the items, then add back the SaveButton items, then
+        # update the message
+        self.clear_items()
+
+        # Create a new view with the same params as this one, but pass only_save=True
+        new_view = SaveView(self.image_urls, self.cog, self.converser_cog, self.no_retry, only_save=True)
+
+        # Set the view of the message to the new view
+        await self.message.edit(view=new_view)
 
 
 class VaryButton(discord.ui.Button):

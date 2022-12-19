@@ -379,13 +379,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 if len(response_text) > self.TEXT_CUTOFF:
                     await self.paginate_and_send(response_text, message)
                 else:
-                    response_message = await message.reply(response_text)
+                    response_message = await message.reply(response_text, view=RedoView(self))
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, response_message
                     )
-                    RedoButtonView.bot = self
-                    await response_message.edit(view=RedoButtonView())
-
             else:
                 # We have response_text available, this is the original message that we want to edit
                 await response_message.edit(content=response_text)
@@ -547,15 +544,26 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # Send the request to the model
             await self.encapsulated_send(message, prompt)
 
+class RedoView(discord.ui.View):
+    def __init__(self, converser_cog):
+        super().__init__(timeout=3600) # 1 hour interval to redo.
+        self.converser_cog = converser_cog
+        self.add_item(RedoButton(self.converser_cog))
 
-class RedoButtonView(
-    discord.ui.View
-):  # Create a class called MyView that subclasses discord.ui.View
-    @discord.ui.button(
-        label="Retry",
-        style=discord.ButtonStyle.danger,
-    )  # Create a button with the label "😎 Click me!" with color Blurple
-    async def button_callback(self, button, interaction):
+    async def on_timeout(self):
+        # Remove the button from the view/message
+        self.clear_items()
+        # Send a message to the user saying the view has timed out
+        await self.message.edit(
+            view=None,
+        )
+
+class RedoButton(discord.ui.Button["RedoView"]):
+    def __init__(self, converser_cog):
+        super().__init__(style=discord.ButtonStyle.danger, label="Retry")
+        self.converser_cog = converser_cog
+
+    async def callback(self, interaction: discord.Interaction):
         msg = await interaction.response.send_message(
             "Retrying your original request...", ephemeral=True
         )
@@ -564,7 +572,7 @@ class RedoButtonView(
         deletion = Deletion(
             msg, (datetime.datetime.now() + datetime.timedelta(seconds=10)).timestamp()
         )
-        await self.bot.deletion_queue.put(deletion)
+        await self.converser_cog.deletion_queue.put(deletion)
 
         # Get the user
         user_id = interaction.user.id
@@ -573,4 +581,4 @@ class RedoButtonView(
             message = redo_users[user_id].message
             prompt = redo_users[user_id].prompt
             response_message = redo_users[user_id].response
-            await self.bot.encapsulated_send(message, prompt, response_message)
+            await self.converser_cog.encapsulated_send(message, prompt, response_message)
