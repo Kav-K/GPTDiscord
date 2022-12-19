@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import traceback
 
 import discord
 from discord.ext import commands
@@ -80,6 +81,7 @@ if __name__ == "__main__":
         print("Caught keyboard interrupt, killing and removing PID")
         os.remove(PID_FILE)
     except Exception as e:
+        traceback.print_exc()
         print(str(e))
         print("Removing PID file")
         os.remove(PID_FILE)

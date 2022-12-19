@@ -171,6 +171,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 await thread.edit(locked=True)
                 await thread.edit(name="Closed-GPT")
             except:
+                traceback.print_exc()
                 pass
 
     async def send_help_text(self, message):
@@ -333,6 +334,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 await self.queue_debug_message(debug_message, message, debug_channel)
         except Exception as e:
             print(e)
+            traceback.print_exc()
             await self.message_queue.put(
                 Message("Error sending debug message: " + str(e), debug_channel)
             )
