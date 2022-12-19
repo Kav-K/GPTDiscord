@@ -374,9 +374,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                         split_history.pop(i)
 
         # Join the split history back together
-        self.conversating_users[user_id].history = "<|endofstatement|>".join(split_history)
+        self.conversating_users[user_id].history = "<|endofstatement|>".join(
+            split_history
+        )
         self.conversating_users[user_id].history += "<|endofstatement|>"
-
 
     async def encapsulated_send(self, message, prompt, response_message=None):
 
@@ -404,8 +405,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 self.fix_conversation_history(message.author.id)
                 self.check_conversing(message)
 
-
-
                 # If the response text is > 3500 characters, paginate and send
             debug_message = self.generate_debug_message(prompt, response)
 
@@ -415,7 +414,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     await self.paginate_and_send(response_text, message)
                 else:
                     response_message = await message.reply(
-                        response_text.replace("<|endofstatement|>", ""), view=RedoView(self)
+                        response_text.replace("<|endofstatement|>", ""),
+                        view=RedoView(self),
                     )
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, response_message
@@ -423,10 +423,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 original_message[message.author.id] = message.id
             else:
                 # We have response_text available, this is the original message that we want to edit
-                await response_message.edit(content=response_text.replace("<|endofstatement|>", ""))
+                await response_message.edit(
+                    content=response_text.replace("<|endofstatement|>", "")
+                )
                 if message.author.id in self.conversating_users:
                     self.fix_conversation_history(message.author.id)
-
 
             # After each response, check if the user has reached the conversation limit in terms of messages or time.
             await self.check_conversation_limit(message)
@@ -462,25 +463,40 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 # "Human:" message, create a new Human: section with the new prompt, and then set the prompt to
                 # the new prompt, then send that new prompt as the new prompt.
                 if after.author.id in self.conversating_users:
-                    conversation_history = self.conversating_users[after.author.id].history
+                    conversation_history = self.conversating_users[
+                        after.author.id
+                    ].history
 
-                    last_human_index = conversation_history.rfind("Human: ", 0, len(conversation_history))
-                    last_gptie_index = conversation_history.rfind("GPTie: ", 0, len(conversation_history))
+                    last_human_index = conversation_history.rfind(
+                        "Human: ", 0, len(conversation_history)
+                    )
+                    last_gptie_index = conversation_history.rfind(
+                        "GPTie: ", 0, len(conversation_history)
+                    )
 
                     # If the last_human_index is -1, then we didn't find a "Human: " message in the conversation history.
                     # This means that the user has not sent a message yet, so we don't need to edit the conversation history.
                     if last_human_index != -1:
                         # If the last_human_index is not -1, then we found a "Human: " message in the conversation history.
                         # We need to remove the last "Human: " and "GPTie: " messages from the conversation history.
-                        conversation_history = conversation_history[:last_human_index] + conversation_history[last_gptie_index:]
+                        conversation_history = (
+                            conversation_history[:last_human_index]
+                            + conversation_history[last_gptie_index:]
+                        )
 
-                    conversation_history += "\nHuman: " + after.content + " <|endofstatement|>\n\n"
+                    conversation_history += (
+                        "\nHuman: " + after.content + " <|endofstatement|>\n\n"
+                    )
                     prompt = conversation_history + "GPTie: "
                     self.conversating_users[after.author.id].history = prompt
                     self.fix_conversation_history(after.author.id)
 
                 await self.encapsulated_send(
-                    message, after.content if message.author.id not in self.conversating_users else self.conversating_users[after.author.id].history, response_message
+                    message,
+                    after.content
+                    if message.author.id not in self.conversating_users
+                    else self.conversating_users[after.author.id].history,
+                    response_message,
                 )
                 redo_users[after.author.id].prompt = after.content
                 if message.author.id in self.conversating_users:
