@@ -19,6 +19,8 @@
 
 - **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly!
 
+- Automatically re-send your prompt and update the response in place if you edit your original prompt!
+
 - Change and view model parameters such as temp, top_p, and etc directly within discord. 
 - Tracks token usage automatically
 - Automatic pagination and discord support, the bot will automatically send very long message as multiple messages, and is able to send discord code blocks and emoji, gifs, etc.
