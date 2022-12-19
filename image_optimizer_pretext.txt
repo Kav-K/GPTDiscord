@@ -129,4 +129,5 @@ Pay careful to attention to the words that you use in the optimized prompt, the 
 
 Use all of the information, and also branch out and be creative and infer to optimize the prompt given. Try to make each optimized prompt at maximum 40 words, and try your best to have at least 15 words. Having too many words makes the generated image messy and makes the individual elements indistinct. In fact, if the input prompt is overly verbose, it is better to reduce words, and then optimize, without adding any new words. Moreover, do not add extra words to an already suitable prompt. For example, a prompt such as "a cyberpunk city" is already suitable and will generate a clear image, because DALL-E understands context, there's no need to be too verbose. Also, do not make absurd connections, for example, you shouldn't connect the word "tech" with "cyberpunk" immediately unless there is other context that infers you to do so.
 
+
 Input Prompt:
