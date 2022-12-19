@@ -51,6 +51,16 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
+    # Command error handler
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandNotFound):
+            return
+        elif isinstance(error, commands.InvalidEndOfQuotedStringError):
+            await ctx.reply("There was an error while parsing your input. Please ensure that all quotation marks are closed and there is a space after the last quotation mark")
+        raise error
+
+
     @commands.command()
     async def imgoptimize(self, ctx, *args):
 
