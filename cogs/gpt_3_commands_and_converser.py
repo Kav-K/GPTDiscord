@@ -113,6 +113,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         try:
             usage = float(usage)
             self.usage_service.set_usage(usage)
+            await ctx.send(f"Set the usage to {usage}")
         except:
             await ctx.send("The usage value must be a valid float.")
             return
