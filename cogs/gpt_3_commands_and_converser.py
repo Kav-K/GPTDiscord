@@ -24,6 +24,7 @@ class RedoUser:
 
 
 redo_users = {}
+original_message = {}
 
 
 class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
@@ -352,6 +353,31 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
                 await self.end_conversation(message)
 
+    def fix_conversation_history(self, user_id):
+        conversation_history = self.conversating_users[user_id].history
+
+        split_history = conversation_history.split("<|endofstatement|>")
+
+        # Eliminate all entries that are empty, or only contain whitespace
+        split_history = [entry for entry in split_history if entry.strip()]
+
+        # Now, iterate through all the statements. If there are multiple statements that start with "GPTie" in a row,
+        # we want to remove all but the FIRST one.
+        # We can do this by iterating through the statements, and if we encounter a GPTie: statement, we can check if the previous statement was a GPTie: statement.
+        # If it was, we can remove the current statement from the history.
+        for i, entry in enumerate(split_history):
+
+            if entry.strip().startswith("GPTie:"):
+                if i > 0:
+                    if split_history[i - 1].strip().startswith("GPTie:"):
+                        # Remove the current entry from the history
+                        split_history.pop(i)
+
+        # Join the split history back together
+        self.conversating_users[user_id].history = "<|endofstatement|>".join(split_history)
+        self.conversating_users[user_id].history += "<|endofstatement|>"
+
+
     async def encapsulated_send(self, message, prompt, response_message=None):
 
         # Send the request to the model
@@ -368,8 +394,17 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 # If the user is conversating, we want to add the response to their history
             if message.author.id in self.conversating_users:
                 self.conversating_users[message.author.id].history += (
-                    response_text + "\n"
+                    response_text + "<|endofstatement|>\n"
                 )
+
+                # We must now check for duplicate GPTie: entries in consecutive messages not separated by a Human:
+                # We can split based on "<|endofstatement|>" to get each statement in the chat.
+                # We can then check if the last statement is a GPTie: statement, and if the current statement is a GPTie: statement.
+                # If both are true, we can remove the last statement from the history.
+                self.fix_conversation_history(message.author.id)
+                self.check_conversing(message)
+
+
 
                 # If the response text is > 3500 characters, paginate and send
             debug_message = self.generate_debug_message(prompt, response)
@@ -380,14 +415,18 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     await self.paginate_and_send(response_text, message)
                 else:
                     response_message = await message.reply(
-                        response_text, view=RedoView(self)
+                        response_text.replace("<|endofstatement|>", ""), view=RedoView(self)
                     )
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, response_message
                     )
+                original_message[message.author.id] = message.id
             else:
                 # We have response_text available, this is the original message that we want to edit
-                await response_message.edit(content=response_text)
+                await response_message.edit(content=response_text.replace("<|endofstatement|>", ""))
+                if message.author.id in self.conversating_users:
+                    self.fix_conversation_history(message.author.id)
+
 
             # After each response, check if the user has reached the conversation limit in terms of messages or time.
             await self.check_conversation_limit(message)
@@ -408,6 +447,44 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # print a stack trace
             traceback.print_exc()
             return
+
+    # A listener for message edits to redo prompts if they are edited
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if after.author.id in redo_users:
+            if after.id == original_message[after.author.id]:
+                message = redo_users[after.author.id].message
+                prompt = redo_users[after.author.id].prompt
+                response_message = redo_users[after.author.id].response
+                await response_message.edit(content="Redoing prompt 🔄...")
+
+                # If the user is conversing, we need to get their conversation history, delete the last
+                # "Human:" message, create a new Human: section with the new prompt, and then set the prompt to
+                # the new prompt, then send that new prompt as the new prompt.
+                if after.author.id in self.conversating_users:
+                    conversation_history = self.conversating_users[after.author.id].history
+
+                    last_human_index = conversation_history.rfind("Human: ", 0, len(conversation_history))
+                    last_gptie_index = conversation_history.rfind("GPTie: ", 0, len(conversation_history))
+
+                    # If the last_human_index is -1, then we didn't find a "Human: " message in the conversation history.
+                    # This means that the user has not sent a message yet, so we don't need to edit the conversation history.
+                    if last_human_index != -1:
+                        # If the last_human_index is not -1, then we found a "Human: " message in the conversation history.
+                        # We need to remove the last "Human: " and "GPTie: " messages from the conversation history.
+                        conversation_history = conversation_history[:last_human_index] + conversation_history[last_gptie_index:]
+
+                    conversation_history += "\nHuman: " + after.content + " <|endofstatement|>\n\n"
+                    prompt = conversation_history + "GPTie: "
+                    self.conversating_users[after.author.id].history = prompt
+                    self.fix_conversation_history(after.author.id)
+
+                await self.encapsulated_send(
+                    message, after.content if message.author.id not in self.conversating_users else self.conversating_users[after.author.id].history, response_message
+                )
+                redo_users[after.author.id].prompt = after.content
+                if message.author.id in self.conversating_users:
+                    self.conversating_users[after.author.id].count += 1
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -531,11 +608,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # history to the prompt. We can do this by checking if the user is in the conversating_users dictionary, and if they are,
             # we can append their history to the prompt.
             if message.author.id in self.conversating_users:
+                self.fix_conversation_history(message.author.id)
                 prompt = (
                     self.conversating_users[message.author.id].history
                     + "\nHuman: "
                     + prompt
-                    + "\nGPTie:"
+                    + "<|endofstatement|>\nGPTie:"
                 )
                 # Now, add overwrite the user's history with the new prompt
                 self.conversating_users[message.author.id].history = prompt
