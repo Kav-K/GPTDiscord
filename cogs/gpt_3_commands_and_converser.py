@@ -108,6 +108,16 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         print(f"Draw service was added")
 
     @commands.command()
+    async def set_usage(self, ctx, usage):
+        # Attempt to convert the input usage value into a float
+        try:
+            usage = float(usage)
+            self.usage_service.set_usage(usage)
+        except:
+            await ctx.send("The usage value must be a valid float.")
+            return
+
+    @commands.command()
     async def delete_all_conversation_threads(self, ctx):
         # If the user has ADMIN_ROLES
         if not any(role.name in self.ADMIN_ROLES for role in ctx.author.roles):

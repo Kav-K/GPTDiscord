@@ -22,6 +22,11 @@ class UsageService:
             f.write(str(usage + float(price)))
             f.close()
 
+    def set_usage(self, usage):
+        with open("usage.txt", "w") as f:
+            f.write(str(usage))
+            f.close()
+
     def get_usage(self):
         with open("usage.txt", "r") as f:
             usage = float(f.read().strip())
