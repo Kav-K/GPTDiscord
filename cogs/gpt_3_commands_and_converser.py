@@ -379,7 +379,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 if len(response_text) > self.TEXT_CUTOFF:
                     await self.paginate_and_send(response_text, message)
                 else:
-                    response_message = await message.reply(response_text, view=RedoView(self))
+                    response_message = await message.reply(
+                        response_text, view=RedoView(self)
+                    )
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, response_message
                     )
@@ -544,9 +546,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # Send the request to the model
             await self.encapsulated_send(message, prompt)
 
+
 class RedoView(discord.ui.View):
     def __init__(self, converser_cog):
-        super().__init__(timeout=3600) # 1 hour interval to redo.
+        super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
         self.add_item(RedoButton(self.converser_cog))
 
@@ -557,6 +560,7 @@ class RedoView(discord.ui.View):
         await self.message.edit(
             view=None,
         )
+
 
 class RedoButton(discord.ui.Button["RedoView"]):
     def __init__(self, converser_cog):
@@ -581,4 +585,6 @@ class RedoButton(discord.ui.Button["RedoView"]):
             message = redo_users[user_id].message
             prompt = redo_users[user_id].prompt
             response_message = redo_users[user_id].response
-            await self.converser_cog.encapsulated_send(message, prompt, response_message)
+            await self.converser_cog.encapsulated_send(
+                message, prompt, response_message
+            )

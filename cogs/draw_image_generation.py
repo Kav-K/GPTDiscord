@@ -208,7 +208,9 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 class SaveView(discord.ui.View):
     def __init__(self, image_urls, cog, converser_cog, no_retry=False, only_save=None):
-        super().__init__(timeout=600 if not only_save else None) # 10 minute timeout for Retry, Save
+        super().__init__(
+            timeout=600 if not only_save else None
+        )  # 10 minute timeout for Retry, Save
         self.image_urls = image_urls
         self.cog = cog
         self.no_retry = no_retry
@@ -232,7 +234,9 @@ class SaveView(discord.ui.View):
         self.clear_items()
 
         # Create a new view with the same params as this one, but pass only_save=True
-        new_view = SaveView(self.image_urls, self.cog, self.converser_cog, self.no_retry, only_save=True)
+        new_view = SaveView(
+            self.image_urls, self.cog, self.converser_cog, self.no_retry, only_save=True
+        )
 
         # Set the view of the message to the new view
         await self.message.edit(view=new_view)
