@@ -346,7 +346,6 @@ class Model:
 
         print("The prompt about to be sent is " + prompt)
 
-
         response = openai.Completion.create(
             model=Models.DAVINCI
             if any(role.name in self.DAVINCI_ROLES for role in message.author.roles)
