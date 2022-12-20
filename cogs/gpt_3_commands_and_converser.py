@@ -508,15 +508,19 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         content = message.content.lower()
 
         # Only allow the bot to be used by people who have the role "Admin" or "GPT"
-        general_user = not any(
-            role in set(self.DAVINCI_ROLES).union(set(self.CURIE_ROLES))
-            for role in message.author.roles
-        )
-        admin_user = not any(
-            role in self.DAVINCI_ROLES for role in message.author.roles
-        )
+        # check if message.author has attribute roles
+        if hasattr(message.author, "roles"):
+            general_user = not any(
+                role in set(self.DAVINCI_ROLES).union(set(self.CURIE_ROLES))
+                for role in message.author.roles
+            )
+            admin_user = not any(
+                role in self.DAVINCI_ROLES for role in message.author.roles
+            )
 
-        if not admin_user and not general_user:
+            if not admin_user and not general_user:
+                return
+        else:
             return
 
         conversing = self.check_conversing(message)
