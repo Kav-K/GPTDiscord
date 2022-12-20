@@ -82,7 +82,9 @@ class Model:
     def summarize_threshold(self, value):
         value = int(value)
         if value < 800 or value > 4000:
-            raise ValueError("Summarize threshold cannot be greater than 4000 or less than 800!")
+            raise ValueError(
+                "Summarize threshold cannot be greater than 4000 or less than 800!"
+            )
         self._summarize_threshold = value
 
     @property
@@ -292,9 +294,11 @@ class Model:
         Sends a summary request to the OpenAI API
         """
         summary_request_text = []
-        summary_request_text.append("The following is a conversation instruction set and a conversation"
-                                    " between two people named Human, and GPTie. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details.")
-        summary_request_text.append(prompt+"\nDetailed summary of conversation: \n")
+        summary_request_text.append(
+            "The following is a conversation instruction set and a conversation"
+            " between two people named Human, and GPTie. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details."
+        )
+        summary_request_text.append(prompt + "\nDetailed summary of conversation: \n")
 
         summary_request_text = "".join(summary_request_text)
 
@@ -327,7 +331,10 @@ class Model:
         frequency_penalty_override=None,
         presence_penalty_override=None,
         max_tokens_override=None,
-    ) -> (dict, bool): # The response, and a boolean indicating whether or not the context limit was reached.
+    ) -> (
+        dict,
+        bool,
+    ):  # The response, and a boolean indicating whether or not the context limit was reached.
 
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
@@ -361,7 +368,7 @@ class Model:
             else frequency_penalty_override,
             best_of=self.best_of if not best_of_override else best_of_override,
         )
-        #print(response.__dict__)
+        # print(response.__dict__)
 
         # Parse the total tokens used for this request and response pair from the response
         tokens_used = int(response["usage"]["total_tokens"])
@@ -378,7 +385,7 @@ class Model:
                 + str(words)
             )
 
-        #print("The prompt about to be sent is " + prompt)
+        # print("The prompt about to be sent is " + prompt)
         self.usage_service.update_usage_image(self.image_size)
 
         if not vary:
