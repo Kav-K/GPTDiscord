@@ -41,13 +41,16 @@ class Model:
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
         self._prompt_min_length = 12
-        self._max_conversation_length = 25
+        self._max_conversation_length = 50
         self._model = Models.DAVINCI
         self._low_usage_mode = False
         self.usage_service = usage_service
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
         self._image_size = ImageSize.MEDIUM
         self._num_images = 2
+        self._summarize_conversations = True
+        self._summarize_threshold = 3000
+        self.model_max_tokens = 4024
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -65,11 +68,37 @@ class Model:
             "custom_image_path",
             "custom_web_root",
             "_hidden_attributes",
+            "model_max_tokens",
         ]
 
         openai.api_key = os.getenv("OPENAI_TOKEN")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
+    @property
+    def summarize_threshold(self):
+        return self._summarize_threshold
+
+    @summarize_threshold.setter
+    def summarize_threshold(self, value):
+        value = int(value)
+        if value < 800 or value > 4000:
+            raise ValueError("Summarize threshold cannot be greater than 4000 or less than 800!")
+        self._summarize_threshold = value
+
+    @property
+    def summarize_conversations(self):
+        return self._summarize_conversations
+
+    @summarize_conversations.setter
+    def summarize_conversations(self, value):
+        # convert value string into boolean
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
+        else:
+            raise ValueError("Value must be either true or false!")
+        self._summarize_conversations = value
 
     @property
     def image_size(self):
@@ -101,17 +130,22 @@ class Model:
 
     @low_usage_mode.setter
     def low_usage_mode(self, value):
-        try:
-            value = bool(value)
-        except ValueError:
-            raise ValueError("low_usage_mode must be a boolean")
+        # convert value string into boolean
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
+        else:
+            raise ValueError("Value must be either true or false!")
 
         if value:
             self._model = Models.CURIE
             self.max_tokens = 1900
+            self.model_max_tokens = 1000
         else:
             self._model = Models.DAVINCI
             self.max_tokens = 4000
+            self.model_max_tokens = 4024
 
     @property
     def model(self):
@@ -253,6 +287,36 @@ class Model:
             )
         self._prompt_min_length = value
 
+    def send_summary_request(self, message, prompt):
+        """
+        Sends a summary request to the OpenAI API
+        """
+        summary_request_text = []
+        summary_request_text.append("The following is a conversation instruction set and a conversation"
+                                    " between two people named Human, and GPTie. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details.")
+        summary_request_text.append(prompt+"\nDetailed summary of conversation: \n")
+
+        summary_request_text = "".join(summary_request_text)
+
+        tokens = self.usage_service.count_tokens(summary_request_text)
+
+        response = openai.Completion.create(
+            model=Models.DAVINCI,
+            prompt=summary_request_text,
+            temperature=0.5,
+            top_p=1,
+            max_tokens=self.max_tokens - tokens,
+            presence_penalty=self.presence_penalty,
+            frequency_penalty=self.frequency_penalty,
+            best_of=self.best_of,
+        )
+
+        print(response["choices"][0]["text"])
+
+        tokens_used = int(response["usage"]["total_tokens"])
+        self.usage_service.update_usage(tokens_used)
+        return response
+
     def send_request(
         self,
         prompt,
@@ -263,7 +327,8 @@ class Model:
         frequency_penalty_override=None,
         presence_penalty_override=None,
         max_tokens_override=None,
-    ):
+    ) -> (dict, bool): # The response, and a boolean indicating whether or not the context limit was reached.
+
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
             raise ValueError(
@@ -272,6 +337,8 @@ class Model:
             )
 
         print("The prompt about to be sent is " + prompt)
+
+        # TODO TO REMOVE
         prompt_tokens = self.usage_service.count_tokens(prompt)
         print(f"The prompt tokens will be {prompt_tokens}")
         print(f"The total max tokens will then be {self.max_tokens - prompt_tokens}")
@@ -294,7 +361,7 @@ class Model:
             else frequency_penalty_override,
             best_of=self.best_of if not best_of_override else best_of_override,
         )
-        print(response.__dict__)
+        #print(response.__dict__)
 
         # Parse the total tokens used for this request and response pair from the response
         tokens_used = int(response["usage"]["total_tokens"])
@@ -311,7 +378,7 @@ class Model:
                 + str(words)
             )
 
-        print("The prompt about to be sent is " + prompt)
+        #print("The prompt about to be sent is " + prompt)
         self.usage_service.update_usage_image(self.image_size)
 
         if not vary:

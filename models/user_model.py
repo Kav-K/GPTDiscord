@@ -7,7 +7,7 @@ history, message count, and the id of the user in order to track them.
 class User:
     def __init__(self, id):
         self.id = id
-        self.history = ""
+        self.history = []
         self.count = 0
 
     # These user objects should be accessible by ID, for example if we had a bunch of user

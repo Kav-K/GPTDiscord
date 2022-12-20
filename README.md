@@ -6,7 +6,13 @@
 
 </p>
 
+# Recent Major Updates
 
+- **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
+
+- **DALL-E Image Generation**
+
+- **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
 
 # Features
 - **Directly prompt GPT3 with `!g <prompt>`**
