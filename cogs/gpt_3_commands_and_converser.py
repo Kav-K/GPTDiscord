@@ -407,6 +407,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
             response = self.model.send_request(new_prompt, message)
 
+
             response_text = response["choices"][0]["text"]
 
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
@@ -434,7 +435,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     await self.paginate_and_send(response_text, message)
                 else:
                     response_message = await message.reply(
-                        response_text.replace("<|endofstatement|>", ""), view=RedoView(self)
+                        response_text.replace("<|endofstatement|>", ""),
+                        view=RedoView(self),
                     )
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, response_message
@@ -443,6 +445,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             else:
                 # We have response_text available, this is the original message that we want to edit
                 await response_message.edit(content=response_text.replace("<|endofstatement|>", ""))
+
 
             # After each response, check if the user has reached the conversation limit in terms of messages or time.
             await self.check_conversation_limit(message)
@@ -479,6 +482,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 # "Human:" message, create a new Human: section with the new prompt, and then set the prompt to
                 # the new prompt, then send that new prompt as the new prompt.
                 if after.author.id in self.conversating_users:
+
                     # Remove the last two elements from the history array and add the new Human: prompt
                     self.conversating_users[after.author.id].history = self.conversating_users[after.author.id].history[
                                                                        :-2]
