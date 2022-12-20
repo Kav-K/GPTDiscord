@@ -325,6 +325,7 @@ class Model:
         self,
         prompt,
         message,
+        tokens,
         temp_override=None,
         top_p_override=None,
         best_of_override=None,
@@ -345,10 +346,6 @@ class Model:
 
         print("The prompt about to be sent is " + prompt)
 
-        # TODO TO REMOVE
-        prompt_tokens = self.usage_service.count_tokens(prompt)
-        print(f"The prompt tokens will be {prompt_tokens}")
-        print(f"The total max tokens will then be {self.max_tokens - prompt_tokens}")
 
         response = openai.Completion.create(
             model=Models.DAVINCI
@@ -357,7 +354,7 @@ class Model:
             prompt=prompt,
             temperature=self.temp if not temp_override else temp_override,
             top_p=self.top_p if not top_p_override else top_p_override,
-            max_tokens=self.max_tokens - prompt_tokens
+            max_tokens=self.max_tokens - tokens
             if not max_tokens_override
             else max_tokens_override,
             presence_penalty=self.presence_penalty

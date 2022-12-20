@@ -377,13 +377,13 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         # Append a newline, and GPTie: to the prompt
         new_prompt = prompt + "\nGPTie: "
+        tokens = self.usage_service.count_tokens(new_prompt)
 
         # Send the request to the model
         try:
             # Pre-conversation token check.
             if message.author.id in self.conversating_users:
                 # Check if the prompt is about to go past the token limit
-                tokens = self.usage_service.count_tokens(new_prompt)
 
                 if tokens > self.model.summarize_threshold:  # 250 is a buffer
                     if self.model.summarize_conversations:
@@ -420,7 +420,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                         await self.end_conversation(message)
                         return
 
-            response = self.model.send_request(new_prompt, message)
+            response = self.model.send_request(new_prompt, message, tokens=tokens)
 
             response_text = response["choices"][0]["text"]
 
@@ -648,8 +648,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 self.conversating_users[message.author.id].count += 1
 
             # Send the request to the model
+            # If conversing, the prompt to send is the history, otherwise, it's just the prompt
+
             await self.encapsulated_send(
-                message, "".join(self.conversating_users[message.author.id].history)
+                message, prompt if message.author.id not in self.conversating_users else "".join(self.conversating_users[message.author.id].history)
             )
 
 
