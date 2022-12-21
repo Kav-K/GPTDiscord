@@ -62,6 +62,55 @@ DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 
 Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
 
+## Server Installation
+
+First, you want to get a server, for this guide, I will be using DigitalOcean as the host. 
+
+For instructions on how to get a server from start to finish, they are available on DigitalOcean's website directly from the community, available here: https://www.digitalocean.com/community/tutorials/how-to-set-up-an-ubuntu-20-04-server-on-a-digitalocean-droplet. Ignore the part about setting up an "ssh key", and just use a password instead. 
+
+After you set up the server, the DigitalOcean GUI will give you an IP address, copy this IP address. Afterwards, you will need to SSH into the server. This can be done using a program such as "PuTTy", or by using your commandline, if it's supported. To login to the server, your username will be "root", your password will be the password that you defined earlier when setting up the droplet, and the IP address will be the IP address you copied after the droplet was finished creation.
+
+To connect with ssh, run the following command in terminal:
+`ssh root@{IP ADDRESS}`
+
+It will then prompt you for your password, which you should enter, and then you will be logged in. 
+
+After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:
+
+```
+# Download the source code.
+    1  ls
+    2  git clone https://github.com/Kav-K/GPT3Discord.git
+    3  ls
+    4  cd GPT3Discord/
+    5  ls
+# Install system packages (python)
+    6  sudo apt-get update
+    7  sudo apt install software-properties-common
+    8  sudo add-apt-repository ppa:deadsnakes/ppa
+    9  sudo apt install python3.9
+# This command below should return "Python 3.9.x", if it is working. Otherwise, don't proceed.
+   10  python3.9 --version 
+   11  ls
+   13  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+   14  python3.9 get-pip.py
+# Install project dependencies
+   15  python3.9 -m pip install -r requirements.txt
+   16  ls
+# Copy the sample.env file into a regular .env file. You will need to edit this file.
+   17  scp sample.env .env
+# The command below is used to edit the .env file and to put in your API keys. You can right click within the
+# editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
+   18  nano .env
+   19  ls
+# Run the bot.
+   20  python3.9 main.py
+   21  ls
+
+```
+
+
+```
 ## Bot on discord:
 
 - Create a new Bot on Discord Developer Portal:
