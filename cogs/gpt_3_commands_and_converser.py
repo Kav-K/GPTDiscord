@@ -651,7 +651,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
 
             await self.encapsulated_send(
-                message, prompt if message.author.id not in self.conversating_users else "".join(self.conversating_users[message.author.id].history)
+                message,
+                prompt
+                if message.author.id not in self.conversating_users
+                else "".join(self.conversating_users[message.author.id].history),
             )
 
 
