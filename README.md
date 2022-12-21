@@ -110,7 +110,6 @@ After login, we need to install the various dependencies that the bot needs. To 
 ```
 
 
-```
 ## Bot on discord:
 
 - Create a new Bot on Discord Developer Portal:
@@ -118,7 +117,7 @@ After login, we need to install the various dependencies that the bot needs. To 
 - Generate Toker for the app (discord_bot_token)
     - Select App (Bot) -> Bot -> Reset Token
 - Toogle PRESENCE INTENT:
-    - Select App (Bot) -> Bot -> PRESENCE INTENT
+    - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)
 - Add Bot the the server.
     - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot
     - Bot Permissions will appear, select the desired permissions
