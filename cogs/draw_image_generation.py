@@ -23,7 +23,7 @@ users_to_interactions = {}
 
 class DrawDallEService(commands.Cog, name="DrawDallEService"):
     def __init__(
-            self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
+        self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
         self.bot = bot
         self.usage_service = usage_service
@@ -47,13 +47,13 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         print(f"Image prompt optimizer was added")
 
     async def encapsulated_send(
-            self,
-            prompt,
-            message,
-            response_message=None,
-            vary=None,
-            draw_from_optimizer=None,
-            user_id=None,
+        self,
+        prompt,
+        message,
+        response_message=None,
+        vary=None,
+        draw_from_optimizer=None,
+        user_id=None,
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
@@ -260,8 +260,8 @@ class VaryButton(discord.ui.Button):
             if len(self.converser_cog.users_to_interactions[user_id]) >= 2:
                 interaction_id2 = interaction.id
                 if (
-                        interaction_id2
-                        not in self.converser_cog.users_to_interactions[user_id]
+                    interaction_id2
+                    not in self.converser_cog.users_to_interactions[user_id]
                 ):
                     await interaction.response.send_message(
                         content="You can not vary images in someone else's chain!",
@@ -286,13 +286,14 @@ class VaryButton(discord.ui.Button):
             )
             prompt = redo_users[user_id].prompt
 
-            asyncio.ensure_future(self.cog.encapsulated_send(
-                prompt,
-                interaction.message,
-                response_message=response_message,
-                vary=self.image_url,
-                user_id=user_id,
-            )
+            asyncio.ensure_future(
+                self.cog.encapsulated_send(
+                    prompt,
+                    interaction.message,
+                    response_message=response_message,
+                    vary=self.image_url,
+                    user_id=user_id,
+                )
             )
 
 
@@ -356,4 +357,6 @@ class RedoButton(discord.ui.Button["SaveView"]):
             )
             self.converser_cog.users_to_interactions[user_id].append(message.id)
 
-            asyncio.ensure_future(self.cog.encapsulated_send(prompt, message, response_message))
+            asyncio.ensure_future(
+                self.cog.encapsulated_send(prompt, message, response_message)
+            )

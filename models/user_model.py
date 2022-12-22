@@ -3,6 +3,7 @@ Store information about a discord user, for the purposes of enabling conversatio
 history, message count, and the id of the user in order to track them.
 """
 
+
 class RedoUser:
     def __init__(self, prompt, message, response):
         self.prompt = prompt
@@ -26,6 +27,7 @@ class RedoUser:
     # repr
     def __repr__(self):
         return f"RedoUser({self.message.author.id})"
+
 
 class User:
     def __init__(self, id):
