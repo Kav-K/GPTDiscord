@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 import re
@@ -13,13 +14,8 @@ from discord.ext import commands
 
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
 
-
-class RedoUser:
-    def __init__(self, prompt, message, response_message):
-        self.prompt = prompt
-        self.message = message
-        self.response_message = response_message
-
+# We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
+from models.user_model import RedoUser
 
 redo_users = {}
 users_to_interactions = {}
@@ -27,7 +23,7 @@ users_to_interactions = {}
 
 class DrawDallEService(commands.Cog, name="DrawDallEService"):
     def __init__(
-        self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
+            self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
         self.bot = bot
         self.usage_service = usage_service
@@ -51,14 +47,15 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         print(f"Image prompt optimizer was added")
 
     async def encapsulated_send(
-        self,
-        prompt,
-        message,
-        response_message=None,
-        vary=None,
-        draw_from_optimizer=None,
-        user_id=None,
+            self,
+            prompt,
+            message,
+            response_message=None,
+            vary=None,
+            draw_from_optimizer=None,
+            user_id=None,
     ):
+        await asyncio.sleep(0)
         # send the prompt to the model
         file, image_urls = self.model.send_image_request(
             prompt, vary=vary if not draw_from_optimizer else None
@@ -154,7 +151,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
             # The image prompt is everything after the command
             prompt = " ".join(args)
 
-            await self.encapsulated_send(prompt, message)
+            asyncio.ensure_future(self.encapsulated_send(prompt, message))
 
         except Exception as e:
             print(e)
@@ -263,8 +260,8 @@ class VaryButton(discord.ui.Button):
             if len(self.converser_cog.users_to_interactions[user_id]) >= 2:
                 interaction_id2 = interaction.id
                 if (
-                    interaction_id2
-                    not in self.converser_cog.users_to_interactions[user_id]
+                        interaction_id2
+                        not in self.converser_cog.users_to_interactions[user_id]
                 ):
                     await interaction.response.send_message(
                         content="You can not vary images in someone else's chain!",
@@ -288,12 +285,14 @@ class VaryButton(discord.ui.Button):
                 response_message.id
             )
             prompt = redo_users[user_id].prompt
-            await self.cog.encapsulated_send(
+
+            asyncio.ensure_future(self.cog.encapsulated_send(
                 prompt,
                 interaction.message,
                 response_message=response_message,
                 vary=self.image_url,
                 user_id=user_id,
+            )
             )
 
 
@@ -346,7 +345,6 @@ class RedoButton(discord.ui.Button["SaveView"]):
             return
 
         # We have passed the intial check of if the interaction belongs to the user
-
         if user_id in redo_users:
             # Get the message and the prompt and call encapsulated_send
             message = redo_users[user_id].message
@@ -358,4 +356,4 @@ class RedoButton(discord.ui.Button["SaveView"]):
             )
             self.converser_cog.users_to_interactions[user_id].append(message.id)
 
-            await self.cog.encapsulated_send(prompt, message, response_message)
+            asyncio.ensure_future(self.cog.encapsulated_send(prompt, message, response_message))

@@ -3,6 +3,29 @@ Store information about a discord user, for the purposes of enabling conversatio
 history, message count, and the id of the user in order to track them.
 """
 
+class RedoUser:
+    def __init__(self, prompt, message, response):
+        self.prompt = prompt
+        self.message = message
+        self.response = response
+        self.interactions = []
+
+    def add_interaction(self, interaction):
+        self.interactions.append(interaction)
+
+    def in_interaction(self, interaction):
+        return interaction in self.interactions
+
+    # Represented by user_id
+    def __hash__(self):
+        return hash(self.message.author.id)
+
+    def __eq__(self, other):
+        return self.message.author.id == other.message.author.id
+
+    # repr
+    def __repr__(self):
+        return f"RedoUser({self.message.author.id})"
 
 class User:
     def __init__(self, id):

@@ -8,15 +8,7 @@ import discord
 from discord.ext import commands
 
 from models.deletion_service import Deletion
-
-redo_users = {}
-
-
-class RedoUser:
-    def __init__(self, prompt, message, response):
-        self.prompt = prompt
-        self.message = message
-        self.response = response
+from models.user_model import RedoUser
 
 
 class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
@@ -73,11 +65,14 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         print(
             f"Received an image optimization request for the following prompt: {prompt}"
         )
+        # Get the token amount for the prompt
+        tokens = self.usage_service.count_tokens(prompt)
 
         try:
-            response = self.model.send_request(
+            response = await self.model.send_request(
                 prompt,
                 ctx.message,
+                tokens=tokens,
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
@@ -101,7 +96,8 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
                 response_message.id
             )
 
-            redo_users[ctx.author.id] = RedoUser(prompt, ctx.message, response_message)
+            self.converser_cog.redo_users[ctx.author.id] = RedoUser(prompt, ctx.message, response_message)
+            self.converser_cog.redo_users[ctx.author.id].add_interaction(response_message.id)
             await response_message.edit(
                 view=OptimizeView(
                     self.converser_cog, self.image_service_cog, self.deletion_queue
@@ -144,7 +140,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         user_id = interaction.user.id
         interaction_id = interaction.message.id
 
-        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
+        if interaction_id not in self.converser_cog.users_to_interactions[user_id] or interaction_id not in self.converser_cog.redo_users[user_id].interactions:
             await interaction.response.send_message(
                 content="You can only draw for prompts that you generated yourself!",
                 ephemeral=True,
@@ -183,34 +179,24 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
         self.deletion_queue = deletion_queue
 
     async def callback(self, interaction: discord.Interaction):
-        user_id = interaction.user.id
         interaction_id = interaction.message.id
-
-        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
-            await interaction.response.send_message(
-                content="You can only redo for prompts that you generated yourself!",
-                ephemeral=True,
-            )
-            return
-
-        msg = await interaction.response.send_message(
-            "Redoing your original request...", ephemeral=True
-        )
-
-        # Put the message into the deletion queue with a timestamp of 10 seconds from now to be deleted
-        deletion = Deletion(
-            msg, (datetime.datetime.now() + datetime.timedelta(seconds=10)).timestamp()
-        )
-        await self.deletion_queue.put(deletion)
 
         # Get the user
         user_id = interaction.user.id
 
-        if user_id in redo_users:
+        if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[user_id].in_interaction(interaction_id):
             # Get the message and the prompt and call encapsulated_send
-            message = redo_users[user_id].message
-            prompt = redo_users[user_id].prompt
-            response_message = redo_users[user_id].response
+            message = self.converser_cog.redo_users[user_id].message
+            prompt = self.converser_cog.redo_users[user_id].prompt
+            response_message = self.converser_cog.redo_users[user_id].response
+            msg = await interaction.response.send_message(
+                "Redoing your original request...", ephemeral=True, delete_after=20
+            )
             await self.converser_cog.encapsulated_send(
                 message, prompt, response_message
+            )
+        else:
+            await interaction.response.send_message(
+                content="You can only redo for prompts that you generated yourself!",
+                ephemeral=True, delete_after=10
             )
