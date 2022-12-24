@@ -418,7 +418,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                         return
 
             # REQUEST!!!!
-            response = self.model.send_request(new_prompt, message, tokens=tokens)
+            response = await self.model.send_request(new_prompt, message, tokens=tokens)
 
             response_text = response["choices"][0]["text"]
 

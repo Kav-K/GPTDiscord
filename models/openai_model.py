@@ -11,6 +11,7 @@ import openai
 import requests
 from PIL import Image
 from discord import File
+from asgiref.sync import sync_to_async
 
 
 class Mode:
@@ -289,7 +290,7 @@ class Model:
             )
         self._prompt_min_length = value
 
-    def send_summary_request(self, message, prompt):
+    async def send_summary_request(self, message, prompt):
         """
         Sends a summary request to the OpenAI API
         """
@@ -304,7 +305,7 @@ class Model:
 
         tokens = self.usage_service.count_tokens(summary_request_text)
 
-        response = openai.Completion.create(
+        response = await sync_to_async(openai.Completion.create)(
             model=Models.DAVINCI,
             prompt=summary_request_text,
             temperature=0.5,
@@ -321,7 +322,7 @@ class Model:
         self.usage_service.update_usage(tokens_used)
         return response
 
-    def send_request(
+    async def send_request(
         self,
         prompt,
         message,
@@ -346,7 +347,7 @@ class Model:
 
         print("The prompt about to be sent is " + prompt)
 
-        response = openai.Completion.create(
+        response = await sync_to_async(openai.Completion.create)(
             model=Models.DAVINCI
             if any(role.name in self.DAVINCI_ROLES for role in message.author.roles)
             else self.model,  # Davinci override for admin users
@@ -372,7 +373,7 @@ class Model:
 
         return response
 
-    def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
+    async def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
         if words < 3 or words > 75:
@@ -385,13 +386,13 @@ class Model:
         self.usage_service.update_usage_image(self.image_size)
 
         if not vary:
-            response = openai.Image.create(
+            response = await sync_to_async(openai.Image.create)(
                 prompt=prompt,
                 n=self.num_images,
                 size=self.image_size,
             )
         else:
-            response = openai.Image.create_variation(
+            response = await sync_to_async(openai.Image.create_variation)(
                 image=open(vary, "rb"),
                 n=self.num_images,
                 size=self.image_size,

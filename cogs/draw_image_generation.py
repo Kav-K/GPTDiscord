@@ -57,7 +57,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
-        file, image_urls = self.model.send_image_request(
+        file, image_urls = await self.model.send_image_request(
             prompt, vary=vary if not draw_from_optimizer else None
         )
 
