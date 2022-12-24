@@ -96,8 +96,12 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
                 response_message.id
             )
 
-            self.converser_cog.redo_users[ctx.author.id] = RedoUser(prompt, ctx.message, response_message)
-            self.converser_cog.redo_users[ctx.author.id].add_interaction(response_message.id)
+            self.converser_cog.redo_users[ctx.author.id] = RedoUser(
+                prompt, ctx.message, response_message
+            )
+            self.converser_cog.redo_users[ctx.author.id].add_interaction(
+                response_message.id
+            )
             await response_message.edit(
                 view=OptimizeView(
                     self.converser_cog, self.image_service_cog, self.deletion_queue
@@ -140,7 +144,10 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         user_id = interaction.user.id
         interaction_id = interaction.message.id
 
-        if interaction_id not in self.converser_cog.users_to_interactions[user_id] or interaction_id not in self.converser_cog.redo_users[user_id].interactions:
+        if (
+            interaction_id not in self.converser_cog.users_to_interactions[user_id]
+            or interaction_id not in self.converser_cog.redo_users[user_id].interactions
+        ):
             await interaction.response.send_message(
                 content="You can only draw for prompts that you generated yourself!",
                 ephemeral=True,
@@ -184,7 +191,9 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
         # Get the user
         user_id = interaction.user.id
 
-        if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[user_id].in_interaction(interaction_id):
+        if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
+            user_id
+        ].in_interaction(interaction_id):
             # Get the message and the prompt and call encapsulated_send
             message = self.converser_cog.redo_users[user_id].message
             prompt = self.converser_cog.redo_users[user_id].prompt
@@ -198,5 +207,6 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
         else:
             await interaction.response.send_message(
                 content="You can only redo for prompts that you generated yourself!",
-                ephemeral=True, delete_after=10
+                ephemeral=True,
+                delete_after=10,
             )
