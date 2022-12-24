@@ -131,7 +131,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     def check_conversing(self, message):
         cond1 = (
             message.author.id in self.conversating_users
-            and message.channel.name in ["gpt3", "general-bot", "bot"]
+            and message.channel.name in ["gpt3"]
         )
         cond2 = (
             message.author.id in self.conversating_users
@@ -550,6 +550,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         if not message.content.startswith("!g") and not conversing:
             return
 
+        if conversing and "!draw" in message.content:
+            return
+
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in self.END_PROMPTS:
             await self.end_conversation(message)
@@ -654,19 +657,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
-
-            # Create a new thread to run
-            # self.encapsulated_send(
-            #                     message,
-            #                     prompt
-            #                     if message.author.id not in self.conversating_users
-            #                     else "".join(self.conversating_users[message.author.id].history),
-            #                 )
-
-            # This created thread needs to call encapsulated_send in a coroutine/async fashion.
-            # This is because encapsulated_send is a coroutine, and we need to await it to get the response from the model.
-            # We can't await it in the main thread, so we need to create a new thread to run it in.
-            # We can make sure that when the thread executes it executes in an async fashion by
             asyncio.run_coroutine_threadsafe(
                 self.encapsulated_send(
                     message,

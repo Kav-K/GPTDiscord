@@ -14,6 +14,8 @@
 
 - **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
 
+- **Fully async!** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
+
 # Features
 - **Directly prompt GPT3 with `!g <prompt>`**
 
@@ -37,6 +39,8 @@
 
 # Requirements
 `python3.9 -m pip install -r requirements.txt`
+
+This project uses openai-async rewrite by Andrew Chen Wang, https://github.com/Andrew-Chen-Wang/openai-python/tree/async-support
 
 **I recommend using python 3.9!**
 
