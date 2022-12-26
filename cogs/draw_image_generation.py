@@ -350,7 +350,7 @@ class RedoButton(discord.ui.Button["SaveView"]):
             # Get the message and the prompt and call encapsulated_send
             message = redo_users[user_id].message
             prompt = redo_users[user_id].prompt
-            response_message = redo_users[user_id].response_message
+            response_message = redo_users[user_id].response
             message = await interaction.response.send_message(
                 f"Regenerating the image for your original prompt, check the original message.",
                 ephemeral=True,

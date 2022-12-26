@@ -350,8 +350,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
                 await self.end_conversation(message)
 
-    def summarize_conversation(self, message, prompt):
-        response = self.model.send_summary_request(message, prompt)
+    async def summarize_conversation(self, message, prompt):
+        response = await self.model.send_summary_request(message, prompt)
         summarized_text = response["choices"][0]["text"]
 
         new_conversation_history = []
@@ -389,7 +389,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                             "give me one moment!"
                         )
 
-                        self.summarize_conversation(message, new_prompt)
+                        await self.summarize_conversation(message, new_prompt)
 
                         # Check again if the prompt is about to go past the token limit
                         new_prompt = (
@@ -445,7 +445,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             if not response_message:
                 if len(response_text) > self.TEXT_CUTOFF:
                     await self.paginate_and_send(
-                        response_text, message
+                        response_text.replace("<|endofstatement|>", ""), message
                     )  # No paginations for multi-messages.
                 else:
                     response_message = await message.reply(
@@ -550,7 +550,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         if not message.content.startswith("!g") and not conversing:
             return
 
+        # Dont accept !draw in a conversation
         if conversing and "!draw" in message.content:
+            return
+
+        # Don't accept !imgoptimize in a conversation
+        if conversing and "!imgoptimize" in message.content:
             return
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.

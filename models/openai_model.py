@@ -297,7 +297,7 @@ class Model:
         summary_request_text = []
         summary_request_text.append(
             "The following is a conversation instruction set and a conversation"
-            " between two people named Human, and GPTie. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details."
+            " between two people, a Human, and GPTie. Firstly, determine the Human's name from the conversation history, then summarize the conversation. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details."
         )
         summary_request_text.append(prompt + "\nDetailed summary of conversation: \n")
 
