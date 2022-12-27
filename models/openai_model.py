@@ -398,9 +398,6 @@ class Model:
                 size=self.image_size,
             )
 
-            
-
-
         print(response.__dict__)
 
         image_urls = []
