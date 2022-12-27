@@ -397,6 +397,10 @@ class Model:
                 n=self.num_images,
                 size=self.image_size,
             )
+
+            
+
+
         print(response.__dict__)
 
         image_urls = []
@@ -451,7 +455,7 @@ class Model:
             y_offset += transparent.size[1]
 
         # Save the new_im to a temporary file and return it as a discord.File
-        temp_file = tempfile.NamedTemporaryFile(suffix=".png")
+        temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         new_im.save(temp_file.name)
 
         # Print the filesize of new_im, in mega bytes
@@ -470,7 +474,7 @@ class Model:
             new_im = new_im.resize(
                 (int(new_im.width / 1.05), int(new_im.height / 1.05))
             )
-            temp_file = tempfile.NamedTemporaryFile(suffix=".png")
+            temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             new_im.save(temp_file.name)
             image_size = os.path.getsize(temp_file.name) / 1000000
             print(f"New image size is {image_size}MB")

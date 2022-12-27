@@ -310,7 +310,7 @@ class SaveButton(discord.ui.Button["SaveView"]):
             if not self.image_url.startswith("http"):
                 with open(self.image_url, "rb") as f:
                     image = Image.open(BytesIO(f.read()))
-                    temp_file = tempfile.NamedTemporaryFile(suffix=".png")
+                    temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
                     image.save(temp_file.name)
 
                     await interaction.response.send_message(
