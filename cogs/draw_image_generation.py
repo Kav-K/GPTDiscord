@@ -81,7 +81,9 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 embed=embed,
                 file=file,
             )
-            await result_message.edit(view=SaveView(image_urls, self, self.converser_cog, result_message))
+            await result_message.edit(
+                view=SaveView(image_urls, self, self.converser_cog, result_message)
+            )
 
             self.converser_cog.users_to_interactions[message.author.id] = []
             self.converser_cog.users_to_interactions[message.author.id].append(
@@ -113,7 +115,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                         embed=embed,
                         file=file,
                     )
-                    await result_message.edit(view=SaveView(image_urls, self, self.converser_cog, result_message))
+                    await result_message.edit(
+                        view=SaveView(
+                            image_urls, self, self.converser_cog, result_message
+                        )
+                    )
 
                     redo_users[user_id] = RedoUser(prompt, message, result_message)
 
@@ -204,7 +210,9 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 
 class SaveView(discord.ui.View):
-    def __init__(self, image_urls, cog, converser_cog, message, no_retry=False, only_save=None):
+    def __init__(
+        self, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
+    ):
         super().__init__(
             timeout=10 if not only_save else None
         )  # 10 minute timeout for Retry, Save
@@ -233,7 +241,12 @@ class SaveView(discord.ui.View):
 
         # Create a new view with the same params as this one, but pass only_save=True
         new_view = SaveView(
-            self.image_urls, self.cog, self.converser_cog, self.message, self.no_retry, only_save=True
+            self.image_urls,
+            self.cog,
+            self.converser_cog,
+            self.message,
+            self.no_retry,
+            only_save=True,
         )
 
         # Set the view of the message to the new view
