@@ -32,7 +32,7 @@ jobs:
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
@@ -41,7 +41,7 @@ jobs:
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
@@ -50,7 +50,7 @@ jobs:
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
@@ -61,7 +61,7 @@ jobs:
         with:
           local: cogs
           remote: /home/gptbot/cogs
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Copy via ssh
@@ -69,7 +69,7 @@ jobs:
         with:
           local: models
           remote: /home/gptbot/models
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Restart bot!
@@ -82,6 +82,6 @@ jobs:
             screen -dmS GPTBot python3.9 main.py
             logout
             exit
-          host: bot.kaveenk.com
+          host: 104.248.105.234
           user: root
           pass: ${{ secrets.SSH_PASS}}
