@@ -81,7 +81,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
 
             response_text = response["choices"][0]["text"]
 
-            #print(f"Received the following response: {response.__dict__}")
+            # print(f"Received the following response: {response.__dict__}")
 
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
                 await ctx.reply("I'm sorry, I can't mention users, roles, or channels.")
