@@ -666,7 +666,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
-                    deletion_time = datetime.datetime.now() + datetime.timedelta(seconds=10)
+                    deletion_time = datetime.datetime.now() + datetime.timedelta(
+                        seconds=10
+                    )
                     deletion_time = deletion_time.timestamp()
 
                     deletion_message = Deletion(message, deletion_time)

@@ -72,6 +72,7 @@ class Model:
         ]
 
         self.openai_key = os.getenv("OPENAI_TOKEN")
+
     # Use the @property and @setter decorators for all the self fields to provide value checking
     @property
     def summarize_threshold(self):
@@ -316,9 +317,11 @@ class Model:
             }
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}"
+                "Authorization": f"Bearer {self.openai_key}",
             }
-            async with session.post("https://api.openai.com/v1/completions", json=payload, headers=headers) as resp:
+            async with session.post(
+                "https://api.openai.com/v1/completions", json=payload, headers=headers
+            ) as resp:
                 response = await resp.json()
 
                 print(response["choices"][0]["text"])
@@ -354,20 +357,27 @@ class Model:
 
         async with aiohttp.ClientSession() as session:
             payload = {
-                "model": Models.DAVINCI if any(
-                    role.name in self.DAVINCI_ROLES for role in message.author.roles) else self.model,
+                "model": Models.DAVINCI
+                if any(role.name in self.DAVINCI_ROLES for role in message.author.roles)
+                else self.model,
                 "prompt": prompt,
                 "temperature": self.temp if not temp_override else temp_override,
                 "top_p": self.top_p if not top_p_override else top_p_override,
-                "max_tokens": self.max_tokens - tokens if not max_tokens_override else max_tokens_override,
-                "presence_penalty": self.presence_penalty if not presence_penalty_override else presence_penalty_override,
-                "frequency_penalty": self.frequency_penalty if not frequency_penalty_override else frequency_penalty_override,
+                "max_tokens": self.max_tokens - tokens
+                if not max_tokens_override
+                else max_tokens_override,
+                "presence_penalty": self.presence_penalty
+                if not presence_penalty_override
+                else presence_penalty_override,
+                "frequency_penalty": self.frequency_penalty
+                if not frequency_penalty_override
+                else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
-            headers = {
-                "Authorization": f"Bearer {self.openai_key}"
-            }
-            async with session.post("https://api.openai.com/v1/completions", json=payload, headers=headers) as resp:
+            headers = {"Authorization": f"Bearer {self.openai_key}"}
+            async with session.post(
+                "https://api.openai.com/v1/completions", json=payload, headers=headers
+            ) as resp:
                 response = await resp.json()
                 # Parse the total tokens used for this request and response pair from the response
                 tokens_used = int(response["usage"]["total_tokens"])
@@ -390,17 +400,17 @@ class Model:
         response = None
 
         if not vary:
-            payload = {
-                "prompt": prompt,
-                "n": self.num_images,
-                "size": self.image_size
-            }
+            payload = {"prompt": prompt, "n": self.num_images, "size": self.image_size}
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}"
+                "Authorization": f"Bearer {self.openai_key}",
             }
             async with aiohttp.ClientSession() as session:
-                async with session.post("https://api.openai.com/v1/images/generations", json=payload, headers=headers) as resp:
+                async with session.post(
+                    "https://api.openai.com/v1/images/generations",
+                    json=payload,
+                    headers=headers,
+                ) as resp:
                     response = await resp.json()
         else:
             async with aiohttp.ClientSession() as session:
@@ -408,14 +418,16 @@ class Model:
                 data.add_field("n", str(self.num_images))
                 data.add_field("size", self.image_size)
                 with open(vary, "rb") as f:
-                    data.add_field("image", f, filename="file.png", content_type="image/png")
+                    data.add_field(
+                        "image", f, filename="file.png", content_type="image/png"
+                    )
 
                     async with session.post(
-                            "https://api.openai.com/v1/images/variations",
-                            headers={
-                                "Authorization": "Bearer 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",
-                            },
-                            data=data
+                        "https://api.openai.com/v1/images/variations",
+                        headers={
+                            "Authorization": "Bearer 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",
+                        },
+                        data=data,
                     ) as resp:
                         response = await resp.json()
 
