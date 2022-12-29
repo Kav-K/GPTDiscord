@@ -62,6 +62,10 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         for arg in args:
             prompt += arg + " "
 
+        # If the prompt doesn't end in a period, terminate it.
+        if not prompt.endswith("."):
+            prompt += "."
+
         # Get the token amount for the prompt
         tokens = self.usage_service.count_tokens(prompt)
 
@@ -81,13 +85,14 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
 
             response_text = response["choices"][0]["text"]
 
-            # print(f"Received the following response: {response.__dict__}")
-
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
                 await ctx.reply("I'm sorry, I can't mention users, roles, or channels.")
                 return
 
-            response_message = await ctx.reply(response_text)
+            response_message = await ctx.reply(response_text.replace("Optimized Prompt:","").
+                                               replace("Output Prompt:", "").
+                                               replace("Output:",""))
+
             self.converser_cog.users_to_interactions[ctx.message.author.id] = []
             self.converser_cog.users_to_interactions[ctx.message.author.id].append(
                 response_message.id
