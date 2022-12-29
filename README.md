@@ -106,16 +106,18 @@ After login, we need to install the various dependencies that the bot needs. To 
 # Install project dependencies
    15  python3.9 -m pip install -r requirements.txt
    16  ls
-# Copy the sample.env file into a regular .env file. You will need to edit this file.
-   17  scp sample.env .env
+# Copy the sample.env file into a regular .env file. `DEBUG_GUILD` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
+   17  cp sample.env .env
 # The command below is used to edit the .env file and to put in your API keys. You can right click within the
 # editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
    18  nano .env
    19  ls
-# Run the bot.
-   20  python3.9 main.py
-   21  ls
+# Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:
+   20  screen python3.9 main.py
 
+# Hit `Ctrl+a` then `d` to detach from the running bot.
+# The bot's screen session can be reattached:
+   21  screen -r
 ```
 
 

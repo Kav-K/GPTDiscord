@@ -89,9 +89,11 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
                 await ctx.reply("I'm sorry, I can't mention users, roles, or channels.")
                 return
 
-            response_message = await ctx.reply(response_text.replace("Optimized Prompt:","").
-                                               replace("Output Prompt:", "").
-                                               replace("Output:",""))
+            response_message = await ctx.reply(
+                response_text.replace("Optimized Prompt:", "")
+                .replace("Output Prompt:", "")
+                .replace("Output:", "")
+            )
 
             self.converser_cog.users_to_interactions[ctx.message.author.id] = []
             self.converser_cog.users_to_interactions[ctx.message.author.id].append(
