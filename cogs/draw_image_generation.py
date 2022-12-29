@@ -97,7 +97,9 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     embed=embed,
                     file=file,
                 )
-                await message.edit(view=SaveView(image_urls, self, self.converser_cog, message))
+                await message.edit(
+                    view=SaveView(image_urls, self, self.converser_cog, message)
+                )
             else:  # Varying case
                 if not draw_from_optimizer:
                     result_message = await response_message.edit_original_response(
@@ -105,7 +107,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                         embed=embed,
                         file=file,
                     )
-                    await result_message.edit(view=SaveView(image_urls, self, self.converser_cog,result_message, True))
+                    await result_message.edit(
+                        view=SaveView(
+                            image_urls, self, self.converser_cog, result_message, True
+                        )
+                    )
 
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, result_message
