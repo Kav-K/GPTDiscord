@@ -379,6 +379,7 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
+                print(response)
                 # Parse the total tokens used for this request and response pair from the response
                 tokens_used = int(response["usage"]["total_tokens"])
                 self.usage_service.update_usage(tokens_used)
@@ -425,7 +426,7 @@ class Model:
                     async with session.post(
                         "https://api.openai.com/v1/images/variations",
                         headers={
-                            "Authorization": "Bearer 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",
+                            "Authorization": "Bearer " + self.openai_key,
                         },
                         data=data,
                     ) as resp:
