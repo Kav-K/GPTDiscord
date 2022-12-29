@@ -12,7 +12,7 @@
 
 - **PERMANENT MEMORY FOR CONVERSATIONS COMING SOON USING EMBEDDINGS!**
 
-- **DALL-E Image Generation**
+- **Image prompt optimizer overhauled** - The optimizer works much better now, and makes beautiful image prompts that work even with Midjourney, SD, etc!
 
 - **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
 
