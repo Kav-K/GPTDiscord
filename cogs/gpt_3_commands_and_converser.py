@@ -196,6 +196,16 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             value="Change the parameter of the model named by <model parameter> to new value <value>",
             inline=False,
         )
+        embed.add_field(
+            name="!draw <image prompt>",
+            value="Use DALL-E2 to draw an image based on a text prompt",
+            inline=False,
+        )
+        embed.add_field(
+            name="!imgoptimize <image prompt>",
+            value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
+            inline=False,
+        )
         embed.add_field(name="!g", value="See this help text", inline=False)
         await message.channel.send(embed=embed)
 
