@@ -10,11 +10,16 @@
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
+- **PERMANENT MEMORY FOR CONVERSATIONS COMING SOON USING EMBEDDINGS!**
+
 - **DALL-E Image Generation**
 
 - **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
 
-- **Fully async!** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
+- **Fully async and fault tolerant - REVAMPED** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
+
+- No need for the OpenAI and Asgiref libraries anymore!
+
 
 # Features
 - **Directly prompt GPT3 with `!g <prompt>`**

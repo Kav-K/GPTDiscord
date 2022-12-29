@@ -4,14 +4,13 @@ import tempfile
 import uuid
 from typing import Tuple, List, Any
 
+import aiohttp
 import discord
-import openai
 
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from PIL import Image
 from discord import File
-from asgiref.sync import sync_to_async
 
 
 class Mode:
@@ -72,8 +71,7 @@ class Model:
             "model_max_tokens",
         ]
 
-        openai.api_key = os.getenv("OPENAI_TOKEN")
-
+        self.openai_key = os.getenv("OPENAI_TOKEN")
     # Use the @property and @setter decorators for all the self fields to provide value checking
     @property
     def summarize_threshold(self):
@@ -305,22 +303,29 @@ class Model:
 
         tokens = self.usage_service.count_tokens(summary_request_text)
 
-        response = await sync_to_async(openai.Completion.create)(
-            model=Models.DAVINCI,
-            prompt=summary_request_text,
-            temperature=0.5,
-            top_p=1,
-            max_tokens=self.max_tokens - tokens,
-            presence_penalty=self.presence_penalty,
-            frequency_penalty=self.frequency_penalty,
-            best_of=self.best_of,
-        )
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.DAVINCI,
+                "prompt": summary_request_text,
+                "temperature": 0.5,
+                "top_p": 1,
+                "max_tokens": self.max_tokens - tokens,
+                "presence_penalty": self.presence_penalty,
+                "frequency_penalty": self.frequency_penalty,
+                "best_of": self.best_of,
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}"
+            }
+            async with session.post("https://api.openai.com/v1/completions", json=payload, headers=headers) as resp:
+                response = await resp.json()
 
-        print(response["choices"][0]["text"])
+                print(response["choices"][0]["text"])
 
-        tokens_used = int(response["usage"]["total_tokens"])
-        self.usage_service.update_usage(tokens_used)
-        return response
+                tokens_used = int(response["usage"]["total_tokens"])
+                self.usage_service.update_usage(tokens_used)
+                return response
 
     async def send_request(
         self,
@@ -347,31 +352,28 @@ class Model:
 
         print("The prompt about to be sent is " + prompt)
 
-        response = await sync_to_async(openai.Completion.create)(
-            model=Models.DAVINCI
-            if any(role.name in self.DAVINCI_ROLES for role in message.author.roles)
-            else self.model,  # Davinci override for admin users
-            prompt=prompt,
-            temperature=self.temp if not temp_override else temp_override,
-            top_p=self.top_p if not top_p_override else top_p_override,
-            max_tokens=self.max_tokens - tokens
-            if not max_tokens_override
-            else max_tokens_override,
-            presence_penalty=self.presence_penalty
-            if not presence_penalty_override
-            else presence_penalty_override,
-            frequency_penalty=self.frequency_penalty
-            if not frequency_penalty_override
-            else frequency_penalty_override,
-            best_of=self.best_of if not best_of_override else best_of_override,
-        )
-        # print(response.__dict__)
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.DAVINCI if any(
+                    role.name in self.DAVINCI_ROLES for role in message.author.roles) else self.model,
+                "prompt": prompt,
+                "temperature": self.temp if not temp_override else temp_override,
+                "top_p": self.top_p if not top_p_override else top_p_override,
+                "max_tokens": self.max_tokens - tokens if not max_tokens_override else max_tokens_override,
+                "presence_penalty": self.presence_penalty if not presence_penalty_override else presence_penalty_override,
+                "frequency_penalty": self.frequency_penalty if not frequency_penalty_override else frequency_penalty_override,
+                "best_of": self.best_of if not best_of_override else best_of_override,
+            }
+            headers = {
+                "Authorization": f"Bearer {self.openai_key}"
+            }
+            async with session.post("https://api.openai.com/v1/completions", json=payload, headers=headers) as resp:
+                response = await resp.json()
+                # Parse the total tokens used for this request and response pair from the response
+                tokens_used = int(response["usage"]["total_tokens"])
+                self.usage_service.update_usage(tokens_used)
 
-        # Parse the total tokens used for this request and response pair from the response
-        tokens_used = int(response["usage"]["total_tokens"])
-        self.usage_service.update_usage(tokens_used)
-
-        return response
+                return response
 
     async def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
@@ -385,20 +387,39 @@ class Model:
         # print("The prompt about to be sent is " + prompt)
         self.usage_service.update_usage_image(self.image_size)
 
-        if not vary:
-            response = await sync_to_async(openai.Image.create)(
-                prompt=prompt,
-                n=self.num_images,
-                size=self.image_size,
-            )
-        else:
-            response = await sync_to_async(openai.Image.create_variation)(
-                image=open(vary, "rb"),
-                n=self.num_images,
-                size=self.image_size,
-            )
+        response = None
 
-        print(response.__dict__)
+        if not vary:
+            payload = {
+                "prompt": prompt,
+                "n": self.num_images,
+                "size": self.image_size
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}"
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post("https://api.openai.com/v1/images/generations", json=payload, headers=headers) as resp:
+                    response = await resp.json()
+        else:
+            async with aiohttp.ClientSession() as session:
+                data = aiohttp.FormData()
+                data.add_field("n", str(self.num_images))
+                data.add_field("size", self.image_size)
+                with open(vary, "rb") as f:
+                    data.add_field("image", f, filename="file.png", content_type="image/png")
+
+                    async with session.post(
+                            "https://api.openai.com/v1/images/variations",
+                            headers={
+                                "Authorization": "Bearer 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",
+                            },
+                            data=data
+                    ) as resp:
+                        response = await resp.json()
+
+        print(response)
 
         image_urls = []
         for result in response["data"]:
