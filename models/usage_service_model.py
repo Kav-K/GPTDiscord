@@ -1,13 +1,15 @@
 import os
+from pathlib import Path
 
 from transformers import GPT2TokenizerFast
 
 
 class UsageService:
-    def __init__(self):
+    def __init__(self, data_dir: Path):
+        self.usage_file_path = data_dir / "usage.txt"
         # If the usage.txt file doesn't currently exist in the directory, create it and write 0.00 to it.
-        if not os.path.exists("usage.txt"):
-            with open("usage.txt", "w") as f:
+        if not self.usage_file_path.exists():
+            with self.usage_file_path.open("w") as f:
                 f.write("0.00")
                 f.close()
         self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
@@ -18,17 +20,17 @@ class UsageService:
         print("This request cost " + str(price) + " credits")
         usage = self.get_usage()
         print("The current usage is " + str(usage) + " credits")
-        with open("usage.txt", "w") as f:
+        with self.usage_file_path.open("w") as f:
             f.write(str(usage + float(price)))
             f.close()
 
     def set_usage(self, usage):
-        with open("usage.txt", "w") as f:
+        with self.usage_file_path.open("w") as f:
             f.write(str(usage))
             f.close()
 
     def get_usage(self):
-        with open("usage.txt", "r") as f:
+        with self.usage_file_path.open("r") as f:
             usage = float(f.read().strip())
             f.close()
         return usage
@@ -53,6 +55,6 @@ class UsageService:
 
         usage = self.get_usage()
 
-        with open("usage.txt", "w") as f:
+        with self.usage_file_path.open("w") as f:
             f.write(str(usage + float(price)))
             f.close()

@@ -34,11 +34,12 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         self.deletion_queue = deletion_queue
 
         try:
+            image_pretext_path = self.converser_cog.data_path / "image_optimizer_pretext.txt"
             # Try to read the image optimizer pretext from
             # the file system
-            with open("image_optimizer_pretext.txt", "r") as file:
+            with image_pretext_path.open("r") as file:
                 self.OPTIMIZER_PRETEXT = file.read()
-            print("Loaded image optimizer pretext from file system")
+            print(f"Loaded image optimizer pretext from {image_pretext_path}")
         except:
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
