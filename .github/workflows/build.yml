@@ -1,0 +1,31 @@
+name: Build CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Running python ${{ matrix.python-version }} on ${{matrix.os}}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+        os: [macOS-latest, ubuntu-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v3.2.0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Print Python Version
+      run: python --version --version && which python
+
+    - name: Update pip, setuptools + wheels
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+
+    - name: Install deps via requirements + module via pyproject.toml
+      run: |
+        python -m pip install -r requirements.txt
+        python -m pip install .

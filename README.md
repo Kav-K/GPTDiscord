@@ -99,27 +99,23 @@ After login, we need to install the various dependencies that the bot needs. To 
     6  sudo apt-get update
     7  sudo apt install software-properties-common
     8  sudo add-apt-repository ppa:deadsnakes/ppa
-    9  sudo apt install python3.9
-# This command below should return "Python 3.9.x", if it is working. Otherwise, don't proceed.
-   10  python3.9 --version 
-   11  ls
-   13  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-   14  python3.9 get-pip.py
+    9  sudo apt install python3.9 python3.9-pip
 # Install project dependencies
-   15  python3.9 -m pip install -r requirements.txt
-   16  ls
+   10 python3.9 -m pip install -r requirements.txt
+   11 python3.9 -m pip install .
+   12 ls
 # Copy the sample.env file into a regular .env file. `DEBUG_GUILD` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
-   17  cp sample.env .env
+   13  cp sample.env .env
 # The command below is used to edit the .env file and to put in your API keys. You can right click within the
 # editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
-   18  nano .env
-   19  ls
+   14  nano .env
+   15  ls
 # Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:
-   20  screen python3.9 main.py
+   16  screen gpt3discord
 
 # Hit `Ctrl+a` then `d` to detach from the running bot.
 # The bot's screen session can be reattached:
-   21  screen -r
+   17  screen -r
 ```
 
 ## Docker Installation
