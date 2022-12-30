@@ -51,13 +51,14 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             "that'll be all",
         ]
         self.last_used = {}
-        self.GLOBAL_COOLDOWN_TIME = 1
+        self.GLOBAL_COOLDOWN_TIME = 0.25
         self.usage_service = usage_service
         self.model = model
         self.summarize = self.model.summarize_conversations
         self.deletion_queue = deletion_queue
         self.users_to_interactions = defaultdict(list)
         self.redo_users = {}
+        self.awaiting_responses = []
 
         try:
             conversation_file_path = data_path / "conversation_starter_pretext.txt"
@@ -197,6 +198,16 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         embed.add_field(
             name="!gs <model parameter> <value>",
             value="Change the parameter of the model named by <model parameter> to new value <value>",
+            inline=False,
+        )
+        embed.add_field(
+            name="!draw <image prompt>",
+            value="Use DALL-E2 to draw an image based on a text prompt",
+            inline=False,
+        )
+        embed.add_field(
+            name="!imgoptimize <image prompt>",
+            value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
             inline=False,
         )
         embed.add_field(name="!g", value="See this help text", inline=False)
@@ -442,6 +453,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
                 self.check_conversing(message)
 
+                # We got a response, we can allow the user to type again
+                self.awaiting_responses.remove(message.author.id)
+
                 # If the response text is > 3500 characters, paginate and send
             debug_message = self.generate_debug_message(prompt, response)
 
@@ -461,9 +475,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     )
                     self.redo_users[message.author.id].add_interaction(
                         response_message.id
-                    )
-                    print(
-                        f"Added the interaction {response_message.id} to the redo user {message.author.id}"
                     )
                 original_message[message.author.id] = message.id
             else:
@@ -606,13 +617,15 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             if prompt == "converse" or prompt == "converse nothread":
                 # If the user is already conversating, don't let them start another conversation
                 if message.author.id in self.conversating_users:
-                    await message.reply(
+                    message = await message.reply(
                         "You are already conversating with GPT3. End the conversation with !g end or just say 'end' in a supported channel"
                     )
+                    await self.deletion_queue(message)
                     return
 
                 # If the user is not already conversating, start a conversation with GPT3
                 self.conversating_users[message.author.id] = User(message.author.id)
+
                 # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
                 self.conversating_users[message.author.id].history.append(
                     self.CONVERSATION_STARTER_TEXT
@@ -657,6 +670,28 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # history to the prompt. We can do this by checking if the user is in the conversating_users dictionary, and if they are,
             # we can append their history to the prompt.
             if message.author.id in self.conversating_users:
+
+                # Since this is async, we don't want to allow the user to send another prompt while a conversation
+                # prompt is processing, that'll mess up the conversation history!
+                if message.author.id in self.awaiting_responses:
+                    message = await message.reply(
+                        "You are already waiting for a response from GPT3. Please wait for it to respond before sending another message."
+                    )
+
+                    # get the current date, add 10 seconds to it, and then turn it into a timestamp.
+                    # we need to use our deletion service because this isn't an interaction, it's a regular message.
+                    deletion_time = datetime.datetime.now() + datetime.timedelta(
+                        seconds=10
+                    )
+                    deletion_time = deletion_time.timestamp()
+
+                    deletion_message = Deletion(message, deletion_time)
+                    await self.deletion_queue.put(deletion_message)
+
+                    return
+
+                self.awaiting_responses.append(message.author.id)
+
                 self.conversating_users[message.author.id].history.append(
                     "\nHuman: " + prompt + "<|endofstatement|>\n"
                 )

@@ -10,11 +10,16 @@
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
-- **DALL-E Image Generation**
+- **PERMANENT MEMORY FOR CONVERSATIONS COMING SOON USING EMBEDDINGS!**
+
+- **Image prompt optimizer overhauled** - The optimizer works much better now, and makes beautiful image prompts that work even with Midjourney, SD, etc!
 
 - **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
 
-- **Fully async!** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
+- **Fully async and fault tolerant - REVAMPED** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
+
+- No need for the OpenAI and Asgiref libraries anymore!
+
 
 # Features
 - **Directly prompt GPT3 with `!g <prompt>`**
@@ -71,6 +76,8 @@ Optionally, you can include your own conversation starter text for the bot that'
 First, you want to get a server, for this guide, I will be using DigitalOcean as the host. 
 
 For instructions on how to get a server from start to finish, they are available on DigitalOcean's website directly from the community, available here: https://www.digitalocean.com/community/tutorials/how-to-set-up-an-ubuntu-20-04-server-on-a-digitalocean-droplet. Ignore the part about setting up an "ssh key", and just use a password instead. 
+
+**Please sign up for a DigitalOcean account using my referral link if you'd like to support me https://m.do.co/c/e31eff1231a4**
 
 After you set up the server, the DigitalOcean GUI will give you an IP address, copy this IP address. Afterwards, you will need to SSH into the server. This can be done using a program such as "PuTTy", or by using your commandline, if it's supported. To login to the server, your username will be "root", your password will be the password that you defined earlier when setting up the droplet, and the IP address will be the IP address you copied after the droplet was finished creation.
 

@@ -2,6 +2,8 @@ import asyncio
 import traceback
 from datetime import datetime
 
+import discord
+
 
 class Deletion:
     def __init__(self, message, timestamp):
@@ -26,7 +28,11 @@ class Deletion:
                 # Check if the current timestamp is greater than the deletion timestamp
                 if datetime.now().timestamp() > deletion.timestamp:
                     # If the deletion timestamp has passed, delete the message
-                    await deletion.message.delete_original_response()
+                    # check if deletion.message is of type discord.Message
+                    if isinstance(deletion.message, discord.Message):
+                        await deletion.message.delete()
+                    else:
+                        await deletion.message.delete_original_response()
                 else:
                     await deletion_queue.put(deletion)
 

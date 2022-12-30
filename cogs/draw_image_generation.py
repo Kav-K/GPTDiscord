@@ -96,7 +96,9 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 message = await response_message.edit(
                     embed=embed,
                     file=file,
-                    view=SaveView(image_urls, self, self.converser_cog),
+                )
+                await message.edit(
+                    view=SaveView(image_urls, self, self.converser_cog, message)
                 )
             else:  # Varying case
                 if not draw_from_optimizer:
@@ -104,8 +106,13 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                         content="Image variation completed!",
                         embed=embed,
                         file=file,
-                        view=SaveView(image_urls, self, self.converser_cog, True),
                     )
+                    await result_message.edit(
+                        view=SaveView(
+                            image_urls, self, self.converser_cog, result_message, True
+                        )
+                    )
+
                     redo_users[message.author.id] = RedoUser(
                         prompt, message, result_message
                     )
@@ -214,7 +221,7 @@ class SaveView(discord.ui.View):
         self, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
     ):
         super().__init__(
-            timeout=10 if not only_save else None
+            timeout=3600 if not only_save else None
         )  # 10 minute timeout for Retry, Save
         self.image_urls = image_urls
         self.cog = cog
