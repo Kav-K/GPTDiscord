@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import traceback
+from pathlib import Path
 
 import discord
 from discord.ext import commands
@@ -29,7 +30,7 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 Settings for the bot
 """
 bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!")
-usage_service = UsageService()
+usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
 
@@ -44,8 +45,12 @@ async def on_ready():  # I can make self optional by
 
 
 async def main():
+    data_path = Path(os.environ.get("DATA_DIR", os.getcwd()))
     debug_guild = int(os.getenv("DEBUG_GUILD"))
     debug_channel = int(os.getenv("DEBUG_CHANNEL"))
+
+    if not data_path.exists():
+        raise OSError(f"{data_path} does not exist ... create it?")
 
     # Load the main GPT3 Bot service
     bot.add_cog(
@@ -57,6 +62,7 @@ async def main():
             deletion_queue,
             debug_guild,
             debug_channel,
+            data_path,
         )
     )
 

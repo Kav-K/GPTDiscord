@@ -122,12 +122,29 @@ After login, we need to install the various dependencies that the bot needs. To 
    21  screen -r
 ```
 
+## Docker Installation
+
+We now have a `Dockerfile` in the repository. This will build / install all dependencies and put a `gpt3discord` binary (main.py) into path.
+To build:
+
+- [Install docker](https://docs.docker.com/get-docker/)
+- Clone repository and build *(hopefully eventually we'll add CI to automatically build + push to docker hub)*
+  - `docker build -t gpt3discord .`
+  - *From repository root or supply path to repository*
+- Make a env file to bind mount to /bin/.env
+- Optional: Make a data directory + bind mount it
+  - Add `DATA_DIR=/data` to env file
+- Run via docker:
+  - `docker run [-d] --name gpt3discord -v env_file:/bin/.env [-v /containers/gpt3discord:/data] gpt3discord`
+  - You can also mount a second volume and set `DATA_DIR` in the env file to keep persistent data
+
+This can also be run via screen/tmux or detached like a daemon.
 
 ## Bot on discord:
 
 - Create a new Bot on Discord Developer Portal:
     - Applications -> New Application
-- Generate Toker for the app (discord_bot_token)
+- Generate Token for the app (discord_bot_token)
     - Select App (Bot) -> Bot -> Reset Token
 - Toogle PRESENCE INTENT:
     - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)

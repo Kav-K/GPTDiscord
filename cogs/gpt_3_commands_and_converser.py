@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import traceback
+from pathlib import Path
 
 import discord
 from discord.ext import commands
@@ -32,7 +33,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         deletion_queue,
         DEBUG_GUILD,
         DEBUG_CHANNEL,
+        data_path: Path,
     ):
+        self.data_path = data_path
         self.debug_channel = None
         self.bot = bot
         self._last_member_ = None
@@ -58,13 +61,14 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.awaiting_responses = []
 
         try:
+            conversation_file_path = data_path / "conversation_starter_pretext.txt"
             # Attempt to read a conversation starter text string from the file.
-            with open("conversation_starter_pretext.txt", "r") as f:
+            with conversation_file_path.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT = f.read()
-                print("Conversation starter text loaded from file.")
+                print(f"Conversation starter text loaded from {conversation_file_path}.")
 
             assert self.CONVERSATION_STARTER_TEXT is not None
-        except:
+        except Exception:
             self.CONVERSATION_STARTER_TEXT = (
                 "You are an artificial intelligence that is able to do anything, and answer any question,"
                 "I want you to be my personal assistant and help me with some tasks. "
