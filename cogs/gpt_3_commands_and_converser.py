@@ -65,7 +65,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             # Attempt to read a conversation starter text string from the file.
             with conversation_file_path.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT = f.read()
-                print(f"Conversation starter text loaded from {conversation_file_path}.")
+                print(
+                    f"Conversation starter text loaded from {conversation_file_path}."
+                )
 
             assert self.CONVERSATION_STARTER_TEXT is not None
         except Exception:
