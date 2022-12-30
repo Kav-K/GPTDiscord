@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gpt3discord"
+description = "A Chat GPT Discord bot"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Kaveen Kumarasinghe", email = "contact@kaveenk.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+]
+dependencies = [
+  "asgiref",
+  "openai",
+  "Pillow",
+  "py-cord",
+  "python-dotenv",
+  "requests",
+  "transformers",
+]
+dynamic = ["version"]
+[project.scripts]
+gpt3discord = "gpt3discord:init"
+[project.urls]
+Documentation = "https://github.com/Kav-K/GPT3Discord/#readme"
+Issues = "https://github.com/Kav-K/GPT3Discord/issues"
+Source = "https://github.com/Kav-K/GPT3Discord"
+
+[tool.hatch.version]
+path = "gpt3discord.py"
+
+[tool.hatch.build]
+include = [
+  "cogs/*.py",
+  "models/*.py",
+  "gpt3discord.py",
+]
+
+#[tool.hatch.build.targets.sdist]
+#packages = ["cogs", "gpt3discord.py", "models"]
+
+#[tool.hatch.build.targets.wheel]
+#packages = ["cogs", "gpt3discord.py", "models"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["39"]

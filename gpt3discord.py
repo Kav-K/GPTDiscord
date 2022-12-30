@@ -14,6 +14,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
+__version__ = "2022.12"
 load_dotenv()
 import os
 
@@ -70,8 +71,7 @@ async def main():
 
 
 # Run the bot with a token taken from an environment file.
-if __name__ == "__main__":
-
+def init():
     PID_FILE = "bot.pid"
     if os.path.exists(PID_FILE):
         print("Process ID file already exists")
@@ -93,3 +93,7 @@ if __name__ == "__main__":
         os.remove(PID_FILE)
     finally:
         sys.exit(0)
+
+
+if __name__ == "__main__":
+    sys.exit(init())
