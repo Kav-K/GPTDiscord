@@ -41,7 +41,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: Kav-K/GPT3Discord:latest,Kav-K/GPT3Discord:${{ env.GIT_TAG }}
+          tags: Kav-K/gpt3discord:latest,Kav-K/gpt3discord:${{ env.GIT_TAG }}
 
       - name: Build and push latest_release tag
         if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
@@ -50,7 +50,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: Kav-K/GPT3Discord:latest_release
+          tags: Kav-K/gpt3discord:latest_release
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
