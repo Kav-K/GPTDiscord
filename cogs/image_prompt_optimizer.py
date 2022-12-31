@@ -1,15 +1,13 @@
-import datetime
-import os
 import re
 import traceback
-from collections import defaultdict
 
 import discord
 from discord.ext import commands
 
-from models.deletion_service import Deletion
+from models.env_service_model import EnvService
 from models.user_model import RedoUser
 
+ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
@@ -24,6 +22,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         converser_cog,
         image_service_cog,
     ):
+        super().__init__()
         self.bot = bot
         self.usage_service = usage_service
         self.model = model
@@ -46,42 +45,38 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
-    # Command error handler
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
-        if isinstance(error, commands.CommandNotFound):
+    @discord.slash_command(name="imgoptimize", description="Optimize a text prompt for DALL-E/MJ/SD image generation.", guild_ids=ALLOWED_GUILDS)
+    @discord.option(name="prompt", description="The text prompt to optimize.", required=True)
+    @discord.guild_only()
+    async def imgoptimize(self, ctx: discord.ApplicationContext, prompt: str):
+        await ctx.defer()
+
+        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
-        elif isinstance(error, commands.InvalidEndOfQuotedStringError):
-            await ctx.reply(
-                "There was an error while parsing your input. Please ensure that all quotation marks are closed and there is a space after the last quotation mark"
-            )
-        raise error
 
-    @commands.command()
-    async def imgoptimize(self, ctx, *args):
+        user = ctx.user
 
-        prompt = self.OPTIMIZER_PRETEXT
-        # Add everything except the command to the prompt
-        for arg in args:
-            prompt += arg + " "
+        final_prompt = self.OPTIMIZER_PRETEXT
+        final_prompt += prompt
 
         # If the prompt doesn't end in a period, terminate it.
-        if not prompt.endswith("."):
-            prompt += "."
+        if not final_prompt.endswith("."):
+            final_prompt += "."
 
         # Get the token amount for the prompt
-        tokens = self.usage_service.count_tokens(prompt)
+        tokens = self.usage_service.count_tokens(final_prompt)
 
         try:
             response = await self.model.send_request(
-                prompt,
-                ctx.message,
+                final_prompt,
                 tokens=tokens,
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
                 best_of_override=1,
+                max_tokens_override=80
             )
+
             # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
             # twice because of the best_of_override=2 parameter. This is to ensure that the model does a lot of analysis, but is
             # also relatively cost-effective
@@ -89,24 +84,24 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             response_text = response["choices"][0]["text"]
 
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
-                await ctx.reply("I'm sorry, I can't mention users, roles, or channels.")
+                await ctx.respond("I'm sorry, I can't mention users, roles, or channels.")
                 return
 
-            response_message = await ctx.reply(
+            response_message = await ctx.respond(
                 response_text.replace("Optimized Prompt:", "")
                 .replace("Output Prompt:", "")
                 .replace("Output:", "")
             )
 
-            self.converser_cog.users_to_interactions[ctx.message.author.id] = []
-            self.converser_cog.users_to_interactions[ctx.message.author.id].append(
+            self.converser_cog.users_to_interactions[user.id] = []
+            self.converser_cog.users_to_interactions[user.id].append(
                 response_message.id
             )
 
-            self.converser_cog.redo_users[ctx.author.id] = RedoUser(
-                prompt, ctx.message, response_message
+            self.converser_cog.redo_users[user.id] = RedoUser(
+                final_prompt, ctx, ctx, response_message
             )
-            self.converser_cog.redo_users[ctx.author.id].add_interaction(
+            self.converser_cog.redo_users[user.id].add_interaction(
                 response_message.id
             )
             await response_message.edit(
@@ -117,13 +112,13 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
 
         # Catch the value errors raised by the Model object
         except ValueError as e:
-            await ctx.reply(e)
+            await ctx.respond(e)
             return
 
         # Catch all other errors, we want this to keep going if it errors out.
         except Exception as e:
-            await ctx.reply("Something went wrong, please try again later")
-            await ctx.channel.send(e)
+            await ctx.respond("Something went wrong, please try again later")
+            await ctx.send_followup(e)
             # print a stack trace
             traceback.print_exc()
             return
@@ -181,7 +176,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
 
         # Call the image service cog to draw the image
         await self.image_service_cog.encapsulated_send(
-            prompt, None, msg, True, True, user_id
+            user_id, prompt, None, msg, True, True,
         )
 
 
@@ -202,6 +197,7 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
             user_id
         ].in_interaction(interaction_id):
             # Get the message and the prompt and call encapsulated_send
+            ctx = self.converser_cog.redo_users[user_id].ctx
             message = self.converser_cog.redo_users[user_id].message
             prompt = self.converser_cog.redo_users[user_id].prompt
             response_message = self.converser_cog.redo_users[user_id].response
@@ -209,7 +205,7 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
             await self.converser_cog.encapsulated_send(
-                message, prompt, response_message
+                user_id, prompt, ctx, response_message
             )
         else:
             await interaction.response.send_message(

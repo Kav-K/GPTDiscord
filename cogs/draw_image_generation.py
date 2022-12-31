@@ -1,30 +1,28 @@
 import asyncio
-import datetime
 import os
-import re
 import tempfile
 import traceback
-import uuid
-from collections import defaultdict
 from io import BytesIO
 
 import discord
 from PIL import Image
 from discord.ext import commands
 
-from cogs.image_prompt_optimizer import ImgPromptOptimizer
 
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
+from models.env_service_model import EnvService
 from models.user_model import RedoUser
 
 redo_users = {}
 users_to_interactions = {}
+ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
 class DrawDallEService(commands.Cog, name="DrawDallEService"):
     def __init__(
         self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
+        super().__init__()
         self.bot = bot
         self.usage_service = usage_service
         self.model = model
@@ -33,33 +31,23 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         self.converser_cog = converser_cog
 
         print("Draw service init")
-        self.bot.add_cog(
-            ImgPromptOptimizer(
-                self.bot,
-                self.usage_service,
-                self.model,
-                self.message_queue,
-                self.deletion_queue,
-                self.converser_cog,
-                self,
-            )
-        )
-        print(f"Image prompt optimizer was added")
 
     async def encapsulated_send(
         self,
+        user_id,
         prompt,
-        message,
+        ctx,
         response_message=None,
         vary=None,
         draw_from_optimizer=None,
-        user_id=None,
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
         file, image_urls = await self.model.send_image_request(
             prompt, vary=vary if not draw_from_optimizer else None
         )
+
+        from_context = isinstance(ctx, discord.ApplicationContext)
 
         # Start building an embed to send to the user with the results of the image generation
         embed = discord.Embed(
@@ -77,20 +65,26 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
         if not response_message:  # Original generation case
             # Start an interaction with the user, we also want to send data embed=embed, file=file, view=SaveView(image_urls, self, self.converser_cog)
-            result_message = await message.channel.send(
+            result_message = await ctx.channel.send(
                 embed=embed,
                 file=file,
-            )
+            ) if not from_context else await ctx.respond(embed=embed, file=file)
+
             await result_message.edit(
                 view=SaveView(image_urls, self, self.converser_cog, result_message)
             )
 
-            self.converser_cog.users_to_interactions[message.author.id] = []
-            self.converser_cog.users_to_interactions[message.author.id].append(
+            self.converser_cog.users_to_interactions[user_id] = []
+            self.converser_cog.users_to_interactions[user_id].append(
                 result_message.id
             )
 
-            redo_users[message.author.id] = RedoUser(prompt, message, result_message)
+            # Get the actual result message object
+            if from_context:
+                result_message = await ctx.fetch_message(result_message.id)
+
+            redo_users[user_id] = RedoUser(prompt, ctx, ctx, result_message)
+
         else:
             if not vary:  # Editing case
                 message = await response_message.edit(
@@ -113,9 +107,6 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                         )
                     )
 
-                    redo_users[message.author.id] = RedoUser(
-                        prompt, message, result_message
-                    )
                 else:
                     result_message = await response_message.edit_original_response(
                         content="I've drawn the optimized prompt!",
@@ -128,59 +119,45 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                         )
                     )
 
-                    redo_users[user_id] = RedoUser(prompt, message, result_message)
+                    redo_users[user_id] = RedoUser(prompt, ctx, ctx, result_message)
 
-                if user_id:
-                    self.converser_cog.users_to_interactions[user_id].append(
-                        response_message.id
-                    )
-                    self.converser_cog.users_to_interactions[user_id].append(
-                        result_message.id
-                    )
+                self.converser_cog.users_to_interactions[user_id].append(
+                    response_message.id
+                )
+                self.converser_cog.users_to_interactions[user_id].append(
+                    result_message.id
+                )
 
-    @commands.command()
-    async def draw(self, ctx, *args):
-        message = ctx.message
+    @discord.slash_command(name="draw", description="Draw an image from a prompt", guild_ids=ALLOWED_GUILDS)
+    @discord.option(name = "prompt", description = "The prompt to draw from", required = True)
+    async def draw(self, ctx: discord.ApplicationContext, prompt: str):
+        await ctx.defer()
 
-        if message.author == self.bot.user:
+        user = ctx.user
+
+        if user == self.bot.user:
             return
 
         # Only allow the bot to be used by people who have the role "Admin" or "GPT"
-        general_user = not any(
-            role
-            in set(self.converser_cog.DAVINCI_ROLES).union(
-                set(self.converser_cog.CURIE_ROLES)
-            )
-            for role in message.author.roles
-        )
-        admin_user = not any(
-            role in self.converser_cog.DAVINCI_ROLES for role in message.author.roles
-        )
-
-        if not admin_user and not general_user:
+        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
+
         try:
-
-            # The image prompt is everything after the command
-            prompt = " ".join(args)
-
-            asyncio.ensure_future(self.encapsulated_send(prompt, message))
+            asyncio.ensure_future(self.encapsulated_send(user.id, prompt, ctx))
 
         except Exception as e:
             print(e)
             traceback.print_exc()
-            await ctx.reply("Something went wrong. Please try again later.")
-            await ctx.reply(e)
+            await ctx.respond("Something went wrong. Please try again later.")
+            await ctx.send_followup(e)
 
-    @commands.command()
-    async def local_size(self, ctx):
+    @discord.slash_command(name="local-size", description="Get the size of the dall-e images folder that we have on the current system", guild_ids=ALLOWED_GUILDS)
+    @discord.guild_only()
+    async def local_size(self, ctx: discord.ApplicationContext):
+        await ctx.defer()
         # Get the size of the dall-e images folder that we have on the current system.
         # Check if admin user
-        message = ctx.message
-        admin_user = not any(
-            role in self.converser_cog.DAVINCI_ROLES for role in message.author.roles
-        )
-        if not admin_user:
+        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
 
         image_path = self.model.IMAGE_SAVE_PATH
@@ -192,15 +169,14 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
         # Format the size to be in MB and send.
         total_size = total_size / 1000000
-        await ctx.send(f"The size of the local images folder is {total_size} MB.")
+        await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
-    @commands.command()
+    @discord.slash_command(name="clear-local", description="Clear the local dalleimages folder on system.", guild_ids=ALLOWED_GUILDS)
+    @discord.guild_only()
     async def clear_local(self, ctx):
-        message = ctx.message
-        admin_user = not any(
-            role in self.converser_cog.DAVINCI_ROLES for role in message.author.roles
-        )
-        if not admin_user:
+        await ctx.defer()
+
+        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
 
         # Delete all the local images in the images folder.
@@ -213,7 +189,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 except Exception as e:
                     print(e)
 
-        await ctx.send("Local images cleared.")
+        await ctx.respond("Local images cleared.")
 
 
 class SaveView(discord.ui.View):
@@ -271,11 +247,6 @@ class VaryButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         interaction_id = interaction.message.id
-        print(
-            f"The interactions for the user is {self.converser_cog.users_to_interactions[user_id]}"
-        )
-        print(f"The current interaction message id is {interaction_id}")
-        print(f"The current interaction ID is {interaction.id}")
 
         if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
             if len(self.converser_cog.users_to_interactions[user_id]) >= 2:
@@ -309,11 +280,11 @@ class VaryButton(discord.ui.Button):
 
             asyncio.ensure_future(
                 self.cog.encapsulated_send(
+                    user_id,
                     prompt,
                     interaction.message,
                     response_message=response_message,
                     vary=self.image_url,
-                    user_id=user_id,
                 )
             )
 
@@ -369,7 +340,7 @@ class RedoButton(discord.ui.Button["SaveView"]):
         # We have passed the intial check of if the interaction belongs to the user
         if user_id in redo_users:
             # Get the message and the prompt and call encapsulated_send
-            message = redo_users[user_id].message
+            ctx = redo_users[user_id].ctx
             prompt = redo_users[user_id].prompt
             response_message = redo_users[user_id].response
             message = await interaction.response.send_message(
@@ -379,5 +350,5 @@ class RedoButton(discord.ui.Button["SaveView"]):
             self.converser_cog.users_to_interactions[user_id].append(message.id)
 
             asyncio.ensure_future(
-                self.cog.encapsulated_send(prompt, message, response_message)
+                self.cog.encapsulated_send(user_id, prompt, ctx, response_message)
             )

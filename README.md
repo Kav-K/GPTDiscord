@@ -2,15 +2,17 @@
 
 <p align="center">
 <img src="https://i.imgur.com/KeLpDgj.png"/>
-<img  src="https://i.imgur.com/AFCwxgJ.png"/>
+<img  src="https://i.imgur.com/jLp1T0h.png"/>
 
 </p>
+
+**PERMANENT MEMORY FOR CONVERSATIONS COMING VERY SOON USING EMBEDDINGS!**
 
 # Recent Major Updates
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
-- **PERMANENT MEMORY FOR CONVERSATIONS COMING SOON USING EMBEDDINGS!**
+- **SLASH COMMANDS!**
 
 - **Image prompt optimizer overhauled** - The optimizer works much better now, and makes beautiful image prompts that work even with Midjourney, SD, etc!
 
@@ -22,15 +24,15 @@
 
 
 # Features
-- **Directly prompt GPT3 with `!g <prompt>`**
+- **Directly prompt GPT3 with `/g <prompt>`**
 
-- **Have conversations with the bot, just like chatgpt, with `!g converse`** - Conversations happen in threads that get automatically cleaned up!
+- **Have conversations with the bot, just like chatgpt, with `/chat-gpt`** - Conversations happen in threads that get automatically cleaned up!
 
-- **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `!draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
+- **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
 - **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked.
 
-- **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly!
+- **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/imgoptimize <prompt>`
 
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!
 
@@ -104,7 +106,7 @@ After login, we need to install the various dependencies that the bot needs. To 
    10 python3.9 -m pip install -r requirements.txt
    11 python3.9 -m pip install .
    12 ls
-# Copy the sample.env file into a regular .env file. `DEBUG_GUILD` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
+# Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
    13  cp sample.env .env
 # The command below is used to edit the .env file and to put in your API keys. You can right click within the
 # editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
@@ -149,6 +151,7 @@ This can also be run via screen/tmux or detached like a daemon.
     - Bot Permissions will appear, select the desired permissions
     - Copy the link generated below and paste it on the browser
     - On add to server select the desired server to add the bot
+- Make sure you have updated your .env file with valid values for `DEBUG_GUILD`, `DEBUG_CHANNEL` and `ALLOWED_GUILDS`, otherwise the bot will not work. Guild IDs can be found by right clicking a server and clicking `Copy ID`, similarly, channel IDs can be found by right clicking a channel and clicking `Copy ID`.
 
 # Usage
 
@@ -156,28 +159,32 @@ This can also be run via screen/tmux or detached like a daemon.
 
 # Commands
 
-`!g` - Display help text for the bot
+`/help` - Display help text for the bot
 
-`!g converse` - Start a conversation with the bot, like ChatGPT
+`/g <prompt>` Ask the GPT3 Davinci 003 model a question.
 
-`!g end` - End a conversation with the bot.
+`/chat-gpt` - Start a conversation with the bot, like ChatGPT
 
-`!draw <prompt>` - Have DALL-E generate images based on a prompt
+`/end-chat` - End a conversation with the bot.
 
-`!gp` - Display settings for the model (temperature, top_p, etc)
+`/draw <prompt>` - Have DALL-E generate images based on a prompt
 
-`!gs <setting> <value>` - Change a model setting to a new value
+`/settings` - Display settings for the model (temperature, top_p, etc)
 
-`!g <prompt>` Ask the GPT3 Davinci 003 model a question.
+`/settings <setting> <value>` - Change a model setting to a new value
 
-`!gu` Estimate current usage details (based on davinci)
+`/usage` Estimate current usage details (based on davinci)
 
-`!gs low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
+`/settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
 
-`!imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+`/imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
 
-`!delete_all_conversation_threads` - Delete all threads related to this bot across all servers.
+`/delete_all_conversation_threads` - Delete all threads related to this bot across all servers.
+
+`/local-size` - Get the size of the local dalleimages folder
+
+`/clear-local` - Clear all the local dalleimages.
 
 # Configuration
 
-All the model parameters are configurable inside discord. Type `!gp` to view all the configurable parameters, and use `!gs <param> <value>` to set parameters. For example, if I wanted to change the number of images generated by DALL-E by default to 4, I can type the following command in discord: `!gs num_images 4`
+All the model parameters are configurable inside discord. Type `!gp` to view all the configurable parameters, and use `/settings <param> <value>` to set parameters. For example, if I wanted to change the number of images generated by DALL-E by default to 4, I can type the following command in discord: `/settings num_images 4`

@@ -41,7 +41,7 @@ class Model:
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
         self._prompt_min_length = 12
-        self._max_conversation_length = 50
+        self._max_conversation_length = 100
         self._model = Models.DAVINCI
         self._low_usage_mode = False
         self.usage_service = usage_service
@@ -49,7 +49,7 @@ class Model:
         self._image_size = ImageSize.MEDIUM
         self._num_images = 2
         self._summarize_conversations = True
-        self._summarize_threshold = 3000
+        self._summarize_threshold = 2500
         self.model_max_tokens = 4024
 
         try:
@@ -69,6 +69,7 @@ class Model:
             "custom_web_root",
             "_hidden_attributes",
             "model_max_tokens",
+            "openai_key"
         ]
 
         self.openai_key = os.getenv("OPENAI_TOKEN")
@@ -289,7 +290,7 @@ class Model:
             )
         self._prompt_min_length = value
 
-    async def send_summary_request(self, message, prompt):
+    async def send_summary_request(self, prompt):
         """
         Sends a summary request to the OpenAI API
         """
@@ -303,6 +304,9 @@ class Model:
         summary_request_text = "".join(summary_request_text)
 
         tokens = self.usage_service.count_tokens(summary_request_text)
+
+        print("The summary request will use " + str(tokens) + " tokens.")
+        print(f"{self.max_tokens - tokens} is the remaining that we will use.")
 
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -333,7 +337,6 @@ class Model:
     async def send_request(
         self,
         prompt,
-        message,
         tokens,
         temp_override=None,
         top_p_override=None,
@@ -349,7 +352,7 @@ class Model:
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
             raise ValueError(
-                "Prompt must be greater than 25 characters, it is currently "
+                "Prompt must be greater than 12 characters, it is currently "
                 + str(len(prompt))
             )
 
@@ -357,9 +360,7 @@ class Model:
 
         async with aiohttp.ClientSession() as session:
             payload = {
-                "model": Models.DAVINCI
-                if any(role.name in self.DAVINCI_ROLES for role in message.author.roles)
-                else self.model,
+                "model": self.model,
                 "prompt": prompt,
                 "temperature": self.temp if not temp_override else temp_override,
                 "top_p": self.top_p if not top_p_override else top_p_override,

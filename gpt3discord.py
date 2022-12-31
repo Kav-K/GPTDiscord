@@ -7,14 +7,15 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
-from models.deletion_service import Deletion
+from models.deletion_service_model import Deletion
 from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2022.12"
+__version__ = "2.0"
 load_dotenv()
 import os
 
@@ -64,6 +65,29 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
+        )
+    )
+
+    bot.add_cog(
+        DrawDallEService(
+            bot,
+            usage_service,
+            model,
+            message_queue,
+            deletion_queue,
+            bot.get_cog("GPT3ComCon"),
+        )
+    )
+
+    bot.add_cog(
+        ImgPromptOptimizer(
+            bot,
+            usage_service,
+            model,
+            message_queue,
+            deletion_queue,
+            bot.get_cog("GPT3ComCon"),
+            bot.get_cog("DrawDallEService"),
         )
     )
 
