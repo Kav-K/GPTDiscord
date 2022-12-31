@@ -499,7 +499,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             )
 
     # ctx can be of type AppContext(interaction) or Message
-    async def encapsulated_send(self, user_id, prompt, ctx, response_message=None):
+    async def encapsulated_send(self, user_id, prompt, ctx, response_message=None, from_g_command=False):
         new_prompt = prompt + "\nGPTie: "
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -510,6 +510,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             if (
                 user_id in self.conversating_users
                 and tokens > self.model.summarize_threshold
+                and not from_g_command
             ):
 
                 # We don't need to worry about the differences between interactions and messages in this block,
@@ -561,7 +562,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
 
             # If the user is conversing, add the GPT response to their conversation history.
-            if user_id in self.conversating_users:
+            if user_id in self.conversating_users and not from_g_command:
                 self.conversating_users[user_id].history.append(
                     "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
                 )
@@ -647,10 +648,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         await self.encapsulated_send(
             user.id,
-            prompt
-            if user.id not in self.conversating_users
-            else "".join(self.conversating_users[user.id].history),
-            ctx,
+            prompt,
+            ctx, from_g_command=True
         )
 
     @discord.slash_command(
