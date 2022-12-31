@@ -63,12 +63,11 @@ You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id
 
 ```
 OPENAI_TOKEN="<openai_api_token>"
-
 DISCORD_TOKEN="<discord_bot_token>"
-
 DEBUG_GUILD="974519864045756446"   #discord_server_id
-
 DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
+ALLOWED_GUILDS="971268468148166697,971268468148166697"
+ALLOWED_ROLES="Admin,gpt"
 ```
 
 Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
