@@ -499,7 +499,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             )
 
     # ctx can be of type AppContext(interaction) or Message
-    async def encapsulated_send(self, user_id, prompt, ctx, response_message=None, from_g_command=False):
+    async def encapsulated_send(
+        self, user_id, prompt, ctx, response_message=None, from_g_command=False
+    ):
         new_prompt = prompt + "\nGPTie: "
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -646,11 +648,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         # Send the request to the model
         # If conversing, the prompt to send is the history, otherwise, it's just the prompt
 
-        await self.encapsulated_send(
-            user.id,
-            prompt,
-            ctx, from_g_command=True
-        )
+        await self.encapsulated_send(user.id, prompt, ctx, from_g_command=True)
 
     @discord.slash_command(
         name="chat-gpt",
