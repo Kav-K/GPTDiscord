@@ -79,7 +79,7 @@ jobs:
             cd /home/gptbot
             kill -9 $(cat bot.pid)
             rm bot.pid
-            screen -dmS GPTBot python3.9 main.py
+            screen -dmS GPTBot python3.9 gpt3discord.py
             logout
             exit
           host: 104.248.105.234
