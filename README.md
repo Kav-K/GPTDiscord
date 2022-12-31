@@ -63,12 +63,11 @@ You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id
 
 ```
 OPENAI_TOKEN="<openai_api_token>"
-
 DISCORD_TOKEN="<discord_bot_token>"
-
 DEBUG_GUILD="974519864045756446"   #discord_server_id
-
 DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
+ALLOWED_GUILDS="971268468148166697,971268468148166697"
+ALLOWED_ROLES="Admin,gpt"
 ```
 
 Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
@@ -90,34 +89,46 @@ It will then prompt you for your password, which you should enter, and then you 
 
 After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:
 
+*Download the source code.*
+```bash
+git clone https://github.com/Kav-K/GPT3Discord.git
+cd GPT3Discord/
 ```
-# Download the source code.
-    1  ls
-    2  git clone https://github.com/Kav-K/GPT3Discord.git
-    3  ls
-    4  cd GPT3Discord/
-    5  ls
-# Install system packages (python)
-    6  sudo apt-get update
-    7  sudo apt install software-properties-common
-    8  sudo add-apt-repository ppa:deadsnakes/ppa
-    9  sudo apt install python3.9 python3.9-pip
-# Install project dependencies
-   10 python3.9 -m pip install -r requirements.txt
-   11 python3.9 -m pip install .
-   12 ls
-# Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
-   13  cp sample.env .env
-# The command below is used to edit the .env file and to put in your API keys. You can right click within the
-# editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
-   14  nano .env
-   15  ls
-# Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:
-   16  screen gpt3discord
 
-# Hit `Ctrl+a` then `d` to detach from the running bot.
-# The bot's screen session can be reattached:
-   17  screen -r
+*Install system packages (python)*
+```bash
+sudo apt-get update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.9 python3.9-pip
+```
+
+*Install project dependencies*
+```bash
+python3.9 -m pip install -r requirements.txt
+python3.9 -m pip install .
+```
+
+Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.
+```bash
+cp sample.env .env
+```
+
+The command below is used to edit the .env file and to put in your API keys. You can right click within the editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.
+```bash
+nano .env
+```
+
+Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:
+```bash
+screen gpt3discord
+```
+
+Hit `Ctrl+a` then `d` to detach from the running bot.
+
+The bot's screen session can be reattached:
+```bash
+screen -r
 ```
 
 ## Docker Installation
