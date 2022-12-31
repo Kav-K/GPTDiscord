@@ -69,7 +69,7 @@ class Model:
             "custom_web_root",
             "_hidden_attributes",
             "model_max_tokens",
-            "openai_key"
+            "openai_key",
         ]
 
         self.openai_key = os.getenv("OPENAI_TOKEN")
