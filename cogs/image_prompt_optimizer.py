@@ -9,6 +9,7 @@ from models.user_model import RedoUser
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
+
 class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
@@ -45,8 +46,14 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
-    @discord.slash_command(name="imgoptimize", description="Optimize a text prompt for DALL-E/MJ/SD image generation.", guild_ids=ALLOWED_GUILDS)
-    @discord.option(name="prompt", description="The text prompt to optimize.", required=True)
+    @discord.slash_command(
+        name="imgoptimize",
+        description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="prompt", description="The text prompt to optimize.", required=True
+    )
     @discord.guild_only()
     async def imgoptimize(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
@@ -74,7 +81,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
                 temp_override=0.9,
                 presence_penalty_override=0.5,
                 best_of_override=1,
-                max_tokens_override=80
+                max_tokens_override=80,
             )
 
             # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
@@ -84,7 +91,9 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             response_text = response["choices"][0]["text"]
 
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
-                await ctx.respond("I'm sorry, I can't mention users, roles, or channels.")
+                await ctx.respond(
+                    "I'm sorry, I can't mention users, roles, or channels."
+                )
                 return
 
             response_message = await ctx.respond(
@@ -101,9 +110,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             self.converser_cog.redo_users[user.id] = RedoUser(
                 final_prompt, ctx, ctx, response_message
             )
-            self.converser_cog.redo_users[user.id].add_interaction(
-                response_message.id
-            )
+            self.converser_cog.redo_users[user.id].add_interaction(response_message.id)
             await response_message.edit(
                 view=OptimizeView(
                     self.converser_cog, self.image_service_cog, self.deletion_queue
@@ -176,7 +183,12 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
 
         # Call the image service cog to draw the image
         await self.image_service_cog.encapsulated_send(
-            user_id, prompt, None, msg, True, True,
+            user_id,
+            prompt,
+            None,
+            msg,
+            True,
+            True,
         )
 
 

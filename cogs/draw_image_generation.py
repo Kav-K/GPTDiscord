@@ -65,19 +65,21 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
         if not response_message:  # Original generation case
             # Start an interaction with the user, we also want to send data embed=embed, file=file, view=SaveView(image_urls, self, self.converser_cog)
-            result_message = await ctx.channel.send(
-                embed=embed,
-                file=file,
-            ) if not from_context else await ctx.respond(embed=embed, file=file)
+            result_message = (
+                await ctx.channel.send(
+                    embed=embed,
+                    file=file,
+                )
+                if not from_context
+                else await ctx.respond(embed=embed, file=file)
+            )
 
             await result_message.edit(
                 view=SaveView(image_urls, self, self.converser_cog, result_message)
             )
 
             self.converser_cog.users_to_interactions[user_id] = []
-            self.converser_cog.users_to_interactions[user_id].append(
-                result_message.id
-            )
+            self.converser_cog.users_to_interactions[user_id].append(result_message.id)
 
             # Get the actual result message object
             if from_context:
@@ -128,8 +130,10 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     result_message.id
                 )
 
-    @discord.slash_command(name="draw", description="Draw an image from a prompt", guild_ids=ALLOWED_GUILDS)
-    @discord.option(name = "prompt", description = "The prompt to draw from", required = True)
+    @discord.slash_command(
+        name="draw", description="Draw an image from a prompt", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.option(name="prompt", description="The prompt to draw from", required=True)
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
 
@@ -151,7 +155,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
             await ctx.respond("Something went wrong. Please try again later.")
             await ctx.send_followup(e)
 
-    @discord.slash_command(name="local-size", description="Get the size of the dall-e images folder that we have on the current system", guild_ids=ALLOWED_GUILDS)
+    @discord.slash_command(
+        name="local-size",
+        description="Get the size of the dall-e images folder that we have on the current system",
+        guild_ids=ALLOWED_GUILDS,
+    )
     @discord.guild_only()
     async def local_size(self, ctx: discord.ApplicationContext):
         await ctx.defer()
@@ -171,7 +179,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         total_size = total_size / 1000000
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
-    @discord.slash_command(name="clear-local", description="Clear the local dalleimages folder on system.", guild_ids=ALLOWED_GUILDS)
+    @discord.slash_command(
+        name="clear-local",
+        description="Clear the local dalleimages folder on system.",
+        guild_ids=ALLOWED_GUILDS,
+    )
     @discord.guild_only()
     async def clear_local(self, ctx):
         await ctx.defer()
