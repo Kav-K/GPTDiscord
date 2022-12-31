@@ -600,8 +600,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         # General catch case for everything
         except Exception:
-            message = "Something went wrong, please try again later"
+            message = "Something went wrong, please try again later. This may be due to upstream issues on the API, or rate limiting."
             await ctx.send_followup(message) if from_context else await ctx.reply(message)
+            if user_id in self.awaiting_responses:
+                self.awaiting_responses.remove(user_id)
             traceback.print_exc()
             await self.end_conversation(ctx)
             return
