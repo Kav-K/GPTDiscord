@@ -739,7 +739,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             "summarize_conversations",
             "summarize_threshold",
             "IMAGE_SAVE_PATH",
-            "openai_key",
         ],
     )
     @discord.option(
