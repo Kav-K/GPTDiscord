@@ -36,7 +36,7 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
-          source: main.py
+          source: gpt3discord.py
           target: /home/gptbot/
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
