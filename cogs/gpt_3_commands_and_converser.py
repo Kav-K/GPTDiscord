@@ -502,7 +502,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     async def encapsulated_send(
         self, user_id, prompt, ctx, response_message=None, from_g_command=False
     ):
-        new_prompt = prompt + "\nGPTie: "
+        new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
+
         from_context = isinstance(ctx, discord.ApplicationContext)
 
         try:
@@ -555,6 +556,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             response_text = str(response["choices"][0]["text"])
             response_text = response_text.replace("GPTie: ", "")
             response_text = response_text.replace("<|endofstatement|>", "")
+
+            if from_g_command:
+                # Append the prompt to the beginning of the response, in italics, then a new line
+                response_text = response_text.strip()
+                response_text = f"***{prompt}***\n\n{response_text}"
 
             # If GPT3 tries to ping somebody, don't let it happen
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", str(response_text)):

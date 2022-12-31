@@ -61,6 +61,10 @@ Both the OpenAI API key and the Discord bot token needed to be loaded into a .en
 
 You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id is a server id, and the debug channel id is a text-channel id in Discord. Your final .env file should look like the following:
 
+You also need to add the allowed guilds that the bot can operate on, this is the `ALLOWED_GUILDS` field, to get a guild ID, right click a server and click "Copy ID".
+
+You also need to add the roles that can use the bot, this is the `ALLOWED_ROLES` field, enter role names here, separated by commas. Currently, there is no way to give everybody access to the bot, and you have to use roles, but it will be done soon.
+
 ```
 OPENAI_TOKEN="<openai_api_token>"
 DISCORD_TOKEN="<discord_bot_token>"
