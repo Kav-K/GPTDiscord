@@ -66,7 +66,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
             assert self.CONVERSATION_STARTER_TEXT is not None
 
-            conversation_file_path_minimal = data_path / "conversation_starter_pretext_minimal.txt"
+            conversation_file_path_minimal = (
+                data_path / "conversation_starter_pretext_minimal.txt"
+            )
             with conversation_file_path_minimal.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT_MINIMAL = f.read()
                 print(
@@ -101,7 +103,15 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
-        await self.bot.sync_commands(commands=None, method='individual', force=True, guild_ids=ALLOWED_GUILDS, register_guild_commands=True, check_guilds=[], delete_existing=True)
+        await self.bot.sync_commands(
+            commands=None,
+            method="individual",
+            force=True,
+            guild_ids=ALLOWED_GUILDS,
+            register_guild_commands=True,
+            check_guilds=[],
+            delete_existing=True,
+        )
         print(f"The debug channel was acquired and commands registered")
 
     @discord.slash_command(
@@ -665,24 +675,24 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         checks=[Check.check_valid_roles()],
     )
     @discord.option(
-        name="opener",
-        description="Which sentence to start with",
-        required=False
+        name="opener", description="Which sentence to start with", required=False
     )
     @discord.option(
-        name="private", 
-        description="Converse in a private thread", 
-        required=False, 
-        choices=["yes"], 
+        name="private",
+        description="Converse in a private thread",
+        required=False,
+        choices=["yes"],
     )
     @discord.option(
-        name="minimal", 
-        description="Use minimal starter text", 
-        required=False, 
+        name="minimal",
+        description="Use minimal starter text",
+        required=False,
         choices=["yes"],
     )
     @discord.guild_only()
-    async def chat_gpt(self, ctx: discord.ApplicationContext, opener:str, private, minimal):
+    async def chat_gpt(
+        self, ctx: discord.ApplicationContext, opener: str, private, minimal
+    ):
         if private:
             await ctx.defer(ephemeral=True)
         elif not private:
@@ -706,16 +716,20 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal:
-            self.conversating_users[user_id_normalized].history.append(self.CONVERSATION_STARTER_TEXT_MINIMAL)
+            self.conversating_users[user_id_normalized].history.append(
+                self.CONVERSATION_STARTER_TEXT_MINIMAL
+            )
         elif not minimal:
-            self.conversating_users[user_id_normalized].history.append(self.CONVERSATION_STARTER_TEXT)
+            self.conversating_users[user_id_normalized].history.append(
+                self.CONVERSATION_STARTER_TEXT
+            )
 
         if private:
             await ctx.respond(user.name + "'s private conversation with GPT3")
             thread = await ctx.channel.create_thread(
                 name=user.name + "'s private conversation with GPT3",
                 auto_archive_duration=60,
-                )
+            )
         elif not private:
             message_thread = await ctx.respond(user.name + "'s conversation with GPT3")
             # Get the actual message object for the message_thread
@@ -730,15 +744,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             + str(user_id_normalized)
             + "> You are now conversing with GPT3. *Say hi to start!*\n End the conversation by saying `end`.\n\n If you want GPT3 to ignore your messages, start your messages with `~`\n\nYour conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
         )
-        
-        #send opening
+
+        # send opening
         if opener:
             thread_message = await thread.send(
                 "***Opening prompt*** \n"
-                "<@"
-                + str(user_id_normalized)
-                + ">: "
-                + opener
+                "<@" + str(user_id_normalized) + ">: " + opener
             )
             if user_id_normalized in self.conversating_users:
                 self.awaiting_responses.append(user_id_normalized)
@@ -877,7 +888,8 @@ class EndConvoButton(discord.ui.Button["RedoView"]):
         ].in_interaction(interaction.message.id):
             try:
                 await self.converser_cog.end_conversation(
-                    self.converser_cog.redo_users[user_id].message, opener_user_id=user_id
+                    self.converser_cog.redo_users[user_id].message,
+                    opener_user_id=user_id,
                 )
                 await interaction.response.send_message(
                     "Your conversation has ended!", ephemeral=True, delete_after=10
