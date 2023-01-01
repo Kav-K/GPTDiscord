@@ -5,7 +5,7 @@ import traceback
 from pathlib import Path
 
 import discord
-from discord.ext import commands
+from pycord.multicog import add_to_group
 
 from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
@@ -20,7 +20,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 print("THE ALLOWED GUILDS ARE: ", ALLOWED_GUILDS)
 
 
-class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
+class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def __init__(
         self,
         bot,
@@ -94,11 +94,28 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.message_queue = message_queue
         self.conversation_threads = {}
 
-    @commands.Cog.listener()
+    # Create slash command groups
+    admin = discord.SlashCommandGroup(name="admin", 
+                                    description="Admin settings for the bot",
+                                    guild_ids=ALLOWED_GUILDS,
+                                    checks=[Check.check_admin_roles()]
+                                    )
+    dalle = discord.SlashCommandGroup(name="dalle", 
+                                        description="Dalle related commands",
+                                        guild_ids=ALLOWED_GUILDS,
+                                        checks=[Check.check_dalle_roles()]
+                                        )
+    gpt = discord.SlashCommandGroup(name="gpt", 
+                                        description="GPT related commands",
+                                        guild_ids=ALLOWED_GUILDS,
+                                        checks=[Check.check_gpt_roles()]
+                                        )
+
+    @discord.Cog.listener()
     async def on_member_remove(self, member):
         pass
 
-    @commands.Cog.listener()
+    @discord.Cog.listener()
     async def on_ready(self):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
@@ -113,18 +130,19 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             delete_existing=True,
         )
         print(f"The debug channel was acquired and commands registered")
-
+    
+    @add_to_group("admin")
     @discord.slash_command(
         name="set-usage",
         description="Set the current OpenAI usage (in dollars)",
-        checks=[Check.check_valid_roles()],
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
         name="usage_amount",
         description="The current usage amount in dollars and cents (e.g 10.24)",
         type=float,
     )
-    async def set_usage(self, ctx, usage_amount: float):
+    async def set_usage(self, ctx: discord.ApplicationContext, usage_amount: float):
         await ctx.defer()
 
         # Attempt to convert the input usage value into a float
@@ -136,12 +154,13 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             await ctx.respond("The usage value must be a valid float.")
             return
 
+    @add_to_group("admin")
     @discord.slash_command(
         name="delete-conversation-threads",
         description="Delete all conversation threads across the bot servers.",
-        checks=[Check.check_valid_roles()],
+        guild_ids=ALLOWED_GUILDS,
     )
-    async def delete_all_conversation_threads(self, ctx):
+    async def delete_all_conversation_threads(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
         for guild in self.bot.guilds:
@@ -195,12 +214,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
-            name="/g <prompt>",
+            name="/chat",
             value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
             inline=False,
         )
         embed.add_field(
-            name="/chat-gpt", value="Start a conversation with GPT3", inline=False
+            name="/converse", value="Start a conversation with GPT3", inline=False
         )
         embed.add_field(
             name="/end-chat",
@@ -408,7 +427,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.conversating_users[message.author.id].history = new_conversation_history
 
     # A listener for message edits to redo prompts if they are edited
-    @commands.Cog.listener()
+    @discord.Cog.listener()
     async def on_message_edit(self, before, after):
         if after.author.id in self.redo_users:
             if after.id == original_message[after.author.id]:
@@ -439,7 +458,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
                 self.redo_users[after.author.id].prompt = after.content
 
-    @commands.Cog.listener()
+    @discord.Cog.listener()
     async def on_message(self, message):
         # Get the message from context
 
@@ -657,17 +676,17 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             await self.end_conversation(ctx)
             return
 
+    @add_to_group("gpt")
     @discord.slash_command(
-        name="g",
+        name="chat",
         description="Ask GPT3 something!",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.guild_only()
-    async def g(self, ctx: discord.ApplicationContext, prompt: str):
+    async def chat(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
 
         user = ctx.user
@@ -679,11 +698,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         await self.encapsulated_send(user.id, prompt, ctx, from_g_command=True)
 
+    @add_to_group("gpt")
     @discord.slash_command(
-        name="chat-gpt",
+        name="converse",
         description="Have a conversation with GPT3",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="opener", description="Which sentence to start with", required=False
@@ -701,7 +720,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         choices=["yes"],
     )
     @discord.guild_only()
-    async def chat_gpt(
+    async def converse(
         self, ctx: discord.ApplicationContext, opener: str, private, minimal
     ):
         if private:
@@ -781,6 +800,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         self.conversation_threads[user_id_normalized] = thread.id
 
+    @add_to_group("gpt")
     @discord.slash_command(
         name="end-chat",
         description="End a conversation with GPT3",
@@ -801,6 +821,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         await ctx.defer()
         await self.send_help_text(ctx)
 
+    @add_to_group("admin")
     @discord.slash_command(
         name="usage",
         description="Get usage statistics for GPT3Discord",
@@ -811,6 +832,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         await ctx.defer()
         await self.send_usage_text(ctx)
 
+    @add_to_group("admin")
     @discord.slash_command(
         name="settings",
         description="Get settings for GPT3Discord",

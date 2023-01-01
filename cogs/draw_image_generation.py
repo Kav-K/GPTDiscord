@@ -6,20 +6,19 @@ from io import BytesIO
 
 import discord
 from PIL import Image
-from discord.ext import commands
+from pycord.multicog import add_to_group
 
 
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
-from models.check_model import Check
 
 redo_users = {}
 users_to_interactions = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-class DrawDallEService(commands.Cog, name="DrawDallEService"):
+class DrawDallEService(discord.Cog, name="DrawDallEService"):
     def __init__(
         self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
@@ -130,12 +129,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 self.converser_cog.users_to_interactions[user_id].append(
                     result_message.id
                 )
-
+    @add_to_group("dalle")
     @discord.slash_command(
         name="draw",
         description="Draw an image from a prompt",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_valid_roles()],
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
@@ -155,6 +153,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
             await ctx.respond("Something went wrong. Please try again later.")
             await ctx.send_followup(e)
 
+    @add_to_group("admin")
     @discord.slash_command(
         name="local-size",
         description="Get the size of the dall-e images folder that we have on the current system",
@@ -165,8 +164,6 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         await ctx.defer()
         # Get the size of the dall-e images folder that we have on the current system.
         # Check if admin user
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
-            return
 
         image_path = self.model.IMAGE_SAVE_PATH
         total_size = 0
@@ -179,11 +176,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         total_size = total_size / 1000000
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
+    @add_to_group("admin")
     @discord.slash_command(
         name="clear-local",
         description="Clear the local dalleimages folder on system.",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_valid_roles()],
     )
     @discord.guild_only()
     async def clear_local(self, ctx):
