@@ -12,6 +12,8 @@
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
+- **Private conversations, custom opening conversation text** - Check out the new options when running /chat-gpt!
+
 - **SLASH COMMANDS!**
 
 - **Image prompt optimizer overhauled** - The optimizer works much better now, and makes beautiful image prompts that work even with Midjourney, SD, etc!
@@ -164,6 +166,14 @@ This can also be run via screen/tmux or detached like a daemon.
 `/g <prompt>` Ask the GPT3 Davinci 003 model a question.
 
 `/chat-gpt` - Start a conversation with the bot, like ChatGPT
+
+`/chat-gpt private:yes` - Start a private conversation with the bot, like ChatGPT
+
+`/chat-gpt opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start)
+
+`/chat-gpt minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
+
+- Note that the above options for /chat-gpt can be combined (you can combine minimal, private, and opener!)
 
 `/end-chat` - End a conversation with the bot.
 
