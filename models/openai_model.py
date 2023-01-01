@@ -51,6 +51,7 @@ class Model:
         self._summarize_conversations = True
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
+        self.send_welcome_message = False
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -75,6 +76,21 @@ class Model:
         self.openai_key = os.getenv("OPENAI_TOKEN")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
+    
+    @property
+    def welcome_message_enabled(self):
+        return self.send_welcome_message
+
+    @send_welcome_message.setter
+    def welcome_message_enabled(self, value):
+        if value.lower() == "true":
+            self.send_welcome_message = True
+        elif value.lower() == "false":
+            self.send_welcome_message = False
+        else:
+            raise ValueError("Value must be either true or false!")
+    
+    
     @property
     def summarize_threshold(self):
         return self._summarize_threshold
