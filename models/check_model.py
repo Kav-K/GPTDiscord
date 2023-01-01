@@ -11,7 +11,7 @@ class Check:
         async def inner(ctx: discord.ApplicationContext):
             if not any(role.name in ALLOWED_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
-                await ctx.send_followup(
+                await ctx.respond(
                     "You don't have permission to use this.",
                     ephemeral=True,
                     delete_after=10,
