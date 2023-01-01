@@ -444,7 +444,10 @@ class Model:
 
         # For each image url, open it as an image object using PIL
         images = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: [Image.open(requests.get(url, stream=True).raw) for url in image_urls]
+            None,
+            lambda: [
+                Image.open(requests.get(url, stream=True).raw) for url in image_urls
+            ],
         )
 
         # Save all the images with a random name to self.IMAGE_SAVE_PATH
@@ -504,7 +507,9 @@ class Model:
 
         # Save the new_im to a temporary file and return it as a discord.File
         temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        await asyncio.get_running_loop().run_in_executor(None, new_im.save, temp_file.name)
+        await asyncio.get_running_loop().run_in_executor(
+            None, new_im.save, temp_file.name
+        )
 
         # Print the filesize of new_im, in mega bytes
         image_size = os.path.getsize(temp_file.name) / 1000000
@@ -522,11 +527,16 @@ class Model:
             # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
             # We can use the asyncio.run_in_executor method to do this
             new_im = await asyncio.get_running_loop().run_in_executor(
-                None, functools.partial(new_im.resize, (int(new_im.width / 1.05), int(new_im.height / 1.05)))
+                None,
+                functools.partial(
+                    new_im.resize, (int(new_im.width / 1.05), int(new_im.height / 1.05))
+                ),
             )
 
             temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            await asyncio.get_running_loop().run_in_executor(None, new_im.save, temp_file.name)
+            await asyncio.get_running_loop().run_in_executor(
+                None, new_im.save, temp_file.name
+            )
             image_size = os.path.getsize(temp_file.name) / 1000000
             print(f"New image size is {image_size}MB")
 
