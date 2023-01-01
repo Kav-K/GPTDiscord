@@ -15,7 +15,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2.0.2"
+__version__ = "2.1"
 load_dotenv()
 import os
 
