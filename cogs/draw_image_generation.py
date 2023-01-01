@@ -153,7 +153,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             await ctx.respond("Something went wrong. Please try again later.")
             await ctx.send_followup(e)
 
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="local-size",
         description="Get the size of the dall-e images folder that we have on the current system",
@@ -163,7 +163,6 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
     async def local_size(self, ctx: discord.ApplicationContext):
         await ctx.defer()
         # Get the size of the dall-e images folder that we have on the current system.
-        # Check if admin user
 
         image_path = self.model.IMAGE_SAVE_PATH
         total_size = 0
@@ -176,7 +175,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         total_size = total_size / 1000000
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="clear-local",
         description="Clear the local dalleimages folder on system.",

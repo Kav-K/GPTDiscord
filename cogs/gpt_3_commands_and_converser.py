@@ -95,11 +95,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_threads = {}
 
     # Create slash command groups
-    admin = discord.SlashCommandGroup(name="admin", 
-                                    description="Admin settings for the bot",
-                                    guild_ids=ALLOWED_GUILDS,
-                                    checks=[Check.check_admin_roles()]
-                                    )
     dalle = discord.SlashCommandGroup(name="dalle", 
                                         description="Dalle related commands",
                                         guild_ids=ALLOWED_GUILDS,
@@ -110,6 +105,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                                         guild_ids=ALLOWED_GUILDS,
                                         checks=[Check.check_gpt_roles()]
                                         )
+    system = discord.SlashCommandGroup(name="system", 
+                                    description="Admin/System settings for the bot",
+                                    guild_ids=ALLOWED_GUILDS,
+                                    checks=[Check.check_admin_roles()]
+                                    )
 
     @discord.Cog.listener()
     async def on_member_remove(self, member):
@@ -131,7 +131,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         print(f"The debug channel was acquired and commands registered")
     
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="set-usage",
         description="Set the current OpenAI usage (in dollars)",
@@ -154,7 +154,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.respond("The usage value must be a valid float.")
             return
 
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="delete-conversation-threads",
         description="Delete all conversation threads across the bot servers.",
@@ -821,7 +821,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.defer()
         await self.send_help_text(ctx)
 
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="usage",
         description="Get usage statistics for GPT3Discord",
@@ -832,7 +832,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.defer()
         await self.send_usage_text(ctx)
 
-    @add_to_group("admin")
+    @add_to_group("system")
     @discord.slash_command(
         name="settings",
         description="Get settings for GPT3Discord",

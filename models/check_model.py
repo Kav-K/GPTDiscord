@@ -15,7 +15,7 @@ class Check:
             if not any(role.name.lower() in ADMIN_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    "You don't have admin permission to use this.",
+                    f"You don't have permission to use this.",
                     ephemeral=True,
                     delete_after=10,
                 )
@@ -28,7 +28,7 @@ class Check:
             if not any(role.name.lower() in DALLE_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    "You don't have dalle permission to use this.",
+                    "You don't have permission to use this.",
                     ephemeral=True,
                     delete_after=10,
                 )
@@ -41,7 +41,7 @@ class Check:
             if not any(role.name.lower() in GPT_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    "You don't have gpt permission to use this.",
+                    "You don't have permission to use this.",
                     ephemeral=True,
                     delete_after=10,
                 )
