@@ -11,10 +11,12 @@ RUN pip install --target="/install" --upgrade pip setuptools wheel
 COPY requirements.txt /install
 RUN pip install --target="/install" -r requirements.txt
 COPY README.md /src
-COPY cogs /src
-COPY models /src
+COPY cogs /src/cogs
+COPY models /src/models
 COPY gpt3discord.py /src
 COPY pyproject.toml /src
+# For debugging + seeing that the modiles file layouts look correct ...
+find /src
 RUN pip install --target="/install" /src
 
 # Copy minimal to main image (to keep as small as possible)
