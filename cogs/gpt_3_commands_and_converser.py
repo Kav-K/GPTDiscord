@@ -157,7 +157,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         return (cond1) and cond2
 
     async def end_conversation(self, message, opener_user_id=None):
-        print(f"The contents of conversating users is {self.conversating_users}")
         normalized_user_id = opener_user_id if opener_user_id else message.author.id
         self.conversating_users.pop(normalized_user_id)
 
@@ -596,7 +595,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     self.redo_users[user_id] = RedoUser(
                         prompt, ctx, ctx, actual_response_message
                     )
-                    print("Added the actual response message to the user's interactions")
                     self.redo_users[user_id].add_interaction(actual_response_message.id)
 
             # We are doing a redo, edit the message.
@@ -702,7 +700,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             user_id_normalized = ctx.author.id
 
         self.conversating_users[user_id_normalized] = User(user_id_normalized)
-        print("Added the user to conversating users")
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal:
@@ -873,14 +870,10 @@ class EndConvoButton(discord.ui.Button["RedoView"]):
 
         # Get the user
         user_id = interaction.user.id
-        print("In the end convo callback")
-        print(f"The user id is {user_id}")
         if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
             user_id
         ].in_interaction(interaction.message.id):
-            print("Inside")
             try:
-                print("Inside 2")
                 await self.converser_cog.end_conversation(
                     self.converser_cog.redo_users[user_id].message, opener_user_id=user_id
                 )
@@ -909,7 +902,6 @@ class RedoButton(discord.ui.Button["RedoView"]):
 
         # Get the user
         user_id = interaction.user.id
-        print(f"The user id is {user_id}")
         if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
             user_id
         ].in_interaction(interaction.message.id):
