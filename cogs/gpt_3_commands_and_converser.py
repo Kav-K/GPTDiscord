@@ -520,7 +520,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         # Replace 'Human:' with the user's name
         try:
-             new_prompt = new_prompt.replace("Human:", ctx.author.name + ":")
+            new_prompt = new_prompt.replace("Human:", ctx.author.name + ":")
         except AttributeError:
             pass
 
