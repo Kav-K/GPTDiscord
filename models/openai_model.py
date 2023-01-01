@@ -1,3 +1,5 @@
+import asyncio
+import functools
 import math
 import os
 import tempfile
@@ -434,18 +436,23 @@ class Model:
                         response = await resp.json()
 
         print(response)
+        print("JUST PRINTED THE RESPONSE")
 
         image_urls = []
         for result in response["data"]:
             image_urls.append(result["url"])
 
         # For each image url, open it as an image object using PIL
-        images = [Image.open(requests.get(url, stream=True).raw) for url in image_urls]
+        images = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: [Image.open(requests.get(url, stream=True).raw) for url in image_urls]
+        )
 
         # Save all the images with a random name to self.IMAGE_SAVE_PATH
         image_names = [f"{uuid.uuid4()}.png" for _ in range(len(images))]
         for image, name in zip(images, image_names):
-            image.save(f"{self.IMAGE_SAVE_PATH}/{name}")
+            await asyncio.get_running_loop().run_in_executor(
+                None, image.save, f"{self.IMAGE_SAVE_PATH}/{name}"
+            )
 
         # Update image_urls to include the local path to these new images
         image_urls = [f"{self.IMAGE_SAVE_PATH}/{name}" for name in image_names]
@@ -464,15 +471,22 @@ class Model:
         height = max(heights) * num_rows
 
         # Create a transparent image with the same size as the images
-        transparent = Image.new("RGBA", (max(widths), max(heights)))
+        transparent = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: Image.new("RGBA", (max(widths), max(heights)))
+        )
 
         # Create a new image with the calculated size
-        new_im = Image.new("RGBA", (width, height))
+        new_im = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: Image.new("RGBA", (width, height))
+        )
 
         # Paste the images and transparent segments into the grid
         x_offset = y_offset = 0
         for im in images:
-            new_im.paste(im, (x_offset, y_offset))
+            await asyncio.get_running_loop().run_in_executor(
+                None, new_im.paste, im, (x_offset, y_offset)
+            )
+
             x_offset += im.size[0]
             if x_offset >= width:
                 x_offset = 0
@@ -481,14 +495,16 @@ class Model:
         # Fill the remaining cells with transparent segments
         while y_offset < height:
             while x_offset < width:
-                new_im.paste(transparent, (x_offset, y_offset))
+                await asyncio.get_running_loop().run_in_executor(
+                    None, new_im.paste, transparent, (x_offset, y_offset)
+                )
                 x_offset += transparent.size[0]
             x_offset = 0
             y_offset += transparent.size[1]
 
         # Save the new_im to a temporary file and return it as a discord.File
         temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        new_im.save(temp_file.name)
+        await asyncio.get_running_loop().run_in_executor(None, new_im.save, temp_file.name)
 
         # Print the filesize of new_im, in mega bytes
         image_size = os.path.getsize(temp_file.name) / 1000000
@@ -498,16 +514,19 @@ class Model:
         safety_counter = 0
         while image_size > 8:
             safety_counter += 1
-            if safety_counter >= 2:
+            if safety_counter >= 3:
                 break
             print(
                 f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
             )
-            new_im = new_im.resize(
-                (int(new_im.width / 1.05), int(new_im.height / 1.05))
+            # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
+            # We can use the asyncio.run_in_executor method to do this
+            new_im = await asyncio.get_running_loop().run_in_executor(
+                None, functools.partial(new_im.resize, (int(new_im.width / 1.05), int(new_im.height / 1.05)))
             )
+
             temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            new_im.save(temp_file.name)
+            await asyncio.get_running_loop().run_in_executor(None, new_im.save, temp_file.name)
             image_size = os.path.getsize(temp_file.name) / 1000000
             print(f"New image size is {image_size}MB")
 

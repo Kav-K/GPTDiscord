@@ -75,11 +75,11 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         try:
             response = await self.model.send_request(
                 final_prompt,
-                tokens=tokens,
+                tokens=70,
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
-                best_of_override=1,
+                best_of_override=2,
                 max_tokens_override=80,
             )
 
