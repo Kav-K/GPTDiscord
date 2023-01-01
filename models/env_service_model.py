@@ -53,3 +53,21 @@ class EnvService:
             allowed_roles.split(",") if "," in allowed_roles else [allowed_roles]
         )
         return allowed_roles
+    
+    @staticmethod
+    def get_welcome_message():
+        # WELCOME_MESSAGE is a string used to welcome new members to the server.
+        #The string can be blank.
+        #The string is DMd to the new server member as part of an embed.
+        try:
+            welcome_message = os.getenv("WELCOME_MESSAGE")
+        except:
+            welcome_message = None
+       
+        if welcome_message is None:
+            raise ValueError(
+                "WELCOME_MESSAGE is not defined properly in the environment file!"
+                "Please create a welcome message and put it into WELCOME_MESSAGE in the .env file."
+                'For example a line should look like: `WELCOME_MESSAGE:"Welcome to our server! We hop you enjoy it here."`'
+            )
+         return welcome_message
