@@ -12,6 +12,7 @@ from discord.ext import commands
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
+from models.check_model import Check
 
 redo_users = {}
 users_to_interactions = {}
@@ -131,7 +132,10 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 )
 
     @discord.slash_command(
-        name="draw", description="Draw an image from a prompt", guild_ids=ALLOWED_GUILDS
+        name="draw",
+        description="Draw an image from a prompt",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
@@ -140,10 +144,6 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         user = ctx.user
 
         if user == self.bot.user:
-            return
-
-        # Only allow the bot to be used by people who have the role "Admin" or "GPT"
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
 
         try:
@@ -183,13 +183,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         name="clear-local",
         description="Clear the local dalleimages folder on system.",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.guild_only()
     async def clear_local(self, ctx):
         await ctx.defer()
-
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
-            return
 
         # Delete all the local images in the images folder.
         image_path = self.model.IMAGE_SAVE_PATH

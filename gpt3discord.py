@@ -49,6 +49,16 @@ async def on_ready():  # I can make self optional by
     print("We have logged in as {0.user}".format(bot))
 
 
+@bot.event
+async def on_application_command_error(
+    ctx: discord.ApplicationContext, error: discord.DiscordException
+):
+    if isinstance(error, discord.CheckFailure):
+        pass
+    else:
+        raise error
+
+
 async def main():
     data_path = Path(os.environ.get("DATA_DIR", os.getcwd()))
     debug_guild = int(os.getenv("DEBUG_GUILD"))
