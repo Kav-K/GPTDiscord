@@ -17,6 +17,7 @@ from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+print("THE ALLOWED GUILDS ARE: ", ALLOWED_GUILDS)
 
 
 class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
@@ -100,7 +101,8 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
-        print(f"The debug channel was acquired")
+        await self.bot.sync_commands(commands=None, method='individual', force=True, guild_ids=ALLOWED_GUILDS, register_guild_commands=True, check_guilds=[], delete_existing=True)
+        print(f"The debug channel was acquired and commands registered")
 
     @discord.slash_command(
         name="set-usage",
@@ -154,19 +156,21 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
-    async def end_conversation(self, message):
-        self.conversating_users.pop(message.author.id)
+    async def end_conversation(self, message, opener_user_id=None):
+        print(f"The contents of conversating users is {self.conversating_users}")
+        normalized_user_id = opener_user_id if opener_user_id else message.author.id
+        self.conversating_users.pop(normalized_user_id)
 
         await message.reply(
             "You have ended the conversation with GPT3. Start a conversation with !g converse"
         )
 
         # Close all conversation threads for the user
-        channel = self.bot.get_channel(self.conversation_threads[message.author.id])
+        channel = self.bot.get_channel(self.conversation_threads[normalized_user_id])
 
-        if message.author.id in self.conversation_threads:
-            thread_id = self.conversation_threads[message.author.id]
-            self.conversation_threads.pop(message.author.id)
+        if normalized_user_id in self.conversation_threads:
+            thread_id = self.conversation_threads[normalized_user_id]
+            self.conversation_threads.pop(normalized_user_id)
 
             # Attempt to close and lock the thread.
             try:
@@ -592,6 +596,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                     self.redo_users[user_id] = RedoUser(
                         prompt, ctx, ctx, actual_response_message
                     )
+                    print("Added the actual response message to the user's interactions")
                     self.redo_users[user_id].add_interaction(actual_response_message.id)
 
             # We are doing a redo, edit the message.
@@ -662,7 +667,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         name="opener",
         description="Which sentence to start with",
         required=False
-
     )
     @discord.option(
         name="private", 
@@ -692,13 +696,19 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             await self.deletion_queue(message)
             return
 
-        self.conversating_users[user.id] = User(user.id)
+        if not opener:
+            user_id_normalized = user.id
+        else:
+            user_id_normalized = ctx.author.id
+
+        self.conversating_users[user_id_normalized] = User(user_id_normalized)
+        print("Added the user to conversating users")
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal:
-            self.conversating_users[user.id].history.append(self.CONVERSATION_STARTER_TEXT_MINIMAL)
+            self.conversating_users[user_id_normalized].history.append(self.CONVERSATION_STARTER_TEXT_MINIMAL)
         elif not minimal:
-            self.conversating_users[user.id].history.append(self.CONVERSATION_STARTER_TEXT)
+            self.conversating_users[user_id_normalized].history.append(self.CONVERSATION_STARTER_TEXT)
 
         if private:
             await ctx.respond(user.name + "'s private conversation with GPT3")
@@ -717,7 +727,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         await thread.send(
             "<@"
-            + str(user.id)
+            + str(user_id_normalized)
             + "> You are now conversing with GPT3. *Say hi to start!*\n End the conversation by saying `end`.\n\n If you want GPT3 to ignore your messages, start your messages with `~`\n\nYour conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
         )
         
@@ -726,28 +736,28 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             thread_message = await thread.send(
                 "***Opening prompt*** \n"
                 "<@"
-                + str(user.id)
+                + str(user_id_normalized)
                 + ">: "
                 + opener
             )
-            if user.id in self.conversating_users:
-                self.awaiting_responses.append(user.id)
+            if user_id_normalized in self.conversating_users:
+                self.awaiting_responses.append(user_id_normalized)
 
-                self.conversating_users[user.id].history.append(
+                self.conversating_users[user_id_normalized].history.append(
                     "\nHuman: " + opener + "<|endofstatement|>\n"
                 )
 
-                self.conversating_users[user.id].count += 1
+                self.conversating_users[user_id_normalized].count += 1
 
             await self.encapsulated_send(
-                user.id,
+                user_id_normalized,
                 opener
-                if user.id not in self.conversating_users
-                else "".join(self.conversating_users[ctx.author.id].history),
+                if user_id_normalized not in self.conversating_users
+                else "".join(self.conversating_users[user_id_normalized].history),
                 thread_message,
             )
 
-        self.conversation_threads[user.id] = thread.id
+        self.conversation_threads[user_id_normalized] = thread.id
 
     @discord.slash_command(
         name="end-chat",
@@ -863,12 +873,16 @@ class EndConvoButton(discord.ui.Button["RedoView"]):
 
         # Get the user
         user_id = interaction.user.id
+        print("In the end convo callback")
+        print(f"The user id is {user_id}")
         if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
             user_id
         ].in_interaction(interaction.message.id):
+            print("Inside")
             try:
+                print("Inside 2")
                 await self.converser_cog.end_conversation(
-                    self.converser_cog.redo_users[user_id].message
+                    self.converser_cog.redo_users[user_id].message, opener_user_id=user_id
                 )
                 await interaction.response.send_message(
                     "Your conversation has ended!", ephemeral=True, delete_after=10
@@ -895,6 +909,7 @@ class RedoButton(discord.ui.Button["RedoView"]):
 
         # Get the user
         user_id = interaction.user.id
+        print(f"The user id is {user_id}")
         if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
             user_id
         ].in_interaction(interaction.message.id):

@@ -147,7 +147,7 @@ This can also be run via screen/tmux or detached like a daemon.
 - Toogle PRESENCE INTENT:
     - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)
 - Add Bot the the server.
-    - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot
+    - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot, application.commands
     - Bot Permissions will appear, select the desired permissions
     - Copy the link generated below and paste it on the browser
     - On add to server select the desired server to add the bot
