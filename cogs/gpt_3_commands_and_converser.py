@@ -503,6 +503,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         new_prompt = prompt + "\nGPTie: "
         from_context = isinstance(ctx, discord.ApplicationContext)
 
+        # Replace 'Human:' with the user's name
+        try:
+             new_prompt = new_prompt.replace("Human:", ctx.author.name + ":")
+        except AttributeError:
+            pass
+
         try:
             tokens = self.usage_service.count_tokens(new_prompt)
 
