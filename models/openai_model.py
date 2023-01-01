@@ -503,12 +503,6 @@ class Model:
                 )
                 x_offset += transparent.size[0]
 
-
-
-
-
-
-
             x_offset = 0
             y_offset += transparent.size[1]
 
