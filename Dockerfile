@@ -16,7 +16,7 @@ COPY models /src/models
 COPY gpt3discord.py /src
 COPY pyproject.toml /src
 # For debugging + seeing that the modiles file layouts look correct ...
-find /src
+RUN find /src
 RUN pip install --target="/install" /src
 
 # Copy minimal to main image (to keep as small as possible)
