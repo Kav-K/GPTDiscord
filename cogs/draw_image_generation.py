@@ -76,7 +76,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
             )
 
             await result_message.edit(
-                view=SaveView(image_urls, self, self.converser_cog, result_message)
+                view=SaveView(ctx, image_urls, self, self.converser_cog, result_message)
             )
 
             self.converser_cog.users_to_interactions[user_id] = []
@@ -95,7 +95,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     file=file,
                 )
                 await message.edit(
-                    view=SaveView(image_urls, self, self.converser_cog, message)
+                    view=SaveView(ctx, image_urls, self, self.converser_cog, message)
                 )
             else:  # Varying case
                 if not draw_from_optimizer:
@@ -106,7 +106,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            image_urls, self, self.converser_cog, result_message, True
+                            ctx, image_urls, self, self.converser_cog, result_message, True
                         )
                     )
 
@@ -118,7 +118,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            image_urls, self, self.converser_cog, result_message
+                            ctx, image_urls, self, self.converser_cog, result_message
                         )
                     )
 
@@ -204,11 +204,12 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 class SaveView(discord.ui.View):
     def __init__(
-        self, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
+        self, ctx, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
     ):
         super().__init__(
             timeout=3600 if not only_save else None
-        )  # 10 minute timeout for Retry, Save
+        )  # 1 hour timeout for Retry, Save
+        self.ctx = ctx
         self.image_urls = image_urls
         self.cog = cog
         self.no_retry = no_retry
@@ -234,6 +235,7 @@ class SaveView(discord.ui.View):
 
         # Create a new view with the same params as this one, but pass only_save=True
         new_view = SaveView(
+            self.ctx,
             self.image_urls,
             self.cog,
             self.converser_cog,
@@ -243,7 +245,7 @@ class SaveView(discord.ui.View):
         )
 
         # Set the view of the message to the new view
-        await self.message.edit(view=new_view)
+        await self.ctx.edit(view=new_view)
 
 
 class VaryButton(discord.ui.Button):
