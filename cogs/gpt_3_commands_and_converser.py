@@ -16,6 +16,7 @@ from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+WELCOME_MESSAGE = EnvService.get_welcome_message()
 
 
 class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
@@ -89,6 +90,12 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             return False
         return True
 
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        welcome_embed = discord.Embed(title=f"Welcome, {member.name}!", description=WELCOME_MESSAGE)
+        welcome_embed.add_field(name="Just so you know...", value="> My commands are invoked with a forward slash ("/")\n> Use /help to see my help messages.")
+        await member.send(content=None, embed=welcome_embded)
+    
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         pass
