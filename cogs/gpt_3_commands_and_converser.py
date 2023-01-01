@@ -881,9 +881,14 @@ class RedoView(discord.ui.View):
         # Remove the button from the view/message
         self.clear_items()
         # Send a message to the user saying the view has timed out
-        await self.ctx.edit(
-            view=None,
-        )
+        if self.message:
+            await self.message.edit(
+                view=None,
+            )
+        else:
+            await self.ctx.edit(
+                view=None,
+            )
 
 
 class EndConvoButton(discord.ui.Button["RedoView"]):
