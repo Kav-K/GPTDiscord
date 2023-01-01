@@ -104,7 +104,11 @@ cd GPT3Discord/
 sudo apt-get update
 sudo apt install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt install python3.9 python3.9-pip
+sudo apt install python3.9
+
+# Install Pip for python3.9
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.9 get-pip.py
 
 # Install project dependencies
 python3.9 -m pip install -r requirements.txt
