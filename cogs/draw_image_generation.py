@@ -106,7 +106,12 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            ctx, image_urls, self, self.converser_cog, result_message, True
+                            ctx,
+                            image_urls,
+                            self,
+                            self.converser_cog,
+                            result_message,
+                            True,
                         )
                     )
 
@@ -204,7 +209,14 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 class SaveView(discord.ui.View):
     def __init__(
-        self, ctx, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
+        self,
+        ctx,
+        image_urls,
+        cog,
+        converser_cog,
+        message,
+        no_retry=False,
+        only_save=None,
     ):
         super().__init__(
             timeout=3600 if not only_save else None
