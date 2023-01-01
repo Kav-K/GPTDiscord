@@ -15,7 +15,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 load_dotenv()
 import os
 
@@ -31,7 +31,10 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 """
 Settings for the bot
 """
-bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!")
+activity = discord.Activity(
+    type=discord.ActivityType.watching, name="for /help /g, and more!"
+)
+bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
@@ -44,6 +47,16 @@ An encapsulating wrapper for the discord.py client. This uses the old re-write w
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by
     print("We have logged in as {0.user}".format(bot))
+
+
+@bot.event
+async def on_application_command_error(
+    ctx: discord.ApplicationContext, error: discord.DiscordException
+):
+    if isinstance(error, discord.CheckFailure):
+        pass
+    else:
+        raise error
 
 
 async def main():

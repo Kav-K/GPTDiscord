@@ -11,6 +11,7 @@ from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
 from models.message_model import Message
 from models.user_model import User, RedoUser
+from models.check_model import Check
 from collections import defaultdict
 
 
@@ -37,7 +38,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self._last_member_ = None
         self.conversating_users = {}
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
-        self.ALLOWED_ROLES = EnvService.get_allowed_roles()
         self.END_PROMPTS = [
             "end",
             "end conversation",
@@ -83,12 +83,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         self.message_queue = message_queue
         self.conversation_threads = {}
 
-    async def check_valid_roles(self, user, ctx):
-        if not any(role.name in self.ALLOWED_ROLES for role in user.roles):
-            await ctx.respond("You don't have permission to use this.")
-            return False
-        return True
-
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         pass
@@ -101,7 +95,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         print(f"The debug channel was acquired")
 
     @discord.slash_command(
-        name="set-usage", description="Set the current OpenAI usage (in dollars)"
+        name="set-usage",
+        description="Set the current OpenAI usage (in dollars)",
+        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="usage_amount",
@@ -110,9 +106,6 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     )
     async def set_usage(self, ctx, usage_amount: float):
         await ctx.defer()
-
-        if not await self.check_valid_roles(ctx.user, ctx):
-            return
 
         # Attempt to convert the input usage value into a float
         try:
@@ -126,12 +119,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     @discord.slash_command(
         name="delete-conversation-threads",
         description="Delete all conversation threads across the bot servers.",
+        checks=[Check.check_valid_roles()],
     )
     async def delete_all_conversation_threads(self, ctx):
         await ctx.defer()
-        # If the user has ADMIN_ROLES
-        if not await self.check_valid_roles(ctx.user, ctx):
-            return
 
         for guild in self.bot.guilds:
             for thread in guild.threads:
@@ -499,8 +490,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             )
 
     # ctx can be of type AppContext(interaction) or Message
-    async def encapsulated_send(self, user_id, prompt, ctx, response_message=None):
-        new_prompt = prompt + "\nGPTie: "
+    async def encapsulated_send(
+        self, user_id, prompt, ctx, response_message=None, from_g_command=False
+    ):
+        new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
+
         from_context = isinstance(ctx, discord.ApplicationContext)
 
         # Replace 'Human:' with the user's name
@@ -516,6 +510,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             if (
                 user_id in self.conversating_users
                 and tokens > self.model.summarize_threshold
+                and not from_g_command
             ):
 
                 # We don't need to worry about the differences between interactions and messages in this block,
@@ -559,6 +554,11 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             response_text = response_text.replace("GPTie: ", "")
             response_text = response_text.replace("<|endofstatement|>", "")
 
+            if from_g_command:
+                # Append the prompt to the beginning of the response, in italics, then a new line
+                response_text = response_text.strip()
+                response_text = f"***{prompt}***\n\n{response_text}"
+
             # If GPT3 tries to ping somebody, don't let it happen
             if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", str(response_text)):
                 message = "I'm sorry, I can't mention users, roles, or channels."
@@ -567,7 +567,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 )
 
             # If the user is conversing, add the GPT response to their conversation history.
-            if user_id in self.conversating_users:
+            if user_id in self.conversating_users and not from_g_command:
                 self.conversating_users[user_id].history.append(
                     "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
                 )
@@ -632,7 +632,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             return
 
     @discord.slash_command(
-        name="g", description="Ask GPT3 something!", guild_ids=ALLOWED_GUILDS
+        name="g",
+        description="Ask GPT3 something!",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="prompt", description="The prompt to send to GPT3", required=True
@@ -644,32 +647,21 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         user = ctx.user
         prompt = prompt.strip()
 
-        if not await self.check_valid_roles(user, ctx):
-            return
-
         # CONVERSE Checks here TODO
         # Send the request to the model
         # If conversing, the prompt to send is the history, otherwise, it's just the prompt
 
-        await self.encapsulated_send(
-            user.id,
-            prompt
-            if user.id not in self.conversating_users
-            else "".join(self.conversating_users[user.id].history),
-            ctx,
-        )
+        await self.encapsulated_send(user.id, prompt, ctx, from_g_command=True)
 
     @discord.slash_command(
         name="chat-gpt",
         description="Have a conversation with GPT3",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.guild_only()
     async def chat_gpt(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-
-        if not await self.check_valid_roles(ctx.user, ctx):
-            return
 
         user = ctx.user
 
@@ -736,7 +728,27 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="parameter", description="The setting to change", required=False
+        name="parameter",
+        description="The setting to change",
+        required=False,
+        choices=[
+            "mode",
+            "temp",
+            "top_p",
+            "max_tokens",
+            "presence_penalty",
+            "frequency_penalty",
+            "best_of",
+            "prompt_min_length",
+            "max_conversation_length",
+            "model",
+            "low_usage_mode",
+            "image_size",
+            "num_images",
+            "summarize_conversations",
+            "summarize_threshold",
+            "IMAGE_SAVE_PATH",
+        ],
     )
     @discord.option(
         name="value", description="The value to set the setting to", required=False
