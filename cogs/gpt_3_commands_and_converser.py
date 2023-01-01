@@ -520,6 +520,9 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
         # Replace 'Human:' with the user's name
         try:
+            # Check if the user's name contains any characters that aren't alphanumeric or spaces
+            if not re.match("^[a-zA-Z0-9 ]*$", ctx.author.name):
+                raise AttributeError("User's name contains invalid characters. Cannot set the conversation name to their name.")
             new_prompt = new_prompt.replace("Human:", ctx.author.name + ":")
         except AttributeError:
             pass
