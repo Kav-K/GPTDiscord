@@ -63,4 +63,4 @@ class EnvService:
             welcome_message = os.getenv("WELCOME_MESSAGE")
         except:
             welcome_message = "Hi there! Welcome to our Discord server!"
-       return welcome_message
+        return welcome_message
