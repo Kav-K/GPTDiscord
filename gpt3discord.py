@@ -6,6 +6,15 @@ from pathlib import Path
 import discord
 from dotenv import load_dotenv
 from pycord.multicog import apply_multicog
+import os
+
+if sys.platform == "win32":
+    separator = "\\"
+else:
+    separator = "/"
+
+print("The environment file is located at " + os.getcwd() + separator + ".env")
+load_dotenv(dotenv_path=os.getcwd() + separator + ".env")
 
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
@@ -15,9 +24,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2.1.2"
-load_dotenv()
-import os
+__version__ = "2.1.3"
 
 """
 Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.

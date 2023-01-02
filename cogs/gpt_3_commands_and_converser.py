@@ -625,12 +625,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     response_message = (
                         await ctx.respond(
                             response_text,
-                            view=RedoView(self, user_id),
+                            view=RedoView(ctx, self, user_id),
                         )
                         if from_context
                         else await ctx.reply(
                             response_text,
-                            view=RedoView(self, user_id),
+                            view=RedoView(ctx, self, user_id),
                         )
                     )
 
@@ -890,9 +890,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
 
 class RedoView(discord.ui.View):
-    def __init__(self, converser_cog, user_id):
+    def __init__(self, ctx, converser_cog, user_id):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
+        self.ctx = ctx
         self.add_item(RedoButton(self.converser_cog))
 
         if user_id in self.converser_cog.conversating_users:
@@ -902,9 +903,14 @@ class RedoView(discord.ui.View):
         # Remove the button from the view/message
         self.clear_items()
         # Send a message to the user saying the view has timed out
-        await self.message.edit(
-            view=None,
-        )
+        if self.message:
+            await self.message.edit(
+                view=None,
+            )
+        else:
+            await self.ctx.edit(
+                view=None,
+            )
 
 
 class EndConvoButton(discord.ui.Button["RedoView"]):
