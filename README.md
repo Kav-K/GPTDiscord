@@ -129,6 +129,18 @@ screen gpt3discord
 screen -r
 ```
 
+If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:
+```bash
+{Navigate to the folder where the project files are}
+screen -dmS GPTBot bash -c 'python3.9 gpt3discord.py'
+
+# Reattach to screen session
+screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs
+# If there are multiple IDs returned by screen -x:
+screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to
+
+```
+
 ## Docker Installation
 
 We now have a `Dockerfile` in the repository. This will build / install all dependencies and put a `gpt3discord` binary (main.py) into path.
