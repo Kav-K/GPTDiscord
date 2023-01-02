@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
+from models.check_model import Check
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
@@ -50,6 +51,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         name="imgoptimize",
         description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="prompt", description="The text prompt to optimize.", required=True
@@ -57,9 +59,6 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
     @discord.guild_only()
     async def imgoptimize(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
-
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
-            return
 
         user = ctx.user
 
@@ -76,11 +75,11 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
         try:
             response = await self.model.send_request(
                 final_prompt,
-                tokens=tokens,
+                tokens=70,
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
-                best_of_override=1,
+                best_of_override=2,
                 max_tokens_override=80,
             )
 

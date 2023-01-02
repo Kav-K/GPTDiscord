@@ -6,6 +6,15 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+import os
+
+if sys.platform == "win32":
+    separator = "\\"
+else:
+    separator = "/"
+
+print("The environment file is located at " + os.getcwd() + separator + ".env")
+load_dotenv(dotenv_path=os.getcwd() + separator + ".env")
 
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
@@ -15,9 +24,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2.0.2"
-load_dotenv()
-import os
+__version__ = "2.1.3"
 
 """
 Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
@@ -47,6 +54,16 @@ An encapsulating wrapper for the discord.py client. This uses the old re-write w
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by
     print("We have logged in as {0.user}".format(bot))
+
+
+@bot.event
+async def on_application_command_error(
+    ctx: discord.ApplicationContext, error: discord.DiscordException
+):
+    if isinstance(error, discord.CheckFailure):
+        pass
+    else:
+        raise error
 
 
 async def main():

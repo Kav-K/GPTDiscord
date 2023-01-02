@@ -12,6 +12,7 @@ from discord.ext import commands
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
+from models.check_model import Check
 
 redo_users = {}
 users_to_interactions = {}
@@ -43,11 +44,23 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
-        file, image_urls = await self.model.send_image_request(
-            prompt, vary=vary if not draw_from_optimizer else None
-        )
-
         from_context = isinstance(ctx, discord.ApplicationContext)
+
+        try:
+            file, image_urls = await self.model.send_image_request(
+                prompt, vary=vary if not draw_from_optimizer else None
+            )
+        except ValueError as e:
+            (
+                await ctx.channel.send(
+                    f"Error: {e}. Please try again with a different prompt."
+                )
+                if not from_context
+                else await ctx.respond(
+                    f"Error: {e}. Please try again with a different prompt."
+                )
+            )
+            return
 
         # Start building an embed to send to the user with the results of the image generation
         embed = discord.Embed(
@@ -75,7 +88,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
             )
 
             await result_message.edit(
-                view=SaveView(image_urls, self, self.converser_cog, result_message)
+                view=SaveView(ctx, image_urls, self, self.converser_cog, result_message)
             )
 
             self.converser_cog.users_to_interactions[user_id] = []
@@ -94,7 +107,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     file=file,
                 )
                 await message.edit(
-                    view=SaveView(image_urls, self, self.converser_cog, message)
+                    view=SaveView(ctx, image_urls, self, self.converser_cog, message)
                 )
             else:  # Varying case
                 if not draw_from_optimizer:
@@ -105,7 +118,12 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            image_urls, self, self.converser_cog, result_message, True
+                            ctx,
+                            image_urls,
+                            self,
+                            self.converser_cog,
+                            result_message,
+                            True,
                         )
                     )
 
@@ -117,7 +135,7 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            image_urls, self, self.converser_cog, result_message
+                            ctx, image_urls, self, self.converser_cog, result_message
                         )
                     )
 
@@ -131,7 +149,10 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                 )
 
     @discord.slash_command(
-        name="draw", description="Draw an image from a prompt", guild_ids=ALLOWED_GUILDS
+        name="draw",
+        description="Draw an image from a prompt",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
@@ -140,10 +161,6 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         user = ctx.user
 
         if user == self.bot.user:
-            return
-
-        # Only allow the bot to be used by people who have the role "Admin" or "GPT"
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
             return
 
         try:
@@ -183,13 +200,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
         name="clear-local",
         description="Clear the local dalleimages folder on system.",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_valid_roles()],
     )
     @discord.guild_only()
     async def clear_local(self, ctx):
         await ctx.defer()
-
-        if not await self.converser_cog.check_valid_roles(ctx.user, ctx):
-            return
 
         # Delete all the local images in the images folder.
         image_path = self.model.IMAGE_SAVE_PATH
@@ -206,11 +221,19 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
 
 class SaveView(discord.ui.View):
     def __init__(
-        self, image_urls, cog, converser_cog, message, no_retry=False, only_save=None
+        self,
+        ctx,
+        image_urls,
+        cog,
+        converser_cog,
+        message,
+        no_retry=False,
+        only_save=None,
     ):
         super().__init__(
             timeout=3600 if not only_save else None
-        )  # 10 minute timeout for Retry, Save
+        )  # 1 hour timeout for Retry, Save
+        self.ctx = ctx
         self.image_urls = image_urls
         self.cog = cog
         self.no_retry = no_retry
@@ -236,6 +259,7 @@ class SaveView(discord.ui.View):
 
         # Create a new view with the same params as this one, but pass only_save=True
         new_view = SaveView(
+            self.ctx,
             self.image_urls,
             self.cog,
             self.converser_cog,
@@ -245,7 +269,7 @@ class SaveView(discord.ui.View):
         )
 
         # Set the view of the message to the new view
-        await self.message.edit(view=new_view)
+        await self.ctx.edit(view=new_view)
 
 
 class VaryButton(discord.ui.Button):

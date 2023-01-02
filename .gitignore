@@ -1,0 +1,9 @@
+#cache folders
+__pycache__
+/cogs/__pycache__
+/models/__pycache__
+#user files
+.env
+bot.pid
+usage.txt
+/dalleimages
