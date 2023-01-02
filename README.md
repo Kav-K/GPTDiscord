@@ -105,6 +105,7 @@ sudo apt-get update
 sudo apt install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt install python3.9
+sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils
 
 # Install Pip for python3.9
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
