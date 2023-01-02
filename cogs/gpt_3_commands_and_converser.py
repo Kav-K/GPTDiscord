@@ -242,7 +242,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
-            name="/imgoptimize <image prompt>",
+            name="/optimize <image prompt>",
             value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
             inline=False,
         )
