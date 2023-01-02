@@ -44,11 +44,23 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
-        file, image_urls = await self.model.send_image_request(
-            prompt, vary=vary if not draw_from_optimizer else None
-        )
-
         from_context = isinstance(ctx, discord.ApplicationContext)
+
+        try:
+            file, image_urls = await self.model.send_image_request(
+                prompt, vary=vary if not draw_from_optimizer else None
+            )
+        except ValueError as e:
+            (
+                await ctx.channel.send(
+                    f"Error: {e}. Please try again with a different prompt."
+                )
+                if not from_context
+                else await ctx.respond(f"Error: {e}. Please try again with a different prompt.")
+            )
+            return
+
+
 
         # Start building an embed to send to the user with the results of the image generation
         embed = discord.Embed(
