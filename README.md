@@ -155,7 +155,7 @@ To build:
 - Optional: Make a data directory + bind mount it
   - Add `DATA_DIR=/data` to env file
 - Run via docker:
-  - `docker run [-d] --name gpt3discord -v env_file:/bin/.env [-v /containers/gpt3discord:/data] gpt3discord`
+  - `docker run [-d] --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] gpt3discord`
   - You can also mount a second volume and set `DATA_DIR` in the env file to keep persistent data
 
 This can also be run via screen/tmux or detached like a daemon.

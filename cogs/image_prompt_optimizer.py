@@ -36,7 +36,7 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
 
         try:
             image_pretext_path = (
-                self.converser_cog.data_path / "image_optimizer_pretext.txt"
+                self.converser_cog.share_path / "image_optimizer_pretext.txt"
             )
             # Try to read the image optimizer pretext from
             # the file system

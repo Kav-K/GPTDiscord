@@ -1,13 +1,41 @@
+import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-import os
+
+# <app/bin/main.py>/../../
+def app_root_path():
+    try:
+        return Path(sys.argv[0]).resolve().parents[1]
+    except:
+        return Path()
+
+# None will let direnv do its' thing
+env_paths = [Path() / ".env", app_root_path() / "etc/environment", None]
+
+for env_path in env_paths:
+    print("Loading environment from " + str(env_path))
+    load_dotenv(dotenv_path=env_path)
 
 
 class EnvService:
     # To be expanded upon later!
     def __init__(self):
         self.env = {}
+
+    @staticmethod
+    def environment_path_with_fallback(env_name, relative_fallback = None):
+        dir = os.getenv(env_name)
+        if dir != None:
+            return Path(dir).resolve()
+
+        if relative_fallback:
+            app_relative = (app_root_path() / relative_fallback).resolve()
+            if app_relative.exists:
+                return app_relative
+
+        return Path()
 
     @staticmethod
     def get_allowed_guilds():

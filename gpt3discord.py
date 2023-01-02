@@ -5,16 +5,12 @@ from pathlib import Path
 
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 import os
 
 if sys.platform == "win32":
     separator = "\\"
 else:
     separator = "/"
-
-print("The environment file is located at " + os.getcwd() + separator + ".env")
-load_dotenv(dotenv_path=os.getcwd() + separator + ".env")
 
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
@@ -23,6 +19,7 @@ from models.deletion_service_model import Deletion
 from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
+from models.env_service_model import EnvService
 
 __version__ = "2.1.3"
 
@@ -67,12 +64,16 @@ async def on_application_command_error(
 
 
 async def main():
-    data_path = Path(os.environ.get("DATA_DIR", os.getcwd()))
+    share_path = EnvService.environment_path_with_fallback("SHARE_DIR", "share")
+    data_path = EnvService.environment_path_with_fallback("DATA_DIR")
     debug_guild = int(os.getenv("DEBUG_GUILD"))
     debug_channel = int(os.getenv("DEBUG_CHANNEL"))
 
     if not data_path.exists():
-        raise OSError(f"{data_path} does not exist ... create it?")
+        raise OSError(f"Data path: {data_path} does not exist ... create it?")
+
+    if not share_path.exists():
+        raise OSError(f"Share path: {share_path} does not exist ... create it?")
 
     # Load the main GPT3 Bot service
     bot.add_cog(
@@ -85,6 +86,7 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
+            share_path,
         )
     )
 
