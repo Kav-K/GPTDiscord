@@ -113,8 +113,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             )
             welcome_embed.add_field(
                 name="Just so you know...",
-                value="> My commands are invoked with a forward slash ("
-                / ")\n> Use /help to see my help message(s).",
+                value="> My commands are invoked with a forward slash (/)\n> Use /help to see my help message(s).",
             )
             await member.send(content=None, embed=welcome_embed)
 
