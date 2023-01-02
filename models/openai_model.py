@@ -53,7 +53,7 @@ class Model:
         self._summarize_conversations = True
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
-        self.send_welcome_message = False
+        self._welcome_message_enabled = False
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -81,14 +81,14 @@ class Model:
     
     @property
     def welcome_message_enabled(self):
-        return self.send_welcome_message
+        return self._welcome_message_enabled
 
-    @send_welcome_message.setter
+    @welcome_message_enabled.setter
     def welcome_message_enabled(self, value):
         if value.lower() == "true":
-            self.send_welcome_message = True
+            self._welcome_message_enabled = True
         elif value.lower() == "false":
-            self.send_welcome_message = False
+            self._welcome_message_enabled = False
         else:
             raise ValueError("Value must be either true or false!")
     

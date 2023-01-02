@@ -96,14 +96,18 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if self.welcome_message_enabled():
+        if self.model.welcome_message_enabled:
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
-            welcome_message = self.model.send_request(query, tokens=self.usage_service.count_tokens(query))
+            try:
+                welcome_message = self.model.send_request(query, tokens=self.usage_service.count_tokens(query))
+            except:
+                welcome_message = None
+
             if not welcome_message:
                 welcome_message = EnvService.get_welcome_message()
             welcome_embed = discord.Embed(title=f"Welcome, {member.name}!", description=welcome_message)
             welcome_embed.add_field(name="Just so you know...", value="> My commands are invoked with a forward slash ("/")\n> Use /help to see my help message(s).")
-            await member.send(content=None, embed=welcome_embded)
+            await member.send(content=None, embed=welcome_embed)
     
     @commands.Cog.listener()
     async def on_member_remove(self, member):
