@@ -98,6 +98,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     async def on_member_join(self, member):
         if self.model.welcome_message_enabled:
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
+
             try:
                 welcome_message = self.model.send_request(query, tokens=self.usage_service.count_tokens(query))
             except:

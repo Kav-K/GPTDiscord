@@ -78,7 +78,7 @@ class Model:
         self.openai_key = os.getenv("OPENAI_TOKEN")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
-    
+
     @property
     def welcome_message_enabled(self):
         return self._welcome_message_enabled
@@ -91,8 +91,7 @@ class Model:
             self._welcome_message_enabled = False
         else:
             raise ValueError("Value must be either true or false!")
-    
-    
+
     @property
     def summarize_threshold(self):
         return self._summarize_threshold
