@@ -13,8 +13,8 @@ if sys.platform == "win32":
 else:
     separator = "/"
 
-print("The environment file is located at " + os.getcwd()+separator+".env")
-load_dotenv(dotenv_path=os.getcwd()+separator+".env")
+print("The environment file is located at " + os.getcwd() + separator + ".env")
+load_dotenv(dotenv_path=os.getcwd() + separator + ".env")
 
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
