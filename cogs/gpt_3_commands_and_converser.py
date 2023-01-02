@@ -214,7 +214,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
-            name="/chat",
+            name="/ask",
             value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
             inline=False,
         )
@@ -678,7 +678,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @add_to_group("gpt")
     @discord.slash_command(
-        name="chat",
+        name="ask",
         description="Ask GPT3 something!",
         guild_ids=ALLOWED_GUILDS,
     )
@@ -686,7 +686,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.guild_only()
-    async def chat(self, ctx: discord.ApplicationContext, prompt: str):
+    async def ask(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
 
         user = ctx.user

@@ -56,7 +56,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         name="prompt", description="The text prompt to optimize.", required=True
     )
     @discord.guild_only()
-    async def imgoptimize(self, ctx: discord.ApplicationContext, prompt: str):
+    async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
 
         user = ctx.user
