@@ -56,11 +56,11 @@ class DrawDallEService(commands.Cog, name="DrawDallEService"):
                     f"Error: {e}. Please try again with a different prompt."
                 )
                 if not from_context
-                else await ctx.respond(f"Error: {e}. Please try again with a different prompt.")
+                else await ctx.respond(
+                    f"Error: {e}. Please try again with a different prompt."
+                )
             )
             return
-
-
 
         # Start building an embed to send to the user with the results of the image generation
         embed = discord.Embed(
