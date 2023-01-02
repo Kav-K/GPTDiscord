@@ -103,6 +103,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
                 welcome_message = self.model.send_request(
                     query, tokens=self.usage_service.count_tokens(query)
                 )
+
             except:
                 welcome_message = None
 
