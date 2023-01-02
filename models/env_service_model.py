@@ -32,7 +32,7 @@ class EnvService:
 
         if relative_fallback:
             app_relative = (app_root_path() / relative_fallback).resolve()
-            if app_relative.exists:
+            if app_relative.exists():
                 return app_relative
 
         return Path()
