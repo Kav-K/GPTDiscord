@@ -43,11 +43,13 @@ class EnvService:
             admin_roles = None
 
         if admin_roles is None:
-            raise ValueError(
+            print(
                 "ADMIN_ROLES is not defined properly in the environment file!"
                 "Please copy your server's role and put it into ADMIN_ROLES in the .env file."
                 'For example a line should look like: `ADMIN_ROLES="Admin"`'
             )
+            print("Defaulting to allowing all users to use admin commands...")
+            return [None]
 
         admin_roles = (
             admin_roles.lower().split(",")
@@ -67,11 +69,13 @@ class EnvService:
             dalle_roles = None
 
         if dalle_roles is None:
-            raise ValueError(
+            print(
                 "DALLE_ROLES is not defined properly in the environment file!"
                 "Please copy your server's role and put it into DALLE_ROLES in the .env file."
                 'For example a line should look like: `DALLE_ROLES="Dalle"`'
             )
+            print("Defaulting to allowing all users to use Dalle commands...")
+            return [None]
 
         dalle_roles = (
             dalle_roles.lower().split(",")
@@ -91,11 +95,13 @@ class EnvService:
             gpt_roles = None
 
         if gpt_roles is None:
-            raise ValueError(
+            print(
                 "GPT_ROLES is not defined properly in the environment file!"
                 "Please copy your server's role and put it into GPT_ROLES in the .env file."
                 'For example a line should look like: `GPT_ROLES="Gpt"`'
             )
+            print("Defaulting to allowing all users to use GPT commands...")
+            return [None]
 
         gpt_roles = (
             gpt_roles.lower().strip().split(",")
