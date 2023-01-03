@@ -24,7 +24,7 @@ from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
 
-__version__ = "2.1.3"
+__version__ = "2.2"
 
 """
 Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
