@@ -53,7 +53,7 @@ class Model:
         self._summarize_conversations = True
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
-        self._welcome_message_enabled = False
+        self._welcome_message_enabled = True
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]

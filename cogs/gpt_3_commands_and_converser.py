@@ -17,8 +17,6 @@ from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
-print("THE ALLOWED GUILDS ARE: ", ALLOWED_GUILDS)
-
 
 class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     def __init__(
@@ -100,10 +98,10 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
 
             try:
-                welcome_message = self.model.send_request(
+                welcome_message_response = await self.model.send_request(
                     query, tokens=self.usage_service.count_tokens(query)
                 )
-
+                welcome_message = str(welcome_message_response["choices"][0]["text"])
             except:
                 welcome_message = None
 
@@ -112,6 +110,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             welcome_embed = discord.Embed(
                 title=f"Welcome, {member.name}!", description=welcome_message
             )
+
             welcome_embed.add_field(
                 name="Just so you know...",
                 value="> My commands are invoked with a forward slash (/)\n> Use /help to see my help message(s).",
@@ -860,6 +859,7 @@ class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
             "num_images",
             "summarize_conversations",
             "summarize_threshold",
+            "welcome_message_enabled",
             "IMAGE_SAVE_PATH",
         ],
     )
