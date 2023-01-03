@@ -75,11 +75,20 @@ DISCORD_TOKEN="<discord_bot_token>"
 DEBUG_GUILD="974519864045756446"   #discord_server_id
 DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 ALLOWED_GUILDS="971268468148166697,971268468148166697"
-ALLOWED_ROLES="Admin,gpt"
+# People with the roles in ADMIN_ROLES can use admin commands like /clear-local, and etc
+ADMIN_ROLES="Admin,Owner" 
+# People with the roles in DALLE_ROLES can use commands like /dalle draw or /dalle imgoptimize
+DALLE_ROLES="Admin,Openai,Dalle,gpt"
+# People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse
+GPT_ROLES="openai,gpt"
 WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" #Optional
 ```
 
-Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
+** Permissions **
+
+As mentioned in the comments of the sample environment file, there are three permission groups that you can edit in the environment (`.env`) file. `ADMIN_ROLES` are roles that allow users to use `/system` commands. `GPT_ROLES` are roles that allow users to use `/gpt` commands, and `DALLE_ROLES` are roles that allow users to use `/dalle` commands.
+
+Optionally, you can include your own conversation starter text for the bot that's used with `/gpt converse`, with `CONVERSATION_STARTER_TEXT`
 
 ## Server Installation
 
@@ -184,39 +193,41 @@ This can also be run via screen/tmux or detached like a daemon.
 
 # Commands
 
+These commands are grouped, so each group has a prefix but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
+
 `/help` - Display help text for the bot
 
-`/g <prompt>` Ask the GPT3 Davinci 003 model a question.
+`/gpt ask <prompt>` Ask the GPT3 Davinci 003 model a question.
 
-`/chat-gpt` - Start a conversation with the bot, like ChatGPT
+`/gpt converse` - Start a conversation with the bot, like ChatGPT
 
-`/chat-gpt private:yes` - Start a private conversation with the bot, like ChatGPT
+`/gpt converse private:yes` - Start a private conversation with the bot, like ChatGPT
 
-`/chat-gpt opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start)
+`/gpt converse opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start)
 
-`/chat-gpt minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
+`/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
-- Note that the above options for /chat-gpt can be combined (you can combine minimal, private, and opener!)
+- Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)
 
-`/end-chat` - End a conversation with the bot.
+`/gpt end-chat` - End a conversation with the bot.
 
-`/draw <prompt>` - Have DALL-E generate images based on a prompt
+`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
 
-`/settings` - Display settings for the model (temperature, top_p, etc)
+`/dalle imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
 
-`/settings <setting> <value>` - Change a model setting to a new value
+`/system settings` - Display settings for the model (temperature, top_p, etc)
 
-`/usage` Estimate current usage details (based on davinci)
+`/system settings <setting> <value>` - Change a model setting to a new value
 
-`/settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
+`/system usage` Estimate current usage details (based on davinci)
 
-`/imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+`/system settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
 
-`/delete_all_conversation_threads` - Delete all threads related to this bot across all servers.
+`/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
 
-`/local-size` - Get the size of the local dalleimages folder
+`/system local-size` - Get the size of the local dalleimages folder
 
-`/clear-local` - Clear all the local dalleimages.
+`/system clear-local` - Clear all the local dalleimages.
 
 # Configuration
 
