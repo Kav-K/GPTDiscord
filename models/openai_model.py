@@ -374,6 +374,7 @@ class Model:
             )
 
         print("The prompt about to be sent is " + prompt)
+        print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}")
 
         async with aiohttp.ClientSession() as session:
             payload = {

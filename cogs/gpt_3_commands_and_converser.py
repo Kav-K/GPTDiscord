@@ -558,7 +558,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
-        self, user_id, prompt, ctx, response_message=None, from_g_command=False
+        self, user_id, prompt, ctx, temp_override=None, top_p_override=None, frequency_penalty_override=None, presence_penalty_override=None, response_message=None, from_g_command=False
     ):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
@@ -619,7 +619,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     return
 
             # Send the request to the model
-            response = await self.model.send_request(new_prompt, tokens=tokens)
+            response = await self.model.send_request(new_prompt, tokens=tokens, temp_override=temp_override, top_p_override=top_p_override, frequency_penalty_override=frequency_penalty_override, presence_penalty_override=presence_penalty_override)
 
             # Clean the request response
             response_text = str(response["choices"][0]["text"])
@@ -712,8 +712,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.option(
         name="prompt", description="The prompt to send to GPT3", required=True
     )
+    @discord.option(
+        name="temperature", description="Higher values means the model will take more risks.", required=False, input_type=float, min_value=0, max_value=1
+    )
+    @discord.option(
+        name="top_p", description="Higher values means the model will take more risks.", required=False, input_type=float, min_value=0, max_value=1
+    )
+    @discord.option(
+        name="frequency_penalty", description=" Decreasing the model's likelihood to repeat the same line verbatim.", required=False, input_type=float, min_value=-2, max_value=2
+    )
+    @discord.option(
+        name="presence_penalty", description=" Increasing the model's likelihood to talk about new topics.", required=False, input_type=float, min_value=-2, max_value=2
+    )
     @discord.guild_only()
-    async def ask(self, ctx: discord.ApplicationContext, prompt: str):
+    async def ask(self, ctx: discord.ApplicationContext, prompt: str, temperature: float, top_p:float, frequency_penalty: float, presence_penalty: float):
         await ctx.defer()
 
         user = ctx.user
@@ -723,7 +735,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Send the request to the model
         # If conversing, the prompt to send is the history, otherwise, it's just the prompt
 
-        await self.encapsulated_send(user.id, prompt, ctx, from_g_command=True)
+        await self.encapsulated_send(user.id, prompt, ctx, temp_override=temperature, top_p_override=top_p, frequency_penalty_override=frequency_penalty, presence_penalty_override=presence_penalty, from_g_command=True)
 
     @add_to_group("gpt")
     @discord.slash_command(
