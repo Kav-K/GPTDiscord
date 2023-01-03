@@ -1,3 +1,7 @@
+![Docker](https://github.com/Kav-K/GPT3Discord/actions/workflows/docker_upload.yml/badge.svg)
+![PyPi](https://github.com/Kav-K/GPT3Discord/actions/workflows/pypi_upload.yml/badge.svg)
+![Build](https://github.com/Kav-K/GPT3Discord/actions/workflows/build.yml/badge.svg)
+
 # Screenshots
 
 <p align="center">
@@ -11,6 +15,8 @@
 # Recent Major Updates
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
+
+- **Private conversations, custom conversation openers, minimal conversation opener** - for `/gpt converse`
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
