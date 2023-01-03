@@ -48,7 +48,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
     @add_to_group("dalle")
     @discord.slash_command(
-        name="imgoptimize",
+        name="optimize",
         description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
         guild_ids=ALLOWED_GUILDS,
     )
