@@ -125,6 +125,8 @@ As mentioned in the comments of the sample environment file, there are three per
 
 Optionally, you can include your own conversation starter text for the bot that's used with `/gpt converse`, with `CONVERSATION_STARTER_TEXT`
 
+If for a command group you want everybody to be able to use those commands, just don't include the relevant line in the `.env` file. For example, if you want everyone to be able to use GPT3 commands, you can just omit `the GPT_ROLES="...."` line.
+
 ## Server Installation
 
 First, you want to get a server, for this guide, I will be using DigitalOcean as the host. 
