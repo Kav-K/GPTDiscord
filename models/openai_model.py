@@ -3,6 +3,7 @@ import functools
 import math
 import os
 import tempfile
+import traceback
 import uuid
 from typing import Tuple, List, Any
 
@@ -23,6 +24,7 @@ class Mode:
 class Models:
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    EMBEDDINGS = "text-embedding-ada-002"
 
 
 class ImageSize:
@@ -51,7 +53,7 @@ class Model:
         self._image_size = ImageSize.MEDIUM
         self._num_images = 2
         self._summarize_conversations = True
-        self._summarize_threshold = 2500
+        self._summarize_threshold = 850
         self.model_max_tokens = 4024
         self._welcome_message_enabled = True
 
@@ -306,6 +308,28 @@ class Model:
                 + str(value)
             )
         self._prompt_min_length = value
+
+    async def send_embedding_request(self, text):
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.EMBEDDINGS,
+                "input": text,
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            async with session.post(
+                    "https://api.openai.com/v1/embeddings", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+
+                try:
+                    return response["data"][0]["embedding"]
+                except Exception as e:
+                    traceback.print_exc()
+                    return
+
 
     async def send_summary_request(self, prompt):
         """

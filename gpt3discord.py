@@ -4,9 +4,12 @@ import traceback
 from pathlib import Path
 
 import discord
+import pinecone
 from dotenv import load_dotenv
 from pycord.multicog import apply_multicog
 import os
+
+from models.pinecone_service_model import PineconeService
 
 if sys.platform == "win32":
     separator = "\\"
@@ -27,12 +30,29 @@ from models.usage_service_model import UsageService
 __version__ = "2.2"
 
 """
-Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
+Message queueing for the debug service and deletion service, defer debug messages to be sent later so we don't hit rate limits.
 """
 message_queue = asyncio.Queue()
 deletion_queue = asyncio.Queue()
 asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
 asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
+
+"""
+The pinecone service is used to store and retrieve conversation embeddings.
+"""
+try:
+    PINECONE_TOKEN = os.getenv("PINECONE_TOKEN")
+except:
+    PINECONE_TOKEN = None
+
+pinecone_service = None
+if PINECONE_TOKEN:
+    pinecone.init(api_key=PINECONE_TOKEN, environment="us-west1-gcp")
+    PINECONE_INDEX = "conversation-embeddings" # This will become unfixed later.
+    pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
+    print("Got the pinecone service")
+
+
 
 
 """
@@ -85,6 +105,7 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
+            pinecone_service=pinecone_service,
         )
     )
 

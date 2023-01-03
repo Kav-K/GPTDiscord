@@ -2,14 +2,18 @@ import datetime
 import json
 import re
 import traceback
+import uuid
 from pathlib import Path
+from typing import Optional
 
 import discord
+import pinecone
 from pycord.multicog import add_to_group
 
 from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
 from models.message_model import Message
+from models.pinecone_service_model import PineconeService
 from models.user_model import User, RedoUser
 from models.check_model import Check
 from collections import defaultdict
@@ -30,6 +34,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         DEBUG_GUILD,
         DEBUG_CHANNEL,
         data_path: Path,
+        pinecone_service: Optional[PineconeService],
     ):
         super().__init__()
         self.data_path = data_path
@@ -54,6 +59,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.users_to_interactions = defaultdict(list)
         self.redo_users = {}
         self.awaiting_responses = []
+        self.embedded_users = []
+        self.embed_conversations = True if pinecone_service else False
+        self.pinecone_service = pinecone_service
+        self.conversation_ids = {}
 
         try:
             conversation_file_path = data_path / "conversation_starter_pretext.txt"
@@ -556,6 +565,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 message,
             )
 
+    async def rebuild_conversation_history_with_embeddings(self, user_id, prompt):
+        # Get rid of "<|endofstatement|>", and "Human:"
+        prompt = prompt.replace("<|endofstatement|>", "")
+        prompt = prompt.replace("Human:", "")
+
+        conversation_id = self.conversation_ids[user_id]
+        self.conversating_users[user_id].history = []
+        self.conversating_users[user_id].history.append(self.CONVERSATION_STARTER_TEXT)
+
+        # Embed the prompt
+        prompt_embeddings = await self.model.send_embedding_request(prompt)
+
+        # Get the 10 most similar prompts from pinecone
+        n_similar = self.pinecone_service.get_n_similar(conversation_id, prompt_embeddings)
+
+        # Append these to the user's conversation history
+        for prompt in n_similar:
+            self.conversating_users[user_id].history.append(prompt[0])
+
+        print(f"The amended conversation history is {self.conversating_users[user_id].history}")
+
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
         self, user_id, prompt, ctx, response_message=None, from_g_command=False
@@ -577,17 +607,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         try:
             tokens = self.usage_service.count_tokens(new_prompt)
+            print(f"Tokens: {tokens}")
 
             # Check if the prompt is about to go past the token limit
             if (
-                user_id in self.conversating_users
+                    (user_id in self.conversating_users
                 and tokens > self.model.summarize_threshold
-                and not from_g_command
+                and not from_g_command)
+                    or (user_id in self.embedded_users)
             ):
 
                 # We don't need to worry about the differences between interactions and messages in this block,
                 # because if we are in this block, we can only be using a message object for ctx
-                if self.model.summarize_conversations:
+                if self.model.summarize_conversations and not self.embed_conversations:
                     await ctx.reply(
                         "I'm currently summarizing our current conversation so we can keep chatting, "
                         "give me one moment!"
@@ -613,6 +645,39 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                         await self.end_conversation(ctx)
                         return
+                elif self.embed_conversations:
+                    print("We are in embed conversations")
+                    # Generate a unique conversation_id for the user
+                    conversation_id = int(uuid.uuid1()) if user_id not in self.conversation_ids else self.conversation_ids[user_id]
+                    # Cut this down to 10 digits
+                    conversation_id = conversation_id % 10000000000
+                    print("The conversation ID is " + str(conversation_id))
+                    # Map the user to the conversation ID
+                    self.conversation_ids[user_id] = conversation_id
+                    # The human's last message was the very last thing in their history, save it
+                    last_human_message = self.conversating_users[user_id].history[-1]
+                    # Remove the last message from the history
+                    self.conversating_users[user_id].history = self.conversating_users[user_id].history[:-1]
+                    # Iterate through all the messages except the first one and create embeddings
+                    for message in self.conversating_users[user_id].history[1:]:
+                        # Convert the message to ascii only (e.g remove stuff like emoji)
+                        message = message.encode("ascii", "ignore").decode()
+                        print("Creating embedding for ", message)
+                        # Print the current timestamp
+                        timestamp = int(str(datetime.datetime.now().timestamp()).replace(".", ""))
+                        print("Timestamp is ", timestamp)
+
+                        await self.pinecone_service.upsert_conversation_embedding(model=self.model,conversation_id=conversation_id, text=message, timestamp=timestamp)
+                    print("Created and upserted embeddings for conversation")
+
+                    # Mark this user as an embedded user.
+                    self.embedded_users.append(user_id)
+
+                    # Create an embedding for the last human message
+                    await self.rebuild_conversation_history_with_embeddings(user_id, last_human_message)
+
+                    # Now, build a new conversation history with the top 10 similar to the last_human_message_embedding
+
                 else:
                     await ctx.reply("The conversation context limit has been reached.")
                     await self.end_conversation(ctx)
@@ -847,6 +912,38 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def help(self, ctx: discord.ApplicationContext):
         await ctx.defer()
         await self.send_help_text(ctx)
+
+    @add_to_group("system")
+    @discord.slash_command(
+        name="test",
+        description="Testing entrypoint",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(name="text", description="The text to send to GPT3", required=False)
+    @discord.guild_only()
+    async def test(self, ctx: discord.ApplicationContext, text: str):
+        await ctx.defer()
+        embeddings = await self.model.send_embedding_request(text)
+        self.pinecone_service.upsert_conversation_embedding(ctx.user.id, text, embeddings)
+        await ctx.respond("Upserted")
+
+        print(embeddings)
+
+    @add_to_group("system")
+    @discord.slash_command(
+        name="test2",
+        description="Testing2 entrypoint",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(name="text", description="The text to send to GPT3", required=False)
+    @discord.guild_only()
+    async def test2(self, ctx: discord.ApplicationContext, text: str):
+        await ctx.defer()
+        embeddings = await self.model.send_embedding_request(text)
+        results = self.pinecone_service.get_n_similar(ctx.user.id, embeddings)
+        await ctx.respond("Got results")
+
+        print(results)
 
     @add_to_group("system")
     @discord.slash_command(
