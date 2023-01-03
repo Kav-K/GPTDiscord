@@ -113,7 +113,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         checks=[Check.check_admin_roles()],
     )
 
-    @commands.Cog.listener()
+    @discord.Cog.listener()
     async def on_member_join(self, member):
         if self.model.welcome_message_enabled:
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
@@ -138,7 +138,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             await member.send(content=None, embed=welcome_embed)
 
-    @commands.Cog.listener()
+    @discord.Cog.listener()
     async def on_member_remove(self, member):
         pass
 
