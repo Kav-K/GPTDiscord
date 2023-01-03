@@ -97,3 +97,15 @@ class EnvService:
             gpt_roles.lower().strip().split(",") if "," in gpt_roles else [gpt_roles.lower()]
         )
         return gpt_roles
+
+
+    @staticmethod
+    def get_welcome_message():
+        # WELCOME_MESSAGE is a default string used to welcome new members to the server if GPT3 is not available.
+        # The string can be blank but this is not advised. If a string cannot be found in the .env file, the below string is used.
+        # The string is DMd to the new server member as part of an embed.
+        try:
+            welcome_message = os.getenv("WELCOME_MESSAGE")
+        except:
+            welcome_message = "Hi there! Welcome to our Discord server!"
+        return welcome_message

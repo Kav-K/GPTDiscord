@@ -17,7 +17,6 @@ from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
-print("THE ALLOWED GUILDS ARE: ", ALLOWED_GUILDS)
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -111,7 +110,32 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                                     checks=[Check.check_admin_roles()]
                                     )
 
-    @discord.Cog.listener()
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if self.model.welcome_message_enabled:
+            query = f"Please generate a welcome message for {member.name} who has just joined the server."
+
+            try:
+                welcome_message_response = await self.model.send_request(
+                    query, tokens=self.usage_service.count_tokens(query)
+                )
+                welcome_message = str(welcome_message_response["choices"][0]["text"])
+            except:
+                welcome_message = None
+
+            if not welcome_message:
+                welcome_message = EnvService.get_welcome_message()
+            welcome_embed = discord.Embed(
+                title=f"Welcome, {member.name}!", description=welcome_message
+            )
+
+            welcome_embed.add_field(
+                name="Just so you know...",
+                value="> My commands are invoked with a forward slash (/)\n> Use /help to see my help message(s).",
+            )
+            await member.send(content=None, embed=welcome_embed)
+
+    @commands.Cog.listener()
     async def on_member_remove(self, member):
         pass
 
@@ -858,6 +882,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             "num_images",
             "summarize_conversations",
             "summarize_threshold",
+            "welcome_message_enabled",
             "IMAGE_SAVE_PATH",
         ],
     )
