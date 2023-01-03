@@ -380,16 +380,16 @@ class Model:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
-                "temperature": self.temp if not temp_override else temp_override,
-                "top_p": self.top_p if not top_p_override else top_p_override,
+                "temperature": self.temp if temp_override is None else temp_override,
+                "top_p": self.top_p if top_p_override is None else top_p_override,
                 "max_tokens": self.max_tokens - tokens
                 if not max_tokens_override
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
-                if not presence_penalty_override
+                if presence_penalty_override is None
                 else presence_penalty_override,
                 "frequency_penalty": self.frequency_penalty
-                if not frequency_penalty_override
+                if frequency_penalty_override is None
                 else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
