@@ -713,16 +713,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
-        name="temperature", description="Higher values means the model will take more risks.", required=False, input_type=float, min_value=0, max_value=1
+        name="temperature", description="Higher values means the model will take more risks", required=False, input_type=float, min_value=0, max_value=1
     )
     @discord.option(
-        name="top_p", description="Higher values means the model will take more risks.", required=False, input_type=float, min_value=0, max_value=1
+        name="top_p", description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution", required=False, input_type=float, min_value=0, max_value=1
     )
     @discord.option(
-        name="frequency_penalty", description=" Decreasing the model's likelihood to repeat the same line verbatim.", required=False, input_type=float, min_value=-2, max_value=2
+        name="frequency_penalty", description="Decreasing the model's likelihood to repeat the same line verbatim", required=False, input_type=float, min_value=-2, max_value=2
     )
     @discord.option(
-        name="presence_penalty", description=" Increasing the model's likelihood to talk about new topics.", required=False, input_type=float, min_value=-2, max_value=2
+        name="presence_penalty", description="Increasing the model's likelihood to talk about new topics", required=False, input_type=float, min_value=-2, max_value=2
     )
     @discord.guild_only()
     async def ask(self, ctx: discord.ApplicationContext, prompt: str, temperature: float, top_p:float, frequency_penalty: float, presence_penalty: float):

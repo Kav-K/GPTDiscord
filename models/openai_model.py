@@ -398,7 +398,8 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                print(response)
+                print(f"Payload -> {payload}")
+                print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 tokens_used = int(response["usage"]["total_tokens"])
                 self.usage_service.update_usage(tokens_used)
