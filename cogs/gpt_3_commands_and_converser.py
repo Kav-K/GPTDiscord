@@ -18,6 +18,7 @@ from collections import defaultdict
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
+
 class GPT3ComCon(commands.Cog, name="GPT3ComCon"):
     def __init__(
         self,
