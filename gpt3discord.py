@@ -4,8 +4,8 @@ import traceback
 from pathlib import Path
 
 import discord
-from discord.ext import commands
 from dotenv import load_dotenv
+from pycord.multicog import apply_multicog
 import os
 
 if sys.platform == "win32":
@@ -41,7 +41,7 @@ Settings for the bot
 activity = discord.Activity(
     type=discord.ActivityType.watching, name="for /help /g, and more!"
 )
-bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
+bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
@@ -110,6 +110,8 @@ async def main():
             bot.get_cog("DrawDallEService"),
         )
     )
+
+    apply_multicog(bot)
 
     await bot.start(os.getenv("DISCORD_TOKEN"))
 
