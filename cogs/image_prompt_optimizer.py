@@ -45,7 +45,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         except:
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
-            
+
     @add_to_group("dalle")
     @discord.slash_command(
         name="imgoptimize",

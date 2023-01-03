@@ -21,6 +21,7 @@ class Check:
                 )
                 return False
             return True
+
         return inner
 
     def check_dalle_roles() -> Callable:
@@ -34,6 +35,7 @@ class Check:
                 )
                 return False
             return True
+
         return inner
 
     def check_gpt_roles() -> Callable:
@@ -47,4 +49,5 @@ class Check:
                 )
                 return False
             return True
+
         return inner

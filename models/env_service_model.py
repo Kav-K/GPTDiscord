@@ -50,7 +50,9 @@ class EnvService:
             )
 
         admin_roles = (
-            admin_roles.lower().split(",") if "," in admin_roles else [admin_roles.lower()]
+            admin_roles.lower().split(",")
+            if "," in admin_roles
+            else [admin_roles.lower()]
         )
         return admin_roles
 
@@ -72,7 +74,9 @@ class EnvService:
             )
 
         dalle_roles = (
-            dalle_roles.lower().split(",") if "," in dalle_roles else [dalle_roles.lower()]
+            dalle_roles.lower().split(",")
+            if "," in dalle_roles
+            else [dalle_roles.lower()]
         )
         return dalle_roles
 
@@ -94,10 +98,11 @@ class EnvService:
             )
 
         gpt_roles = (
-            gpt_roles.lower().strip().split(",") if "," in gpt_roles else [gpt_roles.lower()]
+            gpt_roles.lower().strip().split(",")
+            if "," in gpt_roles
+            else [gpt_roles.lower()]
         )
         return gpt_roles
-
 
     @staticmethod
     def get_welcome_message():

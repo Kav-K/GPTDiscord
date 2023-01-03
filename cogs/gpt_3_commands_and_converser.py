@@ -94,21 +94,24 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_threads = {}
 
     # Create slash command groups
-    dalle = discord.SlashCommandGroup(name="dalle", 
-                                        description="Dalle related commands",
-                                        guild_ids=ALLOWED_GUILDS,
-                                        checks=[Check.check_dalle_roles()]
-                                        )
-    gpt = discord.SlashCommandGroup(name="gpt", 
-                                        description="GPT related commands",
-                                        guild_ids=ALLOWED_GUILDS,
-                                        checks=[Check.check_gpt_roles()]
-                                        )
-    system = discord.SlashCommandGroup(name="system", 
-                                    description="Admin/System settings for the bot",
-                                    guild_ids=ALLOWED_GUILDS,
-                                    checks=[Check.check_admin_roles()]
-                                    )
+    dalle = discord.SlashCommandGroup(
+        name="dalle",
+        description="Dalle related commands",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_dalle_roles()],
+    )
+    gpt = discord.SlashCommandGroup(
+        name="gpt",
+        description="GPT related commands",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_gpt_roles()],
+    )
+    system = discord.SlashCommandGroup(
+        name="system",
+        description="Admin/System settings for the bot",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_admin_roles()],
+    )
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -154,7 +157,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             delete_existing=True,
         )
         print(f"The debug channel was acquired and commands registered")
-    
+
     @add_to_group("system")
     @discord.slash_command(
         name="set-usage",

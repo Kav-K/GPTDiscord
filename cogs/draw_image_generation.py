@@ -146,6 +146,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                 self.converser_cog.users_to_interactions[user_id].append(
                     result_message.id
                 )
+
     @add_to_group("dalle")
     @discord.slash_command(
         name="draw",
