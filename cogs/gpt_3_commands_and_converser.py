@@ -827,15 +827,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="opener", 
-        description="Which sentence to start with, added after the file", 
+        name="opener",
+        description="Which sentence to start with, added after the file",
         required=False,
     )
     @discord.option(
-        name="opener_file", 
-        description="Which file to start with, added before the opener, sets minimal starter", 
-        required=False, 
-        autocomplete=File_autocompleter.get_openers
+        name="opener_file",
+        description="Which file to start with, added before the opener, sets minimal starter",
+        required=False,
+        autocomplete=File_autocompleter.get_openers,
     )
     @discord.option(
         name="private",
@@ -851,7 +851,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     )
     @discord.guild_only()
     async def converse(
-        self, ctx: discord.ApplicationContext, opener: str, opener_file: str, private, minimal
+        self,
+        ctx: discord.ApplicationContext,
+        opener: str,
+        opener_file: str,
+        private,
+        minimal,
     ):
         if private:
             await ctx.defer(ephemeral=True)
@@ -871,12 +876,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             user_id_normalized = user.id
         else:
             user_id_normalized = ctx.author.id
-            if opener_file: # only load in files if it's included in the command, if not pass on as normal
+            if (
+                opener_file
+            ):  # only load in files if it's included in the command, if not pass on as normal
                 if opener_file.endswith(".txt"):
                     # Load the file and read it into opener
                     opener_file = f"openers{separator}{opener_file}"
                     opener_file = await self.load_file(opener_file, ctx)
-                    if not opener: # if we only use opener_file then only pass on opener_file for the opening prompt
+                    if (
+                        not opener
+                    ):  # if we only use opener_file then only pass on opener_file for the opening prompt
                         opener = opener_file
                     else:
                         opener = opener_file + opener
@@ -991,13 +1000,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="parameter",
         description="The setting to change",
         required=False,
-        autocomplete=Settings_autocompleter.get_settings
+        autocomplete=Settings_autocompleter.get_settings,
     )
     @discord.option(
         name="value",
         description="The value to set the setting to",
         required=False,
-        autocomplete=Settings_autocompleter.get_value
+        autocomplete=Settings_autocompleter.get_value,
     )
     @discord.guild_only()
     async def settings(
