@@ -312,7 +312,10 @@ class Model:
             tokens_used = int(response["usage"]["total_tokens"])
             self.usage_service.update_usage(tokens_used)
         except:
-            raise ValueError("The API returned an invalid response: " + str(response['error']['message']))
+            raise ValueError(
+                "The API returned an invalid response: "
+                + str(response["error"]["message"])
+            )
 
     async def send_summary_request(self, prompt):
         """
