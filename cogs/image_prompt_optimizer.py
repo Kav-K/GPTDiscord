@@ -183,7 +183,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         await self.image_service_cog.encapsulated_send(
             user_id,
             prompt,
-            None,
+            interaction,
             msg,
             True,
             True,
