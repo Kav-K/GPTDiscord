@@ -58,7 +58,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 - Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)
 
-`/gpt end-chat` - End a conversation with the bot.
+`/gpt end` - End a conversation with the bot.
 
 `/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
 
