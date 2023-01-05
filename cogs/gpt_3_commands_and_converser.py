@@ -756,7 +756,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     )
     @discord.option(
         name="opener_file", 
-        description="Which file to start with, added before the opener, disables conversation starters", 
+        description="Which file to start with, added before the opener, sets minimal starter", 
         required=False, 
         autocomplete=File_autocompleter.get_openers
     )
