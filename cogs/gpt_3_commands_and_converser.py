@@ -2,6 +2,7 @@ import datetime
 import json
 import re
 import traceback
+import sys
 from pathlib import Path
 
 import aiofiles
@@ -13,10 +14,15 @@ from models.env_service_model import EnvService
 from models.message_model import Message
 from models.user_model import User, RedoUser
 from models.check_model import Check
+from models.autocomplete_model import Settings_autocompleter, File_autocompleter
 from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+if sys.platform == "win32":
+    separator = "\\"
+else:
+    separator = "/"
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -821,7 +827,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="opener", description="Which sentence to start with", required=False
+        name="opener", 
+        description="Which sentence to start with, added after the file", 
+        required=False,
+    )
+    @discord.option(
+        name="opener_file", 
+        description="Which file to start with, added before the opener, sets minimal starter", 
+        required=False, 
+        autocomplete=File_autocompleter.get_openers
     )
     @discord.option(
         name="private",
@@ -831,13 +845,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     )
     @discord.option(
         name="minimal",
-        description="Use minimal starter text",
+        description="Use minimal starter text, saves tokens and has a more open personality",
         required=False,
         choices=["yes"],
     )
     @discord.guild_only()
     async def converse(
-        self, ctx: discord.ApplicationContext, opener: str, private, minimal
+        self, ctx: discord.ApplicationContext, opener: str, opener_file: str, private, minimal
     ):
         if private:
             await ctx.defer(ephemeral=True)
@@ -853,22 +867,28 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await self.deletion_queue(message)
             return
 
-        if not opener:
+        if not opener and not opener_file:
             user_id_normalized = user.id
         else:
             user_id_normalized = ctx.author.id
-            # Pre-check for opener, check if they provided a valid file if it is indeed a file.
-            # If the opener ends in .txt, its a file and we want to load it
-            if opener.endswith(".txt"):
-                # Load the file and read it into opener
-                opener = await self.load_file(opener, ctx)
-                if not opener:
-                    return
+            if opener_file: # only load in files if it's included in the command, if not pass on as normal
+                if opener_file.endswith(".txt"):
+                    # Load the file and read it into opener
+                    opener_file = f"openers{separator}{opener_file}"
+                    opener_file = await self.load_file(opener_file, ctx)
+                    if not opener: # if we only use opener_file then only pass on opener_file for the opening prompt
+                        opener = opener_file
+                    else:
+                        opener = opener_file + opener
+                    if not opener_file:
+                        return
+            else:
+                pass
 
         self.conversating_users[user_id_normalized] = User(user_id_normalized)
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
-        if minimal:
+        if minimal or opener_file:
             self.conversating_users[user_id_normalized].history.append(
                 self.CONVERSATION_STARTER_TEXT_MINIMAL
             )
@@ -971,28 +991,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="parameter",
         description="The setting to change",
         required=False,
-        choices=[
-            "mode",
-            "temp",
-            "top_p",
-            "max_tokens",
-            "presence_penalty",
-            "frequency_penalty",
-            "best_of",
-            "prompt_min_length",
-            "max_conversation_length",
-            "model",
-            "low_usage_mode",
-            "image_size",
-            "num_images",
-            "summarize_conversations",
-            "summarize_threshold",
-            "welcome_message_enabled",
-            "IMAGE_SAVE_PATH",
-        ],
+        autocomplete=Settings_autocompleter.get_settings
     )
     @discord.option(
-        name="value", description="The value to set the setting to", required=False
+        name="value",
+        description="The value to set the setting to",
+        required=False,
+        autocomplete=Settings_autocompleter.get_value
     )
     @discord.guild_only()
     async def settings(
