@@ -53,8 +53,6 @@ if PINECONE_TOKEN:
     print("Got the pinecone service")
 
 
-
-
 """
 Settings for the bot
 """
