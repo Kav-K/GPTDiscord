@@ -795,19 +795,23 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await self.deletion_queue(message)
             return
 
-        if not opener or not opener_file:
+        if not opener and not opener_file:
             user_id_normalized = user.id
         else:
             user_id_normalized = ctx.author.id
-            # Pre-check for opener, check if they provided a valid file if it is indeed a file.
-            # If the opener ends in .txt, its a file and we want to load it
-            if opener_file.endswith(".txt"):
-                # Load the file and read it into opener
-                opener_file = f"openers{separator}{opener_file}"
-                opener_file = await self.load_file(opener_file, ctx)
-                opener = opener_file + opener
-                if not opener_file:
-                    return
+            if opener_file: # only load in files if it's included in the command, if not pass on as normal
+                if opener_file.endswith(".txt"):
+                    # Load the file and read it into opener
+                    opener_file = f"openers{separator}{opener_file}"
+                    opener_file = await self.load_file(opener_file, ctx)
+                    if not opener: # if we only use opener_file then only pass on opener_file for the opening prompt
+                        opener = opener_file
+                    else:
+                        opener = opener_file + opener
+                    if not opener_file:
+                        return
+            else:
+                pass
 
         self.conversating_users[user_id_normalized] = User(user_id_normalized)
 
