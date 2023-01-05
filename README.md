@@ -1,7 +1,7 @@
 ![Docker](https://github.com/Kav-K/GPT3Discord/actions/workflows/docker_upload.yml/badge.svg)
 ![PyPi](https://github.com/Kav-K/GPT3Discord/actions/workflows/pypi_upload.yml/badge.svg)
 ![Build](https://github.com/Kav-K/GPT3Discord/actions/workflows/build.yml/badge.svg)
-[![PyPI version](https://badge.fury.io/py/gpt3discord.svg)](https://badge.fury.io/py/gpt3discord)
+[![PyPi version](https://pypip.in/v/gpt3discord/badge.png)](https://crate.io/packages/gpt3discord/)
 
 # Screenshots
 
