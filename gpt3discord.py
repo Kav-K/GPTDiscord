@@ -49,6 +49,8 @@ model = Model(usage_service)
 """
 An encapsulating wrapper for the discord.py client. This uses the old re-write without cogs, but it gets the job done!
 """
+
+
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by
     print("We have logged in as {0.user}".format(bot))
