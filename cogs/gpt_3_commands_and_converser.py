@@ -223,16 +223,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
-    async def end_conversation(self, message=None, opener_user_id=None):
+    async def end_conversation(self, message, opener_user_id=None):
         normalized_user_id = opener_user_id if opener_user_id else message.author.id
         self.conversating_users.pop(normalized_user_id)
 
-        if message:
+        if isinstance(message, discord.ApplicationContext):
+            await message.respond("Your conversation has ended!", ephemeral=True, delete_after=10)
+        else:
             await message.reply(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse"
             )
-        else:
-            pass
 
         # Close all conversation threads for the user
         channel = self.bot.get_channel(self.conversation_threads[normalized_user_id])
@@ -863,14 +863,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         user_id = ctx.user.id
         if user_id in self.conversating_users:
             try:
-                await self.end_conversation(opener_user_id=user_id)
-                await ctx.respond("Your conversation has ended!", ephemeral=True, delete_after=10)
+                await self.end_conversation(ctx)
             except Exception as e:
                 print(e)
                 traceback.print_exc()
-                await ctx.response.edit_message(
-                    e, ephemeral=True, delete_after=30
-                )
                 pass
 
     @discord.slash_command(
