@@ -13,7 +13,7 @@ model = Model(usage_service)
 class Settings_autocompleter:  
     async def get_settings(ctx: discord.AutocompleteContext):
         SETTINGS = [re.sub("^_","",key) for key in model.__dict__.keys() if key not in model._hidden_attributes]
-        return [parameter for parameter in SETTINGS if parameter.startswith(ctx.value.lower())]
+        return [parameter for parameter in SETTINGS if parameter.startswith(ctx.value.lower())][:25]
     async def get_value(ctx: discord.AutocompleteContext): # Behaves a bit weird if you go back and edit the parameter without typing in a new command
         values = {
             'mode' : ['temperature', 'top_p'],
@@ -31,4 +31,4 @@ class Settings_autocompleter:
 
 class File_autocompleter:
     async def get_openers(ctx: discord.AutocompleteContext):
-        return [file for file in os.listdir('openers') if file.startswith(ctx.value.lower())]
+        return [file for file in os.listdir('openers') if file.startswith(ctx.value.lower())][:25] # returns the 25 first files from your current input
