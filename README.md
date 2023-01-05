@@ -18,13 +18,15 @@
 
 </p>
 
-**PERMANENT MEMORY FOR CONVERSATIONS COMING VERY SOON USING EMBEDDINGS!**
+**PERMANENT MEMORY FOR CONVERSATIONS WORK IS STILL UNDERWAY, APOLOGIES FOR THE DELAY, COMING SOON!**
 
-# Recent Major Updates
+# Recent Notable Updates
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
-- **Private conversations, custom conversation openers, minimal conversation opener** - for `/gpt converse`
+- Custom conversation openers from https://github.com/f/awesome-chatgpt-prompts were integrated into the bot, check out `/gpt converse opener_file`! The bot now has built in support to make GPT3 behave like various personalities, such as a life coach, python interpreter, interviewer, text based adventure game, and much more!
+
+- Autocomplete for settings and various commands to make it easier to use the bot!
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
@@ -62,6 +64,8 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 `/gpt converse opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
 
 `/gpt converse opener_file:<opener file name>.txt` - Starts a conversation with the bot, using a custom file, using this option also enables the minimal conversation starter. Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
+
+- Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
 
 `/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
