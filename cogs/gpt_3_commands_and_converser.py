@@ -228,7 +228,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversating_users.pop(normalized_user_id)
 
         if isinstance(message, discord.ApplicationContext):
-            await message.respond("Your conversation has ended!", ephemeral=True, delete_after=10)
+            await message.respond(
+                "Your conversation has ended!", ephemeral=True, delete_after=10
+            )
         else:
             await message.reply(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse"
@@ -871,7 +873,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 traceback.print_exc()
                 pass
         else:
-            await ctx.respond("You're not in any conversations", ephemeral=True, delete_after=10)
+            await ctx.respond(
+                "You're not in any conversations", ephemeral=True, delete_after=10
+            )
 
     @discord.slash_command(
         name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
