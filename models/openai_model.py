@@ -42,7 +42,7 @@ class Model:
         )
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
-        self._prompt_min_length = 12
+        self._prompt_min_length = 8
         self._max_conversation_length = 100
         self._model = Models.DAVINCI
         self._low_usage_mode = False
@@ -307,6 +307,13 @@ class Model:
             )
         self._prompt_min_length = value
 
+    async def valid_text_request(self, response):
+        try:
+            tokens_used = int(response["usage"]["total_tokens"])
+            self.usage_service.update_usage(tokens_used)
+        except:
+            raise ValueError("The API returned an invalid response: " + str(response['error']['message']))
+
     async def send_summary_request(self, prompt):
         """
         Sends a summary request to the OpenAI API
@@ -321,9 +328,6 @@ class Model:
         summary_request_text = "".join(summary_request_text)
 
         tokens = self.usage_service.count_tokens(summary_request_text)
-
-        print("The summary request will use " + str(tokens) + " tokens.")
-        print(f"{self.max_tokens - tokens} is the remaining that we will use.")
 
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -345,10 +349,10 @@ class Model:
             ) as resp:
                 response = await resp.json()
 
+                await self.valid_text_request(response)
+
                 print(response["choices"][0]["text"])
 
-                tokens_used = int(response["usage"]["total_tokens"])
-                self.usage_service.update_usage(tokens_used)
                 return response
 
     async def send_request(
@@ -369,7 +373,7 @@ class Model:
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
             raise ValueError(
-                "Prompt must be greater than 12 characters, it is currently "
+                "Prompt must be greater than 8 characters, it is currently "
                 + str(len(prompt))
             )
 
@@ -399,8 +403,7 @@ class Model:
                 response = await resp.json()
                 print(response)
                 # Parse the total tokens used for this request and response pair from the response
-                tokens_used = int(response["usage"]["total_tokens"])
-                self.usage_service.update_usage(tokens_used)
+                await self.valid_text_request(response)
 
                 return response
 
@@ -451,7 +454,6 @@ class Model:
                         response = await resp.json()
 
         print(response)
-        print("JUST PRINTED THE RESPONSE")
 
         image_urls = []
         for result in response["data"]:
