@@ -310,7 +310,7 @@ class Model:
     async def valid_text_request(self, response):
         try:
             tokens_used = int(response["usage"]["total_tokens"])
-            self.usage_service.update_usage(tokens_used)
+            await self.usage_service.update_usage(tokens_used)
         except:
             raise ValueError(
                 "The API returned an invalid response: "
@@ -420,7 +420,7 @@ class Model:
             )
 
         # print("The prompt about to be sent is " + prompt)
-        self.usage_service.update_usage_image(self.image_size)
+        await self.usage_service.update_usage_image(self.image_size)
 
         response = None
 

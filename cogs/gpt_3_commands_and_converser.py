@@ -4,6 +4,7 @@ import re
 import traceback
 from pathlib import Path
 
+import aiofiles
 import discord
 from pycord.multicog import add_to_group
 
@@ -14,22 +15,21 @@ from models.user_model import User, RedoUser
 from models.check_model import Check
 from collections import defaultdict
 
-
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def __init__(
-        self,
-        bot,
-        usage_service,
-        model,
-        message_queue,
-        deletion_queue,
-        DEBUG_GUILD,
-        DEBUG_CHANNEL,
-        data_path: Path,
+            self,
+            bot,
+            usage_service,
+            model,
+            message_queue,
+            deletion_queue,
+            DEBUG_GUILD,
+            DEBUG_CHANNEL,
+            data_path: Path,
     ):
         super().__init__()
         self.data_path = data_path
@@ -66,12 +66,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             assert self.CONVERSATION_STARTER_TEXT is not None
 
             conversation_file_path_minimal = (
-                data_path / "conversation_starter_pretext_minimal.txt"
+                    data_path / "conversation_starter_pretext_minimal.txt"
             )
             with conversation_file_path_minimal.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT_MINIMAL = f.read()
                 print(
-                    f"Conversation starter text loaded from {conversation_file_path_minimal }."
+                    f"Conversation starter text loaded from {conversation_file_path_minimal}."
                 )
             assert self.CONVERSATION_STARTER_TEXT_MINIMAL is not None
 
@@ -112,6 +112,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_admin_roles()],
     )
+
+    async def load_file(self, file, ctx):
+        try:
+            async with aiofiles.open(file, "r") as f:
+                return await f.read()
+        except Exception as e:
+            traceback.print_exc()
+            await ctx.respond(
+                "Error loading file. Please check that it is correctly placed in the bot's root file directory.")
+            raise e
 
     @discord.Cog.listener()
     async def on_member_join(self, member):
@@ -175,7 +185,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Attempt to convert the input usage value into a float
         try:
             usage = float(usage_amount)
-            self.usage_service.set_usage(usage)
+            await self.usage_service.set_usage(usage)
             await ctx.respond(f"Set the usage to {usage}")
         except:
             await ctx.respond("The usage value must be a valid float.")
@@ -199,9 +209,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     def check_conversing(self, user_id, channel_id, message_content):
         cond1 = (
-            user_id in self.conversating_users
-            and user_id in self.conversation_threads
-            and channel_id == self.conversation_threads[user_id]
+                user_id in self.conversating_users
+                and user_id in self.conversation_threads
+                and channel_id == self.conversation_threads[user_id]
         )
         # If the trimmed message starts with a Tilde, then we want to not contribute this to the conversation
         try:
@@ -241,35 +251,35 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
-            name="/ask",
+            name="/gpt ask",
             value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
             inline=False,
         )
         embed.add_field(
-            name="/converse", value="Start a conversation with GPT3", inline=False
+            name="/gpt converse", value="Start a conversation with GPT3", inline=False
         )
         embed.add_field(
-            name="/end-chat",
+            name="/gpt end-chat",
             value="End a conversation with GPT3. You can also type `end` in the conversation.",
             inline=False,
         )
         embed.add_field(
-            name="/settings",
+            name="/system settings",
             value="Print the current settings of the model",
             inline=False,
         )
         embed.add_field(
-            name="/settings <model parameter> <value>",
+            name="/system settings <model parameter> <value>",
             value="Change the parameter of the model named by <model parameter> to new value <value>",
             inline=False,
         )
         embed.add_field(
-            name="/draw <image prompt>",
+            name="/dalle draw <image prompt>",
             value="Use DALL-E2 to draw an image based on a text prompt",
             inline=False,
         )
         embed.add_field(
-            name="/optimize <image prompt>",
+            name="/dalle optimize <image prompt>",
             value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
             inline=False,
         )
@@ -284,12 +294,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # 1000 tokens costs 0.02 USD, so we can calculate the total tokens used from the price that we have stored
         embed.add_field(
             name="Total tokens used",
-            value=str(int((self.usage_service.get_usage() / 0.02)) * 1000),
+            value=str(int((await self.usage_service.get_usage() / 0.02)) * 1000),
             inline=False,
         )
         embed.add_field(
             name="Total price",
-            value="$" + str(round(self.usage_service.get_usage(), 2)),
+            value="$" + str(round(await self.usage_service.get_usage(), 2)),
             inline=False,
         )
         await ctx.respond(embed=embed)
@@ -361,7 +371,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         from_context = isinstance(ctx, discord.ApplicationContext)
 
         response_text = [
-            response_text[i : i + self.TEXT_CUTOFF]
+            response_text[i: i + self.TEXT_CUTOFF]
             for i in range(0, len(response_text), self.TEXT_CUTOFF)
         ]
         # Send each chunk as a message
@@ -384,7 +394,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     async def queue_debug_chunks(self, debug_message, debug_channel):
         debug_message_chunks = [
-            debug_message[i : i + self.TEXT_CUTOFF]
+            debug_message[i: i + self.TEXT_CUTOFF]
             for i in range(0, len(debug_message), self.TEXT_CUTOFF)
         ]
 
@@ -426,8 +436,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if message.author.id in self.conversating_users:
             # If the user has reached the max conversation length, end the conversation
             if (
-                self.conversating_users[message.author.id].count
-                >= self.model.max_conversation_length
+                    self.conversating_users[message.author.id].count
+                    >= self.model.max_conversation_length
             ):
                 await message.reply(
                     "You have reached the maximum conversation length. You have ended the conversation with GPT3, and it has ended."
@@ -558,7 +568,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
-        self, user_id, prompt, ctx, response_message=None, from_g_command=False
+            self, user_id, prompt, ctx, response_message=None, from_g_command=False
     ):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
@@ -580,9 +590,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             # Check if the prompt is about to go past the token limit
             if (
-                user_id in self.conversating_users
-                and tokens > self.model.summarize_threshold
-                and not from_g_command
+                    user_id in self.conversating_users
+                    and tokens > self.model.summarize_threshold
+                    and not from_g_command
             ):
 
                 # We don't need to worry about the differences between interactions and messages in this block,
@@ -597,13 +607,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     # Check again if the prompt is about to go past the token limit
                     new_prompt = (
-                        "".join(self.conversating_users[user_id].history) + "\nGPTie: "
+                            "".join(self.conversating_users[user_id].history) + "\nGPTie: "
                     )
 
                     tokens = self.usage_service.count_tokens(new_prompt)
 
                     if (
-                        tokens > self.model.summarize_threshold - 150
+                            tokens > self.model.summarize_threshold - 150
                     ):  # 150 is a buffer for the second stage
                         await ctx.reply(
                             "I tried to summarize our current conversation so we could keep chatting, "
@@ -754,7 +764,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     )
     @discord.guild_only()
     async def converse(
-        self, ctx: discord.ApplicationContext, opener: str, private, minimal
+            self, ctx: discord.ApplicationContext, opener: str, private, minimal
     ):
         if private:
             await ctx.defer(ephemeral=True)
@@ -774,6 +784,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             user_id_normalized = user.id
         else:
             user_id_normalized = ctx.author.id
+            # Pre-check for opener, check if they provided a valid file if it is indeed a file.
+            # If the opener ends in .txt, its a file and we want to load it
+            if opener.endswith(".txt"):
+                # Load the file and read it into opener
+                opener = await self.load_file(opener, ctx)
+                if not opener: return
 
         self.conversating_users[user_id_normalized] = User(user_id_normalized)
 
@@ -812,7 +828,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if opener:
             thread_message = await thread.send(
                 "***Opening prompt*** \n"
-                "<@" + str(user_id_normalized) + ">: " + opener
+                + opener
             )
             if user_id_normalized in self.conversating_users:
                 self.awaiting_responses.append(user_id_normalized)
@@ -900,7 +916,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     )
     @discord.guild_only()
     async def settings(
-        self, ctx: discord.ApplicationContext, parameter: str = None, value: str = None
+            self, ctx: discord.ApplicationContext, parameter: str = None, value: str = None
     ):
         await ctx.defer()
         if parameter is None and value is None:
@@ -909,10 +925,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # If only one of the options are set, then this is invalid.
         if (
-            parameter is None
-            and value is not None
-            or parameter is not None
-            and value is None
+                parameter is None
+                and value is not None
+                or parameter is not None
+                and value is None
         ):
             await ctx.respond(
                 "Invalid settings command. Please use `/settings <parameter> <value>` to change a setting"

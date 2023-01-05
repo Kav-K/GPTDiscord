@@ -23,7 +23,8 @@ dependencies = [
   "python-dotenv",
   "requests",
   "transformers",
-  "pycord-multicog"
+  "pycord-multicog",
+  "aiofiles"
 ]
 dynamic = ["version"]
 [project.scripts]
