@@ -868,6 +868,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 print(e)
                 traceback.print_exc()
                 pass
+        else:
+            await ctx.respond("You're not in any conversations", ephemeral=True, delete_after=10)
 
     @discord.slash_command(
         name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
