@@ -31,4 +31,7 @@ class Settings_autocompleter:
 
 class File_autocompleter:
     async def get_openers(ctx: discord.AutocompleteContext):
-        return [file for file in os.listdir('openers') if file.startswith(ctx.value.lower())][:25] # returns the 25 first files from your current input
+        try:
+            return [file for file in os.listdir('openers') if file.startswith(ctx.value.lower())][:25] # returns the 25 first files from your current input
+        except:
+            return ["No 'openers' folder"]
