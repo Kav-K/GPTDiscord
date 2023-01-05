@@ -223,13 +223,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
-    async def end_conversation(self, message, opener_user_id=None):
+    async def end_conversation(self, message=None, opener_user_id=None):
         normalized_user_id = opener_user_id if opener_user_id else message.author.id
         self.conversating_users.pop(normalized_user_id)
 
-        await message.reply(
-            "You have ended the conversation with GPT3. Start a conversation with !g converse"
-        )
+        if message:
+            await message.reply(
+                "You have ended the conversation with GPT3. Start a conversation with /gpt converse"
+            )
+        else:
+            pass
 
         # Close all conversation threads for the user
         channel = self.bot.get_channel(self.conversation_threads[normalized_user_id])
@@ -260,7 +263,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             name="/gpt converse", value="Start a conversation with GPT3", inline=False
         )
         embed.add_field(
-            name="/gpt end-chat",
+            name="/gpt end",
             value="End a conversation with GPT3. You can also type `end` in the conversation.",
             inline=False,
         )
@@ -850,16 +853,25 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @add_to_group("gpt")
     @discord.slash_command(
-        name="end-chat",
+        name="end",
         description="End a conversation with GPT3",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     async def end_chat(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
-        await ctx.respond(
-            "This has not been implemented yet. Please type `end` in your conversation thread to end the chat."
-        )
+        await ctx.defer(ephemeral=True)
+        user_id = ctx.user.id
+        if user_id in self.conversating_users:
+            try:
+                await self.end_conversation(opener_user_id=user_id)
+                await ctx.respond("Your conversation has ended!", ephemeral=True, delete_after=10)
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                await ctx.response.edit_message(
+                    e, ephemeral=True, delete_after=30
+                )
+                pass
 
     @discord.slash_command(
         name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
