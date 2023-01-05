@@ -704,6 +704,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
+            if ctx.user.id in self.awaiting_responses:
+                self.awaiting_responses.remove(ctx.user.id)
 
         # General catch case for everything
         except Exception:
