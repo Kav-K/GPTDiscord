@@ -2,6 +2,7 @@ import datetime
 import json
 import re
 import traceback
+import sys
 from pathlib import Path
 
 import aiofiles
@@ -18,6 +19,10 @@ from collections import defaultdict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+if sys.platform == "win32":
+    separator = "\\"
+else:
+    separator = "/"
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -798,7 +803,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # If the opener ends in .txt, its a file and we want to load it
             if opener_file.endswith(".txt"):
                 # Load the file and read it into opener
-                opener_file = f"openers/{opener_file}"
+                opener_file = f"openers{separator}{opener_file}"
                 opener_file = await self.load_file(opener_file, ctx)
                 opener = opener_file + opener
                 if not opener_file:
