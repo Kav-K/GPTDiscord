@@ -52,7 +52,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/gpt converse private:yes` - Start a private conversation with the bot, like ChatGPT
 
-`/gpt converse opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start)
+`/gpt converse opener:<opener text> | <opener file name>.txt` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start). You can also load the opener text from a file by saving it in the bot root directory as .txt and referencing it in the opener param.
 
 `/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
