@@ -414,7 +414,9 @@ class Model:
 
                 return response
 
-    async def send_image_request(self, ctx, prompt, vary=None) -> tuple[File, list[Any]]:
+    async def send_image_request(
+        self, ctx, prompt, vary=None
+    ) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
         if words < 3 or words > 75:
@@ -539,7 +541,7 @@ class Model:
         # Print the filesize of new_im, in mega bytes
         image_size = os.path.getsize(temp_file.name) / 1048576
         if ctx.guild is None:
-            guild_file_limit = 8 
+            guild_file_limit = 8
         else:
             guild_file_limit = ctx.guild.filesize_limit / 1048576
 
