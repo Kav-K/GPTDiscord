@@ -381,21 +381,24 @@ class Model:
             )
 
         print("The prompt about to be sent is " + prompt)
+        print(
+            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
+        )
 
         async with aiohttp.ClientSession() as session:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
-                "temperature": self.temp if not temp_override else temp_override,
-                "top_p": self.top_p if not top_p_override else top_p_override,
+                "temperature": self.temp if temp_override is None else temp_override,
+                "top_p": self.top_p if top_p_override is None else top_p_override,
                 "max_tokens": self.max_tokens - tokens
                 if not max_tokens_override
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
-                if not presence_penalty_override
+                if presence_penalty_override is None
                 else presence_penalty_override,
                 "frequency_penalty": self.frequency_penalty
-                if not frequency_penalty_override
+                if frequency_penalty_override is None
                 else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
@@ -404,13 +407,16 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                print(response)
+                print(f"Payload -> {payload}")
+                print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(response)
 
                 return response
 
-    async def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
+    async def send_image_request(
+        self, ctx, prompt, vary=None
+    ) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
         if words < 3 or words > 75:
@@ -533,17 +539,21 @@ class Model:
         )
 
         # Print the filesize of new_im, in mega bytes
-        image_size = os.path.getsize(temp_file.name) / 1000000
+        image_size = os.path.getsize(temp_file.name) / 1048576
+        if ctx.guild is None:
+            guild_file_limit = 8
+        else:
+            guild_file_limit = ctx.guild.filesize_limit / 1048576
 
         # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
         # image and try again
         safety_counter = 0
-        while image_size > 8:
+        while image_size > guild_file_limit:
             safety_counter += 1
             if safety_counter >= 3:
                 break
             print(
-                f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
+                f"Image size is {image_size}MB, which is too large for this server {guild_file_limit}MB. Downscaling and trying again"
             )
             # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
             # We can use the asyncio.run_in_executor method to do this

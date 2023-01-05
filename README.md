@@ -46,7 +46,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/help` - Display help text for the bot
 
-`/gpt ask <prompt>` Ask the GPT3 Davinci 003 model a question.
+`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
 
 `/gpt converse` - Start a conversation with the bot, like ChatGPT
 
