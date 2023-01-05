@@ -410,7 +410,7 @@ class Model:
 
                 return response
 
-    async def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
+    async def send_image_request(self, ctx, prompt, vary=None) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
         if words < 3 or words > 75:
@@ -533,17 +533,18 @@ class Model:
         )
 
         # Print the filesize of new_im, in mega bytes
-        image_size = os.path.getsize(temp_file.name) / 1000000
+        image_size = os.path.getsize(temp_file.name) / 1048576
+        guild_file_limit = ctx.guild.filesize_limit / 1048576
 
         # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
         # image and try again
         safety_counter = 0
-        while image_size > 8:
+        while image_size > guild_file_limit:
             safety_counter += 1
             if safety_counter >= 3:
                 break
             print(
-                f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
+                f"Image size is {image_size}MB, which is too large for this server {guild_file_limit}MB. Downscaling and trying again"
             )
             # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
             # We can use the asyncio.run_in_executor method to do this
