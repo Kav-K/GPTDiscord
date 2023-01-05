@@ -534,7 +534,10 @@ class Model:
 
         # Print the filesize of new_im, in mega bytes
         image_size = os.path.getsize(temp_file.name) / 1048576
-        guild_file_limit = ctx.guild.filesize_limit / 1048576
+        if ctx.guild is None:
+            guild_file_limit = 8 
+        else:
+            guild_file_limit = ctx.guild.filesize_limit / 1048576
 
         # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
         # image and try again
