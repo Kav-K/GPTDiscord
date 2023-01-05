@@ -47,7 +47,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         try:
             file, image_urls = await self.model.send_image_request(
-                prompt, vary=vary if not draw_from_optimizer else None
+                ctx, prompt, vary=vary if not draw_from_optimizer else None
             )
         except ValueError as e:
             (
