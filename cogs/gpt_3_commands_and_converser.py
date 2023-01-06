@@ -236,14 +236,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
-    async def end_conversation(self, ctx, opener_user_id=None):
+    async def end_conversation(self, ctx, opener_user_id=None, conversation_limit=False):
         normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
-        try:
-            channel_id = self.conversation_thread_owners[normalized_user_id]
-        except:
-            await ctx.delete(delay=5)
-            await ctx.reply("Only the conversation starter can end this.", delete_after=5)
-            return
+        if conversation_limit: # if we reach the conversation limit we want to close from the channel it was maxed out in
+            channel_id = ctx.channel.id
+        else:
+            try:
+                channel_id = self.conversation_thread_owners[normalized_user_id]
+            except:
+                await ctx.delete(delay=5)
+                await ctx.reply("Only the conversation starter can end this.", delete_after=5)
+                return
         self.conversation_threads.pop(channel_id)
 
         if isinstance(ctx, discord.ApplicationContext):
@@ -256,22 +259,39 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
         else:
             await ctx.reply(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse"
+                "You have ended the conversation with GPT3. Start a conversation with /gpt converse", delete_after=10
             )
 
         # Close all conversation threads for the user
-        if normalized_user_id in self.conversation_thread_owners:
-            thread_id = self.conversation_thread_owners[normalized_user_id]
-            self.conversation_thread_owners.pop(normalized_user_id)
-
-            # Attempt to close and lock the thread.
+        # If at conversation limit then fetch the owner and close the thread for them
+        if conversation_limit:
             try:
-                thread = await self.bot.fetch_channel(thread_id)
-                await thread.edit(locked=True)
-                await thread.edit(name="Closed-GPT")
+                owner_id = list(self.conversation_thread_owners.keys())[list(self.conversation_thread_owners.values()).index(channel_id)]
+                self.conversation_thread_owners.pop(owner_id)
+                # Attempt to close and lock the thread.
+                try:
+                    thread = await self.bot.fetch_channel(channel_id)
+                    await thread.edit(locked=True)
+                    await thread.edit(name="Closed-GPT")
+                except:
+                    traceback.print_exc()
+                    pass
             except:
                 traceback.print_exc()
                 pass
+        else:
+            if normalized_user_id in self.conversation_thread_owners:
+                thread_id = self.conversation_thread_owners[normalized_user_id]
+                self.conversation_thread_owners.pop(normalized_user_id)
+
+                # Attempt to close and lock the thread.
+                try:
+                    thread = await self.bot.fetch_channel(thread_id)
+                    await thread.edit(locked=True)
+                    await thread.edit(name="Closed-GPT")
+                except:
+                    traceback.print_exc()
+                    pass
 
     async def send_help_text(self, ctx):
         embed = discord.Embed(
@@ -469,7 +489,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await message.reply(
                     "You have reached the maximum conversation length. You have ended the conversation with GPT3, and it has ended."
                 )
-                await self.end_conversation(message)
+                await self.end_conversation(message, conversation_limit=True)
 
     async def summarize_conversation(self, message, prompt):
         response = await self.model.send_summary_request(prompt)
