@@ -12,8 +12,8 @@ from models.usage_service_model import UsageService
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
-class Moderation:
 
+class Moderation:
     def __init__(self, message, timestamp):
         self.message = message
         self.timestamp = timestamp
@@ -27,10 +27,10 @@ class Moderation:
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
-        embed.set_thumbnail(
-            url="https://i.imgur.com/2oL8JSp.png"
+        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png")
+        embed.set_footer(
+            text="If you think this was a mistake, please contact the server admins."
         )
-        embed.set_footer(text="If you think this was a mistake, please contact the server admins.")
         return embed
 
     @staticmethod
@@ -38,7 +38,9 @@ class Moderation:
 
         # Create a discord embed to send to the user when their message gets moderated
         embed = discord.Embed(
-            title="A message was moderated in the "+moderated_message.message.guild.name+" server",
+            title="A message was moderated in the "
+            + moderated_message.message.guild.name
+            + " server",
             description=f"Message from {moderated_message.message.author.mention} was moderated: {moderated_message.message.content}",
             colour=discord.Colour.yellow(),
         )
@@ -47,7 +49,6 @@ class Moderation:
         # set the link of the embed
         embed.add_field(name="Moderated message link", value=link, inline=False)
         return embed
-
 
     @staticmethod
     def determine_moderation_result(response):
@@ -59,12 +60,28 @@ class Moderation:
         VIOLENCE_THRESHOLD = 0.01
         VIOLENCE_GRAPHIC_THRESHOLD = 0.1
 
-        thresholds = [HATE_THRESHOLD, HATE_VIOLENCE_THRESHOLD, SELF_HARM_THRESHOLD, SEXUAL_THRESHOLD, SEXUAL_MINORS_THRESHOLD, VIOLENCE_THRESHOLD, VIOLENCE_GRAPHIC_THRESHOLD]
-        threshold_iterator = ['hate','hate/threatening','self-harm','sexual','sexual/minors','violence','violence/graphic']
+        thresholds = [
+            HATE_THRESHOLD,
+            HATE_VIOLENCE_THRESHOLD,
+            SELF_HARM_THRESHOLD,
+            SEXUAL_THRESHOLD,
+            SEXUAL_MINORS_THRESHOLD,
+            VIOLENCE_THRESHOLD,
+            VIOLENCE_GRAPHIC_THRESHOLD,
+        ]
+        threshold_iterator = [
+            "hate",
+            "hate/threatening",
+            "self-harm",
+            "sexual",
+            "sexual/minors",
+            "violence",
+            "violence/graphic",
+        ]
 
-        category_scores = response['results'][0]['category_scores']
+        category_scores = response["results"][0]["category_scores"]
 
-        flagged = response['results'][0]['flagged']
+        flagged = response["results"][0]["flagged"]
 
         # Iterate the category scores using the threshold_iterator and compare the values to thresholds
         for category, threshold in zip(threshold_iterator, thresholds):
@@ -90,18 +107,26 @@ class Moderation:
 
                 # Check if the current timestamp is greater than the deletion timestamp
                 if datetime.now().timestamp() > to_moderate.timestamp:
-                    response = await model.send_moderations_request(to_moderate.message.content)
+                    response = await model.send_moderations_request(
+                        to_moderate.message.content
+                    )
                     moderation_result = Moderation.determine_moderation_result(response)
 
                     if moderation_result:
                         # Take care of the flagged message
-                        response_message = await to_moderate.message.reply(embed=Moderation.build_moderation_embed())
+                        response_message = await to_moderate.message.reply(
+                            embed=Moderation.build_moderation_embed()
+                        )
                         # Do the same response as above but use an ephemeral message
                         await to_moderate.message.delete()
 
                         # Send to the moderation alert channel
                         if moderations_alert_channel:
-                            await moderations_alert_channel.send(embed=Moderation.build_admin_moderated_message(to_moderate, response_message))
+                            await moderations_alert_channel.send(
+                                embed=Moderation.build_admin_moderated_message(
+                                    to_moderate, response_message
+                                )
+                            )
 
                 else:
                     await moderation_queue.put(to_moderate)
