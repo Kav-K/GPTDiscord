@@ -482,7 +482,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         new_conversation_history.append(summarized_text)
         new_conversation_history.append(
-            "\nContinue the conversation, paying very close attention to things Human told you, such as their name, and personal details.\n"
+            "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n"
         )
         # Get the last entry from the user's conversation history
         new_conversation_history.append(
@@ -516,15 +516,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 edited_content = after.content
                 # If the user is conversing, we need to get their conversation history, delete the last
-                # "Human:" message, create a new Human: section with the new prompt, and then set the prompt to
+                # "<username>:" message, create a new <username>: section with the new prompt, and then set the prompt to
                 # the new prompt, then send that new prompt as the new prompt.
                 if after.channel.id in self.conversation_threads:
-                    # Remove the last two elements from the history array and add the new Human: prompt
+                    # Remove the last two elements from the history array and add the new <username>: prompt
                     self.conversation_threads[
                         after.channel.id
                     ].history = self.conversation_threads[after.channel.id].history[:-2]
                     self.conversation_threads[after.channel.id].history.append(
-                        f"\nHuman: {after.content}<|endofstatement|>\n"
+                        f"\n{after.author.name}: {after.content}<|endofstatement|>\n"
                     )
                     edited_content = "".join(
                         self.conversation_threads[after.channel.id].history
@@ -971,7 +971,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.awaiting_responses.append(user_id_normalized)
 
                 self.conversation_threads[thread.id].history.append(
-                    "\nHuman: " + opener + "<|endofstatement|>\n"
+                    f"\n'{ctx.user.name}': {opener} <|endofstatement|>\n"
                 )
 
                 self.conversation_threads[thread.id].count += 1
