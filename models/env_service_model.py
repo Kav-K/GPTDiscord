@@ -120,3 +120,13 @@ class EnvService:
         except:
             welcome_message = "Hi there! Welcome to our Discord server!"
         return welcome_message
+
+    @staticmethod
+    def get_moderations_alert_channel():
+        # MODERATIONS_ALERT_CHANNEL is a channel id where moderation alerts are sent to
+        # The string can be blank but this is not advised. If a string cannot be found in the .env file, the below string is used.
+        try:
+            moderations_alert_channel = os.getenv("MODERATIONS_ALERT_CHANNEL")
+        except:
+            moderations_alert_channel = None
+        return moderations_alert_channel

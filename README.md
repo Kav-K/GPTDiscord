@@ -15,6 +15,7 @@
 <p align="center">
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
+<img src="https://i.imgur.com/9XC95Lu.png"/>
 
 </p>
 
@@ -22,9 +23,14 @@
 
 # Recent Notable Updates
 
+- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
+
+
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
+
 - Custom conversation openers from https://github.com/f/awesome-chatgpt-prompts were integrated into the bot, check out `/gpt converse opener_file`! The bot now has built in support to make GPT3 behave like various personalities, such as a life coach, python interpreter, interviewer, text based adventure game, and much more!
+
 
 - Autocomplete for settings and various commands to make it easier to use the bot!
 
@@ -38,6 +44,8 @@
 - **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/dalle optimize <prompt>`
 
 - **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!
+
+- **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!
 
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!
 
@@ -54,6 +62,8 @@
 These commands are grouped, so each group has a prefix but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
 
 `/help` - Display help text for the bot
+
+### (Chat)GPT3 Commands
 
 `/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
 
@@ -73,9 +83,13 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/gpt end` - End a conversation with the bot.
 
+### DALL-E2 Commands
+
 `/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
 
 `/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+
+### System and Settings
 
 `/system settings` - Display settings for the model (temperature, top_p, etc)
 
@@ -90,6 +104,19 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 `/system local-size` - Get the size of the local dalleimages folder
 
 `/system clear-local` - Clear all the local dalleimages.
+
+### Automatic AI Moderation
+
+`/system moderations status:on` - Turn on automatic chat moderations. 
+
+`/system moderations status:off` - Turn off automatic chat moderations
+
+`/system moderations status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+
+- The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
+- This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
+- The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
+
 
 # Configuration
 
@@ -130,6 +157,8 @@ DALLE_ROLES="Admin,Openai,Dalle,gpt"
 # People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse
 GPT_ROLES="openai,gpt"
 WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" # This is a fallback message if gpt3 fails to generate a welcome message.
+# This is the channel that auto-moderation alerts will be sent to
+MODERATIONS_ALERT_CHANNEL="977697652147892304"
 ```
 
 **Permissions**

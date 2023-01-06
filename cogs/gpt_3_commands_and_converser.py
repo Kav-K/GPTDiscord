@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import re
@@ -12,6 +13,7 @@ from pycord.multicog import add_to_group
 from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
 from models.message_model import Message
+from models.moderations_service_model import Moderation
 from models.user_model import User, RedoUser
 from models.check_model import Check
 from models.autocomplete_model import Settings_autocompleter, File_autocompleter
@@ -60,6 +62,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.users_to_interactions = defaultdict(list)
         self.redo_users = {}
         self.awaiting_responses = []
+        self.moderation_queues = {}
+        self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
+        self.moderation_enabled_guilds = []
+        self.moderation_tasks = {}
 
         try:
             conversation_file_path = data_path / "conversation_starter_pretext.txt"
@@ -243,8 +249,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         # Close all conversation threads for the user
-        channel = self.bot.get_channel(self.conversation_threads[normalized_user_id])
-
         if normalized_user_id in self.conversation_threads:
             thread_id = self.conversation_threads[normalized_user_id]
             self.conversation_threads.pop(normalized_user_id)
@@ -478,6 +482,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     # A listener for message edits to redo prompts if they are edited
     @discord.Cog.listener()
     async def on_message_edit(self, before, after):
+
+        # Moderation
+        if after.guild.id in self.moderation_queues and self.moderation_queues[after.guild.id] is not None:
+            # Create a timestamp that is 0.5 seconds from now
+            timestamp = (datetime.datetime.now() + datetime.timedelta(seconds=0.5)).timestamp()
+            await self.moderation_queues[after.guild.id].put(Moderation(after, timestamp))
+
         if after.author.id in self.redo_users:
             if after.id == original_message[after.author.id]:
                 response_message = self.redo_users[after.author.id].response
@@ -501,8 +512,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
                     self.conversating_users[after.author.id].count += 1
 
+                print("Doing the encapsulated send")
                 await self.encapsulated_send(
-                    after.author.id, edited_content, ctx, response_message
+                    user_id=after.author.id, prompt=edited_content, ctx=ctx, response_message=response_message
                 )
 
                 self.redo_users[after.author.id].prompt = after.content
@@ -515,6 +527,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         content = message.content.strip()
+
+        # Moderations service
+        if message.guild.id in self.moderation_queues and self.moderation_queues[message.guild.id] is not None:
+            # Create a timestamp that is 0.5 seconds from now
+            timestamp = (datetime.datetime.now() + datetime.timedelta(seconds=0.5)).timestamp()
+            await self.moderation_queues[message.guild.id].put(Moderation(message, timestamp))
 
         conversing = self.check_conversing(
             message.author.id, message.channel.id, content
@@ -650,6 +668,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     return
 
             # Send the request to the model
+            print("About to send model request")
             response = await self.model.send_request(
                 new_prompt,
                 tokens=tokens,
@@ -948,6 +967,59 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[user_id_normalized] = thread.id
+
+    @add_to_group("system")
+    @discord.slash_command(
+        name="moderations-test",
+        description="Used to test a prompt and see what threshold values are returned by the moderations endpoint",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="prompt",
+        description="The prompt to test",
+        required=True,
+    )
+    @discord.guild_only()
+    async def moderations_test(self, ctx: discord.ApplicationContext, prompt: str):
+        await ctx.defer()
+        response = await self.model.send_moderations_request(prompt)
+        await ctx.respond(response['results'][0]['category_scores'])
+        await ctx.send_followup(response['results'][0]['flagged'])
+
+    @add_to_group("system")
+    @discord.slash_command(
+        name="moderations",
+        description="The AI moderations service",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(name="status", description="Enable or disable the moderations service for the current guild (on/off)", required = True)
+    @discord.option(name="alert_channel_id", description="The channel ID to send moderation alerts to", required=False)
+    @discord.guild_only()
+    async def moderations(self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str):
+        await ctx.defer()
+
+        status = status.lower().strip()
+        if status not in ["on", "off"]:
+            await ctx.respond("Invalid status, please use on or off")
+            return
+
+        if status == "on":
+            # Create the moderations service.
+            self.moderation_queues[ctx.guild_id] = asyncio.Queue()
+            if self.moderation_alerts_channel or alert_channel_id:
+                moderations_channel = await self.bot.fetch_channel(self.moderation_alerts_channel if not alert_channel_id else alert_channel_id)
+            else:
+                moderations_channel = self.moderation_alerts_channel # None
+
+            self.moderation_tasks[ctx.guild_id] = asyncio.ensure_future(Moderation.process_moderation_queue(self.moderation_queues[ctx.guild_id], 1, 1, moderations_channel))
+            await ctx.respond("Moderations service enabled")
+
+        elif status == "off":
+            # Cancel the moderations service.
+            self.moderation_tasks[ctx.guild_id].cancel()
+            self.moderation_tasks[ctx.guild_id] = None
+            self.moderation_queues[ctx.guild_id] = None
+            await ctx.respond("Moderations service disabled")
 
     @add_to_group("gpt")
     @discord.slash_command(

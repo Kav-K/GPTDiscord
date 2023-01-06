@@ -317,6 +317,22 @@ class Model:
                 + str(response["error"]["message"])
             )
 
+    async def send_moderations_request(self, text):
+        # Use aiohttp to send the above request:
+        async with aiohttp.ClientSession() as session:
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            payload = {"input": text}
+            async with session.post(
+                "https://api.openai.com/v1/moderations",
+                headers=headers,
+                json=payload,
+            ) as response:
+                return await response.json()
+
+
     async def send_summary_request(self, prompt):
         """
         Sends a summary request to the OpenAI API
