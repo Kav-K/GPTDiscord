@@ -608,7 +608,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 original_message[message.author.id] = message.id
 
                 self.conversation_threads[message.channel.id].history.append(
-                    "\nHuman: " + prompt + "<|endofstatement|>\n"
+                    f"\n'{message.author.name}': {prompt} <|endofstatement|>\n"
                 )
 
                 # increment the conversation counter for the user
@@ -641,17 +641,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
         from_context = isinstance(ctx, discord.ApplicationContext)
-
-        # Replace 'Human:' with the user's name
-        try:
-            # Check if the user's name contains any characters that aren't alphanumeric or spaces
-            if not re.match("^[a-zA-Z0-9 ]*$", ctx.author.name):
-                raise AttributeError(
-                    "User's name contains invalid characters. Cannot set the conversation name to their name."
-                )
-            new_prompt = new_prompt.replace("Human:", ctx.author.name + ":")
-        except AttributeError:
-            pass
 
         try:
             tokens = self.usage_service.count_tokens(new_prompt)
