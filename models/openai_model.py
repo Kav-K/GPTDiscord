@@ -320,7 +320,7 @@ class Model:
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
         async with aiohttp.ClientSession() as session:
-            headers={
+            headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key}",
             }
@@ -331,7 +331,6 @@ class Model:
                 json=payload,
             ) as response:
                 return await response.json()
-
 
     async def send_summary_request(self, prompt):
         """
