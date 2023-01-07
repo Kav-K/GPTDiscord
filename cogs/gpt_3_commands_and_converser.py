@@ -221,12 +221,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     await thread.delete()
         await ctx.respond("All conversation threads have been deleted.")
 
-    #TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
+    # TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
     def check_conversing(self, user_id, channel_id, message_content, multi=None):
         cond1 = (
-                channel_id in self.conversation_threads
-                #and user_id in self.conversation_thread_owners
-                #and channel_id == self.conversation_thread_owners[user_id]
+            channel_id
+            in self.conversation_threads
+            # and user_id in self.conversation_thread_owners
+            # and channel_id == self.conversation_thread_owners[user_id]
         )
         # If the trimmed message starts with a Tilde, then we want to not contribute this to the conversation
         try:
@@ -237,37 +238,50 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
-    async def end_conversation(self, ctx, opener_user_id=None, conversation_limit=False):
+    async def end_conversation(
+        self, ctx, opener_user_id=None, conversation_limit=False
+    ):
         normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
-        if conversation_limit: # if we reach the conversation limit we want to close from the channel it was maxed out in
+        if (
+            conversation_limit
+        ):  # if we reach the conversation limit we want to close from the channel it was maxed out in
             channel_id = ctx.channel.id
         else:
             try:
                 channel_id = self.conversation_thread_owners[normalized_user_id]
             except:
                 await ctx.delete(delay=5)
-                await ctx.reply("Only the conversation starter can end this.", delete_after=5)
+                await ctx.reply(
+                    "Only the conversation starter can end this.", delete_after=5
+                )
                 return
         self.conversation_threads.pop(channel_id)
 
         if isinstance(ctx, discord.ApplicationContext):
             await ctx.respond(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse", ephemeral=True, delete_after=10
+                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                ephemeral=True,
+                delete_after=10,
             )
         elif isinstance(ctx, discord.Interaction):
             await ctx.response.send_message(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse", ephemeral=True, delete_after=10
+                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                ephemeral=True,
+                delete_after=10,
             )
         else:
             await ctx.reply(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse", delete_after=10
+                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                delete_after=10,
             )
 
         # Close all conversation threads for the user
         # If at conversation limit then fetch the owner and close the thread for them
         if conversation_limit:
             try:
-                owner_id = list(self.conversation_thread_owners.keys())[list(self.conversation_thread_owners.values()).index(channel_id)]
+                owner_id = list(self.conversation_thread_owners.keys())[
+                    list(self.conversation_thread_owners.values()).index(channel_id)
+                ]
                 self.conversation_thread_owners.pop(owner_id)
                 # Attempt to close and lock the thread.
                 try:
@@ -628,7 +642,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         "This thread is already waiting for a response from GPT3. Please wait for it to respond before sending another message."
                     )
 
-                    
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
                     deletion_time = datetime.datetime.now() + datetime.timedelta(
@@ -785,7 +798,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     self.redo_users[ctx.author.id] = RedoUser(
                         prompt, ctx, ctx, actual_response_message
                     )
-                    self.redo_users[ctx.author.id].add_interaction(actual_response_message.id)
+                    self.redo_users[ctx.author.id].add_interaction(
+                        actual_response_message.id
+                    )
 
             # We are doing a redo, edit the message.
             else:
@@ -810,9 +825,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
             if not from_g_command:
-                    if ctx.channel.id in self.awaiting_thread_responses:
-                        self.awaiting_thread_responses.remove(ctx.channel.id)
-
+                if ctx.channel.id in self.awaiting_thread_responses:
+                    self.awaiting_thread_responses.remove(ctx.channel.id)
 
         # General catch case for everything
         except Exception:
@@ -954,7 +968,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if user.id in self.conversation_thread_owners:
             message = await ctx.respond(
                 "You've already created a thread, end it before creating a new one",
-                delete_after=5
+                delete_after=5,
             )
             return
 
@@ -1037,7 +1051,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.awaiting_thread_responses.remove(thread.id)
 
         self.conversation_thread_owners[user_id_normalized] = thread.id
-
 
     @add_to_group("system")
     @discord.slash_command(
@@ -1123,7 +1136,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         try:
             thread_id = self.conversation_thread_owners[user_id]
         except:
-            await ctx.respond("You haven't started any conversations", ephemeral=True, delete_after=10)
+            await ctx.respond(
+                "You haven't started any conversations", ephemeral=True, delete_after=10
+            )
             return
         if thread_id in self.conversation_threads:
             try:
@@ -1232,7 +1247,11 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
         # Get the user
         user_id = interaction.user.id
-        if user_id in self.converser_cog.conversation_thread_owners and self.converser_cog.conversation_thread_owners[user_id] == interaction.channel.id:
+        if (
+            user_id in self.converser_cog.conversation_thread_owners
+            and self.converser_cog.conversation_thread_owners[user_id]
+            == interaction.channel.id
+        ):
             try:
                 await self.converser_cog.end_conversation(
                     interaction, opener_user_id=interaction.user.id
