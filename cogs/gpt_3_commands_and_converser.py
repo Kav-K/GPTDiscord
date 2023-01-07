@@ -1048,7 +1048,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 thread_message,
             )
             self.awaiting_responses.remove(user_id_normalized)
-            self.awaiting_thread_responses.remove(thread.id)
 
         self.conversation_thread_owners[user_id_normalized] = thread.id
 
