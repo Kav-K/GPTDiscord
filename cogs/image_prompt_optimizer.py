@@ -215,7 +215,7 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
             await self.converser_cog.encapsulated_send(
-                user_id, prompt, ctx, response_message
+                user_id=user_id, prompt=prompt, ctx=ctx, response_message=response_message
             )
         else:
             await interaction.response.send_message(
