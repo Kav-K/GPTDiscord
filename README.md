@@ -23,6 +23,9 @@
 
 # Recent Notable Updates
 
+- **Multi-user, group chats with GPT3** - Multiple users can converse with GPT3 in a chat now, and it will know that there are multiple distinct users chatting with it!
+
+
 - **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
 
 
