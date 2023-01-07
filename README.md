@@ -19,6 +19,8 @@
 
 </p>
 
+A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
+
 **PERMANENT MEMORY FOR CONVERSATIONS WORK IS STILL UNDERWAY, APOLOGIES FOR THE DELAY, COMING SOON!**
 
 # Recent Notable Updates
