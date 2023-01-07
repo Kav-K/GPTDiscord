@@ -62,6 +62,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.users_to_interactions = defaultdict(list)
         self.redo_users = {}
         self.awaiting_responses = []
+        self.awaiting_thread_responses = []
         self.moderation_queues = {}
         self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
         self.moderation_enabled_guilds = []
@@ -544,7 +545,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         after.channel.id
                     ].history = self.conversation_threads[after.channel.id].history[:-2]
                     self.conversation_threads[after.channel.id].history.append(
-                        f"\n{after.author.name}: {after.content}<|endofstatement|>\n"
+                        f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n"
                     )
                     edited_content = "".join(
                         self.conversation_threads[after.channel.id].history
@@ -622,13 +623,31 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     await self.deletion_queue.put(deletion_message)
 
                     return
+                if message.channel.id in self.awaiting_thread_responses:
+                    message = await message.reply(
+                        "This thread is already waiting for a response from GPT3. Please wait for it to respond before sending another message."
+                    )
+
+                    
+                    # get the current date, add 10 seconds to it, and then turn it into a timestamp.
+                    # we need to use our deletion service because this isn't an interaction, it's a regular message.
+                    deletion_time = datetime.datetime.now() + datetime.timedelta(
+                        seconds=10
+                    )
+                    deletion_time = deletion_time.timestamp()
+
+                    deletion_message = Deletion(message, deletion_time)
+                    await self.deletion_queue.put(deletion_message)
+
+                    return
 
                 self.awaiting_responses.append(message.author.id)
+                self.awaiting_thread_responses.append(message.channel.id)
 
                 original_message[message.author.id] = message.id
 
                 self.conversation_threads[message.channel.id].history.append(
-                    f"\n'{message.author.name}': {prompt} <|endofstatement|>\n"
+                    f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n"
                 )
 
                 # increment the conversation counter for the user
@@ -651,11 +670,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         id,
         prompt,
         ctx,
+        response_message=None,
         temp_override=None,
         top_p_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
-        response_message=None,
         from_g_command=False,
     ):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
@@ -778,6 +797,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
+            if not from_g_command:
+                if ctx.channel.id in self.awaiting_thread_responses:
+                    self.awaiting_thread_responses.remove(ctx.channel.id)
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -785,8 +807,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
-            if ctx.user.id in self.awaiting_responses:
-                self.awaiting_responses.remove(ctx.user.id)
+            if ctx.author.id in self.awaiting_responses:
+                self.awaiting_responses.remove(ctx.author.id)
+            if not from_g_command:
+                    if ctx.channel.id in self.awaiting_thread_responses:
+                        self.awaiting_thread_responses.remove(ctx.channel.id)
+
 
         # General catch case for everything
         except Exception:
@@ -798,6 +824,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
+            if not from_g_command:
+                if ctx.channel.id in self.awaiting_thread_responses:
+                    self.awaiting_thread_responses.remove(ctx.channel.id)
             traceback.print_exc()
 
             try:
@@ -989,6 +1018,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             thread_message = await thread.send("***Opening prompt*** \n" + opener)
             if thread.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
+                self.awaiting_thread_responses.append(thread.id)
 
                 self.conversation_threads[thread.id].history.append(
                     f"\n'{ctx.user.name}': {opener} <|endofstatement|>\n"
@@ -1004,6 +1034,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 thread_message,
             )
             self.awaiting_responses.remove(user_id_normalized)
+            self.awaiting_thread_responses.remove(thread.id)
 
         self.conversation_thread_owners[user_id_normalized] = thread.id
 
