@@ -51,14 +51,20 @@ class Moderation:
         return embed
 
     @staticmethod
-    def determine_moderation_result(response):
+    def determine_moderation_result(text, response):
         HATE_THRESHOLD = 0.005
         HATE_VIOLENCE_THRESHOLD = 0.05
         SELF_HARM_THRESHOLD = 0.05
         SEXUAL_THRESHOLD = 0.75
         SEXUAL_MINORS_THRESHOLD = 0.1
-        VIOLENCE_THRESHOLD = 0.01
+        VIOLENCE_THRESHOLD = 0.08
         VIOLENCE_GRAPHIC_THRESHOLD = 0.1
+
+        extreme_hatred_qualifiers = [
+            "i fucking hate",
+            "fucking hate",
+            "i fucking despise",
+        ]
 
         thresholds = [
             HATE_THRESHOLD,
@@ -85,6 +91,14 @@ class Moderation:
 
         # Iterate the category scores using the threshold_iterator and compare the values to thresholds
         for category, threshold in zip(threshold_iterator, thresholds):
+            if category == "hate":
+                if (
+                    "hate" in text.lower()
+                ):  # The word "hate" makes the model oversensitive. This is a (bad) workaround.
+                    threshold = 0.1
+                if any(word in text.lower() for word in extreme_hatred_qualifiers):
+                    threshold = 0.6
+
             if category_scores[category] > threshold:
                 return True
 
@@ -110,7 +124,9 @@ class Moderation:
                     response = await model.send_moderations_request(
                         to_moderate.message.content
                     )
-                    moderation_result = Moderation.determine_moderation_result(response)
+                    moderation_result = Moderation.determine_moderation_result(
+                        to_moderate.message.content, response
+                    )
 
                     if moderation_result:
                         # Take care of the flagged message
