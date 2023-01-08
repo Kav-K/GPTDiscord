@@ -529,6 +529,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.Cog.listener()
     async def on_message_edit(self, before, after):
 
+        if after.author.id == self.bot.user.id:
+            return
+
         # Moderation
         if not isinstance(after.channel, discord.DMChannel):
             if (
@@ -542,6 +545,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await self.moderation_queues[after.guild.id].put(
                     Moderation(after, timestamp)
                 )
+
 
         if after.author.id in self.redo_users:
             if after.id == original_message[after.author.id]:
