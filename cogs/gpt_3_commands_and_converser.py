@@ -546,7 +546,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     Moderation(after, timestamp)
                 )
 
-
         if after.author.id in self.redo_users:
             if after.id == original_message[after.author.id]:
                 response_message = self.redo_users[after.author.id].response
