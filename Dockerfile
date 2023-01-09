@@ -23,5 +23,7 @@ RUN pip install --target="/install" /src
 FROM python:${PY_VERSION}-slim
 ARG PY_VERSION
 COPY --from=builder /install /usr/local/lib/python${PY_VERSION}/site-packages
-COPY gpt3discord.py /bin/gpt3discord
-CMD ["python3", "/bin/gpt3discord"]
+RUN mkdir -p /opt/gpt3discord/etc
+COPY gpt3discord.py /opt/gpt3discord/bin/
+COPY image_optimizer_pretext.txt conversation_starter_pretext.txt conversation_starter_pretext_minimal.txt /opt/gpt3discord/share/
+CMD ["python3", "/opt/gpt3discord/bin/gpt3discord.py"]

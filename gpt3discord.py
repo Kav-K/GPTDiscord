@@ -5,7 +5,6 @@ from pathlib import Path
 
 import discord
 import pinecone
-from dotenv import load_dotenv
 from pycord.multicog import apply_multicog
 import os
 
@@ -16,9 +15,6 @@ if sys.platform == "win32":
 else:
     separator = "/"
 
-print("The environment file is located at " + os.getcwd() + separator + ".env")
-load_dotenv(dotenv_path=os.getcwd() + separator + ".env")
-
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
@@ -26,6 +22,7 @@ from models.deletion_service_model import Deletion
 from models.message_model import Message
 from models.openai_model import Model
 from models.usage_service_model import UsageService
+from models.env_service_model import EnvService
 
 __version__ = "4.0.1"
 
@@ -86,12 +83,12 @@ async def on_application_command_error(
 
 
 async def main():
-    data_path = Path(os.environ.get("DATA_DIR", os.getcwd()))
+    data_path = EnvService.environment_path_with_fallback("DATA_DIR")
     debug_guild = int(os.getenv("DEBUG_GUILD"))
     debug_channel = int(os.getenv("DEBUG_CHANNEL"))
 
     if not data_path.exists():
-        raise OSError(f"{data_path} does not exist ... create it?")
+        raise OSError(f"Data path: {data_path} does not exist ... create it?")
 
     # Load the main GPT3 Bot service
     bot.add_cog(

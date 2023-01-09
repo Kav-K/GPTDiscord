@@ -71,7 +71,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.pinecone_service = pinecone_service
 
         try:
-            conversation_file_path = data_path / "conversation_starter_pretext.txt"
+            conversation_file_path = EnvService.find_shared_file("conversation_starter_pretext.txt")
             # Attempt to read a conversation starter text string from the file.
             with conversation_file_path.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT = f.read()
@@ -80,9 +80,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
             assert self.CONVERSATION_STARTER_TEXT is not None
 
-            conversation_file_path_minimal = (
-                data_path / "conversation_starter_pretext_minimal.txt"
-            )
+            conversation_file_path_minimal = EnvService.find_shared_file("conversation_starter_pretext_minimal.txt")
             with conversation_file_path_minimal.open("r") as f:
                 self.CONVERSATION_STARTER_TEXT_MINIMAL = f.read()
                 print(
@@ -1136,7 +1134,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ):  # only load in files if it's included in the command, if not pass on as normal
                 if opener_file.endswith(".txt"):
                     # Load the file and read it into opener
-                    opener_file = f"openers{separator}{opener_file}"
+                    opener_file = EnvService.find_shared_file(f"openers{separator}{opener_file}")
                     opener_file = await self.load_file(opener_file, ctx)
                     if (
                         not opener
@@ -1204,7 +1202,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 thread_message,
             )
             self.awaiting_responses.remove(user_id_normalized)
-            self.awaiting_thread_responses.remove(thread.id)
+            if thread.id in self.awaiting_thread_responses:
+                self.awaiting_thread_responses.remove(thread.id)
 
         self.conversation_thread_owners[user_id_normalized] = thread.id
 
