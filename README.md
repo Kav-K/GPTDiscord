@@ -238,6 +238,12 @@ screen -d -r {ID} # replace {ID} with the ID of the screen session you want to r
 
 ```
 
+As a last resort, you can try to run the bot using python in a basic way, with simply
+```bash
+cd (the folder where the files for GPT3Discord are located/cloned)
+python3.9 gpt3discord.py
+```
+
 # Non-Server, Non-Docker usage
 
 With python3.9 installed and the requirements installed, you can run this bot anywhere. 
