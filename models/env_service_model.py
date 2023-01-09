@@ -4,12 +4,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-# <app/bin/main.py>/../../
 def app_root_path():
+    app_path = Path(sys.argv[0]).resolve()
     try:
-        return Path(sys.argv[0]).resolve().parents[1]
-    except:
-        return Path()
+        if app_path.parent.name == "bin": # Installed in unixy hierachy
+            return app_path.parents[1]
+    except IndexError:
+        pass
+    return app_path.parent
 
 # None will let direnv do its' thing
 env_paths = [Path() / ".env", app_root_path() / "etc/environment", None]
@@ -35,7 +37,21 @@ class EnvService:
             if app_relative.exists():
                 return app_relative
 
-        return Path()
+        return Path.cwd()
+
+    @staticmethod
+    def find_shared_file(file_name):
+        share_file_paths = []
+        share_dir = os.getenv("SHARE_DIR") 
+        if share_dir != None:
+            share_file_paths.append(share_dir) 
+        share_file_paths.extend([app_root_path() / "share" / file_name, app_root_path() / file_name, Path(file_name)])
+        
+        for share_file_path in share_file_paths:
+            if share_file_path.exists():
+                return share_file_path.resolve()
+
+        raise ValueError(f"Unable to find shared data file {file_name}")
 
     @staticmethod
     def get_allowed_guilds():

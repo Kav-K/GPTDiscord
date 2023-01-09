@@ -64,16 +64,12 @@ async def on_application_command_error(
 
 
 async def main():
-    share_path = EnvService.environment_path_with_fallback("SHARE_DIR", "share")
     data_path = EnvService.environment_path_with_fallback("DATA_DIR")
     debug_guild = int(os.getenv("DEBUG_GUILD"))
     debug_channel = int(os.getenv("DEBUG_CHANNEL"))
 
     if not data_path.exists():
         raise OSError(f"Data path: {data_path} does not exist ... create it?")
-
-    if not share_path.exists():
-        raise OSError(f"Share path: {share_path} does not exist ... create it?")
 
     # Load the main GPT3 Bot service
     bot.add_cog(
@@ -86,7 +82,6 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
-            share_path,
         )
     )
 
