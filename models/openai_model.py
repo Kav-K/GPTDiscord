@@ -3,6 +3,7 @@ import functools
 import math
 import os
 import tempfile
+import traceback
 import uuid
 from typing import Tuple, List, Any
 
@@ -23,6 +24,7 @@ class Mode:
 class Models:
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    EMBEDDINGS = "text-embedding-ada-002"
 
 
 class ImageSize:
@@ -54,6 +56,8 @@ class Model:
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
         self._welcome_message_enabled = True
+        self._num_static_conversation_items = 6
+        self._num_conversation_lookback = 10
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -78,6 +82,32 @@ class Model:
         self.openai_key = os.getenv("OPENAI_TOKEN")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
+
+    @property
+    def num_static_conversation_items(self):
+        return self._num_static_conversation_items
+
+    @num_static_conversation_items.setter
+    def num_static_conversation_items(self, value):
+        value = int(value)
+        if value < 3:
+            raise ValueError("num_static_conversation_items must be >= 3")
+        if value > 20:
+            raise ValueError("num_static_conversation_items must be <= 20, this is to ensure reliability and reduce token wastage!")
+        self._num_static_conversation_items = value
+
+    @property
+    def num_conversation_lookback(self):
+        return self._num_conversation_lookback
+
+    @num_conversation_lookback.setter
+    def num_conversation_lookback(self, value):
+        value = int(value)
+        if value < 3:
+            raise ValueError("num_conversation_lookback must be >= 3")
+        if value > 15:
+            raise ValueError("num_conversation_lookback must be <= 15, this is to ensure reliability and reduce token wastage!")
+        self._num_conversation_lookback = value
 
     @property
     def welcome_message_enabled(self):
@@ -188,9 +218,9 @@ class Model:
         value = int(value)
         if value < 1:
             raise ValueError("Max conversation length must be greater than 1")
-        if value > 30:
+        if value > 500:
             raise ValueError(
-                "Max conversation length must be less than 30, this will start using credits quick."
+                "Max conversation length must be less than 500, this will start using credits quick."
             )
         self._max_conversation_length = value
 
@@ -317,6 +347,28 @@ class Model:
                 + str(response["error"]["message"])
             )
 
+    async def send_embedding_request(self, text):
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.EMBEDDINGS,
+                "input": text,
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            async with session.post(
+                    "https://api.openai.com/v1/embeddings", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+
+                try:
+                    return response["data"][0]["embedding"]
+                except Exception as e:
+                    print(response)
+                    traceback.print_exc()
+                    return
+
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
         async with aiohttp.ClientSession() as session:
@@ -422,8 +474,8 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                print(f"Payload -> {payload}")
-                print(f"Response -> {response}")
+                #print(f"Payload -> {payload}")
+                #print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(response)
 
