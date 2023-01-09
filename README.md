@@ -302,12 +302,15 @@ To build:
 - Clone repository and build *(hopefully eventually we'll add CI to automatically build + push to docker hub)*
   - `docker build -t gpt3discord .`
   - *From repository root or supply path to repository*
-- Make a env file to bind mount to /bin/.env
+- Make a .env file to bind mount to `/opt/gpt3discord/etc/environment`
 - Optional: Make a data directory + bind mount it
-  - Add `DATA_DIR=/data` to env file
+  - Add `DATA_DIR=/data` to env file -> `usage.txt` is made here
+  - Add `SHARE_DIR=/data/share` to env file -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is loaded from
+  - If `SHARE_DIR` is not included it'll load from the files added during the docker image build
 - Run via docker:
-  - `docker run [-d] --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] gpt3discord`
-  - You can also mount a second volume and set `DATA_DIR` in the env file to keep persistent data
+  - `docker run [-d] --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] gpt3discord`
+  - You can also mount extra volumes and set `DATA_DIR` and `SHARE_DIR` in the env file to keep persistent data
+  - `env_file` should be replaced with where you have your .env file stored on your machine
 
 This can also be run via screen/tmux or detached like a daemon.
 
