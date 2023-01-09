@@ -14,7 +14,7 @@ def app_root_path():
     return app_path.parent
 
 # None will let direnv do its' thing
-env_paths = [Path() / ".env", app_root_path() / "etc/environment", None]
+env_paths = [Path(".env"), app_root_path() / "etc/environment", None]
 
 for env_path in env_paths:
     print("Loading environment from " + str(env_path))
