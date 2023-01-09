@@ -267,6 +267,21 @@ cd (the folder where the files for GPT3Discord are located/cloned)
 python3.9 gpt3discord.py
 ```
 
+# Updating 
+
+To update the bot, 
+
+run (when working in the directory of GPT3discord):
+
+```bash
+#To get the latest branch:
+git pull
+
+#Install the latest modules so the bot keeps working.
+python3.9 -m pip install -r requirements.txt
+python3.9 -m pip install .
+```
+
 # Non-Server, Non-Docker usage
 
 With python3.9 installed and the requirements installed, you can run this bot anywhere. 
