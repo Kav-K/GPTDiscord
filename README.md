@@ -21,9 +21,9 @@
 
 A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
 
-**PERMANENT MEMORY FOR CONVERSATIONS WORK IS STILL UNDERWAY, APOLOGIES FOR THE DELAY, COMING SOON!**
-
 # Recent Notable Updates
+- **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
+
 
 - **Multi-user, group chats with GPT3** - Multiple users can converse with GPT3 in a chat now, and it will know that there are multiple distinct users chatting with it!
 
@@ -36,13 +36,10 @@ A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
 
 - Custom conversation openers from https://github.com/f/awesome-chatgpt-prompts were integrated into the bot, check out `/gpt converse opener_file`! The bot now has built in support to make GPT3 behave like various personalities, such as a life coach, python interpreter, interviewer, text based adventure game, and much more!
 
-
-- Autocomplete for settings and various commands to make it easier to use the bot!
-
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
 
-- **Have conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
+- **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
 
 - **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
@@ -121,6 +118,32 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 - The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
 - This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
 - The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
+
+# Permanent Memory
+Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
+
+PineconeDB is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
+
+**You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**
+
+To enable permanent memory with pinecone, you must define a `PINECONE_TOKEN` in your `.env` file as follows (along with the other variables too):
+```env
+PINECONE_TOKEN="87juwi58-1jk9-9182-9b3c-f84d90e8bshq"
+```
+
+To get a pinecone token, you can sign up for a free pinecone account here: https://app.pinecone.io/ and click the "API Keys" section on the left navbar to find the key. (I am not affiliated with pinecone).
+
+After signing up for a free pinecone account, you need to create an index in pinecone. To do this, go to the pinecone dashboard and click "Create Index" on the top right.
+
+<img src="https://i.imgur.com/L9LXVE0.png"/>
+
+Then, name the index `conversation-embeddings`, set the dimensions to `1536`, and set the metric to `DotProduct`:
+
+<img src="https://i.imgur.com/zoeLsrw.png"/>
+
+Moreover, an important thing to keep in mind is: pinecone indexes are currently not automatically cleared by the bot, so you will eventually need to clear the index manually through the pinecone website if things are getting too slow (although it should be a very long time until this happens). Pinecone indexes are keyed on the `metadata` field using the thread id of the conversation thread.
+
+Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
 
 # Configuration
