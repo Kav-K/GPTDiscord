@@ -5,6 +5,7 @@ import re
 import discord
 from models.usage_service_model import UsageService
 from models.openai_model import Model
+from models.env_service_model import EnvService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
@@ -51,7 +52,7 @@ class File_autocompleter:
         try:
             return [
                 file
-                for file in os.listdir("openers")
+                for file in os.listdir(EnvService.find_shared_file("openers"))
                 if file.startswith(ctx.value.lower())
             ][
                 :25
