@@ -27,17 +27,17 @@ class Settings_autocompleter:
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
         values = {
-            "max_conversation_length": [str(num) for num in range(1,500,2)],
-            "num_images": [str(num) for num in range(1,4+1)],
+            "max_conversation_length": [str(num) for num in range(1, 500, 2)],
+            "num_images": [str(num) for num in range(1, 4 + 1)],
             "mode": ["temperature", "top_p"],
             "model": ["text-davinci-003", "text-curie-001"],
             "low_usage_mode": ["True", "False"],
             "image_size": ["256x256", "512x512", "1024x1024"],
             "summarize_conversation": ["True", "False"],
             "welcome_message_enabled": ["True", "False"],
-            "num_static_conversation_items": [str(num) for num in range(5,20+1)],
-            "num_conversation_lookback": [str(num) for num in range(5,15+1)],
-            "summarize_threshold": [str(num) for num in range(800, 3500, 50)]
+            "num_static_conversation_items": [str(num) for num in range(5, 20 + 1)],
+            "num_conversation_lookback": [str(num) for num in range(5, 15 + 1)],
+            "summarize_threshold": [str(num) for num in range(800, 3500, 50)],
         }
         if ctx.options["parameter"] in values.keys():
             return [value for value in values[ctx.options["parameter"]]]

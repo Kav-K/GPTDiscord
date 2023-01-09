@@ -93,7 +93,9 @@ class Model:
         if value < 3:
             raise ValueError("num_static_conversation_items must be >= 3")
         if value > 20:
-            raise ValueError("num_static_conversation_items must be <= 20, this is to ensure reliability and reduce token wastage!")
+            raise ValueError(
+                "num_static_conversation_items must be <= 20, this is to ensure reliability and reduce token wastage!"
+            )
         self._num_static_conversation_items = value
 
     @property
@@ -106,7 +108,9 @@ class Model:
         if value < 3:
             raise ValueError("num_conversation_lookback must be >= 3")
         if value > 15:
-            raise ValueError("num_conversation_lookback must be <= 15, this is to ensure reliability and reduce token wastage!")
+            raise ValueError(
+                "num_conversation_lookback must be <= 15, this is to ensure reliability and reduce token wastage!"
+            )
         self._num_conversation_lookback = value
 
     @property
@@ -358,7 +362,7 @@ class Model:
                 "Authorization": f"Bearer {self.openai_key}",
             }
             async with session.post(
-                    "https://api.openai.com/v1/embeddings", json=payload, headers=headers
+                "https://api.openai.com/v1/embeddings", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
 
@@ -474,8 +478,8 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                #print(f"Payload -> {payload}")
-                #print(f"Response -> {response}")
+                # print(f"Payload -> {payload}")
+                # print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(response)
 

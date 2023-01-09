@@ -73,6 +73,7 @@ class Thread:
     def __str__(self):
         return self.__repr__()
 
+
 class EmbeddedConversationItem:
     def __init__(self, text, timestamp):
         self.text = text
@@ -104,5 +105,3 @@ class EmbeddedConversationItem:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-

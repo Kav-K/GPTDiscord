@@ -40,7 +40,7 @@ except:
 pinecone_service = None
 if PINECONE_TOKEN:
     pinecone.init(api_key=PINECONE_TOKEN, environment="us-west1-gcp")
-    PINECONE_INDEX = "conversation-embeddings" # This will become unfixed later.
+    PINECONE_INDEX = "conversation-embeddings"  # This will become unfixed later.
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
     print("Got the pinecone service")
 
