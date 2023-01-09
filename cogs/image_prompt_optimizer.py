@@ -2,16 +2,15 @@ import re
 import traceback
 
 import discord
-from discord.ext import commands
 
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
-from models.check_model import Check
+from pycord.multicog import add_to_group
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
+class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
     def __init__(
@@ -45,17 +44,17 @@ class ImgPromptOptimizer(commands.Cog, name="ImgPromptOptimizer"):
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
+    @add_to_group("dalle")
     @discord.slash_command(
-        name="imgoptimize",
+        name="optimize",
         description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_valid_roles()],
     )
     @discord.option(
         name="prompt", description="The text prompt to optimize.", required=True
     )
     @discord.guild_only()
-    async def imgoptimize(self, ctx: discord.ApplicationContext, prompt: str):
+    async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
 
         user = ctx.user
@@ -182,7 +181,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         await self.image_service_cog.encapsulated_send(
             user_id,
             prompt,
-            None,
+            interaction,
             msg,
             True,
             True,
@@ -214,7 +213,10 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
             await self.converser_cog.encapsulated_send(
-                user_id, prompt, ctx, response_message
+                id=user_id,
+                prompt=prompt,
+                ctx=ctx,
+                response_message=response_message,
             )
         else:
             await interaction.response.send_message(

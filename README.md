@@ -1,43 +1,57 @@
+![Docker](https://github.com/Kav-K/GPT3Discord/actions/workflows/docker_upload.yml/badge.svg)
+![PyPi](https://github.com/Kav-K/GPT3Discord/actions/workflows/pypi_upload.yml/badge.svg)
+![Build](https://github.com/Kav-K/GPT3Discord/actions/workflows/build.yml/badge.svg)
+
+[![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.com/project/gpt3discord)
+[![Latest release](https://badgen.net/github/release/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/releases)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+[![GitHub license](https://img.shields.io/github/license/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/blob/master/LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
+
+
 # Screenshots
 
 <p align="center">
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
+<img src="https://i.imgur.com/9XC95Lu.png"/>
 
 </p>
 
-**PERMANENT MEMORY FOR CONVERSATIONS COMING VERY SOON USING EMBEDDINGS!**
+A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
 
-# Recent Major Updates
+# Recent Notable Updates
+- **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
+
+
+- **Multi-user, group chats with GPT3** - Multiple users can converse with GPT3 in a chat now, and it will know that there are multiple distinct users chatting with it!
+
+
+- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
+
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
-- **Private conversations, custom opening conversation text** - Check out the new options when running /chat-gpt!
 
-- **SLASH COMMANDS!**
-
-- **Image prompt optimizer overhauled** - The optimizer works much better now, and makes beautiful image prompts that work even with Midjourney, SD, etc!
-
-- **REDO ON EDIT** - When you edit a prompt, it will automatically be resent to GPT3 and the response updated!
-
-- **Fully async and fault tolerant - REVAMPED** - The bot will never be blocked when processing someone else's request, allowing for use in large servers with multiple messages per second!
-
-- No need for the OpenAI and Asgiref libraries anymore!
-
+- Custom conversation openers from https://github.com/f/awesome-chatgpt-prompts were integrated into the bot, check out `/gpt converse opener_file`! The bot now has built in support to make GPT3 behave like various personalities, such as a life coach, python interpreter, interviewer, text based adventure game, and much more!
 
 # Features
-- **Directly prompt GPT3 with `/g <prompt>`**
+- **Directly prompt GPT3 with `/gpt ask <prompt>`**
 
-- **Have conversations with the bot, just like chatgpt, with `/chat-gpt`** - Conversations happen in threads that get automatically cleaned up!
+- **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
 
-- **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
+- **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
-- **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked.
+- **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/dalle optimize <prompt>`
 
-- **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/imgoptimize <prompt>`
+- **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!
+
+- **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!
 
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!
 
+- Async and fault tolerant, **can handle hundreds of users at once**, if the upstream API permits!
 - Change and view model parameters such as temp, top_p, and etc directly within discord. 
 - Tracks token usage automatically
 - Automatic pagination and discord support, the bot will automatically send very long message as multiple messages, and is able to send discord code blocks and emoji, gifs, etc.
@@ -45,11 +59,102 @@
 - Prints debug to a channel of your choice, so you can view the raw response JSON
 - Ability to specify a limit to how long a conversation can be with the bot, to conserve your tokens.
 
+# Commands
+
+These commands are grouped, so each group has a prefix but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
+
+`/help` - Display help text for the bot
+
+### (Chat)GPT3 Commands
+
+`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
+
+`/gpt converse` - Start a conversation with the bot, like ChatGPT
+
+`/gpt converse private:yes` - Start a private conversation with the bot, like ChatGPT
+
+`/gpt converse opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
+
+`/gpt converse opener_file:<opener file name>.txt` - Starts a conversation with the bot, using a custom file, using this option also enables the minimal conversation starter. Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
+
+- Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
+
+`/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
+
+- Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)
+
+`/gpt end` - End a conversation with the bot.
+
+### DALL-E2 Commands
+
+`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
+
+`/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+
+### System and Settings
+
+`/system settings` - Display settings for the model (temperature, top_p, etc)
+
+`/system settings <setting> <value>` - Change a model setting to a new value. Has autocomplete support, certain settings will have autocompleted values too.
+
+`/system usage` Estimate current usage details (based on davinci)
+
+`/system settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
+
+`/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
+
+`/system local-size` - Get the size of the local dalleimages folder
+
+`/system clear-local` - Clear all the local dalleimages.
+
+### Automatic AI Moderation
+
+`/system moderations status:on` - Turn on automatic chat moderations. 
+
+`/system moderations status:off` - Turn off automatic chat moderations
+
+`/system moderations status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+
+- The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
+- This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
+- The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
+
+# Permanent Memory
+Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
+
+PineconeDB is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
+
+**You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**
+
+To enable permanent memory with pinecone, you must define a `PINECONE_TOKEN` in your `.env` file as follows (along with the other variables too):
+```env
+PINECONE_TOKEN="87juwi58-1jk9-9182-9b3c-f84d90e8bshq"
+```
+
+To get a pinecone token, you can sign up for a free pinecone account here: https://app.pinecone.io/ and click the "API Keys" section on the left navbar to find the key. (I am not affiliated with pinecone).
+
+After signing up for a free pinecone account, you need to create an index in pinecone. To do this, go to the pinecone dashboard and click "Create Index" on the top right.
+
+<img src="https://i.imgur.com/L9LXVE0.png"/>
+
+Then, name the index `conversation-embeddings`, set the dimensions to `1536`, and set the metric to `DotProduct`:
+
+<img src="https://i.imgur.com/zoeLsrw.png"/>
+
+Moreover, an important thing to keep in mind is: pinecone indexes are currently not automatically cleared by the bot, so you will eventually need to clear the index manually through the pinecone website if things are getting too slow (although it should be a very long time until this happens). Pinecone indexes are keyed on the `metadata` field using the thread id of the conversation thread.
+
+Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
+
+
+# Configuration
+
+All the model parameters are configurable inside discord. Type `/system settings` to view all the configurable parameters, and use `/system settings <param> <value>` to set parameters. 
+
+For example, if I wanted to change the number of images generated by DALL-E by default to 4, I can type the following command in discord: `/system settings num_images 4`
+
 
 # Requirements
 `python3.9 -m pip install -r requirements.txt`
-
-This project uses openai-async rewrite by Andrew Chen Wang, https://github.com/Andrew-Chen-Wang/openai-python/tree/async-support
 
 **I recommend using python 3.9!**
 
@@ -65,7 +170,7 @@ You also need to add a DEBUG_GUILD id and a DEBUG_CHANNEL id, the debug guild id
 
 You also need to add the allowed guilds that the bot can operate on, this is the `ALLOWED_GUILDS` field, to get a guild ID, right click a server and click "Copy ID".
 
-You also need to add the roles that can use the bot, this is the `ALLOWED_ROLES` field, enter role names here, separated by commas. Currently, there is no way to give everybody access to the bot, and you have to use roles, but it will be done soon.
+You also need to add the roles that can use the bots various features, scroll down a bit to "Permissions", and check out the sample environment file below.
 
 ```
 OPENAI_TOKEN="<openai_api_token>"
@@ -73,10 +178,24 @@ DISCORD_TOKEN="<discord_bot_token>"
 DEBUG_GUILD="974519864045756446"   #discord_server_id
 DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
 ALLOWED_GUILDS="971268468148166697,971268468148166697"
-ALLOWED_ROLES="Admin,gpt"
+# People with the roles in ADMIN_ROLES can use admin commands like /clear-local, and etc
+ADMIN_ROLES="Admin,Owner" 
+# People with the roles in DALLE_ROLES can use commands like /dalle draw or /dalle imgoptimize
+DALLE_ROLES="Admin,Openai,Dalle,gpt"
+# People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse
+GPT_ROLES="openai,gpt"
+WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" # This is a fallback message if gpt3 fails to generate a welcome message.
+# This is the channel that auto-moderation alerts will be sent to
+MODERATIONS_ALERT_CHANNEL="977697652147892304"
 ```
 
-Optionally, you can include your own conversation starter text for the bot that's used with `!g converse`, with `CONVERSATION_STARTER_TEXT`
+**Permissions**
+
+As mentioned in the comments of the sample environment file, there are three permission groups that you can edit in the environment (`.env`) file. `ADMIN_ROLES` are roles that allow users to use `/system` commands. `GPT_ROLES` are roles that allow users to use `/gpt` commands, and `DALLE_ROLES` are roles that allow users to use `/dalle` commands.
+
+Optionally, you can include your own conversation starter text for the bot that's used with `/gpt converse`, with `CONVERSATION_STARTER_TEXT`
+
+If for a command group you want everybody to be able to use those commands, just don't include the relevant line in the `.env` file. For example, if you want everyone to be able to use GPT3 commands, you can just omit `the GPT_ROLES="...."` line.
 
 ## Server Installation
 
@@ -142,6 +261,23 @@ screen -d -r {ID} # replace {ID} with the ID of the screen session you want to r
 
 ```
 
+As a last resort, you can try to run the bot using python in a basic way, with simply
+```bash
+cd (the folder where the files for GPT3Discord are located/cloned)
+python3.9 gpt3discord.py
+```
+
+# Non-Server, Non-Docker usage
+
+With python3.9 installed and the requirements installed, you can run this bot anywhere. 
+
+Install the dependencies with:
+`python3.9 -m pip install -r requirements.txt`
+
+Then, run the bot with:
+`python3.9 gpt3discord.py`
+
+
 ## Docker Installation
 
 We now have a `Dockerfile` in the repository. This will build / install all dependencies and put a `gpt3discord` binary (main.py) into path.
@@ -174,47 +310,3 @@ This can also be run via screen/tmux or detached like a daemon.
     - Copy the link generated below and paste it on the browser
     - On add to server select the desired server to add the bot
 - Make sure you have updated your .env file with valid values for `DEBUG_GUILD`, `DEBUG_CHANNEL` and `ALLOWED_GUILDS`, otherwise the bot will not work. Guild IDs can be found by right clicking a server and clicking `Copy ID`, similarly, channel IDs can be found by right clicking a channel and clicking `Copy ID`.
-
-# Usage
-
-`python3.9 main.py`
-
-# Commands
-
-`/help` - Display help text for the bot
-
-`/g <prompt>` Ask the GPT3 Davinci 003 model a question.
-
-`/chat-gpt` - Start a conversation with the bot, like ChatGPT
-
-`/chat-gpt private:yes` - Start a private conversation with the bot, like ChatGPT
-
-`/chat-gpt opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start)
-
-`/chat-gpt minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
-
-- Note that the above options for /chat-gpt can be combined (you can combine minimal, private, and opener!)
-
-`/end-chat` - End a conversation with the bot.
-
-`/draw <prompt>` - Have DALL-E generate images based on a prompt
-
-`/settings` - Display settings for the model (temperature, top_p, etc)
-
-`/settings <setting> <value>` - Change a model setting to a new value
-
-`/usage` Estimate current usage details (based on davinci)
-
-`/settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
-
-`/imgoptimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
-
-`/delete_all_conversation_threads` - Delete all threads related to this bot across all servers.
-
-`/local-size` - Get the size of the local dalleimages folder
-
-`/clear-local` - Clear all the local dalleimages.
-
-# Configuration
-
-All the model parameters are configurable inside discord. Type `/settings` to view all the configurable parameters, and use `/settings <param> <value>` to set parameters. For example, if I wanted to change the number of images generated by DALL-E by default to 4, I can type the following command in discord: `/settings num_images 4`

@@ -3,6 +3,7 @@ import functools
 import math
 import os
 import tempfile
+import traceback
 import uuid
 from typing import Tuple, List, Any
 
@@ -23,6 +24,7 @@ class Mode:
 class Models:
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    EMBEDDINGS = "text-embedding-ada-002"
 
 
 class ImageSize:
@@ -42,7 +44,7 @@ class Model:
         )
         self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
-        self._prompt_min_length = 12
+        self._prompt_min_length = 8
         self._max_conversation_length = 100
         self._model = Models.DAVINCI
         self._low_usage_mode = False
@@ -53,6 +55,9 @@ class Model:
         self._summarize_conversations = True
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
+        self._welcome_message_enabled = True
+        self._num_static_conversation_items = 6
+        self._num_conversation_lookback = 10
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -77,6 +82,50 @@ class Model:
         self.openai_key = os.getenv("OPENAI_TOKEN")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
+
+    @property
+    def num_static_conversation_items(self):
+        return self._num_static_conversation_items
+
+    @num_static_conversation_items.setter
+    def num_static_conversation_items(self, value):
+        value = int(value)
+        if value < 3:
+            raise ValueError("num_static_conversation_items must be >= 3")
+        if value > 20:
+            raise ValueError(
+                "num_static_conversation_items must be <= 20, this is to ensure reliability and reduce token wastage!"
+            )
+        self._num_static_conversation_items = value
+
+    @property
+    def num_conversation_lookback(self):
+        return self._num_conversation_lookback
+
+    @num_conversation_lookback.setter
+    def num_conversation_lookback(self, value):
+        value = int(value)
+        if value < 3:
+            raise ValueError("num_conversation_lookback must be >= 3")
+        if value > 15:
+            raise ValueError(
+                "num_conversation_lookback must be <= 15, this is to ensure reliability and reduce token wastage!"
+            )
+        self._num_conversation_lookback = value
+
+    @property
+    def welcome_message_enabled(self):
+        return self._welcome_message_enabled
+
+    @welcome_message_enabled.setter
+    def welcome_message_enabled(self, value):
+        if value.lower() == "true":
+            self._welcome_message_enabled = True
+        elif value.lower() == "false":
+            self._welcome_message_enabled = False
+        else:
+            raise ValueError("Value must be either true or false!")
+
     @property
     def summarize_threshold(self):
         return self._summarize_threshold
@@ -173,9 +222,9 @@ class Model:
         value = int(value)
         if value < 1:
             raise ValueError("Max conversation length must be greater than 1")
-        if value > 30:
+        if value > 500:
             raise ValueError(
-                "Max conversation length must be less than 30, this will start using credits quick."
+                "Max conversation length must be less than 500, this will start using credits quick."
             )
         self._max_conversation_length = value
 
@@ -292,6 +341,53 @@ class Model:
             )
         self._prompt_min_length = value
 
+    async def valid_text_request(self, response):
+        try:
+            tokens_used = int(response["usage"]["total_tokens"])
+            await self.usage_service.update_usage(tokens_used)
+        except:
+            raise ValueError(
+                "The API returned an invalid response: "
+                + str(response["error"]["message"])
+            )
+
+    async def send_embedding_request(self, text):
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.EMBEDDINGS,
+                "input": text,
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            async with session.post(
+                "https://api.openai.com/v1/embeddings", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+
+                try:
+                    return response["data"][0]["embedding"]
+                except Exception as e:
+                    print(response)
+                    traceback.print_exc()
+                    return
+
+    async def send_moderations_request(self, text):
+        # Use aiohttp to send the above request:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            payload = {"input": text}
+            async with session.post(
+                "https://api.openai.com/v1/moderations",
+                headers=headers,
+                json=payload,
+            ) as response:
+                return await response.json()
+
     async def send_summary_request(self, prompt):
         """
         Sends a summary request to the OpenAI API
@@ -299,16 +395,13 @@ class Model:
         summary_request_text = []
         summary_request_text.append(
             "The following is a conversation instruction set and a conversation"
-            " between two people, a Human, and GPTie. Firstly, determine the Human's name from the conversation history, then summarize the conversation. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If Human mentioned their name, be sure to mention it in the summary. Pay close attention to things the Human has told you, such as personal details."
+            " between two people, a <username>, and GPTie. Firstly, determine the <username>'s name from the conversation history, then summarize the conversation. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If <username> mentioned their name, be sure to mention it in the summary. Pay close attention to things the <username> has told you, such as personal details."
         )
         summary_request_text.append(prompt + "\nDetailed summary of conversation: \n")
 
         summary_request_text = "".join(summary_request_text)
 
         tokens = self.usage_service.count_tokens(summary_request_text)
-
-        print("The summary request will use " + str(tokens) + " tokens.")
-        print(f"{self.max_tokens - tokens} is the remaining that we will use.")
 
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -330,10 +423,10 @@ class Model:
             ) as resp:
                 response = await resp.json()
 
+                await self.valid_text_request(response)
+
                 print(response["choices"][0]["text"])
 
-                tokens_used = int(response["usage"]["total_tokens"])
-                self.usage_service.update_usage(tokens_used)
                 return response
 
     async def send_request(
@@ -354,26 +447,29 @@ class Model:
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
             raise ValueError(
-                "Prompt must be greater than 12 characters, it is currently "
+                "Prompt must be greater than 8 characters, it is currently "
                 + str(len(prompt))
             )
 
         print("The prompt about to be sent is " + prompt)
+        print(
+            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
+        )
 
         async with aiohttp.ClientSession() as session:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
-                "temperature": self.temp if not temp_override else temp_override,
-                "top_p": self.top_p if not top_p_override else top_p_override,
+                "temperature": self.temp if temp_override is None else temp_override,
+                "top_p": self.top_p if top_p_override is None else top_p_override,
                 "max_tokens": self.max_tokens - tokens
                 if not max_tokens_override
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
-                if not presence_penalty_override
+                if presence_penalty_override is None
                 else presence_penalty_override,
                 "frequency_penalty": self.frequency_penalty
-                if not frequency_penalty_override
+                if frequency_penalty_override is None
                 else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
@@ -382,14 +478,16 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                print(response)
+                # print(f"Payload -> {payload}")
+                # print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
-                tokens_used = int(response["usage"]["total_tokens"])
-                self.usage_service.update_usage(tokens_used)
+                await self.valid_text_request(response)
 
                 return response
 
-    async def send_image_request(self, prompt, vary=None) -> tuple[File, list[Any]]:
+    async def send_image_request(
+        self, ctx, prompt, vary=None
+    ) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
         if words < 3 or words > 75:
@@ -399,7 +497,7 @@ class Model:
             )
 
         # print("The prompt about to be sent is " + prompt)
-        self.usage_service.update_usage_image(self.image_size)
+        await self.usage_service.update_usage_image(self.image_size)
 
         response = None
 
@@ -436,7 +534,6 @@ class Model:
                         response = await resp.json()
 
         print(response)
-        print("JUST PRINTED THE RESPONSE")
 
         image_urls = []
         for result in response["data"]:
@@ -513,17 +610,21 @@ class Model:
         )
 
         # Print the filesize of new_im, in mega bytes
-        image_size = os.path.getsize(temp_file.name) / 1000000
+        image_size = os.path.getsize(temp_file.name) / 1048576
+        if ctx.guild is None:
+            guild_file_limit = 8
+        else:
+            guild_file_limit = ctx.guild.filesize_limit / 1048576
 
         # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
         # image and try again
         safety_counter = 0
-        while image_size > 8:
+        while image_size > guild_file_limit:
             safety_counter += 1
             if safety_counter >= 3:
                 break
             print(
-                f"Image size is {image_size}MB, which is too large for discord. Downscaling and trying again"
+                f"Image size is {image_size}MB, which is too large for this server {guild_file_limit}MB. Downscaling and trying again"
             )
             # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
             # We can use the asyncio.run_in_executor method to do this

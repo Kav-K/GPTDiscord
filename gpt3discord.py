@@ -4,8 +4,11 @@ import traceback
 from pathlib import Path
 
 import discord
-from discord.ext import commands
+import pinecone
+from pycord.multicog import apply_multicog
 import os
+
+from models.pinecone_service_model import PineconeService
 
 if sys.platform == "win32":
     separator = "\\"
@@ -21,7 +24,23 @@ from models.openai_model import Model
 from models.usage_service_model import UsageService
 from models.env_service_model import EnvService
 
-__version__ = "2.1.3"
+__version__ = "4.0.1"
+
+"""
+The pinecone service is used to store and retrieve conversation embeddings.
+"""
+try:
+    PINECONE_TOKEN = os.getenv("PINECONE_TOKEN")
+except:
+    PINECONE_TOKEN = None
+
+pinecone_service = None
+if PINECONE_TOKEN:
+    pinecone.init(api_key=PINECONE_TOKEN, environment="us-west1-gcp")
+    PINECONE_INDEX = "conversation-embeddings"  # This will become unfixed later.
+    pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
+    print("Got the pinecone service")
+
 
 """
 Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
@@ -38,7 +57,7 @@ Settings for the bot
 activity = discord.Activity(
     type=discord.ActivityType.watching, name="for /help /g, and more!"
 )
-bot = commands.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
+bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
@@ -82,6 +101,7 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
+            pinecone_service=pinecone_service,
         )
     )
 
@@ -107,6 +127,8 @@ async def main():
             bot.get_cog("DrawDallEService"),
         )
     )
+
+    apply_multicog(bot)
 
     await bot.start(os.getenv("DISCORD_TOKEN"))
 

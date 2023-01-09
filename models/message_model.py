@@ -20,7 +20,10 @@ class Message:
             message = await message_queue.get()
 
             # Send the message
-            await message.channel.send(message.content)
+            try:
+                await message.channel.send(message.content)
+            except:
+                pass
 
             # Sleep for a short time before processing the next message
             # This will prevent the bot from spamming messages too quickly

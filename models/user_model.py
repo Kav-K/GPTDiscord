@@ -50,3 +50,58 @@ class User:
 
     def __str__(self):
         return self.__repr__()
+
+
+class Thread:
+    def __init__(self, id):
+        self.id = id
+        self.history = []
+        self.count = 0
+
+    # These user objects should be accessible by ID, for example if we had a bunch of user
+    # objects in a list, and we did `if 1203910293001 in user_list`, it would return True
+    # if the user with that ID was in the list
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __repr__(self):
+        return f"Thread(id={self.id}, history={self.history})"
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class EmbeddedConversationItem:
+    def __init__(self, text, timestamp):
+        self.text = text
+        self.timestamp = int(timestamp)
+
+    def __repr__(self):
+        return self.text
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        return self.text == other.text and self.timestamp == other.timestamp
+
+    def __hash__(self):
+        return hash(self.text) + hash(self.timestamp)
+
+    def __lt__(self, other):
+        return self.timestamp < other.timestamp
+
+    def __gt__(self, other):
+        return self.timestamp > other.timestamp
+
+    def __le__(self, other):
+        return self.timestamp <= other.timestamp
+
+    def __ge__(self, other):
+        return self.timestamp >= other.timestamp
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
