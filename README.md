@@ -282,10 +282,6 @@ python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 ```
 
-
-
-
-
 # Non-Server, Non-Docker usage
 
 With python3.9 installed and the requirements installed, you can run this bot anywhere. 
