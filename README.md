@@ -271,14 +271,17 @@ python3.9 gpt3discord.py
 
 To update the bot, 
 
-Run (when working in the directory of GPT3discord)
+run (when working in the directory of GPT3discord):
 
 ```bash
+#To get the latest branch:
 git pull
+
+#Install the latest modules so the bot keeps working.
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 ```
-With git pull you get the latest branch, and with the pip install you download the latests modules. This is just for good measure so the bot works. 
+
 
 
 
