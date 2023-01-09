@@ -72,3 +72,37 @@ class Thread:
 
     def __str__(self):
         return self.__repr__()
+
+class EmbeddedConversationItem:
+    def __init__(self, text, timestamp):
+        self.text = text
+        self.timestamp = int(timestamp)
+
+    def __repr__(self):
+        return self.text
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        return self.text == other.text and self.timestamp == other.timestamp
+
+    def __hash__(self):
+        return hash(self.text) + hash(self.timestamp)
+
+    def __lt__(self, other):
+        return self.timestamp < other.timestamp
+
+    def __gt__(self, other):
+        return self.timestamp > other.timestamp
+
+    def __le__(self, other):
+        return self.timestamp <= other.timestamp
+
+    def __ge__(self, other):
+        return self.timestamp >= other.timestamp
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+

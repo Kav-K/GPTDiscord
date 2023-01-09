@@ -3,6 +3,7 @@ import functools
 import math
 import os
 import tempfile
+import traceback
 import uuid
 from typing import Tuple, List, Any
 
@@ -23,6 +24,7 @@ class Mode:
 class Models:
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    EMBEDDINGS = "text-embedding-ada-002"
 
 
 class ImageSize:
@@ -317,6 +319,27 @@ class Model:
                 + str(response["error"]["message"])
             )
 
+    async def send_embedding_request(self, text):
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.EMBEDDINGS,
+                "input": text,
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key}",
+            }
+            async with session.post(
+                    "https://api.openai.com/v1/embeddings", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+
+                try:
+                    return response["data"][0]["embedding"]
+                except Exception as e:
+                    traceback.print_exc()
+                    return
+
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
         async with aiohttp.ClientSession() as session:
@@ -422,8 +445,8 @@ class Model:
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                print(f"Payload -> {payload}")
-                print(f"Response -> {response}")
+                #print(f"Payload -> {payload}")
+                #print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(response)
 

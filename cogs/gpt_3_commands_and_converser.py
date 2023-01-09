@@ -14,7 +14,7 @@ from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
 from models.message_model import Message
 from models.moderations_service_model import Moderation
-from models.user_model import RedoUser, Thread
+from models.user_model import RedoUser, Thread, EmbeddedConversationItem
 from models.check_model import Check
 from models.autocomplete_model import Settings_autocompleter, File_autocompleter
 from collections import defaultdict
@@ -38,6 +38,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         DEBUG_GUILD,
         DEBUG_CHANNEL,
         data_path: Path,
+        pinecone_service,
     ):
         super().__init__()
         self.data_path = data_path
@@ -67,6 +68,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
         self.moderation_enabled_guilds = []
         self.moderation_tasks = {}
+        self.pinecone_service = pinecone_service
 
         try:
             conversation_file_path = data_path / "conversation_starter_pretext.txt"
@@ -519,7 +521,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         new_conversation_history.append(
             "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n"
         )
-        # Get the last entry from the user's conversation history
+        # Get the last entry from the thread's conversation history
         new_conversation_history.append(
             self.conversation_threads[message.channel.id].history[-1] + "\n"
         )
@@ -657,6 +659,83 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     return
 
+                print("BEFORE PINECONE SERVICE CHECK")
+                if self.pinecone_service:
+                    # The conversation_id is the id of the thread
+                    conversation_id = message.channel.id
+                    print("Conversation id is", conversation_id)
+
+                    # Create an embedding and timestamp for the prompt
+                    prompt = prompt.encode("ascii", "ignore").decode()
+                    prompt_less_author =  f"{prompt} <|endofstatement|>\n"
+                    prompt_with_gpt_instead = f"GPTie: {prompt} <|endofstatement|>\n"
+                    prompt = f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n"
+
+                    #print("Creating embedding for ", prompt)
+                    # Print the current timestamp
+                    timestamp = int(str(datetime.datetime.now().timestamp()).replace(".", ""))
+                    print("Timestamp is ", timestamp)
+
+                    starter_conversation_item = EmbeddedConversationItem(str(self.conversation_threads[message.channel.id].history[0]), 0)
+                    self.conversation_threads[message.channel.id].history[0] = starter_conversation_item
+
+                    new_prompt_item = EmbeddedConversationItem(prompt, timestamp)
+
+                    self.conversation_threads[conversation_id].history.append(new_prompt_item)
+
+                    # Create and upsert the embedding for  the conversation id, prompt, timestamp
+                    embedding = await self.pinecone_service.upsert_conversation_embedding(self.model, conversation_id, prompt, timestamp)
+
+                    embedding_prompt_less_author = await self.model.send_embedding_request(prompt_less_author)
+
+                    # Now, build the new prompt by getting the 10 most similar with pinecone
+                    similar_prompts = self.pinecone_service.get_n_similar(conversation_id, embedding_prompt_less_author, n=5)
+
+                    # When we are in embeddings mode, only the pre-text is contained in self.conversation_threads[message.channel.id].history, so we
+                    # can use that as a base to build our new prompt
+                    prompt_with_history = []
+                    prompt_with_history.append(self.conversation_threads[message.channel.id].history[0])
+
+                    # Append the similar prompts to the prompt with history
+                    prompt_with_history += [EmbeddedConversationItem(prompt, timestamp) for prompt, timestamp in similar_prompts]
+
+                    # iterate UP TO the last 5 prompts in the history
+                    for i in range(1, min(len(self.conversation_threads[message.channel.id].history), 3)):
+                        prompt_with_history.append(self.conversation_threads[message.channel.id].history[-i])
+
+                    # remove duplicates from prompt_with_history
+                    prompt_with_history = list(dict.fromkeys(prompt_with_history))
+
+                    # Sort the prompt_with_history by increasing timestamp
+                    prompt_with_history.sort(key=lambda x: x.timestamp)
+
+                    # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
+                    if prompt_with_history[-1] != new_prompt_item:
+                        try:
+                            prompt_with_history.remove(new_prompt_item)
+                        except ValueError:
+                            pass
+                        prompt_with_history.append(new_prompt_item)
+
+                    prompt_with_history = "".join([item.text for item in prompt_with_history])
+
+                    print("The prompt with history is", prompt_with_history)
+
+                    self.awaiting_responses.append(message.author.id)
+                    self.awaiting_thread_responses.append(message.channel.id)
+
+                    self.conversation_threads[message.channel.id].count += 1
+
+                    original_message[message.author.id] = message.id
+
+                    await self.encapsulated_send(
+                        message.channel.id,
+                        prompt_with_history,
+                        message,
+                    )
+
+                    return
+
                 self.awaiting_responses.append(message.author.id)
                 self.awaiting_thread_responses.append(message.channel.id)
 
@@ -700,11 +779,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         try:
             tokens = self.usage_service.count_tokens(new_prompt)
 
-            # Check if the prompt is about to go past the token limit
+
+            # This is the NO-EMBEDDINGS-SUMMARIZE CASE
             if (
                 id in self.conversation_threads
                 and tokens > self.model.summarize_threshold
                 and not from_g_command
+                and not self.pinecone_service # This should only happen if we are not doing summarizations.
             ):
 
                 # We don't need to worry about the differences between interactions and messages in this block,
@@ -769,10 +850,33 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
 
             # If the user is conversing, add the GPT response to their conversation history.
-            if id in self.conversation_threads and not from_g_command:
+            # Don't append to the history if we're using embeddings!
+            if id in self.conversation_threads and not from_g_command and not self.pinecone_service:
                 self.conversation_threads[id].history.append(
                     "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
                 )
+
+            # Embeddings case!
+            elif id in self.conversation_threads and not from_g_command and self.pinecone_service:
+                conversation_id = id
+                print("Conversation id is", conversation_id)
+
+                # Create an embedding and timestamp for the prompt
+                response_text = "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
+
+                response_text = response_text.encode("ascii", "ignore").decode()
+
+
+                print("Creating embedding for ", response_text)
+                # Print the current timestamp
+                timestamp = int(str(datetime.datetime.now().timestamp()).replace(".", ""))
+                print("Timestamp is ", timestamp)
+                self.conversation_threads[conversation_id].history.append(EmbeddedConversationItem(response_text, timestamp))
+
+                # Create and upsert the embedding for  the conversation id, prompt, timestamp
+                embedding = await self.pinecone_service.upsert_conversation_embedding(self.model, conversation_id,
+                                                                                      response_text, timestamp)
+                print("Embedded the response")
 
             # If we don't have a response message, we are not doing a redo, send as a new message(s)
             if not response_message:
