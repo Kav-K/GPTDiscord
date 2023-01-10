@@ -44,8 +44,9 @@ class EnvService:
     def find_shared_file(file_name):
         share_file_paths = []
         share_dir = os.getenv("SHARE_DIR")
-        if share_dir != None:
-            share_file_paths.append(share_dir)
+        if share_dir is not None:
+            share_file_paths.append(Path(share_dir) / file_name)
+
         share_file_paths.extend(
             [
                 app_root_path() / "share" / file_name,
@@ -181,3 +182,14 @@ class EnvService:
         except:
             moderations_alert_channel = None
         return moderations_alert_channel
+
+    @staticmethod
+    def get_user_input_api_keys():
+        try:
+            user_input_api_keys = os.getenv("USER_INPUT_API_KEYS")
+            if user_input_api_keys.lower().strip() == "true":
+                return True
+            else:
+                return False
+        except:
+            return False
