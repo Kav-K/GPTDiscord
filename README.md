@@ -16,6 +16,7 @@
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
 <img src="https://i.imgur.com/9XC95Lu.png"/>
+<img src="https://i.imgur.com/HqFSFcc.png"/>
 
 </p>
 
@@ -118,6 +119,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 - The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
 - This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
 - The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
+- There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).
 
 # Permanent Memory
 Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.

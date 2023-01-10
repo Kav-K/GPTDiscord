@@ -1,7 +1,7 @@
 import asyncio
 import os
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import discord
@@ -11,6 +11,42 @@ from models.usage_service_model import UsageService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
+
+class ModerationResult:
+    WARN = "warn"
+    DELETE = "delete"
+    NONE = "none"
+
+class ThresholdSet:
+
+    def __init__(self, h_t, hv_t, sh_t, s_t, sm_t, v_t, vg_t):
+        self.keys = [
+            "hate",
+            "hate/threatening",
+            "self-harm",
+            "sexual",
+            "sexual/minors",
+            "violence",
+            "violence/graphic"
+        ]
+        self.thresholds = [
+            h_t,
+            hv_t,
+            sh_t,
+            s_t,
+            sm_t,
+            v_t,
+            vg_t,
+        ]
+
+    def moderate(self, text, response_message):
+        category_scores = response_message["results"][0]["category_scores"]
+        flagged = response_message["results"][0]["flagged"]
+
+        for category, threshold in zip(self.keys, self.thresholds):
+            if category_scores[category] > threshold:
+                return (True, flagged)
+        return (False, flagged)
 
 
 class Moderation:
@@ -34,6 +70,24 @@ class Moderation:
         return embed
 
     @staticmethod
+    def build_admin_warning_message(moderated_message, deleted_message=None, timed_out=None):
+        embed = discord.Embed(
+            title="Potentially unwanted message in the "
+            + moderated_message.guild.name
+            + " server",
+            description=f"**Message from {moderated_message.author.mention}:** {moderated_message.content}",
+            colour=discord.Colour.yellow(),
+        )
+        link = f"https://discord.com/channels/{moderated_message.guild.id}/{moderated_message.channel.id}/{moderated_message.id}"
+        embed.add_field(name="Message link", value=link, inline=False)
+        if deleted_message:
+            embed.add_field(name="Message deleted by: ", value=deleted_message, inline=False)
+        if timed_out:
+            embed.add_field(name="User timed out by: ", value=timed_out, inline=False)
+        return embed
+
+
+    @staticmethod
     def build_admin_moderated_message(moderated_message, response_message):
 
         # Create a discord embed to send to the user when their message gets moderated
@@ -52,57 +106,20 @@ class Moderation:
 
     @staticmethod
     def determine_moderation_result(text, response):
-        HATE_THRESHOLD = 0.005
-        HATE_VIOLENCE_THRESHOLD = 0.05
-        SELF_HARM_THRESHOLD = 0.05
-        SEXUAL_THRESHOLD = 0.91
-        SEXUAL_MINORS_THRESHOLD = 0.1
-        VIOLENCE_THRESHOLD = 0.08
-        VIOLENCE_GRAPHIC_THRESHOLD = 0.1
+        warn_set = ThresholdSet(0.005,0.05,0.05,0.91,0.1,0.08,0.1)
+        delete_set = ThresholdSet(0.1,0.1,0.1,0.95,0.2,0.6,0.4)
 
-        extreme_hatred_qualifiers = [
-            "i fucking hate",
-            "fucking hate",
-            "i fucking despise",
-        ]
+        warn_result, flagged_warn = warn_set.moderate(text, response)
+        delete_result, flagged_delete = delete_set.moderate(text, response)
 
-        thresholds = [
-            HATE_THRESHOLD,
-            HATE_VIOLENCE_THRESHOLD,
-            SELF_HARM_THRESHOLD,
-            SEXUAL_THRESHOLD,
-            SEXUAL_MINORS_THRESHOLD,
-            VIOLENCE_THRESHOLD,
-            VIOLENCE_GRAPHIC_THRESHOLD,
-        ]
-        threshold_iterator = [
-            "hate",
-            "hate/threatening",
-            "self-harm",
-            "sexual",
-            "sexual/minors",
-            "violence",
-            "violence/graphic",
-        ]
+        if delete_result:
+            return ModerationResult.DELETE
+        elif warn_result:
+            return ModerationResult.WARN
+        else:
+            return ModerationResult.NONE
 
-        category_scores = response["results"][0]["category_scores"]
 
-        flagged = response["results"][0]["flagged"]
-
-        # Iterate the category scores using the threshold_iterator and compare the values to thresholds
-        for category, threshold in zip(threshold_iterator, thresholds):
-            if category == "hate":
-                if (
-                    "hate" in text.lower()
-                ):  # The word "hate" makes the model oversensitive. This is a (bad) workaround.
-                    threshold = 0.1
-                if any(word in text.lower() for word in extreme_hatred_qualifiers):
-                    threshold = 0.6
-
-            if category_scores[category] > threshold:
-                return True
-
-        return False
 
     # This function will be called by the bot to process the message queue
     @staticmethod
@@ -128,7 +145,7 @@ class Moderation:
                         to_moderate.message.content, response
                     )
 
-                    if moderation_result:
+                    if moderation_result == ModerationResult.DELETE:
                         # Take care of the flagged message
                         response_message = await to_moderate.message.reply(
                             embed=Moderation.build_moderation_embed()
@@ -143,6 +160,11 @@ class Moderation:
                                     to_moderate, response_message
                                 )
                             )
+                    elif moderation_result == ModerationResult.WARN:
+                        response_message = await moderations_alert_channel.send(
+                            embed=Moderation.build_admin_warning_message(to_moderate.message),
+                        )
+                        await response_message.edit(view=ModerationAdminView(to_moderate.message, response_message))
 
                 else:
                     await moderation_queue.put(to_moderate)
@@ -152,3 +174,63 @@ class Moderation:
             except:
                 traceback.print_exc()
                 pass
+
+
+class ModerationAdminView(discord.ui.View):
+    def __init__(self, message, moderation_message, nodelete=False):
+        super().__init__(timeout=None)  # 1 hour interval to redo.
+        self.message = message
+        self.moderation_message = moderation_message,
+        if not nodelete:
+            self.add_item(DeleteMessageButton(self.message, self.moderation_message))
+        self.add_item(TimeoutUserButton(self.message, self.moderation_message, 1, nodelete))
+        self.add_item(TimeoutUserButton(self.message, self.moderation_message, 6, nodelete))
+        self.add_item(TimeoutUserButton(self.message, self.moderation_message, 12, nodelete))
+        self.add_item(TimeoutUserButton(self.message, self.moderation_message, 24, nodelete))
+
+
+class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
+    def __init__(self, message, moderation_message):
+        super().__init__(style=discord.ButtonStyle.danger, label="Delete Message")
+        self.message = message
+        self.moderation_message = moderation_message
+
+    async def callback(self, interaction: discord.Interaction):
+
+        # Get the user
+        await self.message.delete()
+        await interaction.response.send_message(
+            "This message was deleted", ephemeral=True, delete_after=10
+        )
+        await self.moderation_message[0].edit(embed=Moderation.build_admin_warning_message(self.message, deleted_message=interaction.user.mention),
+                                              view=ModerationAdminView(self.message, self.moderation_message, nodelete=True))
+
+
+class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
+    def __init__(self, message, moderation_message, hours, nodelete):
+        super().__init__(style=discord.ButtonStyle.danger, label=f"Timeout {hours}h")
+        self.message = message
+        self.moderation_message = moderation_message
+        self.hours = hours
+        self.nodelete = nodelete
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get the user id
+        try:
+            await self.message.delete()
+        except:
+            pass
+
+        try:
+            await self.message.author.timeout(until = discord.utils.utcnow() + timedelta(hours=self.hours), reason="Breaking the server chat rules")
+        except Exception as e:
+            traceback.print_exc()
+            pass
+
+        await interaction.response.send_message(
+            f"This user was timed out for {self.hours} hour(s)", ephemeral=True, delete_after=10
+        )
+        moderation_message = self.moderation_message[0][0] if self.nodelete else self.moderation_message[0]
+        await moderation_message.edit(embed=Moderation.build_admin_warning_message(self.message, deleted_message=interaction.user.mention, timed_out=interaction.user.mention),
+                                      view=ModerationAdminView(self.message, self.moderation_message, nodelete=True))
+
