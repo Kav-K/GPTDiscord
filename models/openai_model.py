@@ -474,7 +474,9 @@ class Model:
                 else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
-            headers = {"Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"}
+            headers = {
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
+            }
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
@@ -499,7 +501,7 @@ class Model:
             }
             headers = {"Authorization": f"Bearer {api_key}"}
             async with session.post(
-                    "https://api.openai.com/v1/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
                 try:
@@ -550,9 +552,9 @@ class Model:
 
                     async with session.post(
                         "https://api.openai.com/v1/images/variations",
-                            headers={
-                                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-                            },
+                        headers={
+                            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                        },
                         data=data,
                     ) as resp:
                         response = await resp.json()

@@ -56,7 +56,10 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         try:
             file, image_urls = await self.model.send_image_request(
-                ctx, prompt, vary=vary if not draw_from_optimizer else None, custom_api_key=custom_api_key
+                ctx,
+                prompt,
+                vary=vary if not draw_from_optimizer else None,
+                custom_api_key=custom_api_key,
             )
         except ValueError as e:
             (
@@ -96,7 +99,14 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             )
 
             await result_message.edit(
-                view=SaveView(ctx, image_urls, self, self.converser_cog, result_message, custom_api_key=custom_api_key)
+                view=SaveView(
+                    ctx,
+                    image_urls,
+                    self,
+                    self.converser_cog,
+                    result_message,
+                    custom_api_key=custom_api_key,
+                )
             )
 
             self.converser_cog.users_to_interactions[user_id] = []
@@ -115,7 +125,14 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     file=file,
                 )
                 await message.edit(
-                    view=SaveView(ctx, image_urls, self, self.converser_cog, message, custom_api_key=custom_api_key)
+                    view=SaveView(
+                        ctx,
+                        image_urls,
+                        self,
+                        self.converser_cog,
+                        message,
+                        custom_api_key=custom_api_key,
+                    )
                 )
             else:  # Varying case
                 if not draw_from_optimizer:
@@ -144,7 +161,12 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            ctx, image_urls, self, self.converser_cog, result_message, custom_api_key=custom_api_key
+                            ctx,
+                            image_urls,
+                            self,
+                            self.converser_cog,
+                            result_message,
+                            custom_api_key=custom_api_key,
                         )
                     )
 
@@ -179,7 +201,11 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             return
 
         try:
-            asyncio.ensure_future(self.encapsulated_send(user.id, prompt, ctx, custom_api_key=user_api_key))
+            asyncio.ensure_future(
+                self.encapsulated_send(
+                    user.id, prompt, ctx, custom_api_key=user_api_key
+                )
+            )
 
         except Exception as e:
             print(e)
@@ -258,11 +284,21 @@ class SaveView(discord.ui.View):
             self.add_item(SaveButton(x, image_urls[x - 1]))
         if not only_save:
             if not no_retry:
-                self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog, custom_api_key=self.custom_api_key))
+                self.add_item(
+                    RedoButton(
+                        self.cog,
+                        converser_cog=self.converser_cog,
+                        custom_api_key=self.custom_api_key,
+                    )
+                )
             for x in range(1, len(image_urls) + 1):
                 self.add_item(
                     VaryButton(
-                        x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog, custom_api_key=self.custom_api_key
+                        x,
+                        image_urls[x - 1],
+                        self.cog,
+                        converser_cog=self.converser_cog,
+                        custom_api_key=self.custom_api_key,
                     )
                 )
 
@@ -404,5 +440,11 @@ class RedoButton(discord.ui.Button["SaveView"]):
             self.converser_cog.users_to_interactions[user_id].append(message.id)
 
             asyncio.ensure_future(
-                self.cog.encapsulated_send(user_id, prompt, ctx, response_message, custom_api_key=self.custom_api_key)
+                self.cog.encapsulated_send(
+                    user_id,
+                    prompt,
+                    ctx,
+                    response_message,
+                    custom_api_key=self.custom_api_key,
+                )
             )

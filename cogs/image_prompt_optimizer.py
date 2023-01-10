@@ -15,6 +15,7 @@ USER_KEY_DB = None
 if USER_INPUT_API_KEYS:
     USER_KEY_DB = SqliteDict("user_key_db.sqlite")
 
+
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
@@ -123,7 +124,10 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             self.converser_cog.redo_users[user.id].add_interaction(response_message.id)
             await response_message.edit(
                 view=OptimizeView(
-                    self.converser_cog, self.image_service_cog, self.deletion_queue, custom_api_key=user_api_key,
+                    self.converser_cog,
+                    self.image_service_cog,
+                    self.deletion_queue,
+                    custom_api_key=user_api_key,
                 )
             )
 
@@ -142,18 +146,36 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
 
 class OptimizeView(discord.ui.View):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None):
+    def __init__(
+        self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None
+    ):
         super().__init__(timeout=None)
         self.cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
         self.custom_api_key = custom_api_key
-        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
-        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
+        self.add_item(
+            RedoButton(
+                self.cog,
+                self.image_service_cog,
+                self.deletion_queue,
+                custom_api_key=self.custom_api_key,
+            )
+        )
+        self.add_item(
+            DrawButton(
+                self.cog,
+                self.image_service_cog,
+                self.deletion_queue,
+                custom_api_key=self.custom_api_key,
+            )
+        )
 
 
 class DrawButton(discord.ui.Button["OptimizeView"]):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key):
+    def __init__(
+        self, converser_cog, image_service_cog, deletion_queue, custom_api_key
+    ):
         super().__init__(style=discord.ButtonStyle.green, label="Draw")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
@@ -206,7 +228,9 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
 
 
 class RedoButton(discord.ui.Button["OptimizeView"]):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None):
+    def __init__(
+        self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None
+    ):
         super().__init__(style=discord.ButtonStyle.danger, label="Retry")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
