@@ -299,6 +299,7 @@ class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
             ),
         )
 
+
 class KickUserButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
         super().__init__(style=discord.ButtonStyle.danger, label="Kick User")
@@ -320,9 +321,20 @@ class KickUserButton(discord.ui.Button["ModerationAdminView"]):
 
         while isinstance(self.moderation_message, tuple):
             self.moderation_message = self.moderation_message[0]
-        await self.moderation_message.edit(embed=Moderation.build_admin_moderated_message(self.message, self.moderation_message, user_kicked=interaction.user.mention)
-                                              , view=ModerationAdminView(self.message, self.moderation_message, nodelete=True, deleted_message=False, source_deleted=True))
-
+        await self.moderation_message.edit(
+            embed=Moderation.build_admin_moderated_message(
+                self.message,
+                self.moderation_message,
+                user_kicked=interaction.user.mention,
+            ),
+            view=ModerationAdminView(
+                self.message,
+                self.moderation_message,
+                nodelete=True,
+                deleted_message=False,
+                source_deleted=True,
+            ),
+        )
 
 
 class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
