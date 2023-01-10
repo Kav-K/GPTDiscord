@@ -64,7 +64,7 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 Settings for the bot
 """
 activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help /g, and more!"
+    type=discord.ActivityType.watching, name="for /help /gpt, and more!"
 )
 bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
