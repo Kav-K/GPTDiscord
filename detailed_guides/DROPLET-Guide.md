@@ -65,5 +65,3 @@
 
 <hr/>
 <div>
-<a href="https://app.tango.us/app/workflow/c1516302-2b29-472d-b9d6-82e1e6a58d4e?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank"><em>This Workflow was created with Tango.</em></a>
-</div>
