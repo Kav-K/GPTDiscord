@@ -41,7 +41,11 @@ class Settings_autocompleter:
             "summarize_threshold": [str(num) for num in range(800, 3500, 50)],
         }
         if ctx.options["parameter"] in values.keys():
-            return [value for value in values[ctx.options["parameter"]] if value.startswith(ctx.value.lower())]
+            return [
+                value
+                for value in values[ctx.options["parameter"]]
+                if value.startswith(ctx.value.lower())
+            ]
         else:
             await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
             return []

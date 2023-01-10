@@ -40,7 +40,12 @@ if PINECONE_TOKEN:
     PINECONE_INDEX = "conversation-embeddings"
     if PINECONE_INDEX not in pinecone.list_indexes():
         print("Creating pinecone index. Please wait...")
-        pinecone.create_index('conversation-embeddings', dimension=1536, metric='dotproduct', pod_type='s1')
+        pinecone.create_index(
+            "conversation-embeddings",
+            dimension=1536,
+            metric="dotproduct",
+            pod_type="s1",
+        )
 
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
     print("Got the pinecone service")
