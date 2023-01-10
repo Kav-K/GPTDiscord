@@ -1,6 +1,6 @@
 <h1><a href="https://app.tango.us/app/workflow/c1516302-2b29-472d-b9d6-82e1e6a58d4e?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank">How to create your own Droplet with DigitalOcean to run GPT3Discord</a></h1>
 <div><b>Date:</b> January 8, 2023</div>
-<div><b>Author:</b> Rene Schelasin</div>
+<div><b>Author:</b> CrypticHeaven-Lab</div>
 <div><b>Source:</b> <a href="https://app.tango.us/app/workflow/c1516302-2b29-472d-b9d6-82e1e6a58d4e?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank">Tango</a></div>
 <hr/>
 
