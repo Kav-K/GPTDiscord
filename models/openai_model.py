@@ -456,10 +456,6 @@ class Model:
         print(
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
         )
-        if custom_api_key:
-            print("USING A CUSTOM API KEY FOR THIS!!!")
-            print(custom_api_key)
-            print("END API KEY")
 
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -562,10 +558,6 @@ class Model:
                         response = await resp.json()
 
         print(response)
-        if custom_api_key:
-            print("USING A CUSTOM API KEY FOR THIS!!!")
-            print(custom_api_key)
-            print("END API KEY")
 
         image_urls = []
         for result in response["data"]:

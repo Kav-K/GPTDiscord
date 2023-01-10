@@ -746,7 +746,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         from_g_command=False,
         custom_api_key=None,
     ):
-        print("The custom API key was given as: " + str(custom_api_key))
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
         from_context = isinstance(ctx, discord.ApplicationContext)
