@@ -169,6 +169,15 @@ After the user's key is validated, they will be able to use GPT3 and DALLE comma
 
 The Moderations service still uses the main API key defined in the `.env` file. Pinecone and discord-tokens are also per-host tokens, not per-user.
 
+# Step-by-Step Guides for GPT3Discord
+
+[**GPT3Discord Guides**](https://github.com/Kav-K/GPT3Discord/tree/main/detailed_guides)
+
+If you follow the link above, you will now get to detailed step-by-step guides that will help you to install and set up your GPT3Discord bot quickly and easily. If you still run into problems or have suggestions for improving the guides, you can join the [**Discord-Server**](https://discord.gg/openai) and **@FluffyFox** will help you in our [**Discord-Thread**](https://discord.com/channels/974519864045756446/1050326404841082930).
+
+*The number and content of the guides is constantly adapted to current requirements.*
+
+
 # Configuration
 
 All the model parameters are configurable inside discord. Type `/system settings` to view all the configurable parameters, and use `/system settings <param> <value>` to set parameters. 
