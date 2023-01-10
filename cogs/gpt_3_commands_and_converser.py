@@ -6,6 +6,7 @@ import traceback
 import sys
 from pathlib import Path
 
+
 import aiofiles
 import discord
 from pycord.multicog import add_to_group
@@ -14,10 +15,12 @@ from models.deletion_service_model import Deletion
 from models.env_service_model import EnvService
 from models.message_model import Message
 from models.moderations_service_model import Moderation
+from models.openai_model import Model
 from models.user_model import RedoUser, Thread, EmbeddedConversationItem
 from models.check_model import Check
 from models.autocomplete_model import Settings_autocompleter, File_autocompleter
 from collections import defaultdict
+from sqlitedict import SqliteDict
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
@@ -25,6 +28,14 @@ if sys.platform == "win32":
     separator = "\\"
 else:
     separator = "/"
+
+USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
+USER_KEY_DB = None
+if USER_INPUT_API_KEYS:
+    print("This server was configured to enforce user input API keys. Doing the required database setup now")
+    USER_KEY_DB = SqliteDict("user_key_db.sqlite")
+    print("Retrieved/created the user key database")
+
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -130,6 +141,18 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         checks=[Check.check_admin_roles()],
     )
 
+    @staticmethod
+    async def get_user_api_key(user_id, ctx):
+        user_api_key = None if user_id not in USER_KEY_DB else USER_KEY_DB[user_id]
+        if user_api_key is None or user_api_key == "":
+            modal = SetupModal(title="API Key Setup")
+            if isinstance(ctx, discord.ApplicationContext):
+                await ctx.send_modal(modal)
+                await ctx.send_followup("You must set up your API key before using this command.")
+            else:
+                await ctx.reply("You must set up your API key before typing in a GPT3 powered channel, type `/setup` to enter your API key.")
+        return user_api_key
+
     async def load_file(self, file, ctx):
         try:
             async with aiofiles.open(file, "r") as f:
@@ -175,6 +198,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
+        if USER_INPUT_API_KEYS:
+            print("This bot was set to use user input API keys. Doing the required SQLite setup now")
+
         await self.bot.sync_commands(
             commands=None,
             method="individual",
@@ -616,6 +642,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # GPT3 command
         if conversing:
             # Extract all the text after the !g and use it as the prompt.
+            user_api_key = None
+            if USER_INPUT_API_KEYS:
+                user_api_key = await GPT3ComCon.get_user_api_key(message.author.id, message)
+                if not user_api_key:
+                    return
+
             prompt = content
 
             await self.check_conversation_limit(message)
@@ -690,6 +722,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 message.channel.id,
                 primary_prompt,
                 message,
+                custom_api_key=user_api_key,
             )
 
     def cleanse_response(self, response_text):
@@ -711,6 +744,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         frequency_penalty_override=None,
         presence_penalty_override=None,
         from_g_command=False,
+        custom_api_key=None,
     ):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
@@ -721,7 +755,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         try:
 
             # This is the EMBEDDINGS CASE
-            if self.pinecone_service and not from_g_command:
+            if self.pinecone_service and ctx.channel.id in self.conversation_threads:
                 # The conversation_id is the id of the thread
                 conversation_id = ctx.channel.id
 
@@ -756,11 +790,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
                 embedding = await self.pinecone_service.upsert_conversation_embedding(
-                    self.model, conversation_id, new_prompt, timestamp
+                    self.model, conversation_id, new_prompt, timestamp, custom_api_key=custom_api_key,
                 )
 
                 embedding_prompt_less_author = await self.model.send_embedding_request(
-                    prompt_less_author
+                    prompt_less_author, custom_api_key=custom_api_key
                 )  # Use the version of
                 # the prompt without the author's name for better clarity on retrieval.
 
@@ -866,6 +900,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=top_p_override,
                 frequency_penalty_override=frequency_penalty_override,
                 presence_penalty_override=presence_penalty_override,
+                custom_api_key=custom_api_key,
             )
 
             # Clean the request response
@@ -918,7 +953,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
                 embedding = await self.pinecone_service.upsert_conversation_embedding(
-                    self.model, conversation_id, response_text, timestamp
+                    self.model, conversation_id, response_text, timestamp, custom_api_key=custom_api_key
                 )
 
             # Cleanse
@@ -932,12 +967,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     response_message = (
                         await ctx.respond(
                             response_text,
-                            view=ConversationView(ctx, self, ctx.channel.id),
+                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key=custom_api_key),
                         )
                         if from_context
                         else await ctx.reply(
                             response_text,
-                            view=ConversationView(ctx, self, ctx.channel.id),
+                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key=custom_api_key),
                         )
                     )
 
@@ -1053,10 +1088,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         frequency_penalty: float,
         presence_penalty: float,
     ):
-        await ctx.defer()
-
         user = ctx.user
         prompt = prompt.strip()
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(user.id, ctx)
+            if not user_api_key:
+                return
+
+        await ctx.defer()
 
         # CONVERSE Checks here TODO
         # Send the request to the model
@@ -1071,6 +1112,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             frequency_penalty_override=frequency_penalty,
             presence_penalty_override=presence_penalty,
             from_g_command=True,
+            custom_api_key=user_api_key,
         )
 
     @add_to_group("gpt")
@@ -1111,12 +1153,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         private,
         minimal,
     ):
+        user = ctx.user
+
+        # If we are in user input api keys mode, check if the user has entered their api key before letting them continue
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(user.id, ctx)
+            if not user_api_key:
+                return
+
         if private:
             await ctx.defer(ephemeral=True)
         elif not private:
             await ctx.defer()
-
-        user = ctx.user
 
         if user.id in self.conversation_thread_owners:
             message = await ctx.respond(
@@ -1202,6 +1251,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if thread.id not in self.conversation_threads or self.pinecone_service
                 else "".join(self.conversation_threads[thread.id].history),
                 thread_message,
+                custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)
             if thread.id in self.awaiting_thread_responses:
@@ -1317,6 +1367,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.defer()
         await self.send_help_text(ctx)
 
+    @discord.slash_command(
+        name="setup", description="Setup your API key for use with GPT3Discord", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    async def setup(self, ctx: discord.ApplicationContext):
+        if not USER_INPUT_API_KEYS:
+            await ctx.respond("This server doesn't support user input API keys.", ephemeral=True, delete_after=30)
+
+        modal = SetupModal(title="API Key Setup")
+        await ctx.send_modal(modal)
+
     @add_to_group("system")
     @discord.slash_command(
         name="usage",
@@ -1372,11 +1433,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
 
 class ConversationView(discord.ui.View):
-    def __init__(self, ctx, converser_cog, id):
+    def __init__(self, ctx, converser_cog, id, custom_api_key=None):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
         self.ctx = ctx
-        self.add_item(RedoButton(self.converser_cog))
+        self.custom_api_key= custom_api_key
+        self.add_item(RedoButton(self.converser_cog, custom_api_key=self.custom_api_key))
 
         if id in self.converser_cog.conversation_threads:
             self.add_item(EndConvoButton(self.converser_cog))
@@ -1427,9 +1489,10 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
 
 class RedoButton(discord.ui.Button["ConversationView"]):
-    def __init__(self, converser_cog):
+    def __init__(self, converser_cog, custom_api_key):
         super().__init__(style=discord.ButtonStyle.danger, label="Retry")
         self.converser_cog = converser_cog
+        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
 
@@ -1448,7 +1511,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             )
 
             await self.converser_cog.encapsulated_send(
-                id=user_id, prompt=prompt, ctx=ctx, response_message=response_message
+                id=user_id, prompt=prompt, ctx=ctx, response_message=response_message, custom_api_key=self.custom_api_key
             )
         else:
             await interaction.response.send_message(
@@ -1456,3 +1519,38 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 ephemeral=True,
                 delete_after=10,
             )
+
+class SetupModal(discord.ui.Modal):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.add_item(discord.ui.InputText(label="OpenAI API Key", placeholder="sk--......", ))
+
+    async def callback(self, interaction: discord.Interaction):
+        user = interaction.user
+        api_key = self.children[0].value
+        # Validate that api_key is indeed in this format
+        if not re.match(r"sk-[a-zA-Z0-9]{32}", api_key):
+            await interaction.response.send_message("Your API key looks invalid, please check that it is correct before proceeding. Please run the /setup command to set your key.", ephemeral=True, delete_after=100)
+        else:
+            # We can save the key for the user to the database.
+
+            # Make a test request using the api key to ensure that it is valid.
+            try:
+                await Model.send_test_request(api_key)
+                await interaction.response.send_message("Your API key was successfully validated.", ephemeral=True, delete_after=10)
+            except Exception as e:
+                await interaction.response.send_message(f"Your API key looks invalid, the API returned: {e}. Please check that your API key is correct before proceeding", ephemeral=True, delete_after=30)
+                return
+
+            # Save the key to the database
+            try:
+                USER_KEY_DB[user.id] = api_key
+                USER_KEY_DB.commit()
+                await interaction.followup.send("Your API key was successfully saved.", ephemeral=True, delete_after=10)
+            except Exception as e:
+                traceback.print_exc()
+                await interaction.followup.send("There was an error saving your API key.", ephemeral=True, delete_after=30)
+                return
+
+            pass

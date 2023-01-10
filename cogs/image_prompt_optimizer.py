@@ -2,13 +2,18 @@ import re
 import traceback
 
 import discord
+from sqlitedict import SqliteDict
 
+from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
 from pycord.multicog import add_to_group
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
-
+USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
+USER_KEY_DB = None
+if USER_INPUT_API_KEYS:
+    USER_KEY_DB = SqliteDict("user_key_db.sqlite")
 
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
@@ -57,6 +62,12 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     )
     @discord.guild_only()
     async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(ctx.user.id, ctx)
+            if not user_api_key:
+                return
+
         await ctx.defer()
 
         user = ctx.user
@@ -80,6 +91,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 presence_penalty_override=0.5,
                 best_of_override=2,
                 max_tokens_override=80,
+                custom_api_key=user_api_key,
             )
 
             # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
@@ -111,7 +123,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             self.converser_cog.redo_users[user.id].add_interaction(response_message.id)
             await response_message.edit(
                 view=OptimizeView(
-                    self.converser_cog, self.image_service_cog, self.deletion_queue
+                    self.converser_cog, self.image_service_cog, self.deletion_queue, custom_api_key=user_api_key,
                 )
             )
 
@@ -130,21 +142,23 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
 
 class OptimizeView(discord.ui.View):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None):
         super().__init__(timeout=None)
         self.cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
-        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue))
-        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue))
+        self.custom_api_key = custom_api_key
+        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
+        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
 
 
 class DrawButton(discord.ui.Button["OptimizeView"]):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key):
         super().__init__(style=discord.ButtonStyle.green, label="Draw")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
+        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
 
@@ -187,15 +201,17 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
             msg,
             True,
             True,
+            custom_api_key=self.custom_api_key,
         )
 
 
 class RedoButton(discord.ui.Button["OptimizeView"]):
-    def __init__(self, converser_cog, image_service_cog, deletion_queue):
+    def __init__(self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None):
         super().__init__(style=discord.ButtonStyle.danger, label="Retry")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
+        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
         interaction_id = interaction.message.id
@@ -219,6 +235,7 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
                 prompt=prompt,
                 ctx=ctx,
                 response_message=response_message,
+                custom_api_key=self.custom_api_key,
             )
         else:
             await interaction.response.send_message(

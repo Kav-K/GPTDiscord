@@ -10,12 +10,20 @@ from pycord.multicog import add_to_group
 
 
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
+from sqlitedict import SqliteDict
+
+from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from models.env_service_model import EnvService
 from models.user_model import RedoUser
 
 redo_users = {}
 users_to_interactions = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+
+USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
+USER_KEY_DB = None
+if USER_INPUT_API_KEYS:
+    USER_KEY_DB = SqliteDict("user_key_db.sqlite")
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
@@ -40,6 +48,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         response_message=None,
         vary=None,
         draw_from_optimizer=None,
+        custom_api_key=None,
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
@@ -47,7 +56,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         try:
             file, image_urls = await self.model.send_image_request(
-                ctx, prompt, vary=vary if not draw_from_optimizer else None
+                ctx, prompt, vary=vary if not draw_from_optimizer else None, custom_api_key=custom_api_key
             )
         except ValueError as e:
             (
@@ -87,7 +96,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             )
 
             await result_message.edit(
-                view=SaveView(ctx, image_urls, self, self.converser_cog, result_message)
+                view=SaveView(ctx, image_urls, self, self.converser_cog, result_message, custom_api_key=custom_api_key)
             )
 
             self.converser_cog.users_to_interactions[user_id] = []
@@ -106,7 +115,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     file=file,
                 )
                 await message.edit(
-                    view=SaveView(ctx, image_urls, self, self.converser_cog, message)
+                    view=SaveView(ctx, image_urls, self, self.converser_cog, message, custom_api_key=custom_api_key)
                 )
             else:  # Varying case
                 if not draw_from_optimizer:
@@ -123,6 +132,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                             self.converser_cog,
                             result_message,
                             True,
+                            custom_api_key=custom_api_key,
                         )
                     )
 
@@ -134,7 +144,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     )
                     await result_message.edit(
                         view=SaveView(
-                            ctx, image_urls, self, self.converser_cog, result_message
+                            ctx, image_urls, self, self.converser_cog, result_message, custom_api_key=custom_api_key
                         )
                     )
 
@@ -155,6 +165,12 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(ctx.user.id, ctx)
+            if not user_api_key:
+                return
+
         await ctx.defer()
 
         user = ctx.user
@@ -163,7 +179,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             return
 
         try:
-            asyncio.ensure_future(self.encapsulated_send(user.id, prompt, ctx))
+            asyncio.ensure_future(self.encapsulated_send(user.id, prompt, ctx, custom_api_key=user_api_key))
 
         except Exception as e:
             print(e)
@@ -226,6 +242,7 @@ class SaveView(discord.ui.View):
         message,
         no_retry=False,
         only_save=None,
+        custom_api_key=None,
     ):
         super().__init__(
             timeout=3600 if not only_save else None
@@ -236,15 +253,16 @@ class SaveView(discord.ui.View):
         self.no_retry = no_retry
         self.converser_cog = converser_cog
         self.message = message
+        self.custom_api_key = custom_api_key
         for x in range(1, len(image_urls) + 1):
             self.add_item(SaveButton(x, image_urls[x - 1]))
         if not only_save:
             if not no_retry:
-                self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog))
+                self.add_item(RedoButton(self.cog, converser_cog=self.converser_cog, custom_api_key=self.custom_api_key))
             for x in range(1, len(image_urls) + 1):
                 self.add_item(
                     VaryButton(
-                        x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog
+                        x, image_urls[x - 1], self.cog, converser_cog=self.converser_cog, custom_api_key=self.custom_api_key
                     )
                 )
 
@@ -270,12 +288,13 @@ class SaveView(discord.ui.View):
 
 
 class VaryButton(discord.ui.Button):
-    def __init__(self, number, image_url, cog, converser_cog):
+    def __init__(self, number, image_url, cog, converser_cog, custom_api_key):
         super().__init__(style=discord.ButtonStyle.blurple, label="Vary " + str(number))
         self.number = number
         self.image_url = image_url
         self.cog = cog
         self.converser_cog = converser_cog
+        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -318,6 +337,7 @@ class VaryButton(discord.ui.Button):
                     interaction.message,
                     response_message=response_message,
                     vary=self.image_url,
+                    custom_api_key=self.custom_api_key,
                 )
             )
 
@@ -354,10 +374,11 @@ class SaveButton(discord.ui.Button["SaveView"]):
 
 
 class RedoButton(discord.ui.Button["SaveView"]):
-    def __init__(self, cog, converser_cog):
+    def __init__(self, cog, converser_cog, custom_api_key):
         super().__init__(style=discord.ButtonStyle.danger, label="Retry")
         self.cog = cog
         self.converser_cog = converser_cog
+        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -383,5 +404,5 @@ class RedoButton(discord.ui.Button["SaveView"]):
             self.converser_cog.users_to_interactions[user_id].append(message.id)
 
             asyncio.ensure_future(
-                self.cog.encapsulated_send(user_id, prompt, ctx, response_message)
+                self.cog.encapsulated_send(user_id, prompt, ctx, response_message, custom_api_key=self.custom_api_key)
             )

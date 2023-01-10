@@ -24,7 +24,7 @@ from models.openai_model import Model
 from models.usage_service_model import UsageService
 from models.env_service_model import EnvService
 
-__version__ = "4.2.6"
+__version__ = "5.0"
 
 """
 The pinecone service is used to store and retrieve conversation embeddings.
@@ -64,7 +64,7 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 Settings for the bot
 """
 activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help /g, and more!"
+    type=discord.ActivityType.watching, name="for /help /gpt, and more!"
 )
 bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))

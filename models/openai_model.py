@@ -351,7 +351,7 @@ class Model:
                 + str(response["error"]["message"])
             )
 
-    async def send_embedding_request(self, text):
+    async def send_embedding_request(self, text, custom_api_key=None):
         async with aiohttp.ClientSession() as session:
             payload = {
                 "model": Models.EMBEDDINGS,
@@ -359,7 +359,7 @@ class Model:
             }
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}",
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
             async with session.post(
                 "https://api.openai.com/v1/embeddings", json=payload, headers=headers
@@ -388,7 +388,7 @@ class Model:
             ) as response:
                 return await response.json()
 
-    async def send_summary_request(self, prompt):
+    async def send_summary_request(self, prompt, custom_api_key=None):
         """
         Sends a summary request to the OpenAI API
         """
@@ -416,7 +416,7 @@ class Model:
             }
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}",
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
@@ -439,6 +439,7 @@ class Model:
         frequency_penalty_override=None,
         presence_penalty_override=None,
         max_tokens_override=None,
+        custom_api_key=None,
     ) -> (
         dict,
         bool,
@@ -473,7 +474,7 @@ class Model:
                 else frequency_penalty_override,
                 "best_of": self.best_of if not best_of_override else best_of_override,
             }
-            headers = {"Authorization": f"Bearer {self.openai_key}"}
+            headers = {"Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"}
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
@@ -485,8 +486,31 @@ class Model:
 
                 return response
 
+    @staticmethod
+    async def send_test_request(api_key):
+
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": Models.CURIE,
+                "prompt": "test.",
+                "temperature": 1,
+                "top_p": 1,
+                "max_tokens": 10,
+            }
+            headers = {"Authorization": f"Bearer {api_key}"}
+            async with session.post(
+                    "https://api.openai.com/v1/completions", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+                try:
+                    int(response["usage"]["total_tokens"])
+                except:
+                    raise ValueError(str(response["error"]["message"]))
+
+                return response
+
     async def send_image_request(
-        self, ctx, prompt, vary=None
+        self, ctx, prompt, vary=None, custom_api_key=None
     ) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
@@ -505,7 +529,7 @@ class Model:
             payload = {"prompt": prompt, "n": self.num_images, "size": self.image_size}
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}",
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -526,9 +550,9 @@ class Model:
 
                     async with session.post(
                         "https://api.openai.com/v1/images/variations",
-                        headers={
-                            "Authorization": "Bearer " + self.openai_key,
-                        },
+                            headers={
+                                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                            },
                         data=data,
                     ) as resp:
                         response = await resp.json()

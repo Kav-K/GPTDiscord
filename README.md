@@ -4,7 +4,7 @@
 
 [![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.com/project/gpt3discord)
 [![Latest release](https://badgen.net/github/release/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/releases)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Kav-K/GPT3Discord/graphs/commit-activity)
 [![GitHub license](https://img.shields.io/github/license/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/blob/master/LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
@@ -23,6 +23,9 @@
 A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
 
 # Recent Notable Updates
+- **Allow each individual user to enter their own API Key!** - Each request that a user makes will be made using their own API key! Check out the User-Input API Key section in this README for more details.
+
+
 - **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
 
 
@@ -34,8 +37,6 @@ A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
 
 - **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
-
-- Custom conversation openers from https://github.com/f/awesome-chatgpt-prompts were integrated into the bot, check out `/gpt converse opener_file`! The bot now has built in support to make GPT3 behave like various personalities, such as a life coach, python interpreter, interviewer, text based adventure game, and much more!
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
@@ -147,6 +148,26 @@ Moreover, an important thing to keep in mind is: pinecone indexes are currently 
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
+# User-Input API Keys (Multi-key tenancy)
+This bot supports multi-user tenancy in regards to API keys. This means that, if you wanted, you could make it such that each user needs to enter their own API key in order to use commands that use GPT3 and DALLE.
+
+To enable this, add the following line to the end of your `.env` file:
+```env
+USER_INPUT_API_KEYS="True"
+```
+
+Then, restart the bot, and it will set up the system for everyone to input their own API keys. 
+
+The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot.
+
+With this feature enabled, any attempt to use a GPT3 or DALL-E command without a valid API key set for the user will pop up the following modal for them to enter their API key:
+<img src="https://i.imgur.com/ZDScoWk.png"/>
+
+Once the user enters their key, the bot will send a small test request to OpenAI to validate that the key indeed works, if not, it will tell the user to try again and tell them why it did not work.
+
+After the user's key is validated, they will be able to use GPT3 and DALLE commands.
+
+The Moderations service still uses the main API key defined in the `.env` file. Pinecone and discord-tokens are also per-host tokens, not per-user.
 
 # Step-by-Step Guides for GPT3Discord
 

@@ -15,7 +15,7 @@ class PineconeService:
         return response
 
     async def upsert_conversation_embedding(
-        self, model, conversation_id: int, text, timestamp
+        self, model, conversation_id: int, text, timestamp, custom_api_key=None
     ):
         # If the text is > 512 characters, we need to split it up into multiple entries.
         first_embedding = None
@@ -26,7 +26,7 @@ class PineconeService:
                 print("The split chunk is ", chunk)
 
                 # Create an embedding for the split chunk
-                embedding = await model.send_embedding_request(chunk)
+                embedding = await model.send_embedding_request(chunk, custom_api_key=custom_api_key)
                 if not first_embedding:
                     first_embedding = embedding
                 self.index.upsert(
@@ -38,7 +38,7 @@ class PineconeService:
                 )
             return first_embedding
         else:
-            embedding = await model.send_embedding_request(text)
+            embedding = await model.send_embedding_request(text, custom_api_key=custom_api_key)
             self.index.upsert(
                 [
                     (
