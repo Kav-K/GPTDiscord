@@ -197,7 +197,6 @@ class ModerationAdminView(discord.ui.View):
         super().__init__(timeout=None)  # 1 hour interval to redo.
         component_number = 0
         self.message = message
-<<<<<<< HEAD
         self.moderation_message = moderation_message,
         self.add_item(TimeoutUserButton(self.message, self.moderation_message, component_number, 1, nodelete, source_deleted))
         component_number += 1
@@ -212,23 +211,7 @@ class ModerationAdminView(discord.ui.View):
             component_number += 1
         if deleted_message:
             self.add_item(KickUserButton(self.message, self.moderation_message, component_number))
-=======
-        self.moderation_message = (moderation_message,)
-        if not nodelete:
-            self.add_item(DeleteMessageButton(self.message, self.moderation_message))
-        self.add_item(
-            TimeoutUserButton(self.message, self.moderation_message, 1, nodelete)
-        )
-        self.add_item(
-            TimeoutUserButton(self.message, self.moderation_message, 6, nodelete)
-        )
-        self.add_item(
-            TimeoutUserButton(self.message, self.moderation_message, 12, nodelete)
-        )
-        self.add_item(
-            TimeoutUserButton(self.message, self.moderation_message, 24, nodelete)
-        )
->>>>>>> db5e13a9cd12aa76f2e09dc7282c1cd6deb5a2b7
+
 
 
 class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
@@ -245,21 +228,11 @@ class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
         await interaction.response.send_message(
             "This message was deleted", ephemeral=True, delete_after=10
         )
-<<<<<<< HEAD
         while isinstance(self.moderation_message, tuple):
             self.moderation_message = self.moderation_message[0]
         await self.moderation_message.edit(embed=Moderation.build_admin_warning_message(self.message, deleted_message=interaction.user.mention),
                                               view=ModerationAdminView(self.message, self.moderation_message, nodelete=True))
-=======
-        await self.moderation_message[0].edit(
-            embed=Moderation.build_admin_warning_message(
-                self.message, deleted_message=interaction.user.mention
-            ),
-            view=ModerationAdminView(
-                self.message, self.moderation_message, nodelete=True
-            ),
-        )
->>>>>>> db5e13a9cd12aa76f2e09dc7282c1cd6deb5a2b7
+
 
 
 class KickUserButton(discord.ui.Button["ModerationAdminView"]):
@@ -317,22 +290,7 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
             ephemeral=True,
             delete_after=10,
         )
-        moderation_message = (
-            self.moderation_message[0][0]
-            if self.nodelete
-            else self.moderation_message[0]
-        )
-        await moderation_message.edit(
-            embed=Moderation.build_admin_warning_message(
-                self.message,
-                deleted_message=interaction.user.mention,
-                timed_out=interaction.user.mention,
-            ),
-            view=ModerationAdminView(
-                self.message, self.moderation_message, nodelete=True
-            ),
-        )
-<<<<<<< HEAD
+
         while isinstance(self.moderation_message, tuple):
             self.moderation_message = self.moderation_message[0]
 
@@ -343,5 +301,4 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
             await self.moderation_message.edit(embed=Moderation.build_admin_moderated_message(self.message, self.moderation_message, timed_out=interaction.user.mention),
                                       view=ModerationAdminView(self.message, self.moderation_message, nodelete=True, deleted_message=True, source_deleted=True))
 
-=======
->>>>>>> db5e13a9cd12aa76f2e09dc7282c1cd6deb5a2b7
+
