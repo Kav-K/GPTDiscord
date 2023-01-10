@@ -729,11 +729,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 new_prompt = prompt.encode("ascii", "ignore").decode()
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
-                user_displayname = (
-                    ctx.user.name
-                    if isinstance(ctx, discord.ApplicationContext)
-                    else ctx.author.display_name
-                )
+                user_displayname = ctx.author.display_name
 
                 new_prompt = (
                     f"\n'{user_displayname}': {new_prompt} <|endofstatement|>\n"
@@ -1195,7 +1191,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 if not self.pinecone_service:
                     self.conversation_threads[thread.id].history.append(
-                        f"\n'{ctx.user.name}': {opener} <|endofstatement|>\n"
+                        f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n"
                     )
 
                 self.conversation_threads[thread.id].count += 1

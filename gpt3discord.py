@@ -37,7 +37,11 @@ except:
 pinecone_service = None
 if PINECONE_TOKEN:
     pinecone.init(api_key=PINECONE_TOKEN, environment="us-west1-gcp")
-    PINECONE_INDEX = "conversation-embeddings"  # This will become unfixed later.
+    PINECONE_INDEX = "conversation-embeddings"
+    if PINECONE_INDEX not in pinecone.list_indexes():
+        print("Creating pinecone index. Please wait...")
+        pinecone.create_index('conversation-embeddings', dimension=1536, metric='dotproduct', pod_type='s1')
+
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
     print("Got the pinecone service")
 
