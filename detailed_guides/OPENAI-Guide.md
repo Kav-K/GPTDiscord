@@ -1,7 +1,6 @@
 <h1><a href="https://app.tango.us/app/workflow/d06b2900-1f94-4b89-a3f1-e22ef8428363?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank">How to get a API-Key from OpenAI</a></h1>
 <div><b>Date:</b> January 8, 2023</div>
 <div><b>Author:</b> CrypticHeaven-Lab</div>
-<div><b>Source:</b> <a href="https://app.tango.us/app/workflow/d06b2900-1f94-4b89-a3f1-e22ef8428363?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank">Tango</a></div>
 <hr/>
 
 
@@ -39,5 +38,3 @@
 
 <hr/>
 <div>
-<a href="https://app.tango.us/app/workflow/d06b2900-1f94-4b89-a3f1-e22ef8428363?utm_source=magicCopy&utm_medium=magicCopy&utm_campaign=workflow%20export%20links" target="_blank"><em>This Workflow was created with Tango.</em></a>
-</div>
