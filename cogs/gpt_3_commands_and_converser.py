@@ -967,12 +967,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     response_message = (
                         await ctx.respond(
                             response_text,
-                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key),
+                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key=custom_api_key),
                         )
                         if from_context
                         else await ctx.reply(
                             response_text,
-                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key),
+                            view=ConversationView(ctx, self, ctx.channel.id, custom_api_key=custom_api_key),
                         )
                     )
 
@@ -1438,7 +1438,7 @@ class ConversationView(discord.ui.View):
         self.converser_cog = converser_cog
         self.ctx = ctx
         self.custom_api_key= custom_api_key
-        self.add_item(RedoButton(self.converser_cog, self.custom_api_key))
+        self.add_item(RedoButton(self.converser_cog, custom_api_key=self.custom_api_key))
 
         if id in self.converser_cog.conversation_threads:
             self.add_item(EndConvoButton(self.converser_cog))

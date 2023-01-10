@@ -148,8 +148,8 @@ class OptimizeView(discord.ui.View):
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
         self.custom_api_key = custom_api_key
-        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue, self.custom_api_key))
-        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue, self.custom_api_key))
+        self.add_item(RedoButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
+        self.add_item(DrawButton(self.cog, self.image_service_cog, self.deletion_queue, custom_api_key=self.custom_api_key))
 
 
 class DrawButton(discord.ui.Button["OptimizeView"]):
