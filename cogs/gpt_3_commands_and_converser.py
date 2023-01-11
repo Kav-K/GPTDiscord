@@ -589,12 +589,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ctx = self.redo_users[after.author.id].ctx
                 await response_message.edit(content="Redoing prompt 🔄...")
 
-                edited_content = after.content
+                edited_content = await self.replace_mention(after, after.content)
                 # If the user is conversing, we need to get their conversation history, delete the last
                 # "<username>:" message, create a new <username>: section with the new prompt, and then set the prompt to
                 # the new prompt, then send that new prompt as the new prompt.
                 if after.channel.id in self.conversation_threads:
-                    edited_content = await self.replace_mention(after, edited_content)
                     # Remove the last two elements from the history array and add the new <username>: prompt
                     self.conversation_threads[
                         after.channel.id
