@@ -650,7 +650,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     self.conversation_threads[after.channel.id].count += 1
 
-
                 await self.encapsulated_send(
                     id=after.channel.id,
                     prompt=edited_content,
