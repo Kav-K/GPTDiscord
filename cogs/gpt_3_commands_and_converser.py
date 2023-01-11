@@ -794,11 +794,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         else:
             for mention in discord.utils.raw_mentions(message):
                 try:
-                    user = await discord.utils.get_or_fetch(ctx.guild, 'member', mention)
+                    user = await discord.utils.get_or_fetch(
+                        ctx.guild, "member", mention
+                    )
                     message = message.replace(f"<@{str(mention)}>", user.display_name)
                 except:
                     pass
-            return message           
+            return message
 
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
