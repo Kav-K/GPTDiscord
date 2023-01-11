@@ -20,7 +20,7 @@
 
 </p>
 
-A big shoutout to `CrypticHeaven-Lab` for hitting our first sponsorship goal!
+SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the bot here, it is for setup support ONLY)
 
 # Recent Notable Updates
 - **Allow each individual user to enter their own API Key!** - Each request that a user makes will be made using their own API key! Check out the User-Input API Key section in this README for more details.
@@ -173,7 +173,7 @@ The Moderations service still uses the main API key defined in the `.env` file. 
 
 [**GPT3Discord Guides**](https://github.com/Kav-K/GPT3Discord/tree/main/detailed_guides)
 
-If you follow the link above, you will now get to detailed step-by-step guides that will help you to install and set up your GPT3Discord bot quickly and easily. If you still run into problems or have suggestions for improving the guides, you can join the [**Discord-Server**](https://discord.gg/openai) and **@FluffyFox** will help you in our [**Discord-Thread**](https://discord.com/channels/974519864045756446/1050326404841082930).
+If you follow the link above, you will now get to detailed step-by-step guides that will help you to install and set up your GPT3Discord bot quickly and easily. If you still run into problems or have suggestions for improving the guides, you can join the [**Discord-Server**](https://discord.gg/WvAHXDMS7Q) and we try will help you. Keep in mind that the maintainers are volunteers and will try to help you on their schedule.
 
 *The number and content of the guides is constantly adapted to current requirements.*
 
