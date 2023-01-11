@@ -934,10 +934,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 response_text = response_text.strip()
                 response_text = f"***{prompt}***\n\n{response_text}"
 
-            # If GPT3 tries to ping somebody, don't let it happen
+            # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await self.replace_mention(ctx, response_text)
-            # escape any other metnions
-            response_text = discord.utils.escape_mentions(response_text)
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
@@ -981,8 +979,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     custom_api_key=custom_api_key,
                 )
 
-            # Cleanse
+            # Cleanse again
             response_text = self.cleanse_response(response_text)
+
+            # escape any other mentions like @here or @everyone
+            response_text = discord.utils.escape_mentions(response_text)
 
             # If we don't have a response message, we are not doing a redo, send as a new message(s)
             if not response_message:

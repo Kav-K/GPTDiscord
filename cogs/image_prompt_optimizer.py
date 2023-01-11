@@ -74,6 +74,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         user = ctx.user
 
         final_prompt = self.OPTIMIZER_PRETEXT
+        # replace mentions with nicknames for the prompt
         final_prompt += await self.converser_cog.replace_mention(ctx, prompt)
 
         # If the prompt doesn't end in a period, terminate it.
@@ -100,7 +101,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             # also relatively cost-effective
 
             response_text = response["choices"][0]["text"]
-
+            # escape any mentions
             response_text = discord.utils.escape_mentions(response_text)
 
             response_message = await ctx.respond(
