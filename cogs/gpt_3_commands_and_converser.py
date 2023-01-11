@@ -745,8 +745,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if discord.utils.raw_mentions(message):
             for mention in discord.utils.raw_mentions(message):
                 user = await discord.utils.get_or_fetch(ctx.guild, 'member', mention, default="User")
-                display_name = user.display_name
-                message = message.replace(f"<@{str(mention)}>", display_name)
+                message = message.replace(f"<@{str(mention)}>", user.display_name)
             return message
         else:
             return message
