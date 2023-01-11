@@ -650,9 +650,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     self.conversation_threads[after.channel.id].count += 1
 
-                print("-------------------------- Conversation POINT 1")
-                print(self.conversation_threads[ctx.channel.id].history)
-                print("---------------------------- END Conersation POINT 1")
 
                 await self.encapsulated_send(
                     id=after.channel.id,
@@ -888,9 +885,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         new_prompt_item
                     )
 
-                print("-------------------------- Conversation POINT 2")
-                print(self.conversation_threads[ctx.channel.id].history)
-                print("---------------------------- END Conersation POINT 2")
                 if edited_request:
                     new_prompt = "".join(
                         [
@@ -933,10 +927,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         EmbeddedConversationItem(prompt, timestamp)
                         for prompt, timestamp in similar_prompts
                     ]
-
-                    print("-------------------------- Conversation POINT 3")
-                    print(self.conversation_threads[ctx.channel.id].history)
-                    print("---------------------------- END Conersation POINT 3")
 
                     # iterate UP TO the last X prompts in the history
                     for i in range(
@@ -1022,10 +1012,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     await ctx.reply("The conversation context limit has been reached.")
                     await self.end_conversation(ctx)
                     return
-
-            print("-------------------------- BEFORE MODEL REQUEST")
-            print(self.conversation_threads[ctx.channel.id].history)
-            print("---------------------------- BEFORE MODEL REQUEST")
 
             # Send the request to the model
             response = await self.model.send_request(
