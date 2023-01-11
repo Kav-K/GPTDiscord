@@ -72,6 +72,65 @@ jobs:
           host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: openers
+          remote: /home/gptbot/openers
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: gpt3discord.py
+          target: /home/gptbotopenai/
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: conversation_starter_pretext.txt
+          target: /home/gptbotopenai/
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+          port: 22
+          source: image_optimizer_pretext.txt
+          target: /home/gptbotopenai/
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: cogs
+          remote: /home/gptbotopenai/cogs
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: models
+          remote: /home/gptbotopenai/models
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: openers
+          remote: /home/gptbotopenai/openers
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
       - name: Restart bot!
         uses: fifsky/ssh-action@master
         with:
@@ -80,6 +139,10 @@ jobs:
             kill -9 $(cat bot.pid)
             rm bot.pid
             screen -dmS GPTBot python3.9 gpt3discord.py
+            cd /home/gptbotopenai
+            kill -9 $(cat bot.pid)
+            rm bot.pid
+            screen -dmS GPTBotOpenAI python3.9 gpt3discord.py
             logout
             exit
           host: 104.248.105.234
