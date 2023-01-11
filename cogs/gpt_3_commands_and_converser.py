@@ -101,7 +101,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_threads = {}
         self.summarize = self.model.summarize_conversations
 
-
         # Moderation service data
         self.moderation_queues = {}
         self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
@@ -290,10 +289,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     # TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
     def check_conversing(self, user_id, channel_id, message_content, multi=None):
-        cond1 = (
-            channel_id
-            in self.conversation_threads
-        )
+        cond1 = channel_id in self.conversation_threads
         # If the trimmed message starts with a Tilde, then we want to not contribute this to the conversation
         try:
             cond2 = not message_content.strip().startswith("~")

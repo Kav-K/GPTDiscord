@@ -121,7 +121,6 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 .replace("Output:", "")
             )
 
-
             self.converser_cog.users_to_interactions[user.id] = []
             self.converser_cog.users_to_interactions[user.id].append(
                 response_message.id
