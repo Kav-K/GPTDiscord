@@ -5,6 +5,7 @@ __pycache__
 #user files
 .env
 .vscode
+*.sqlite
 bot.pid
 usage.txt
 /dalleimages
