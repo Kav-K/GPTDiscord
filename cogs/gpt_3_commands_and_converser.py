@@ -1286,15 +1286,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         opener_file = await self.load_file(opener_file, ctx)
                         try: # Try opening as json, if it fails it'll do it as a str
                             opener_file = json.loads(opener_file)
-                            temperature=None if not opener_file["temperature"] else opener_file["temperature"]
-                            top_p=None if not opener_file["top_p"] else opener_file["top_p"]
-                            frequency_penalty=None if not opener_file["frequency_penalty"] else opener_file["frequency_penalty"]
-                            presence_penalty=None if not opener_file["presence_penalty"] else opener_file["presence_penalty"]
+                            temperature=opener_file.get("temperature", None)
+                            top_p=opener_file.get("top_p", None)
+                            frequency_penalty=opener_file.get("frequency_penalty", None)
+                            presence_penalty=opener_file.get("presence_penalty", None)
                             self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty) # set overrides
                             if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
-                                opener = opener_file["text"]
+                                opener = opener_file.get('text', "error getting text")
                             else:
-                                opener = opener_file["text"] + opener
+                                opener = opener_file.get('text', "error getting text") + opener
                         except: # Parse as just regular text
                             if not opener: 
                                 opener = opener_file
@@ -1328,7 +1328,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # send opening
         if opener:
-            thread_message = await thread.send("***Opening prompt*** \n" + opener)
+            thread_message = await thread.send("***Opening prompt*** \n" + str(opener))
             if thread.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 self.awaiting_thread_responses.append(thread.id)

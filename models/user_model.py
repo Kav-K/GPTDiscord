@@ -71,7 +71,7 @@ class Thread:
     def get_overrides(self):
         return {
             "temperature": self.temperature,
-            "top_p": self.temperature,
+            "top_p": self.top_p,
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
         }
