@@ -1149,10 +1149,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         user = ctx.user
         prompt = prompt.strip()
 
-        # If the prompt isn't empty and the last character isn't a punctuation character, add a period.
-        if prompt and prompt[-1] not in [".", "!", "?"]:
-            prompt += "."
-
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await GPT3ComCon.get_user_api_key(user.id, ctx)
