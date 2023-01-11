@@ -37,8 +37,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         self.message_queue = message_queue
         self.deletion_queue = deletion_queue
         self.converser_cog = converser_cog
-
-        print("Draw service init")
+        print("Draw service initialized")
 
     async def encapsulated_send(
         self,
