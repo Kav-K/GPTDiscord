@@ -594,6 +594,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 # "<username>:" message, create a new <username>: section with the new prompt, and then set the prompt to
                 # the new prompt, then send that new prompt as the new prompt.
                 if after.channel.id in self.conversation_threads:
+                    edited_content = await self.replace_mention(after, edited_content)
                     # Remove the last two elements from the history array and add the new <username>: prompt
                     self.conversation_threads[
                         after.channel.id
@@ -657,7 +658,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if not user_api_key:
                     return
 
-            prompt = content
+            prompt = await self.replace_mention(message, content)
 
             await self.check_conversation_limit(message)
 
@@ -740,6 +741,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("GPTie: ", "")
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
+
+    async def replace_mention(self, ctx, message):
+        if discord.utils.raw_mentions(message):
+            for mention in discord.utils.raw_mentions(message):
+                user = await discord.utils.get_or_fetch(ctx.guild, 'member', mention, default="User")
+                display_name = user.display_name
+                message = message.replace(f"<@{str(mention)}>", display_name)
+            return message
+        else:
+            return message
 
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
@@ -926,11 +937,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 response_text = f"***{prompt}***\n\n{response_text}"
 
             # If GPT3 tries to ping somebody, don't let it happen
-            if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", str(response_text)):
-                message = "I'm sorry, I can't mention users, roles, or channels."
-                await ctx.send_followup(message) if from_context else await ctx.reply(
-                    message
-                )
+            response_text = await self.replace_mention(ctx, response_text)
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
@@ -1111,7 +1118,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         presence_penalty: float,
     ):
         user = ctx.user
-        prompt = prompt.strip()
+        prompt = await self.replace_mention(ctx, prompt.strip())
 
         # If the prompt isn't empty and the last character isn't a punctuation character, add a period.
         if prompt and prompt[-1] not in [".", "!", "?"]:
@@ -1199,6 +1206,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 delete_after=5,
             )
             return
+
+        if opener:
+            opener = await self.replace_mention(ctx, opener)
 
         if not opener and not opener_file:
             user_id_normalized = user.id
