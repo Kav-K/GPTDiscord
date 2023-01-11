@@ -38,6 +38,17 @@ if USER_INPUT_API_KEYS:
     USER_KEY_DB = SqliteDict("user_key_db.sqlite")
     print("Retrieved/created the user key database")
 
+MOD_DB = None
+GENERAL_DB = None
+try:
+    print("Attempting to retrieve the General and Moderations DB")
+    MOD_DB = SqliteDict("main_db.sqlite", tablename="moderations", autocommit=True)
+    GENERAL_DB = SqliteDict("main_db.sqlite", tablename="general", autocommit=True)
+    print("Retrieved the General and Moderations DB")
+except Exception as e:
+    print("Failed to retrieve the General and Moderations DB. The bot is terminating.")
+    raise e
+
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def __init__(
@@ -80,6 +91,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
         self.moderation_enabled_guilds = []
         self.moderation_tasks = {}
+        self.moderations_launched = []
         self.pinecone_service = pinecone_service
 
         try:
@@ -203,10 +215,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
-        if USER_INPUT_API_KEYS:
-            print(
-                "This bot was set to use user input API keys. Doing the required SQLite setup now"
-            )
+
+        # Check moderation service for each guild
+        for guild in self.bot.guilds:
+            print("Checking moderation service for guild "+guild.name)
+            await self.check_and_launch_moderations(guild.id)
 
         await self.bot.sync_commands(
             commands=None,
@@ -615,6 +628,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 self.redo_users[after.author.id].prompt = after.content
 
+
+    async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
+        # Create the moderations service.
+        print("Checking and attempting to launch moderations service...")
+        if self.check_guild_moderated(guild_id):
+            self.moderation_queues[guild_id] = asyncio.Queue()
+
+            moderations_channel = await self.bot.fetch_channel(
+                self.get_moderated_alert_channel(guild_id) if not alert_channel_override else alert_channel_override
+            )
+
+            self.moderation_tasks[guild_id] = asyncio.ensure_future(
+                Moderation.process_moderation_queue(
+                    self.moderation_queues[guild_id], 1, 1, moderations_channel
+                )
+            )
+            print("Launched the moderations service")
+            self.moderations_launched.append(guild_id)
+            return moderations_channel
+
+        return None
     @discord.Cog.listener()
     async def on_message(self, message):
         # Get the message from context
@@ -1331,29 +1365,26 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         if status == "on":
-            # Create the moderations service.
-            self.moderation_queues[ctx.guild_id] = asyncio.Queue()
-            if self.moderation_alerts_channel or alert_channel_id:
-                moderations_channel = await self.bot.fetch_channel(
-                    self.moderation_alerts_channel
-                    if not alert_channel_id
-                    else alert_channel_id
-                )
-            else:
-                moderations_channel = self.moderation_alerts_channel  # None
+            # Check if the current guild is already in the database and if so, if the moderations is on
+            if self.check_guild_moderated(ctx.guild_id):
+                await ctx.respond("Moderations is already enabled for this guild")
+                return
 
-            self.moderation_tasks[ctx.guild_id] = asyncio.ensure_future(
-                Moderation.process_moderation_queue(
-                    self.moderation_queues[ctx.guild_id], 1, 1, moderations_channel
-                )
-            )
+            # Create the moderations service.
+            self.set_guild_moderated(ctx.guild_id)
+            moderations_channel = await self.check_and_launch_moderations(ctx.guild_id,self.moderation_alerts_channel if not alert_channel_id else alert_channel_id)
+            self.set_moderated_alert_channel(ctx.guild_id, moderations_channel.id)
+
+
             await ctx.respond("Moderations service enabled")
 
         elif status == "off":
             # Cancel the moderations service.
+            self.set_guild_moderated(ctx.guild_id, False)
             self.moderation_tasks[ctx.guild_id].cancel()
             self.moderation_tasks[ctx.guild_id] = None
             self.moderation_queues[ctx.guild_id] = None
+            self.moderations_launched.remove(ctx.guild_id)
             await ctx.respond("Moderations service disabled")
 
     @add_to_group("gpt")
@@ -1463,6 +1494,22 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Otherwise, process the settings change
         await self.process_settings_command(ctx, parameter, value)
 
+    def check_guild_moderated(self, guild_id):
+        return guild_id in MOD_DB and MOD_DB[guild_id]["moderated"]
+    def get_moderated_alert_channel(self, guild_id):
+        return MOD_DB[guild_id]["alert_channel"]
+
+    def set_moderated_alert_channel(self, guild_id, channel_id):
+        MOD_DB[guild_id] = {"moderated": True, "alert_channel": channel_id}
+        MOD_DB.commit()
+
+    def set_guild_moderated(self, guild_id, status=True):
+        if guild_id not in MOD_DB:
+            MOD_DB[guild_id] = {"moderated": status, "alert_channel": 0}
+            MOD_DB.commit()
+            return
+        MOD_DB[guild_id] = {"moderated": status, "alert_channel": self.get_moderated_alert_channel(guild_id)}
+        MOD_DB.commit()
 
 class ConversationView(discord.ui.View):
     def __init__(self, ctx, converser_cog, id, custom_api_key=None):
