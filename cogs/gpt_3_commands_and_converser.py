@@ -1275,7 +1275,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 pass
             else: 
                 if not opener_file.endswith((".txt", ".json")):
-                    opener_file = None
+                    opener_file = None # Just start a regular thread if the file fails to load
                 else:
                     # Load the file and read it into opener
                     try:
@@ -1284,13 +1284,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                             f"openers{separator}{opener_file}"
                         )
                         opener_file = await self.load_file(opener_file, ctx)
-                        try: # Try opening as json, if it fails it'll do it as a str
+                        try: # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
                             opener_file = json.loads(opener_file)
                             temperature=opener_file.get("temperature", None)
                             top_p=opener_file.get("top_p", None)
                             frequency_penalty=opener_file.get("frequency_penalty", None)
                             presence_penalty=opener_file.get("presence_penalty", None)
-                            self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty) # set overrides
+                            self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty)
                             if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
                                 opener = opener_file.get('text', "error getting text")
                             else:
@@ -1301,7 +1301,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                             else:
                                 opener = opener_file + opener   
                     except:
-                        opener_file = None
+                        opener_file = None # Just start a regular thread if the file fails to load
                 
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
@@ -1314,7 +1314,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.CONVERSATION_STARTER_TEXT
             )
 
-        # Set user as owner before sending anything that can error and leave the thread unowned
+        # Set user as thread owner before sending anything that can error and leave the thread unowned
         self.conversation_thread_owners[user_id_normalized] = thread.id
         overrides = self.conversation_threads[thread.id].get_overrides()
 
