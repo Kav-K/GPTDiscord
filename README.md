@@ -80,6 +80,8 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 - Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
 
+- Can use files in the `{"text": your prompt, "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
+
 `/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
 - Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)

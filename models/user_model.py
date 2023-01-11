@@ -57,6 +57,24 @@ class Thread:
         self.id = id
         self.history = []
         self.count = 0
+        self.temperature = None
+        self.top_p = None
+        self.frequency_penalty = None
+        self.presence_penalty = None
+
+    def set_overrides(self, temperature=None,top_p=None,frequency_penalty=None,presence_penalty=None):
+        self.temperature = temperature
+        self.top_p = top_p
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
+
+    def get_overrides(self):
+        return {
+            "temperature": self.temperature,
+            "top_p": self.temperature,
+            "frequency_penalty": self.frequency_penalty,
+            "presence_penalty": self.presence_penalty,
+        }
 
     # These user objects should be accessible by ID, for example if we had a bunch of user
     # objects in a list, and we did `if 1203910293001 in user_list`, it would return True

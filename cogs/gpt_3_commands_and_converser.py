@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 import aiofiles
+import json
 import discord
 from pycord.multicog import add_to_group
 
@@ -636,11 +637,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
                     self.conversation_threads[after.channel.id].count += 1
 
+                overrides = self.conversation_threads[after.channel.id].get_overrides()
+
                 await self.encapsulated_send(
                     id=after.channel.id,
                     prompt=edited_content,
                     ctx=ctx,
                     response_message=response_message,
+                    temp_override=overrides["temperature"],
+                    top_p_override=overrides["top_p"],
+                    frequency_penalty_override=overrides["frequency_penalty"],
+                    presence_penalty_override=overrides["presence_penalty"],
                 )
 
                 self.redo_users[after.author.id].prompt = after.content
@@ -774,10 +781,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     self.conversation_threads[message.channel.id].history
                 )
 
+            #set conversation overrides
+            overrides = self.conversation_threads[message.channel.id].get_overrides()
+            
             await self.encapsulated_send(
                 message.channel.id,
                 primary_prompt,
                 message,
+                temp_override=overrides["temperature"],
+                top_p_override=overrides["top_p"],
+                frequency_penalty_override=overrides["frequency_penalty"],
+                presence_penalty_override=overrides["presence_penalty"],
                 custom_api_key=user_api_key,
             )
 
@@ -1236,30 +1250,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
-        if not opener and not opener_file:
-            user_id_normalized = user.id
-        else:
-            user_id_normalized = ctx.author.id
-            if (
-                opener_file
-            ):  # only load in files if it's included in the command, if not pass on as normal
-                if opener_file.endswith(".txt"):
-                    # Load the file and read it into opener
-                    opener_file = EnvService.find_shared_file(
-                        f"openers{separator}{opener_file}"
-                    )
-                    opener_file = await self.load_file(opener_file, ctx)
-                    if (
-                        not opener
-                    ):  # if we only use opener_file then only pass on opener_file for the opening prompt
-                        opener = opener_file
-                    else:
-                        opener = opener_file + opener
-                    if not opener_file:
-                        return
-            else:
-                pass
-
         if private:
             await ctx.respond(user.name + "'s private conversation with GPT3")
             thread = await ctx.channel.create_thread(
@@ -1287,10 +1277,46 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.CONVERSATION_STARTER_TEXT
             )
 
+        if not opener and not opener_file:
+            user_id_normalized = user.id
+        else:
+            user_id_normalized = ctx.author.id
+            if not opener_file:
+                pass
+            else: 
+                if opener_file.endswith((".txt", ".json")):
+                    # Load the file and read it into opener
+                    opener_file = EnvService.find_shared_file(
+                        f"openers{separator}{opener_file}"
+                    )
+                    opener_file = await self.load_file(opener_file, ctx)
+                    try:
+                        opener_file = json.loads(opener_file) # Try opening as json, if it fails it'll do it as a str
+                        temperature=None if not opener_file["temperature"] else opener_file["temperature"]
+                        top_p=None if not opener_file["top_p"] else opener_file["top_p"]
+                        frequency_penalty=None if not opener_file["frequency_penalty"] else opener_file["frequency_penalty"]
+                        presence_penalty=None if not opener_file["presence_penalty"] else opener_file["presence_penalty"]
+                        self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty) # set overrides
+                        if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
+                            opener = opener_file["text"]
+                        else:
+                            opener = opener_file["text"] + opener
+                    except:
+                        if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
+                            opener = opener_file
+                        else:
+                            opener = opener_file + opener
+
+        # Set user as owner before sending anything that can error and leave the thread unowned
+        self.conversation_thread_owners[user_id_normalized] = thread.id
+        overrides = self.conversation_threads[thread.id].get_overrides()
+
         await thread.send(
-            "<@"
-            + str(user_id_normalized)
-            + "> You are now conversing with GPT3. *Say hi to start!*\n End the conversation by saying `end`.\n\n If you want GPT3 to ignore your messages, start your messages with `~`\n\nYour conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
+            f"<@{str(user_id_normalized)}> You are now conversing with GPT3. *Say hi to start!*\n"
+            f"Overrides for this thread is **temp={overrides['temperature']}**, **top_p={overrides['top_p']}**, **frequency penalty={overrides['frequency_penalty']}**, **presence penalty={overrides['presence_penalty']}**\n"
+            f"End the conversation by saying `end`.\n\n"
+            f"If you want GPT3 to ignore your messages, start your messages with `~`\n\n"
+            f"Your conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
         )
 
         # send opening
@@ -1313,13 +1339,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if thread.id not in self.conversation_threads or self.pinecone_service
                 else "".join(self.conversation_threads[thread.id].history),
                 thread_message,
+                temp_override=overrides["temperature"],
+                top_p_override=overrides["top_p"],
+                frequency_penalty_override=overrides["frequency_penalty"],
+                presence_penalty_override=overrides["presence_penalty"],
                 custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)
             if thread.id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(thread.id)
-
-        self.conversation_thread_owners[user_id_normalized] = thread.id
 
     @add_to_group("system")
     @discord.slash_command(
