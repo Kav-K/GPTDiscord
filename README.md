@@ -153,7 +153,7 @@ Permanent memory using pinecone is still in alpha, I will be working on cleaning
 This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
 ```json
 {
-  "text": your prompt, 
+  "text": "your prompt", 
   "temp":0, 
   "top_p":0,
   "frequency_penalty":0,
