@@ -29,6 +29,9 @@ if sys.platform == "win32":
 else:
     separator = "/"
 
+"""
+Get the user key service if it is enabled.
+"""
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = None
 if USER_INPUT_API_KEYS:
@@ -38,6 +41,11 @@ if USER_INPUT_API_KEYS:
     USER_KEY_DB = SqliteDict("user_key_db.sqlite")
     print("Retrieved/created the user key database")
 
+
+"""
+Obtain the Moderation table and the General table, these are two SQLite tables that contain
+information about the server that are used for persistence and to auto-restart the moderation service.
+"""
 MOD_DB = None
 GENERAL_DB = None
 try:
@@ -64,12 +72,23 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         pinecone_service,
     ):
         super().__init__()
+        self.GLOBAL_COOLDOWN_TIME = 0.25
+
+        # Environment
         self.data_path = data_path
         self.debug_channel = None
+
+        # Services and models
         self.bot = bot
-        self._last_member_ = None
-        self.conversation_threads = {}
-        self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
+        self.usage_service = usage_service
+        self.model = model
+        self.deletion_queue = deletion_queue
+
+        # Data specific to all text based GPT interactions
+        self.users_to_interactions = defaultdict(list)
+        self.redo_users = {}
+
+        # Conversations-specific data
         self.END_PROMPTS = [
             "end",
             "end conversation",
@@ -77,21 +96,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             "that's all",
             "that'll be all",
         ]
-        self.last_used = {}
-        self.GLOBAL_COOLDOWN_TIME = 0.25
-        self.usage_service = usage_service
-        self.model = model
-        self.summarize = self.model.summarize_conversations
-        self.deletion_queue = deletion_queue
-        self.users_to_interactions = defaultdict(list)
-        self.redo_users = {}
         self.awaiting_responses = []
         self.awaiting_thread_responses = []
+        self.conversation_threads = {}
+        self.summarize = self.model.summarize_conversations
+
+
+        # Moderation service data
         self.moderation_queues = {}
         self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
         self.moderation_enabled_guilds = []
         self.moderation_tasks = {}
         self.moderations_launched = []
+
+        # Pinecone data
         self.pinecone_service = pinecone_service
 
         try:
@@ -207,18 +225,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await member.send(content=None, embed=welcome_embed)
 
     @discord.Cog.listener()
-    async def on_member_remove(self, member):
-        pass
-
-    @discord.Cog.listener()
     async def on_ready(self):
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
+        print("The debug channel was acquired")
 
         # Check moderation service for each guild
         for guild in self.bot.guilds:
-            print("Checking moderation service for guild " + guild.name)
             await self.check_and_launch_moderations(guild.id)
 
         await self.bot.sync_commands(
@@ -230,7 +244,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             check_guilds=[],
             delete_existing=True,
         )
-        print(f"The debug channel was acquired and commands registered")
+        print(f"Commands synced")
 
     @add_to_group("system")
     @discord.slash_command(
@@ -268,7 +282,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             for thread in guild.threads:
                 thread_name = thread.name.lower()
                 if "with gpt" in thread_name or "closed-gpt" in thread_name:
-                    await thread.delete()
+                    try:
+                        await thread.delete()
+                    except:
+                        pass
         await ctx.respond("All conversation threads have been deleted.")
 
     # TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
@@ -276,8 +293,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         cond1 = (
             channel_id
             in self.conversation_threads
-            # and user_id in self.conversation_thread_owners
-            # and channel_id == self.conversation_thread_owners[user_id]
         )
         # If the trimmed message starts with a Tilde, then we want to not contribute this to the conversation
         try:
@@ -305,6 +320,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     "Only the conversation starter can end this.", delete_after=5
                 )
                 return
+
+        # TODO Possible bug here, if both users have a conversation active and one user tries to end the other, it may
+        # allow them to click the end button on the other person's thread and it will end their own convo.
         self.conversation_threads.pop(channel_id)
 
         if isinstance(ctx, discord.ApplicationContext):
@@ -393,6 +411,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         embed.add_field(
             name="/dalle optimize <image prompt>",
             value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/system moderations",
+            value="The automatic moderations service",
             inline=False,
         )
 
@@ -603,9 +626,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await response_message.edit(content="Redoing prompt 🔄...")
 
                 edited_content = after.content
-                # If the user is conversing, we need to get their conversation history, delete the last
-                # "<username>:" message, create a new <username>: section with the new prompt, and then set the prompt to
-                # the new prompt, then send that new prompt as the new prompt.
+
                 if after.channel.id in self.conversation_threads:
                     # Remove the last two elements from the history array and add the new <username>: prompt
                     self.conversation_threads[
@@ -645,7 +666,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     self.moderation_queues[guild_id], 1, 1, moderations_channel
                 )
             )
-            print("Launched the moderations service")
+            print("Launched the moderations service for guild " + str(guild_id))
             self.moderations_launched.append(guild_id)
             return moderations_channel
 
@@ -653,8 +674,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
-        # Get the message from context
-
         if message.author == self.bot.user:
             return
 
@@ -682,9 +701,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await self.end_conversation(message)
             return
 
-        # GPT3 command
         if conversing:
-            # Extract all the text after the !g and use it as the prompt.
             user_api_key = None
             if USER_INPUT_API_KEYS:
                 user_api_key = await GPT3ComCon.get_user_api_key(
@@ -697,9 +714,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             await self.check_conversation_limit(message)
 
-            # We want to have conversationality functionality. To have gpt3 remember context, we need to append the conversation/prompt
-            # history to the prompt. We can do this by checking if the user is in the conversating_users dictionary, and if they are,
-            # we can append their history to the prompt.
+            # If the user is in a conversation thread
             if message.channel.id in self.conversation_threads:
 
                 # Since this is async, we don't want to allow the user to send another prompt while a conversation
@@ -799,7 +814,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         try:
 
-            # This is the EMBEDDINGS CASE
+            # Pinecone is enabled, we will create embeddings for this conversation.
             if self.pinecone_service and ctx.channel.id in self.conversation_threads:
                 # The conversation_id is the id of the thread
                 conversation_id = ctx.channel.id
@@ -815,8 +830,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
                 new_prompt = new_prompt.encode("ascii", "ignore").decode()
 
-                # print("Creating embedding for ", prompt)
-                # Print the current timestamp
                 timestamp = int(
                     str(datetime.datetime.now().timestamp()).replace(".", "")
                 )
@@ -835,7 +848,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
-                embedding = await self.pinecone_service.upsert_conversation_embedding(
+                await self.pinecone_service.upsert_conversation_embedding(
                     self.model,
                     conversation_id,
                     new_prompt,
@@ -845,8 +858,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 embedding_prompt_less_author = await self.model.send_embedding_request(
                     prompt_less_author, custom_api_key=custom_api_key
-                )  # Use the version of
-                # the prompt without the author's name for better clarity on retrieval.
+                )  # Use the version of the prompt without the author's name for better clarity on retrieval.
 
                 # Now, build the new prompt by getting the X most similar with pinecone
                 similar_prompts = self.pinecone_service.get_n_similar(
@@ -901,7 +913,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 tokens = self.usage_service.count_tokens(new_prompt)
 
-            # Summarize case
+            # No pinecone, we do conversation summarization for long term memory instead
             elif (
                 id in self.conversation_threads
                 and tokens > self.model.summarize_threshold
@@ -1156,10 +1168,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 return
 
         await ctx.defer()
-
-        # CONVERSE Checks here TODO
-        # Send the request to the model
-        # If conversing, the prompt to send is the history, otherwise, it's just the prompt
 
         await self.encapsulated_send(
             user.id,

@@ -107,11 +107,20 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 )
                 return
 
+            # If the response_message is > 75 words, concatenate to the last 70th word
+            # TODO Temporary workaround until prompt is adjusted to make the optimized prompts shorter.
+            try:
+                if len(response_text.split()) > 75:
+                    response_text = " ".join(response_text.split()[-70:])
+            except:
+                pass
+
             response_message = await ctx.respond(
                 response_text.replace("Optimized Prompt:", "")
                 .replace("Output Prompt:", "")
                 .replace("Output:", "")
             )
+
 
             self.converser_cog.users_to_interactions[user.id] = []
             self.converser_cog.users_to_interactions[user.id].append(
