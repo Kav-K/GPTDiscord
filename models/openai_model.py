@@ -56,8 +56,8 @@ class Model:
         self._summarize_threshold = 2500
         self.model_max_tokens = 4024
         self._welcome_message_enabled = True
-        self._num_static_conversation_items = 6
-        self._num_conversation_lookback = 10
+        self._num_static_conversation_items = 8
+        self._num_conversation_lookback = 6
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
@@ -425,7 +425,7 @@ class Model:
 
                 await self.valid_text_request(response)
 
-                print(response["choices"][0]["text"])
+                #print(response["choices"][0]["text"])
 
                 return response
 
@@ -482,9 +482,9 @@ class Model:
             ) as resp:
                 response = await resp.json()
                 # print(f"Payload -> {payload}")
-                # print(f"Response -> {response}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(response)
+                print(f"Response -> {response}")
 
                 return response
 
@@ -559,7 +559,7 @@ class Model:
                     ) as resp:
                         response = await resp.json()
 
-        print(response)
+        #print(response)
 
         image_urls = []
         for result in response["data"]:

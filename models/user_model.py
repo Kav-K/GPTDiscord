@@ -105,3 +105,8 @@ class EmbeddedConversationItem:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    # Make it such that if there is an arry with these EmbeddedConversationItems, if we "".join the array, each item will
+    # return the .text attribute
+    def __format__(self, format_spec):
+        return self.text
