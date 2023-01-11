@@ -580,17 +580,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         summarized_text = response["choices"][0]["text"]
 
         new_conversation_history = []
-        new_conversation_history.append(EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT,0))
         new_conversation_history.append(
-            EmbeddedConversationItem("\nThis conversation has some context from earlier, which has been summarized as follows: ",0)
+            EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
         )
-        new_conversation_history.append(EmbeddedConversationItem(summarized_text,0))
         new_conversation_history.append(
-            EmbeddedConversationItem("\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n",0)
+            EmbeddedConversationItem(
+                "\nThis conversation has some context from earlier, which has been summarized as follows: ",
+                0,
+            )
+        )
+        new_conversation_history.append(EmbeddedConversationItem(summarized_text, 0))
+        new_conversation_history.append(
+            EmbeddedConversationItem(
+                "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n",
+                0,
+            )
         )
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
-            EmbeddedConversationItem(self.conversation_threads[message.channel.id].history[-1] + "\n",0)
+            EmbeddedConversationItem(
+                self.conversation_threads[message.channel.id].history[-1] + "\n", 0
+            )
         )
         self.conversation_threads[message.channel.id].history = new_conversation_history
 
@@ -632,7 +642,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     pinecone_dont_reinsert = None
                     if not self.pinecone_service:
                         self.conversation_threads[after.channel.id].history.append(
-                            EmbeddedConversationItem(f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n",0)
+                            EmbeddedConversationItem(
+                                f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n",
+                                0,
+                            )
                         )
 
                     self.conversation_threads[after.channel.id].count += 1
@@ -763,7 +776,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 if not self.pinecone_service:
                     self.conversation_threads[message.channel.id].history.append(
-                        EmbeddedConversationItem(f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",0)
+                        EmbeddedConversationItem(
+                            f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",
+                            0,
+                        )
                     )
 
                 # increment the conversation counter for the user
@@ -778,7 +794,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 primary_prompt = prompt
             else:
                 primary_prompt = "".join(
-                    [item.text for item in self.conversation_threads[message.channel.id].history]
+                    [
+                        item.text
+                        for item in self.conversation_threads[
+                            message.channel.id
+                        ].history
+                    ]
                 )
 
             await self.encapsulated_send(
@@ -871,7 +892,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 print(self.conversation_threads[ctx.channel.id].history)
                 print("---------------------------- END Conersation POINT 2")
                 if edited_request:
-                    new_prompt = "".join([item.text for item in self.conversation_threads[ctx.channel.id].history])
+                    new_prompt = "".join(
+                        [
+                            item.text
+                            for item in self.conversation_threads[
+                                ctx.channel.id
+                            ].history
+                        ]
+                    )
                     self.redo_users[ctx.author.id].prompt = new_prompt
                 else:
                     # Create and upsert the embedding for  the conversation id, prompt, timestamp
@@ -924,7 +952,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     # remove duplicates from prompt_with_history and set the conversation history
                     prompt_with_history = list(dict.fromkeys(prompt_with_history))
-                    self.conversation_threads[ctx.channel.id].history = prompt_with_history
+                    self.conversation_threads[
+                        ctx.channel.id
+                    ].history = prompt_with_history
 
                     # Sort the prompt_with_history by increasing timestamp if pinecone is enabled
                     if self.pinecone_service:
@@ -943,7 +973,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     new_prompt = prompt_with_history + "\nGPTie: "
-
 
                 tokens = self.usage_service.count_tokens(new_prompt)
 
@@ -967,7 +996,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     # Check again if the prompt is about to go past the token limit
                     new_prompt = (
-                        "".join([item.text for item in self.conversation_threads[id].history]) + "\nGPTie: "
+                        "".join(
+                            [
+                                item.text
+                                for item in self.conversation_threads[id].history
+                            ]
+                        )
+                        + "\nGPTie: "
                     )
 
                     tokens = self.usage_service.count_tokens(new_prompt)
@@ -1022,7 +1057,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ):
                 if not redo_request:
                     self.conversation_threads[id].history.append(
-                        EmbeddedConversationItem("\nGPTie: " + str(response_text) + "<|endofstatement|>\n",0)
+                        EmbeddedConversationItem(
+                            "\nGPTie: " + str(response_text) + "<|endofstatement|>\n", 0
+                        )
                     )
 
             # Embeddings case!
@@ -1111,8 +1148,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not from_g_command:
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
-
-
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -1327,11 +1362,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file:
             self.conversation_threads[thread.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL,0)
+                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
         elif not minimal:
             self.conversation_threads[thread.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT,0)
+                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
             )
 
         await thread.send(
@@ -1349,7 +1384,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 if not self.pinecone_service:
                     self.conversation_threads[thread.id].history.append(
-                        EmbeddedConversationItem(f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n",0)
+                        EmbeddedConversationItem(
+                            f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n",
+                            0,
+                        )
                     )
 
                 self.conversation_threads[thread.id].count += 1
@@ -1358,7 +1396,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 thread.id,
                 opener
                 if thread.id not in self.conversation_threads or self.pinecone_service
-                else "".join([item.text for item in self.conversation_threads[thread.id].history]),
+                else "".join(
+                    [item.text for item in self.conversation_threads[thread.id].history]
+                ),
                 thread_message,
                 custom_api_key=user_api_key,
             )

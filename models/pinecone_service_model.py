@@ -59,7 +59,7 @@ class PineconeService:
             include_metadata=True,
             filter={"conversation_id": conversation_id},
         )
-        #print(response)
+        # print(response)
         relevant_phrases = [
             (match["id"], match["metadata"]["timestamp"])
             for match in response["matches"]

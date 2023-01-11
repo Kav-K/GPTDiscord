@@ -425,7 +425,7 @@ class Model:
 
                 await self.valid_text_request(response)
 
-                #print(response["choices"][0]["text"])
+                # print(response["choices"][0]["text"])
 
                 return response
 
@@ -559,7 +559,7 @@ class Model:
                     ) as resp:
                         response = await resp.json()
 
-        #print(response)
+        # print(response)
 
         image_urls = []
         for result in response["data"]:
