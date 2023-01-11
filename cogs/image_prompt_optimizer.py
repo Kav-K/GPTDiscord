@@ -74,7 +74,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         user = ctx.user
 
         final_prompt = self.OPTIMIZER_PRETEXT
-        final_prompt += prompt
+        final_prompt += await self.converser_cog.replace_mention(ctx, prompt)
 
         # If the prompt doesn't end in a period, terminate it.
         if not final_prompt.endswith("."):
@@ -101,11 +101,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
             response_text = response["choices"][0]["text"]
 
-            if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
-                await ctx.respond(
-                    "I'm sorry, I can't mention users, roles, or channels."
-                )
-                return
+            response_text = discord.utils.escape_mentions(response_text)
 
             response_message = await ctx.respond(
                 response_text.replace("Optimized Prompt:", "")

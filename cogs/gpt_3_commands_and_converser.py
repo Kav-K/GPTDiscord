@@ -936,6 +936,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             # If GPT3 tries to ping somebody, don't let it happen
             response_text = await self.replace_mention(ctx, response_text)
+            # escape any other metnions
+            response_text = discord.utils.escape_mentions(response_text)
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
