@@ -790,10 +790,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     async def replace_mention(self, ctx, message):
         if discord.utils.raw_mentions(message):
-            for mention in discord.utils.raw_mentions(message):
-                user = await discord.utils.get_or_fetch(ctx.guild, 'member', mention, default="User")
-                message = message.replace(f"<@{str(mention)}>", user.display_name)
-            return message
+                for mention in discord.utils.raw_mentions(message):
+                    try:
+                        user = await discord.utils.get_or_fetch(ctx.guild, 'member', mention)
+                        username = user.display_name
+                    except:
+                        username = str(mention)
+                    message = message.replace(f"<@{str(mention)}>", username)
+                return message           
         else:
             return message
 
