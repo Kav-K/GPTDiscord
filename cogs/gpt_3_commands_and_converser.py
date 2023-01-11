@@ -777,6 +777,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 new_prompt = (
                     f"\n'{user_displayname}': {new_prompt} <|endofstatement|>\n"
                 )
+                new_prompt = new_prompt.encode("ascii", "ignore").decode()
 
                 # print("Creating embedding for ", prompt)
                 # Print the current timestamp
