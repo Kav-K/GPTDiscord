@@ -9,6 +9,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 
+SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the bot here, it is for setup support ONLY)
 
 # Screenshots
 
@@ -19,8 +20,6 @@
 <img src="https://i.imgur.com/HqFSFcc.png"/>
 
 </p>
-
-SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the bot here, it is for setup support ONLY)
 
 # Recent Notable Updates
 - **Allow each individual user to enter their own API Key!** - Each request that a user makes will be made using their own API key! Check out the User-Input API Key section in this README for more details.
