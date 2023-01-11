@@ -1267,6 +1267,43 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         self.conversation_threads[thread.id] = Thread(thread.id)
 
+        if not opener and not opener_file:
+            user_id_normalized = user.id
+        else:
+            user_id_normalized = ctx.author.id
+            if not opener_file:
+                pass
+            else: 
+                if not opener_file.endswith((".txt", ".json")):
+                    opener_file = None
+                else:
+                    # Load the file and read it into opener
+                    try:
+                        opener_file = re.sub(".+(?=[\\//])", "", opener_file) # remove paths from the opener file
+                        opener_file = EnvService.find_shared_file(
+                            f"openers{separator}{opener_file}"
+                        )
+                        opener_file = await self.load_file(opener_file, ctx)
+                        try: # Try opening as json, if it fails it'll do it as a str
+                            opener_file = json.loads(opener_file)
+                            temperature=None if not opener_file["temperature"] else opener_file["temperature"]
+                            top_p=None if not opener_file["top_p"] else opener_file["top_p"]
+                            frequency_penalty=None if not opener_file["frequency_penalty"] else opener_file["frequency_penalty"]
+                            presence_penalty=None if not opener_file["presence_penalty"] else opener_file["presence_penalty"]
+                            self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty) # set overrides
+                            if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
+                                opener = opener_file["text"]
+                            else:
+                                opener = opener_file["text"] + opener
+                        except: # Parse as just regular text
+                            if not opener: 
+                                opener = opener_file
+                            else:
+                                opener = opener_file + opener   
+                    except:
+                        opener_file = None
+                
+
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file:
             self.conversation_threads[thread.id].history.append(
@@ -1276,36 +1313,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.conversation_threads[thread.id].history.append(
                 self.CONVERSATION_STARTER_TEXT
             )
-
-        if not opener and not opener_file:
-            user_id_normalized = user.id
-        else:
-            user_id_normalized = ctx.author.id
-            if not opener_file:
-                pass
-            else: 
-                if opener_file.endswith((".txt", ".json")):
-                    # Load the file and read it into opener
-                    opener_file = EnvService.find_shared_file(
-                        f"openers{separator}{opener_file}"
-                    )
-                    opener_file = await self.load_file(opener_file, ctx)
-                    try:
-                        opener_file = json.loads(opener_file) # Try opening as json, if it fails it'll do it as a str
-                        temperature=None if not opener_file["temperature"] else opener_file["temperature"]
-                        top_p=None if not opener_file["top_p"] else opener_file["top_p"]
-                        frequency_penalty=None if not opener_file["frequency_penalty"] else opener_file["frequency_penalty"]
-                        presence_penalty=None if not opener_file["presence_penalty"] else opener_file["presence_penalty"]
-                        self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty) # set overrides
-                        if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
-                            opener = opener_file["text"]
-                        else:
-                            opener = opener_file["text"] + opener
-                    except:
-                        if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
-                            opener = opener_file
-                        else:
-                            opener = opener_file + opener
 
         # Set user as owner before sending anything that can error and leave the thread unowned
         self.conversation_thread_owners[user_id_normalized] = thread.id
