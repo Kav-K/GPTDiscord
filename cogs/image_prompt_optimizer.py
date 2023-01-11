@@ -74,7 +74,8 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         user = ctx.user
 
         final_prompt = self.OPTIMIZER_PRETEXT
-        final_prompt += prompt
+        # replace mentions with nicknames for the prompt
+        final_prompt += await self.converser_cog.replace_mention(ctx, prompt)
 
         # If the prompt doesn't end in a period, terminate it.
         if not final_prompt.endswith("."):
@@ -100,12 +101,8 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             # also relatively cost-effective
 
             response_text = response["choices"][0]["text"]
-
-            if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", response_text):
-                await ctx.respond(
-                    "I'm sorry, I can't mention users, roles, or channels."
-                )
-                return
+            # escape any mentions
+            response_text = discord.utils.escape_mentions(response_text)
 
             # If the response_message is > 75 words, concatenate to the last 70th word
             # TODO Temporary workaround until prompt is adjusted to make the optimized prompts shorter.

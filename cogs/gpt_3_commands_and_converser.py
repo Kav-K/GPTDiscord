@@ -581,17 +581,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         summarized_text = response["choices"][0]["text"]
 
         new_conversation_history = []
-        new_conversation_history.append(self.CONVERSATION_STARTER_TEXT)
         new_conversation_history.append(
-            "\nThis conversation has some context from earlier, which has been summarized as follows: "
+            EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
         )
-        new_conversation_history.append(summarized_text)
         new_conversation_history.append(
-            "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n"
+            EmbeddedConversationItem(
+                "\nThis conversation has some context from earlier, which has been summarized as follows: ",
+                0,
+            )
+        )
+        new_conversation_history.append(EmbeddedConversationItem(summarized_text, 0))
+        new_conversation_history.append(
+            EmbeddedConversationItem(
+                "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n",
+                0,
+            )
         )
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
-            self.conversation_threads[message.channel.id].history[-1] + "\n"
+            EmbeddedConversationItem(
+                self.conversation_threads[message.channel.id].history[-1] + "\n", 0
+            )
         )
         self.conversation_threads[message.channel.id].history = new_conversation_history
 
@@ -622,19 +632,23 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ctx = self.redo_users[after.author.id].ctx
                 await response_message.edit(content="Redoing prompt 🔄...")
 
-                edited_content = after.content
+                edited_content = await self.mention_to_username(after, after.content)
 
                 if after.channel.id in self.conversation_threads:
                     # Remove the last two elements from the history array and add the new <username>: prompt
                     self.conversation_threads[
                         after.channel.id
                     ].history = self.conversation_threads[after.channel.id].history[:-2]
-                    self.conversation_threads[after.channel.id].history.append(
-                        f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n"
-                    )
-                    edited_content = "".join(
-                        self.conversation_threads[after.channel.id].history
-                    )
+
+                    pinecone_dont_reinsert = None
+                    if not self.pinecone_service:
+                        self.conversation_threads[after.channel.id].history.append(
+                            EmbeddedConversationItem(
+                                f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n",
+                                0,
+                            )
+                        )
+
                     self.conversation_threads[after.channel.id].count += 1
 
                 overrides = self.conversation_threads[after.channel.id].get_overrides()
@@ -648,9 +662,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     top_p_override=overrides["top_p"],
                     frequency_penalty_override=overrides["frequency_penalty"],
                     presence_penalty_override=overrides["presence_penalty"],
+                    edited_request=True,
                 )
 
-                self.redo_users[after.author.id].prompt = after.content
+                if not self.pinecone_service:
+                    self.redo_users[after.author.id].prompt = edited_content
 
     async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
         # Create the moderations service.
@@ -713,7 +729,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if not user_api_key:
                     return
 
-            prompt = content
+            prompt = await self.mention_to_username(message, content)
 
             await self.check_conversation_limit(message)
 
@@ -763,7 +779,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 if not self.pinecone_service:
                     self.conversation_threads[message.channel.id].history.append(
-                        f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n"
+                        EmbeddedConversationItem(
+                            f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",
+                            0,
+                        )
                     )
 
                 # increment the conversation counter for the user
@@ -778,7 +797,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 primary_prompt = prompt
             else:
                 primary_prompt = "".join(
-                    self.conversation_threads[message.channel.id].history
+                    [
+                        item.text
+                        for item in self.conversation_threads[
+                            message.channel.id
+                        ].history
+                    ]
                 )
 
             #set conversation overrides
@@ -802,6 +826,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
+    async def mention_to_username(self, ctx, message):
+        if not discord.utils.raw_mentions(message):
+            return message
+        else:
+            for mention in discord.utils.raw_mentions(message):
+                try:
+                    user = await discord.utils.get_or_fetch(
+                        ctx.guild, "member", mention
+                    )
+                    message = message.replace(f"<@{str(mention)}>", user.display_name)
+                except:
+                    pass
+            return message
+
     # ctx can be of type AppContext(interaction) or Message
     async def encapsulated_send(
         self,
@@ -815,6 +853,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         presence_penalty_override=None,
         from_g_command=False,
         custom_api_key=None,
+        edited_request=False,
+        redo_request=False,
     ):
         new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
 
@@ -826,6 +866,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             # Pinecone is enabled, we will create embeddings for this conversation.
             if self.pinecone_service and ctx.channel.id in self.conversation_threads:
+                # Delete "GPTie:  <|endofstatement|>" from the user's conversation history if it exists
+                # check if the text attribute for any object inside self.conversation_threads[converation_id].history
+                # contains ""GPTie: <|endofstatement|>"", if so, delete
+                for item in self.conversation_threads[ctx.channel.id].history:
+                    if item.text.strip() == "GPTie:<|endofstatement|>":
+                        self.conversation_threads[ctx.channel.id].history.remove(item)
+
                 # The conversation_id is the id of the thread
                 conversation_id = ctx.channel.id
 
@@ -844,82 +891,91 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     str(datetime.datetime.now().timestamp()).replace(".", "")
                 )
 
-                starter_conversation_item = EmbeddedConversationItem(
-                    str(self.conversation_threads[ctx.channel.id].history[0]), 0
-                )
-                self.conversation_threads[ctx.channel.id].history[
-                    0
-                ] = starter_conversation_item
-
                 new_prompt_item = EmbeddedConversationItem(new_prompt, timestamp)
 
-                self.conversation_threads[conversation_id].history.append(
-                    new_prompt_item
-                )
-
-                # Create and upsert the embedding for  the conversation id, prompt, timestamp
-                await self.pinecone_service.upsert_conversation_embedding(
-                    self.model,
-                    conversation_id,
-                    new_prompt,
-                    timestamp,
-                    custom_api_key=custom_api_key,
-                )
-
-                embedding_prompt_less_author = await self.model.send_embedding_request(
-                    prompt_less_author, custom_api_key=custom_api_key
-                )  # Use the version of the prompt without the author's name for better clarity on retrieval.
-
-                # Now, build the new prompt by getting the X most similar with pinecone
-                similar_prompts = self.pinecone_service.get_n_similar(
-                    conversation_id,
-                    embedding_prompt_less_author,
-                    n=self.model.num_conversation_lookback,
-                )
-
-                # When we are in embeddings mode, only the pre-text is contained in self.conversation_threads[message.channel.id].history, so we
-                # can use that as a base to build our new prompt
-                prompt_with_history = [
-                    self.conversation_threads[ctx.channel.id].history[0]
-                ]
-
-                # Append the similar prompts to the prompt with history
-                prompt_with_history += [
-                    EmbeddedConversationItem(prompt, timestamp)
-                    for prompt, timestamp in similar_prompts
-                ]
-
-                # iterate UP TO the last X prompts in the history
-                for i in range(
-                    1,
-                    min(
-                        len(self.conversation_threads[ctx.channel.id].history),
-                        self.model.num_static_conversation_items,
-                    ),
-                ):
-                    prompt_with_history.append(
-                        self.conversation_threads[ctx.channel.id].history[-i]
+                if not redo_request:
+                    self.conversation_threads[conversation_id].history.append(
+                        new_prompt_item
                     )
 
-                # remove duplicates from prompt_with_history
-                prompt_with_history = list(dict.fromkeys(prompt_with_history))
+                if edited_request:
+                    new_prompt = "".join(
+                        [
+                            item.text
+                            for item in self.conversation_threads[
+                                ctx.channel.id
+                            ].history
+                        ]
+                    )
+                    self.redo_users[ctx.author.id].prompt = new_prompt
+                else:
+                    # Create and upsert the embedding for  the conversation id, prompt, timestamp
+                    await self.pinecone_service.upsert_conversation_embedding(
+                        self.model,
+                        conversation_id,
+                        new_prompt,
+                        timestamp,
+                        custom_api_key=custom_api_key,
+                    )
 
-                # Sort the prompt_with_history by increasing timestamp
-                prompt_with_history.sort(key=lambda x: x.timestamp)
+                    embedding_prompt_less_author = await self.model.send_embedding_request(
+                        prompt_less_author, custom_api_key=custom_api_key
+                    )  # Use the version of the prompt without the author's name for better clarity on retrieval.
 
-                # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
-                if prompt_with_history[-1] != new_prompt_item:
-                    try:
-                        prompt_with_history.remove(new_prompt_item)
-                    except ValueError:
-                        pass
-                    prompt_with_history.append(new_prompt_item)
+                    # Now, build the new prompt by getting the X most similar with pinecone
+                    similar_prompts = self.pinecone_service.get_n_similar(
+                        conversation_id,
+                        embedding_prompt_less_author,
+                        n=self.model.num_conversation_lookback,
+                    )
 
-                prompt_with_history = "".join(
-                    [item.text for item in prompt_with_history]
-                )
+                    # When we are in embeddings mode, only the pre-text is contained in self.conversation_threads[message.channel.id].history, so we
+                    # can use that as a base to build our new prompt
+                    prompt_with_history = [
+                        self.conversation_threads[ctx.channel.id].history[0]
+                    ]
 
-                new_prompt = prompt_with_history
+                    # Append the similar prompts to the prompt with history
+                    prompt_with_history += [
+                        EmbeddedConversationItem(prompt, timestamp)
+                        for prompt, timestamp in similar_prompts
+                    ]
+
+                    # iterate UP TO the last X prompts in the history
+                    for i in range(
+                        1,
+                        min(
+                            len(self.conversation_threads[ctx.channel.id].history),
+                            self.model.num_static_conversation_items,
+                        ),
+                    ):
+                        prompt_with_history.append(
+                            self.conversation_threads[ctx.channel.id].history[-i]
+                        )
+
+                    # remove duplicates from prompt_with_history and set the conversation history
+                    prompt_with_history = list(dict.fromkeys(prompt_with_history))
+                    self.conversation_threads[
+                        ctx.channel.id
+                    ].history = prompt_with_history
+
+                    # Sort the prompt_with_history by increasing timestamp if pinecone is enabled
+                    if self.pinecone_service:
+                        prompt_with_history.sort(key=lambda x: x.timestamp)
+
+                    # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
+                    if prompt_with_history[-1] != new_prompt_item:
+                        try:
+                            prompt_with_history.remove(new_prompt_item)
+                        except ValueError:
+                            pass
+                        prompt_with_history.append(new_prompt_item)
+
+                    prompt_with_history = "".join(
+                        [item.text for item in prompt_with_history]
+                    )
+
+                    new_prompt = prompt_with_history + "\nGPTie: "
 
                 tokens = self.usage_service.count_tokens(new_prompt)
 
@@ -943,7 +999,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                     # Check again if the prompt is about to go past the token limit
                     new_prompt = (
-                        "".join(self.conversation_threads[id].history) + "\nGPTie: "
+                        "".join(
+                            [
+                                item.text
+                                for item in self.conversation_threads[id].history
+                            ]
+                        )
+                        + "\nGPTie: "
                     )
 
                     tokens = self.usage_service.count_tokens(new_prompt)
@@ -983,12 +1045,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 response_text = response_text.strip()
                 response_text = f"***{prompt}***\n\n{response_text}"
 
-            # If GPT3 tries to ping somebody, don't let it happen
-            if re.search(r"<@!?\d+>|<@&\d+>|<#\d+>", str(response_text)):
-                message = "I'm sorry, I can't mention users, roles, or channels."
-                await ctx.send_followup(message) if from_context else await ctx.reply(
-                    message
-                )
+            # If gpt3 tries writing a user mention try to replace it with their name
+            response_text = await self.mention_to_username(ctx, response_text)
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
@@ -996,9 +1054,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 and not from_g_command
                 and not self.pinecone_service
             ):
-                self.conversation_threads[id].history.append(
-                    "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
-                )
+                if not redo_request:
+                    self.conversation_threads[id].history.append(
+                        EmbeddedConversationItem(
+                            "\nGPTie: " + str(response_text) + "<|endofstatement|>\n", 0
+                        )
+                    )
 
             # Embeddings case!
             elif (
@@ -1032,8 +1093,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     custom_api_key=custom_api_key,
                 )
 
-            # Cleanse
+            # Cleanse again
             response_text = self.cleanse_response(response_text)
+
+            # escape any other mentions like @here or @everyone
+            response_text = discord.utils.escape_mentions(response_text)
 
             # If we don't have a response message, we are not doing a redo, send as a new message(s)
             if not response_message:
@@ -1064,7 +1128,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     self.redo_users[ctx.author.id] = RedoUser(
-                        prompt, ctx, ctx, actual_response_message
+                        new_prompt, ctx, ctx, actual_response_message
                     )
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
@@ -1169,7 +1233,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         presence_penalty: float,
     ):
         user = ctx.user
-        prompt = prompt.strip()
+        prompt = await self.mention_to_username(ctx, prompt.strip())
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -1250,6 +1314,33 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
+        if opener:
+            opener = await self.mention_to_username(ctx, opener)
+
+        if not opener and not opener_file:
+            user_id_normalized = user.id
+        else:
+            user_id_normalized = ctx.author.id
+            if (
+                opener_file
+            ):  # only load in files if it's included in the command, if not pass on as normal
+                if opener_file.endswith(".txt"):
+                    # Load the file and read it into opener
+                    opener_file = EnvService.find_shared_file(
+                        f"openers{separator}{opener_file}"
+                    )
+                    opener_file = await self.load_file(opener_file, ctx)
+                    if (
+                        not opener
+                    ):  # if we only use opener_file then only pass on opener_file for the opening prompt
+                        opener = opener_file
+                    else:
+                        opener = opener_file + opener
+                    if not opener_file:
+                        return
+            else:
+                pass
+
         if private:
             await ctx.respond(user.name + "'s private conversation with GPT3")
             thread = await ctx.channel.create_thread(
@@ -1307,11 +1398,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file:
             self.conversation_threads[thread.id].history.append(
-                self.CONVERSATION_STARTER_TEXT_MINIMAL
+                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
         elif not minimal:
             self.conversation_threads[thread.id].history.append(
-                self.CONVERSATION_STARTER_TEXT
+                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
             )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
@@ -1335,7 +1426,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 if not self.pinecone_service:
                     self.conversation_threads[thread.id].history.append(
-                        f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n"
+                        EmbeddedConversationItem(
+                            f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n",
+                            0,
+                        )
                     )
 
                 self.conversation_threads[thread.id].count += 1
@@ -1344,7 +1438,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 thread.id,
                 opener
                 if thread.id not in self.conversation_threads or self.pinecone_service
-                else "".join(self.conversation_threads[thread.id].history),
+                else "".join(
+                    [item.text for item in self.conversation_threads[thread.id].history]
+                ),
                 thread_message,
                 temp_override=overrides["temperature"],
                 top_p_override=overrides["top_p"],
@@ -1643,6 +1739,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 ctx=ctx,
                 response_message=response_message,
                 custom_api_key=self.custom_api_key,
+                redo_request=True,
             )
         else:
             await interaction.response.send_message(

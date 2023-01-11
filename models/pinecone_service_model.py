@@ -23,8 +23,6 @@ class PineconeService:
             # Split the text into 512 character chunks
             chunks = [text[i : i + 500] for i in range(0, len(text), 500)]
             for chunk in chunks:
-                print("The split chunk is ", chunk)
-
                 # Create an embedding for the split chunk
                 embedding = await model.send_embedding_request(
                     chunk, custom_api_key=custom_api_key
@@ -61,7 +59,7 @@ class PineconeService:
             include_metadata=True,
             filter={"conversation_id": conversation_id},
         )
-        print(response)
+        # print(response)
         relevant_phrases = [
             (match["id"], match["metadata"]["timestamp"])
             for match in response["matches"]
