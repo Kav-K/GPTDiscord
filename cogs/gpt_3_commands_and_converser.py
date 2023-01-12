@@ -1326,10 +1326,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ):  # only load in files if it's included in the command, if not pass on as normal
                 if opener_file.endswith(".txt"):
                     # Load the file and read it into opener
-                    opener_file = EnvService.find_shared_file(
-                        f"openers{separator}{opener_file}"
-                    )
-                    opener_file = await self.load_file(opener_file, ctx)
+                    try:
+                        opener_file = EnvService.find_shared_file(
+                            f"openers{separator}{opener_file}"
+                        )
+                        opener_file = await self.load_file(opener_file, ctx)
+                    except ValueError as e:
+                        await ctx.respond("Error loading the file, "+ str(e),ephemeral=True, delete_after=180)
+                        return
                     if (
                         not opener
                     ):  # if we only use opener_file then only pass on opener_file for the opening prompt
