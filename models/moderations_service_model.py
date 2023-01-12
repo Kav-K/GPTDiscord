@@ -188,6 +188,12 @@ class Moderation:
                                 to_moderate.message
                             ),
                         )
+                        # Attempt to react to the to_moderate.message with a warning icon
+                        try:
+                            await to_moderate.message.add_reaction("⚠️")
+                        except discord.errors.Forbidden:
+                            pass
+
                         await response_message.edit(
                             view=ModerationAdminView(
                                 to_moderate.message, response_message
