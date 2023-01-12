@@ -1262,6 +1262,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.guild_only()
     async def private_test(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
+        await ctx.respond("Your private test thread")
         await ctx.channel.create_thread(
             name=ctx.user.name + "'s private test conversation",
             auto_archive_duration=60,
