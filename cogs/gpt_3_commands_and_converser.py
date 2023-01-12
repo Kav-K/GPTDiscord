@@ -383,6 +383,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
+            name="/gpt edit",
+            value="Use GPT3 to edit a piece of text given an instruction",
+            inline=False,
+        )
+        embed.add_field(
             name="/gpt converse", value="Start a conversation with GPT3", inline=False
         )
         embed.add_field(
@@ -852,11 +857,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         frequency_penalty_override=None,
         presence_penalty_override=None,
         from_g_command=False,
+        instruction=None,
+        from_edit_command=False,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
     ):
-        new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
+        new_prompt = prompt + "\nGPTie: " if not from_g_command and not from_edit_command else prompt
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -984,6 +991,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 id in self.conversation_threads
                 and tokens > self.model.summarize_threshold
                 and not from_g_command
+                and not from_edit_command
                 and not self.pinecone_service  # This should only happen if we are not doing summarizations.
             ):
 
@@ -1027,20 +1035,28 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     return
 
             # Send the request to the model
-            response = await self.model.send_request(
-                new_prompt,
-                tokens=tokens,
-                temp_override=temp_override,
-                top_p_override=top_p_override,
-                frequency_penalty_override=frequency_penalty_override,
-                presence_penalty_override=presence_penalty_override,
-                custom_api_key=custom_api_key,
-            )
+            if from_edit_command:
+                response = await self.model.send_edit_request(
+                    new_prompt,
+                    instruction,
+                    temp_override,
+                    top_p_override,
+                )
+            else:
+                response = await self.model.send_request(
+                    new_prompt,
+                    tokens=tokens,
+                    temp_override=temp_override,
+                    top_p_override=top_p_override,
+                    frequency_penalty_override=frequency_penalty_override,
+                    presence_penalty_override=presence_penalty_override,
+                    custom_api_key=custom_api_key,
+                )
 
             # Clean the request response
             response_text = self.cleanse_response(str(response["choices"][0]["text"]))
 
-            if from_g_command:
+            if from_g_command or from_edit_command:
                 # Append the prompt to the beginning of the response, in italics, then a new line
                 response_text = response_text.strip()
                 response_text = f"***{prompt}***\n\n{response_text}"
@@ -1065,6 +1081,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             elif (
                 id in self.conversation_threads
                 and not from_g_command
+                and not from_edit_command
                 and self.pinecone_service
             ):
                 conversation_id = id
@@ -1144,7 +1161,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command:
+            if not from_g_command and not from_edit_command:
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
 
@@ -1156,7 +1173,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.reply(e)
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command:
+            if not from_g_command and not from_edit_command:
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
 
@@ -1252,6 +1269,64 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             frequency_penalty_override=frequency_penalty,
             presence_penalty_override=presence_penalty,
             from_g_command=True,
+            custom_api_key=user_api_key,
+        )
+    @add_to_group("gpt")
+    @discord.slash_command(
+        name="edit",
+        description="Ask GPT3 to edit some text!",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="input", description="The text you want to edit", required=True
+    )
+    @discord.option(
+        name="instruction", description="How you want GPT3 to edit the text", required=True
+    )
+    @discord.option(
+        name="temperature",
+        description="Higher values means the model will take more risks",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="top_p",
+        description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.guild_only()
+    async def edit(
+        self,
+        ctx: discord.ApplicationContext,
+        prompt: str,
+        instruction: str,
+        temperature: float,
+        top_p: float,
+    ):
+        user = ctx.user
+        prompt = await self.mention_to_username(ctx, prompt.strip())
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(user.id, ctx)
+            if not user_api_key:
+                return
+
+        await ctx.defer()
+
+        await self.encapsulated_send(
+            user.id,
+            prompt,
+            ctx,
+            temp_override=temperature,
+            top_p_override=top_p,
+            instruction=instruction,
+            from_edit_command=True,
             custom_api_key=user_api_key,
         )
 
