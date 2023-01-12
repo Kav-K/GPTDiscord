@@ -72,21 +72,23 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/gpt edit <instruction> <input> <temp> <top_p> <codex>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Codex uses a model trained on code. Editing is currently free
 
-`/gpt converse` - Start a conversation with the bot, like ChatGPT
+`/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT
 
-`/gpt converse private:yes` - Start a private conversation with the bot, like ChatGPT
+- `opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
 
-`/gpt converse opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
+- `opener_file:<opener file name>.txt|.json` - Starts a conversation with the bot, using a custom file. 
 
-`/gpt converse opener_file:<opener file name>.txt` - Starts a conversation with the bot, using a custom file, using this option also enables the minimal conversation starter. Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
+  - Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
 
-- Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
+  - Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
 
-- Can use .json files in the `{"text": your prompt, "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
+  - Enables minimal
 
-`/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
+  - Can use .json files in the `{"text": "your prompt", "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
 
-- Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)
+- `private` - Start a private conversation with the bot, like ChatGPT
+
+- `minimal` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
 `/gpt end` - End a conversation with the bot.
 

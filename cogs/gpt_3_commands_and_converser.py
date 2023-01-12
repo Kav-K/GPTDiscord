@@ -667,6 +667,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     top_p_override=overrides["top_p"],
                     frequency_penalty_override=overrides["frequency_penalty"],
                     presence_penalty_override=overrides["presence_penalty"],
+                    model=self.conversation_threads[after.channel.id].model,
                     edited_request=True,
                 )
 
@@ -821,6 +822,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                model=self.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
             )
 
@@ -860,6 +862,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         instruction=None,
         from_edit_command=False,
         codex=False,
+        model=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
@@ -1056,6 +1059,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     top_p_override=top_p_override,
                     frequency_penalty_override=frequency_penalty_override,
                     presence_penalty_override=presence_penalty_override,
+                    model=model,
                     custom_api_key=custom_api_key,
                 )
 
@@ -1372,13 +1376,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="private",
         description="Converse in a private thread",
         required=False,
-        choices=["yes"],
     )
     @discord.option(
         name="minimal",
         description="Use minimal starter text, saves tokens and has a more open personality",
         required=False,
-        choices=["yes"],
     )
     @discord.guild_only()
     async def converse(
@@ -1386,8 +1388,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ctx: discord.ApplicationContext,
         opener: str,
         opener_file: str,
-        private,
-        minimal,
+        private: bool,
+        minimal: bool,
     ):
         user = ctx.user
 
@@ -1426,6 +1428,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[thread.id] = Thread(thread.id)
+        self.conversation_threads[thread.id].model = self.model.model
 
         if opener:
             opener = await self.mention_to_username(ctx, opener)
@@ -1496,6 +1499,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await thread.send(
             f"<@{str(user_id_normalized)}> You are now conversing with GPT3. *Say hi to start!*\n"
             f"Overrides for this thread is **temp={overrides['temperature']}**, **top_p={overrides['top_p']}**, **frequency penalty={overrides['frequency_penalty']}**, **presence penalty={overrides['presence_penalty']}**\n"
+            f"The model used is **{self.conversation_threads[thread.id].model}**\n"
             f"End the conversation by saying `end`.\n\n"
             f"If you want GPT3 to ignore your messages, start your messages with `~`\n\n"
             f"Your conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
@@ -1530,6 +1534,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)

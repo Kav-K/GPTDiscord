@@ -57,6 +57,7 @@ class Thread:
         self.id = id
         self.history = []
         self.count = 0
+        self.model = None
         self.temperature = None
         self.top_p = None
         self.frequency_penalty = None
