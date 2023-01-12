@@ -1254,6 +1254,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             from_g_command=True,
             custom_api_key=user_api_key,
         )
+
     @discord.slash_command(
         name="private-test",
         description="Private thread for testing. Only visible to you and server admins.",
