@@ -1073,10 +1073,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
-                    response_text = f"Prompt:{prompt}\nInstruction:{instruction}\n\n```\n{response_text}\n```"
+                    response_text = f"***Prompt:{prompt}***\n***Instruction:{instruction}***\n\n```\n{response_text}\n```"
                 else:
                     response_text = response_text.strip()
-                    response_text = f"Prompt:{prompt}\nInstruction:{instruction}\n\n{response_text}\n"
+                    response_text = f"***Prompt:{prompt}***\n***Instruction:{instruction}***\n\n{response_text}\n"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await self.mention_to_username(ctx, response_text)
