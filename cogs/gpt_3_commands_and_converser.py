@@ -1314,37 +1314,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
-        if opener:
-            opener = await self.mention_to_username(ctx, opener)
-
-        if not opener and not opener_file:
-            user_id_normalized = user.id
-        else:
-            user_id_normalized = ctx.author.id
-            if (
-                opener_file
-            ):  # only load in files if it's included in the command, if not pass on as normal
-                if opener_file.endswith(".txt"):
-                    # Load the file and read it into opener
-                    try:
-                        opener_file = EnvService.find_shared_file(
-                            f"openers{separator}{opener_file}"
-                        )
-                        opener_file = await self.load_file(opener_file, ctx)
-                    except ValueError as e:
-                        await ctx.respond("Error loading the file, "+ str(e),ephemeral=True, delete_after=180)
-                        return
-                    if (
-                        not opener
-                    ):  # if we only use opener_file then only pass on opener_file for the opening prompt
-                        opener = opener_file
-                    else:
-                        opener = opener_file + opener
-                    if not opener_file:
-                        return
-            else:
-                pass
-
         if private:
             await ctx.respond(user.name + "'s private conversation with GPT3")
             thread = await ctx.channel.create_thread(
@@ -1361,6 +1330,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[thread.id] = Thread(thread.id)
+
+        if opener:
+            opener = await self.mention_to_username(ctx, opener)
 
         if not opener and not opener_file:
             user_id_normalized = user.id
