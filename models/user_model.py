@@ -62,7 +62,13 @@ class Thread:
         self.frequency_penalty = None
         self.presence_penalty = None
 
-    def set_overrides(self, temperature=None,top_p=None,frequency_penalty=None,presence_penalty=None):
+    def set_overrides(
+        self,
+        temperature=None,
+        top_p=None,
+        frequency_penalty=None,
+        presence_penalty=None,
+    ):
         self.temperature = temperature
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty

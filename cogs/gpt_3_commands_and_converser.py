@@ -805,9 +805,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     ]
                 )
 
-            #set conversation overrides
+            # set conversation overrides
             overrides = self.conversation_threads[message.channel.id].get_overrides()
-            
+
             await self.encapsulated_send(
                 message.channel.id,
                 primary_prompt,
@@ -1340,36 +1340,48 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             user_id_normalized = ctx.author.id
             if not opener_file:
                 pass
-            else: 
+            else:
                 if not opener_file.endswith((".txt", ".json")):
-                    opener_file = None # Just start a regular thread if the file fails to load
+                    opener_file = (
+                        None  # Just start a regular thread if the file fails to load
+                    )
                 else:
                     # Load the file and read it into opener
                     try:
-                        opener_file = re.sub(".+(?=[\\//])", "", opener_file) # remove paths from the opener file
+                        opener_file = re.sub(
+                            ".+(?=[\\//])", "", opener_file
+                        )  # remove paths from the opener file
                         opener_file = EnvService.find_shared_file(
                             f"openers{separator}{opener_file}"
                         )
                         opener_file = await self.load_file(opener_file, ctx)
-                        try: # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
+                        try:  # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
                             opener_file = json.loads(opener_file)
-                            temperature=opener_file.get("temperature", None)
-                            top_p=opener_file.get("top_p", None)
-                            frequency_penalty=opener_file.get("frequency_penalty", None)
-                            presence_penalty=opener_file.get("presence_penalty", None)
-                            self.conversation_threads[thread.id].set_overrides(temperature, top_p, frequency_penalty, presence_penalty)
-                            if not opener:  # if we only use opener_file then only pass on opener_file for the opening prompt
-                                opener = opener_file.get('text', "error getting text")
+                            temperature = opener_file.get("temperature", None)
+                            top_p = opener_file.get("top_p", None)
+                            frequency_penalty = opener_file.get(
+                                "frequency_penalty", None
+                            )
+                            presence_penalty = opener_file.get("presence_penalty", None)
+                            self.conversation_threads[thread.id].set_overrides(
+                                temperature, top_p, frequency_penalty, presence_penalty
+                            )
+                            if (
+                                not opener
+                            ):  # if we only use opener_file then only pass on opener_file for the opening prompt
+                                opener = opener_file.get("text", "error getting text")
                             else:
-                                opener = opener_file.get('text', "error getting text") + opener
-                        except: # Parse as just regular text
-                            if not opener: 
+                                opener = (
+                                    opener_file.get("text", "error getting text")
+                                    + opener
+                                )
+                        except:  # Parse as just regular text
+                            if not opener:
                                 opener = opener_file
                             else:
-                                opener = opener_file + opener   
+                                opener = opener_file + opener
                     except:
-                        opener_file = None # Just start a regular thread if the file fails to load
-                
+                        opener_file = None  # Just start a regular thread if the file fails to load
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file:
