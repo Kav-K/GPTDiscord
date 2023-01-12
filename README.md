@@ -149,6 +149,18 @@ Moreover, an important thing to keep in mind is: pinecone indexes are currently 
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
+# Permanent overrides in threads
+This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
+```json
+{
+  "text": "your prompt", 
+  "temp":0, 
+  "top_p":0,
+  "frequency_penalty":0,
+  "presence_penalty":0
+}
+```
+
 # User-Input API Keys (Multi-key tenancy)
 This bot supports multi-user tenancy in regards to API keys. This means that, if you wanted, you could make it such that each user needs to enter their own API key in order to use commands that use GPT3 and DALLE.
 
