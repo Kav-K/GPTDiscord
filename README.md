@@ -70,7 +70,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
 
-`/gpt edit <text> <instruction> <temp> <top_p>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary
+`/gpt edit <instruction> <input> <temp> <top_p> <codex>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Codex uses a model trained on code. Editing is currently free
 
 `/gpt converse` - Start a conversation with the bot, like ChatGPT
 

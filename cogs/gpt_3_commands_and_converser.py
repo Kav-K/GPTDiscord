@@ -859,6 +859,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         from_g_command=False,
         instruction=None,
         from_edit_command=False,
+        codex=False,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
@@ -867,7 +868,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
-        tokens = self.usage_service.count_tokens(new_prompt)
+        if not instruction:
+            tokens = self.usage_service.count_tokens(new_prompt) 
+        else: 
+            tokens = self.usage_service.count_tokens(new_prompt) + self.usage_service.count_tokens(instruction) 
 
         try:
 
@@ -1037,10 +1041,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Send the request to the model
             if from_edit_command:
                 response = await self.model.send_edit_request(
-                    new_prompt,
-                    instruction,
-                    temp_override,
-                    top_p_override,
+                    input=new_prompt,
+                    instruction=instruction,
+                    temp_override=temp_override,
+                    top_p_override=top_p_override,
+                    codex=codex,
+                    custom_api_key=custom_api_key,
                 )
             else:
                 response = await self.model.send_request(
@@ -1056,10 +1062,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Clean the request response
             response_text = self.cleanse_response(str(response["choices"][0]["text"]))
 
-            if from_g_command or from_edit_command:
-                # Append the prompt to the beginning of the response, in italics, then a new line
-                response_text = response_text.strip()
-                response_text = f"***{prompt}***\n\n{response_text}"
+            if from_g_command:
+                    # Append the prompt to the beginning of the response, in italics, then a new line
+                    response_text = response_text.strip()
+                    response_text = f"***{prompt}***\n\n{response_text}"
+            elif from_edit_command:
+                if codex:
+                    response_text = response_text.strip()
+                    response_text = f"Prompt:{prompt}\nInstruction:{instruction}\n\n```\n{response_text}\n```"
+                else:
+                    response_text = response_text.strip()
+                    response_text = f"Prompt:{prompt}\nInstruction:{instruction}\n\n{response_text}\n"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await self.mention_to_username(ctx, response_text)
@@ -1278,10 +1291,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="input", description="The text you want to edit", required=True
+        name="instruction", description="How you want GPT3 to edit the text", required=True
     )
     @discord.option(
-        name="instruction", description="How you want GPT3 to edit the text", required=True
+        name="input", description="The text you want to edit, can be empty", required=False, default=""
     )
     @discord.option(
         name="temperature",
@@ -1299,17 +1312,24 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         min_value=0,
         max_value=1,
     )
+    @discord.option(
+        name="codex", description="Enable codex version", required=False
+    )
     @discord.guild_only()
     async def edit(
         self,
         ctx: discord.ApplicationContext,
-        prompt: str,
         instruction: str,
+        input: str,
         temperature: float,
         top_p: float,
+        codex: bool,
     ):
         user = ctx.user
-        prompt = await self.mention_to_username(ctx, prompt.strip())
+
+        input = await self.mention_to_username(ctx, input.strip())
+        instruction = await self.mention_to_username(ctx, instruction.strip())
+
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -1321,12 +1341,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await self.encapsulated_send(
             user.id,
-            prompt,
-            ctx,
+            prompt=input,
+            ctx=ctx,
             temp_override=temperature,
             top_p_override=top_p,
             instruction=instruction,
             from_edit_command=True,
+            codex=codex,
             custom_api_key=user_api_key,
         )
 
