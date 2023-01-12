@@ -80,6 +80,8 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 - Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
 
+- Can use .json files in the `{"text": your prompt, "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
+
 `/gpt converse minimal:yes` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
 
 - Note that the above options for `/gpt converse` can be combined (you can combine minimal, private, and opener!)
@@ -146,6 +148,18 @@ Then, name the index `conversation-embeddings`, set the dimensions to `1536`, an
 Moreover, an important thing to keep in mind is: pinecone indexes are currently not automatically cleared by the bot, so you will eventually need to clear the index manually through the pinecone website if things are getting too slow (although it should be a very long time until this happens). Pinecone indexes are keyed on the `metadata` field using the thread id of the conversation thread.
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
+
+# Permanent overrides in threads
+This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
+```json
+{
+  "text": "your prompt", 
+  "temp":0, 
+  "top_p":0,
+  "frequency_penalty":0,
+  "presence_penalty":0
+}
+```
 
 # User-Input API Keys (Multi-key tenancy)
 This bot supports multi-user tenancy in regards to API keys. This means that, if you wanted, you could make it such that each user needs to enter their own API key in order to use commands that use GPT3 and DALLE.
