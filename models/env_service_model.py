@@ -1,6 +1,8 @@
 import os
 import sys
 from pathlib import Path
+from typing import Union
+
 from dotenv import load_dotenv
 
 
@@ -193,3 +195,14 @@ class EnvService:
                 return False
         except:
             return False
+
+    @staticmethod
+    def get_user_key_db_path() -> Union[Path, None]:
+        try:
+            user_key_db_path = os.getenv("USER_KEY_DB_PATH")
+            if user_key_db_path is None:
+                return None
+            else:
+                return Path(user_key_db_path)
+        except:
+            return None
