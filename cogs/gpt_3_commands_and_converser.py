@@ -45,7 +45,9 @@ if USER_INPUT_API_KEYS:
     USER_KEY_DB_PATH = EnvService.get_user_key_db_path()
     # Check if USER_KEY_DB_PATH is valid
     if not USER_KEY_DB_PATH:
-        print("No user key database path was provided. Defaulting to user_key_db.sqlite")
+        print(
+            "No user key database path was provided. Defaulting to user_key_db.sqlite"
+        )
         USER_KEY_DB_PATH = "user_key_db.sqlite"
     else:
         # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
