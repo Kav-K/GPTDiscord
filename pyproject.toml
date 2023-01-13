@@ -27,6 +27,7 @@ dependencies = [
   "aiofiles",
   "pinecone-client",
   "sqlitedict",
+  "backoff",
 ]
 dynamic = ["version"]
 [project.scripts]
