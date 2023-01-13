@@ -4,6 +4,7 @@ import tempfile
 import traceback
 from io import BytesIO
 
+import aiohttp
 import discord
 from PIL import Image
 from pycord.multicog import add_to_group
@@ -60,16 +61,19 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                 vary=vary if not draw_from_optimizer else None,
                 custom_api_key=custom_api_key,
             )
-        except ValueError as e:
-            (
-                await ctx.channel.send(
-                    f"Error: {e}. Please try again with a different prompt."
-                )
-                if not from_context
-                else await ctx.respond(
-                    f"Error: {e}. Please try again with a different prompt."
-                )
+
+        # Error catching for API errors
+        except aiohttp.ClientResponseError as e:
+            message = f"The API returned an invalid response: **{e.status}: {e.message}**"
+            await ctx.channel.send(message) if not from_context else await ctx.respond(
+                message
             )
+            return
+
+        except ValueError as e:
+            message = f"Error: {e}. Please try again with a different prompt."
+            await ctx.channel.send( message )if not from_context else await ctx.respond( message )
+
             return
 
         # Start building an embed to send to the user with the results of the image generation

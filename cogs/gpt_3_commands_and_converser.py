@@ -9,6 +9,8 @@ from pathlib import Path
 
 import aiofiles
 import json
+
+import aiohttp
 import discord
 from pycord.multicog import add_to_group
 
@@ -826,6 +828,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
+    def remove_awaiting(self, author_id, channel_id, from_g_command):
+        if author_id in self.awaiting_responses:
+            self.awaiting_responses.remove(author_id)
+        if not from_g_command:
+            if channel_id in self.awaiting_thread_responses:
+                self.awaiting_thread_responses.remove(channel_id)
+
     async def mention_to_username(self, ctx, message):
         if not discord.utils.raw_mentions(message):
             return message
@@ -1148,31 +1157,33 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
 
+        # Error catching for AIOHTTP Errors
+        except aiohttp.ClientResponseError as e:
+            message = f"The API returned an invalid response: **{e.status}: {e.message}**"
+            if from_context:
+                await ctx.send_followup(message)
+            else:
+                await ctx.reply(message)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
+
+
         # Error catching for OpenAI model value errors
         except ValueError as e:
             if from_context:
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
-            if ctx.author.id in self.awaiting_responses:
-                self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command:
-                if ctx.channel.id in self.awaiting_thread_responses:
-                    self.awaiting_thread_responses.remove(ctx.channel.id)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
+
 
         # General catch case for everything
         except Exception:
 
             message = "Something went wrong, please try again later. This may be due to upstream issues on the API, or rate limiting."
-
             await ctx.send_followup(message) if from_context else await ctx.reply(
                 message
             )
-            if ctx.author.id in self.awaiting_responses:
-                self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command:
-                if ctx.channel.id in self.awaiting_thread_responses:
-                    self.awaiting_thread_responses.remove(ctx.channel.id)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
             traceback.print_exc()
 
             try:
@@ -1786,6 +1797,15 @@ class SetupModal(discord.ui.Modal):
                     ephemeral=True,
                     delete_after=10,
                 )
+
+            except aiohttp.ClientResponseError as e:
+                await interaction.response.send_message(
+                    f"The API returned an invalid response: **{e.status}: {e.message}**",
+                    ephemeral=True,
+                    delete_after=30,
+                )
+                return
+
             except Exception as e:
                 await interaction.response.send_message(
                     f"Your API key looks invalid, the API returned: {e}. Please check that your API key is correct before proceeding",
