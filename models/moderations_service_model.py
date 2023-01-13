@@ -120,7 +120,9 @@ class Moderation:
 
     @staticmethod
     def determine_moderation_result(text, response):
-        warn_set = ThresholdSet(0.005, 0.05, 0.05, 0.91, 0.1, 0.04, 0.1)
+        # warn_set = ThresholdSet(0.005, 0.05, 0.05, 0.91, 0.1, 0.04, 0.1)
+        # delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
+        warn_set = ThresholdSet(0.01, 0.05, 0.05, 0.91, 0.1, 0.45, 0.1)
         delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
 
         warn_result, flagged_warn = warn_set.moderate(text, response)
