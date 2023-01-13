@@ -1159,13 +1159,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
-            message = f"The API returned an invalid response: **{e.status}: {e.message}**"
+            message = (
+                f"The API returned an invalid response: **{e.status}: {e.message}**"
+            )
             if from_context:
                 await ctx.send_followup(message)
             else:
                 await ctx.reply(message)
             self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
-
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -1174,7 +1175,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             else:
                 await ctx.reply(e)
             self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
-
 
         # General catch case for everything
         except Exception:

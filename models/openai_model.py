@@ -344,8 +344,10 @@ class Model:
         self._prompt_min_length = value
 
     def backoff_handler(details):
-        print (f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
-            f"{details['exception'].status}: {details['exception'].message}")
+        print(
+            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
+            f"{details['exception'].status}: {details['exception'].message}"
+        )
 
     async def valid_text_request(self, response):
         try:
@@ -357,7 +359,14 @@ class Model:
                 + str(response["error"]["message"])
             )
 
-    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler,
+    )
     async def send_embedding_request(self, text, custom_api_key=None):
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
@@ -380,7 +389,14 @@ class Model:
                     traceback.print_exc()
                     return
 
-    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=6, on_backoff=backoff_handler)
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=6,
+        on_backoff=backoff_handler,
+    )
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
         async with aiohttp.ClientSession(raise_for_status=True) as session:
@@ -396,7 +412,14 @@ class Model:
             ) as response:
                 return await response.json()
 
-    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler,
+    )
     async def send_summary_request(self, prompt, custom_api_key=None):
         """
         Sends a summary request to the OpenAI API
@@ -438,7 +461,14 @@ class Model:
 
                 return response
 
-    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler,
+    )
     async def send_request(
         self,
         prompt,
@@ -521,7 +551,14 @@ class Model:
 
                 return response
 
-    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler,
+    )
     async def send_image_request(
         self, ctx, prompt, vary=None, custom_api_key=None
     ) -> tuple[File, list[Any]]:

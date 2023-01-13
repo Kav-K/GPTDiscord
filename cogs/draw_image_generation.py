@@ -64,7 +64,9 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         # Error catching for API errors
         except aiohttp.ClientResponseError as e:
-            message = f"The API returned an invalid response: **{e.status}: {e.message}**"
+            message = (
+                f"The API returned an invalid response: **{e.status}: {e.message}**"
+            )
             await ctx.channel.send(message) if not from_context else await ctx.respond(
                 message
             )
@@ -72,7 +74,9 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         except ValueError as e:
             message = f"Error: {e}. Please try again with a different prompt."
-            await ctx.channel.send( message )if not from_context else await ctx.respond( message )
+            await ctx.channel.send(message) if not from_context else await ctx.respond(
+                message
+            )
 
             return
 
