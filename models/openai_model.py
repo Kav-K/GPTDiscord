@@ -409,7 +409,7 @@ class Model:
             )
         
 
-        print(f"The text about to be edited is [{input}] with instructions [{instruction}]")
+        print(f"The text about to be edited is [{input}] with instructions [{instruction}] codex [{codex}]")
         print(
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override}"
         )

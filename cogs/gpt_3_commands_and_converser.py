@@ -1177,7 +1177,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     self.redo_users[ctx.author.id] = RedoUser(
-                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message
+                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message, codex=codex
                     )
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
@@ -1334,7 +1334,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         max_value=1,
     )
     @discord.option(
-        name="codex", description="Enable codex version", required=False
+        name="codex", 
+        description="Enable codex version", 
+        required=False, 
+        default=False
     )
     @discord.guild_only()
     async def edit(
@@ -1410,11 +1413,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="private",
         description="Converse in a private thread",
         required=False,
+        default=False,
     )
     @discord.option(
         name="minimal",
         description="Use minimal starter text, saves tokens and has a more open personality",
         required=False,
+        default=False,
     )
     @discord.guild_only()
     async def converse(
@@ -1856,6 +1861,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             instruction = self.converser_cog.redo_users[user_id].instruction
             ctx = self.converser_cog.redo_users[user_id].ctx
             response_message = self.converser_cog.redo_users[user_id].response
+            codex = self.converser_cog.redo_users[user_id].codex
 
             msg = await interaction.response.send_message(
                 "Retrying your original request...", ephemeral=True, delete_after=15
@@ -1868,6 +1874,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 ctx=ctx,
                 model=self.model,
                 response_message=response_message,
+                codex=codex,
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
                 from_edit_command=self.from_edit_command
