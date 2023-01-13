@@ -123,6 +123,10 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 - The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
 - There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).
 
+If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)
+
+** The above server is NOT for support or discussions about GPT3Discord **
+
 # Permanent Memory
 Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
 
