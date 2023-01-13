@@ -75,7 +75,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
         final_prompt = self.OPTIMIZER_PRETEXT
         # replace mentions with nicknames for the prompt
-        final_prompt += await self.converser_cog.replace_mention(ctx, prompt)
+        final_prompt += await self.converser_cog.mention_to_username(ctx, prompt)
 
         # If the prompt doesn't end in a period, terminate it.
         if not final_prompt.endswith("."):
