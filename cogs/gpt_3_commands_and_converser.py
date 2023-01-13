@@ -530,16 +530,26 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 else:
                     await ctx.channel.send(chunk)
 
-    async def paginate_embed(self, response_text):
+    async def paginate_embed(self, response_text, codex, prompt=None, instruction=None):
+
+        if codex: #clean codex input
+            response_text = response_text.replace("```", "")
+            response_text = response_text.replace(f"***Prompt:{prompt}***\n", "")
+            response_text = response_text.replace(f"***Instruction:{instruction}***\n\n", "")
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
             for i in range(0, len(response_text), self.EMBED_CUTOFF)
         ]
         pages = []
+        first = False
         # Send each chunk as a message
         for count, chunk in enumerate(response_text, start=1):
-            page = discord.Embed(title=f"Page {count}", description=chunk)
+            if not first:
+                page = discord.Embed(title=f"Page {count}", description=chunk if not codex else f"***Prompt:{prompt}***\n***Instruction:{instruction:}***\n```python\n{chunk}\n```")
+                first = True
+            else:
+                page = discord.Embed(title=f"Page {count}", description=chunk if not codex else f"```python\n{chunk}\n```")
             pages.append(page)
          
         return pages
@@ -851,10 +861,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
-    def remove_awaiting(self, author_id, channel_id, from_g_command, from_edit_command):
+    def remove_awaiting(self, author_id, channel_id, from_ask_command, from_edit_command):
         if author_id in self.awaiting_responses:
             self.awaiting_responses.remove(author_id)
-        if not from_g_command and not from_edit_command:
+        if not from_ask_command and not from_edit_command:
             if channel_id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(channel_id)
 
@@ -883,7 +893,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
-        from_g_command=False,
+        from_ask_command=False,
         instruction=None,
         from_edit_command=False,
         codex=False,
@@ -892,7 +902,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         edited_request=False,
         redo_request=False,
     ):
-        new_prompt = prompt + "\nGPTie: " if not from_g_command and not from_edit_command else prompt
+        new_prompt = prompt + "\nGPTie: " if not from_ask_command and not from_edit_command else prompt
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -1022,7 +1032,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             elif (
                 id in self.conversation_threads
                 and tokens > self.model.summarize_threshold
-                and not from_g_command
+                and not from_ask_command
                 and not from_edit_command
                 and not self.pinecone_service  # This should only happen if we are not doing summarizations.
             ):
@@ -1091,7 +1101,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Clean the request response
             response_text = self.cleanse_response(str(response["choices"][0]["text"]))
 
-            if from_g_command:
+            if from_ask_command:
                     # Append the prompt to the beginning of the response, in italics, then a new line
                     response_text = response_text.strip()
                     response_text = f"***{prompt}***\n\n{response_text}"
@@ -1109,7 +1119,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # If the user is conversing, add the GPT response to their conversation history.
             if (
                 id in self.conversation_threads
-                and not from_g_command
+                and not from_ask_command
                 and not self.pinecone_service
             ):
                 if not redo_request:
@@ -1122,7 +1132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Embeddings case!
             elif (
                 id in self.conversation_threads
-                and not from_g_command
+                and not from_ask_command
                 and not from_edit_command
                 and self.pinecone_service
             ):
@@ -1163,13 +1173,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not response_message:
                 if len(response_text) > self.TEXT_CUTOFF:
                     if not from_context:
+                        paginator = None
                         await self.paginate_and_send(response_text, ctx)
                     else:
-                        embed_pages = await self.paginate_embed(response_text)
-                        #view=ConversationView(ctx, self, ctx.channel.id, model, from_edit_command, custom_api_key=custom_api_key)
-                        paginator = pages.Paginator(pages=embed_pages, timeout=3600)
+                        embed_pages = await self.paginate_embed(response_text, codex, prompt, instruction)
+                        view=ConversationView(ctx, self, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
+                        paginator = pages.Paginator(pages=embed_pages, timeout=None, custom_view=view)
                         response_message = await paginator.respond(ctx.interaction)
                 else:
+                    paginator = None
                     if not from_context:
                         response_message = await ctx.reply(
                             response_text,
@@ -1181,17 +1193,18 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, model, from_edit_command, custom_api_key=custom_api_key
+                                ctx, self, ctx.channel.id, model, from_edit_command=from_edit_command, custom_api_key=custom_api_key
                             ),
                         )
                     else: 
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, model, custom_api_key=custom_api_key
+                                ctx, self, ctx.channel.id, model, from_ask_command=from_ask_command, custom_api_key=custom_api_key
                             ),
                         )
 
+                if response_message:
                     # Get the actual message object of response_message in case it's an WebhookMessage
                     actual_response_message = (
                         response_message
@@ -1200,14 +1213,24 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     self.redo_users[ctx.author.id] = RedoUser(
-                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message, codex=codex
+                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message, codex=codex, paginator=paginator
                     )
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
                     )
+
             # We are doing a redo, edit the message.
             else:
-                await response_message.edit(content=response_text)
+                paginator = self.redo_users.get(ctx.author.id).paginator
+                if len(response_text) > self.TEXT_CUTOFF:
+                    if not from_context:
+                        await response_message.channel.send("Over 2000 characters", delete_after=5)
+                    elif paginator:
+                        embed_pages = await self.paginate_embed(response_text, codex, prompt, instruction)
+                        view=ConversationView(ctx, self, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
+                        await paginator.update(pages=embed_pages, custom_view=view)
+                else:
+                    await response_message.edit(content=response_text)
 
             await self.send_debug_message(
                 self.generate_debug_message(prompt, response), self.debug_channel
@@ -1215,7 +1238,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command and not from_edit_command:
+            if not from_ask_command and not from_edit_command:
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
 
@@ -1228,7 +1251,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(message)
             else:
                 await ctx.reply(message)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -1236,7 +1259,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
 
         # General catch case for everything
         except Exception:
@@ -1245,7 +1268,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.send_followup(message) if from_context else await ctx.reply(
                 message
             )
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
             traceback.print_exc()
 
             try:
@@ -1324,7 +1347,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             top_p_override=top_p,
             frequency_penalty_override=frequency_penalty,
             presence_penalty_override=presence_penalty,
-            from_g_command=True,
+            from_ask_command=True,
             custom_api_key=user_api_key,
         )
     @add_to_group("gpt")
@@ -1804,15 +1827,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
 
 class ConversationView(discord.ui.View):
-    def __init__(self, ctx, converser_cog, id, model, from_edit_command=False, custom_api_key=None):
+    def __init__(self, ctx, converser_cog, id, model, from_ask_command=False, from_edit_command=False, custom_api_key=None):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
         self.ctx = ctx
         self.model = model
+        self.from_ask_command = from_ask_command
         self.from_edit_command = from_edit_command
         self.custom_api_key = custom_api_key
         self.add_item(
-            RedoButton(self.converser_cog, model, from_edit_command, custom_api_key=self.custom_api_key)
+            RedoButton(self.converser_cog, model=model, from_ask_command=from_ask_command, from_edit_command=from_edit_command, custom_api_key=self.custom_api_key)
         )
 
         if id in self.converser_cog.conversation_threads:
@@ -1834,7 +1858,7 @@ class ConversationView(discord.ui.View):
 
 class EndConvoButton(discord.ui.Button["ConversationView"]):
     def __init__(self, converser_cog):
-        super().__init__(style=discord.ButtonStyle.danger, label="End Conversation")
+        super().__init__(style=discord.ButtonStyle.danger, label="End Conversation", custom_id="conversation_end")
         self.converser_cog = converser_cog
 
     async def callback(self, interaction: discord.Interaction):
@@ -1864,10 +1888,11 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
 
 class RedoButton(discord.ui.Button["ConversationView"]):
-    def __init__(self, converser_cog, model, from_edit_command, custom_api_key):
-        super().__init__(style=discord.ButtonStyle.danger, label="Retry")
+    def __init__(self, converser_cog, model, from_ask_command, from_edit_command, custom_api_key):
+        super().__init__(style=discord.ButtonStyle.danger, label="Retry", custom_id="conversation_redo")
         self.converser_cog = converser_cog
         self.model = model
+        self.from_ask_command = from_ask_command
         self.from_edit_command = from_edit_command
         self.custom_api_key = custom_api_key
 
@@ -1899,6 +1924,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 codex=codex,
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
+                from_ask_command=self.from_ask_command,
                 from_edit_command=self.from_edit_command
             )
         else:
