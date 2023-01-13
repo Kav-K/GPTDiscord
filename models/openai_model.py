@@ -8,11 +8,13 @@ import uuid
 from typing import Tuple, List, Any
 
 import aiohttp
+import backoff
 import discord
 
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from PIL import Image
+from aiohttp import RequestInfo
 from discord import File
 
 
@@ -341,6 +343,10 @@ class Model:
             )
         self._prompt_min_length = value
 
+    def backoff_handler(details):
+        print (f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
+            f"{details['exception'].status}: {details['exception'].message}")
+
     async def valid_text_request(self, response):
         try:
             tokens_used = int(response["usage"]["total_tokens"])
@@ -351,8 +357,9 @@ class Model:
                 + str(response["error"]["message"])
             )
 
+    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
     async def send_embedding_request(self, text, custom_api_key=None):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "model": Models.EMBEDDINGS,
                 "input": text,
@@ -368,14 +375,15 @@ class Model:
 
                 try:
                     return response["data"][0]["embedding"]
-                except Exception as e:
+                except Exception:
                     print(response)
                     traceback.print_exc()
                     return
 
+    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=6, on_backoff=backoff_handler)
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key}",
@@ -388,6 +396,7 @@ class Model:
             ) as response:
                 return await response.json()
 
+    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
     async def send_summary_request(self, prompt, custom_api_key=None):
         """
         Sends a summary request to the OpenAI API
@@ -403,7 +412,7 @@ class Model:
 
         tokens = self.usage_service.count_tokens(summary_request_text)
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "model": Models.DAVINCI,
                 "prompt": summary_request_text,
@@ -429,6 +438,7 @@ class Model:
 
                 return response
 
+    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
     async def send_request(
         self,
         prompt,
@@ -457,7 +467,7 @@ class Model:
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
         )
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
@@ -511,6 +521,7 @@ class Model:
 
                 return response
 
+    @backoff.on_exception(backoff.expo, aiohttp.ClientResponseError, factor=3, base=5, max_tries=4, on_backoff=backoff_handler)
     async def send_image_request(
         self, ctx, prompt, vary=None, custom_api_key=None
     ) -> tuple[File, list[Any]]:
@@ -533,15 +544,16 @@ class Model:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(raise_for_status=True) as session:
                 async with session.post(
                     "https://api.openai.com/v1/images/generations",
                     json=payload,
                     headers=headers,
                 ) as resp:
                     response = await resp.json()
+
         else:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(raise_for_status=True) as session:
                 data = aiohttp.FormData()
                 data.add_field("n", str(self.num_images))
                 data.add_field("size", self.image_size)
@@ -559,7 +571,7 @@ class Model:
                     ) as resp:
                         response = await resp.json()
 
-        # print(response)
+        print(response)
 
         image_urls = []
         for result in response["data"]:

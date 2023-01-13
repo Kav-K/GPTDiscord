@@ -8,9 +8,10 @@
 [![GitHub license](https://img.shields.io/github/license/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/blob/master/LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
+# Overview
+A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
 
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the bot here, it is for setup support ONLY)
-
 # Screenshots
 
 <p align="center">
@@ -22,6 +23,9 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 </p>
 
 # Recent Notable Updates
+- **Automatic retry on API errors** - The bot will automatically retry API requests if they fail due to some issue with OpenAI's APIs, this is becoming increasingly important now as their APIs become under heavy load.
+
+
 - **Allow each individual user to enter their own API Key!** - Each request that a user makes will be made using their own API key! Check out the User-Input API Key section in this README for more details.
 
 
@@ -32,9 +36,6 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 
 
 - **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
-
-
-- **AUTOMATIC CHAT SUMMARIZATION!** - When the context limit of a conversation is reached, the bot will use GPT3 itself to summarize the conversation to reduce the tokens, and continue conversing with you, this allows you to chat for a long time!
 
 
 # Features
@@ -49,6 +50,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 - **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!
 
 - **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!
+
+- **Auto-retry on API errors** - Automatically resend failed requests to OpenAI's APIs!
 
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!
 
