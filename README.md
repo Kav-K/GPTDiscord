@@ -178,7 +178,9 @@ USER_INPUT_API_KEYS="True"
 
 Then, restart the bot, and it will set up the system for everyone to input their own API keys. 
 
-The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot.
+The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot (by default).
+
+You can configure the location of the sqlite database by changing the `USER_KEY_DB_PATH` variable in your `.env` file (check the `sample.env` file for reference).
 
 With this feature enabled, any attempt to use a GPT3 or DALL-E command without a valid API key set for the user will pop up the following modal for them to enter their API key:
 <img src="https://i.imgur.com/ZDScoWk.png"/>
@@ -239,6 +241,8 @@ GPT_ROLES="openai,gpt"
 WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" # This is a fallback message if gpt3 fails to generate a welcome message.
 # This is the channel that auto-moderation alerts will be sent to
 MODERATIONS_ALERT_CHANNEL="977697652147892304"
+# User API key db path configuration. This is where the user API keys will be stored.
+USER_KEY_DB_PATH = user_key_db.sqlite
 ```
 
 **Permissions**
