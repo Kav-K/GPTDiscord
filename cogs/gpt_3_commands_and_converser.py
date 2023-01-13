@@ -12,6 +12,7 @@ import json
 
 import aiohttp
 import discord
+from discord.ext import pages
 from pycord.multicog import add_to_group
 
 from models.deletion_service_model import Deletion
@@ -151,6 +152,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             f"The debug channel and guild IDs are {self.DEBUG_GUILD} and {self.DEBUG_CHANNEL}"
         )
         self.TEXT_CUTOFF = 1900
+        self.EMBED_CUTOFF = 4000
         self.message_queue = message_queue
         self.conversation_thread_owners = {}
 
@@ -527,6 +529,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     await ctx.send_followup(chunk)
                 else:
                     await ctx.channel.send(chunk)
+
+    async def paginate_embed(self, response_text):
+
+        response_text = [
+            response_text[i : i + self.EMBED_CUTOFF]
+            for i in range(0, len(response_text), self.EMBED_CUTOFF)
+        ]
+        pages = []
+        # Send each chunk as a message
+        for count, chunk in enumerate(response_text, start=1):
+            page = discord.Embed(title=f"Page {count}", description=chunk)
+            pages.append(page)
+         
+        return pages
 
     async def queue_debug_message(self, debug_message, debug_channel):
         await self.message_queue.put(Message(debug_message, debug_channel))
@@ -1142,10 +1158,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # escape any other mentions like @here or @everyone
             response_text = discord.utils.escape_mentions(response_text)
 
+
             # If we don't have a response message, we are not doing a redo, send as a new message(s)
             if not response_message:
                 if len(response_text) > self.TEXT_CUTOFF:
-                    await self.paginate_and_send(response_text, ctx)
+                    if not from_context:
+                        await self.paginate_and_send(response_text, ctx)
+                    else:
+                        embed_pages = await self.paginate_embed(response_text)
+                        #view=ConversationView(ctx, self, ctx.channel.id, model, from_edit_command, custom_api_key=custom_api_key)
+                        paginator = pages.Paginator(pages=embed_pages, timeout=3600)
+                        response_message = await paginator.respond(ctx.interaction)
                 else:
                     if not from_context:
                         response_message = await ctx.reply(
@@ -1182,7 +1205,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
                     )
-
             # We are doing a redo, edit the message.
             else:
                 await response_message.edit(content=response_text)
