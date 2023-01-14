@@ -18,8 +18,8 @@ class Commands(discord.Cog, name="Commands"):
         message_queue,
         deletion_queue,
         converser_cog,
-        image_service_cog,
         image_draw_cog,
+        image_service_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -28,8 +28,8 @@ class Commands(discord.Cog, name="Commands"):
         self.message_queue = message_queue
         self.deletion_queue = deletion_queue
         self.converser_cog = converser_cog
-        self.image_service_cog = image_service_cog
         self.image_draw_cog = image_draw_cog
+        self.image_service_cog = image_service_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
