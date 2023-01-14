@@ -26,7 +26,9 @@ from models.openai_model import Model
 from services.usage_service import UsageService
 from services.environment_service import EnvService
 
+
 __version__ = "6.1"
+
 
 """
 The pinecone service is used to store and retrieve conversation embeddings.
