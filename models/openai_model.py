@@ -399,28 +399,35 @@ class Model:
         max_tries=6,
         on_backoff=backoff_handler,
     )
-    async def send_edit_request(self, instruction, input=None, temp_override=None, top_p_override=None, codex=False, custom_api_key=None):
-        
+    async def send_edit_request(
+        self,
+        instruction,
+        input=None,
+        temp_override=None,
+        top_p_override=None,
+        codex=False,
+        custom_api_key=None,
+    ):
+
         # Validate that  all the parameters are in a good state before we send the request
         if len(instruction) < self.prompt_min_length:
             raise ValueError(
                 "Instruction must be greater than 8 characters, it is currently "
                 + str(len(instruction))
             )
-        
 
-        print(f"The text about to be edited is [{input}] with instructions [{instruction}] codex [{codex}]")
         print(
-            f"Overrides -> temp:{temp_override}, top_p:{top_p_override}"
+            f"The text about to be edited is [{input}] with instructions [{instruction}] codex [{codex}]"
         )
-        
+        print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
+
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "model": Models.EDIT if codex is False else Models.CODE_EDIT,
                 "input": "" if input is None else input,
                 "instruction": instruction,
                 "temperature": self.temp if temp_override is None else temp_override,
-                "top_p": self.top_p if top_p_override is None else top_p_override
+                "top_p": self.top_p if top_p_override is None else top_p_override,
             }
             headers = {
                 "Content-Type": "application/json",

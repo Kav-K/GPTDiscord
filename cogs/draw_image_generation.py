@@ -123,7 +123,15 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             if from_context:
                 result_message = await ctx.fetch_message(result_message.id)
 
-            redo_users[user_id] = RedoUser(prompt=prompt, message=ctx, ctx=ctx, response=response_message, instruction=None,codex=False,paginator=None)
+            redo_users[user_id] = RedoUser(
+                prompt=prompt,
+                message=ctx,
+                ctx=ctx,
+                response=response_message,
+                instruction=None,
+                codex=False,
+                paginator=None
+            )
 
         else:
             if not vary:  # Editing case
@@ -177,7 +185,15 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                         )
                     )
 
-                    redo_users[user_id] = RedoUser(prompt=prompt, message=ctx, ctx=ctx, response=response_message, instruction=None,codex=False,paginator=None)
+                    redo_users[user_id] = RedoUser(
+                        prompt=prompt,
+                        message=ctx,
+                        ctx=ctx,
+                        response=response_message,
+                        instruction=None,
+                        codex=False,
+                        paginator=None,
+                    )
 
                 self.converser_cog.users_to_interactions[user_id].append(
                     response_message.id

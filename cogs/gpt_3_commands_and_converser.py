@@ -42,7 +42,20 @@ if USER_INPUT_API_KEYS:
     print(
         "This server was configured to enforce user input API keys. Doing the required database setup now"
     )
-    USER_KEY_DB = SqliteDict("user_key_db.sqlite")
+    # Get USER_KEY_DB from the environment variable
+    USER_KEY_DB_PATH = EnvService.get_user_key_db_path()
+    # Check if USER_KEY_DB_PATH is valid
+    if not USER_KEY_DB_PATH:
+        print(
+            "No user key database path was provided. Defaulting to user_key_db.sqlite"
+        )
+        USER_KEY_DB_PATH = "user_key_db.sqlite"
+    else:
+        # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
+        if not USER_KEY_DB_PATH.match("*.sqlite"):
+            # append "user_key_db.sqlite" to USER_KEY_DB_PATH
+            USER_KEY_DB_PATH = USER_KEY_DB_PATH / "user_key_db.sqlite"
+    USER_KEY_DB = SqliteDict(USER_KEY_DB_PATH)
     print("Retrieved/created the user key database")
 
 
@@ -774,14 +787,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         edited_request=False,
         redo_request=False,
     ):
-        new_prompt = prompt + "\nGPTie: " if not from_ask_command and not from_edit_command else prompt
+        new_prompt = (
+            prompt + "\nGPTie: "
+            if not from_ask_command and not from_edit_command
+            else prompt
+        )
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
         if not instruction:
-            tokens = self.usage_service.count_tokens(new_prompt) 
-        else: 
-            tokens = self.usage_service.count_tokens(new_prompt) + self.usage_service.count_tokens(instruction) 
+            tokens = self.usage_service.count_tokens(new_prompt)
+        else:
+            tokens = self.usage_service.count_tokens(
+                new_prompt
+            ) + self.usage_service.count_tokens(instruction)
 
         try:
 
@@ -980,10 +999,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
-                    response_text = f"***Prompt:{prompt}***\n***Instruction:{instruction}***\n\n```\n{response_text}\n```"
+                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n```\n{response_text}\n```"
                 else:
                     response_text = response_text.strip()
-                    response_text = f"***Prompt:{prompt}***\n***Instruction:{instruction}***\n\n{response_text}\n"
+                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n{response_text}\n"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await self.mention_to_username(ctx, response_text)
@@ -1058,21 +1077,35 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         response_message = await ctx.reply(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, model, custom_api_key=custom_api_key
+                                ctx,
+                                self,
+                                ctx.channel.id,
+                                model,
+                                custom_api_key=custom_api_key,
                             ),
                         )
                     elif from_edit_command:
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, model, from_edit_command=from_edit_command, custom_api_key=custom_api_key
+                                ctx, 
+                                self, 
+                                ctx.channel.id, 
+                                model, 
+                                from_edit_command=from_edit_command, 
+                                custom_api_key=custom_api_key
                             ),
                         )
-                    else: 
+                    else:
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, model, from_ask_command=from_ask_command, custom_api_key=custom_api_key
+                                ctx, 
+                                self, 
+                                ctx.channel.id, 
+                                model, 
+                                from_ask_command=from_ask_command, 
+                                custom_api_key=custom_api_key
                             ),
                         )
 
@@ -1085,7 +1118,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     self.redo_users[ctx.author.id] = RedoUser(
-                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message, codex=codex, paginator=paginator
+                        prompt=new_prompt, 
+                        instruction=instruction, 
+                        ctx=ctx, 
+                        message=ctx, 
+                        response=actual_response_message, 
+                        codex=codex, 
+                        paginator=paginator
                     )
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
@@ -1123,7 +1162,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(message)
             else:
                 await ctx.reply(message)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
+            self.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -1131,7 +1172,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
+            self.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
 
         # General catch case for everything
         except Exception:
@@ -1140,7 +1183,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.send_followup(message) if from_context else await ctx.reply(
                 message
             )
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
+            self.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
             traceback.print_exc()
 
             try:
@@ -1295,7 +1340,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         input = await self.mention_to_username(ctx, input.strip())
         instruction = await self.mention_to_username(ctx, instruction.strip())
-
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -1610,7 +1654,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 # VIEWS AND MODALS
 
 class ConversationView(discord.ui.View):
-    def __init__(self, ctx, converser_cog, id, model, from_ask_command=False, from_edit_command=False, custom_api_key=None):
+    def __init__(
+        self,
+        ctx,
+        converser_cog,
+        id,
+        model,
+        from_ask_command=False,
+        from_edit_command=False,
+        custom_api_key=None,
+    ):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
         self.ctx = ctx
@@ -1619,7 +1672,13 @@ class ConversationView(discord.ui.View):
         self.from_edit_command = from_edit_command
         self.custom_api_key = custom_api_key
         self.add_item(
-            RedoButton(self.converser_cog, model=model, from_ask_command=from_ask_command, from_edit_command=from_edit_command, custom_api_key=self.custom_api_key)
+            RedoButton(
+                self.converser_cog,
+                model=model, 
+                from_ask_command=from_ask_command,
+                from_edit_command=from_edit_command,
+                custom_api_key=self.custom_api_key,
+            )
         )
 
         if id in self.converser_cog.conversation_threads:
@@ -1708,7 +1767,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
                 from_ask_command=self.from_ask_command,
-                from_edit_command=self.from_edit_command
+                from_edit_command=self.from_edit_command,
             )
         else:
             await interaction.response.send_message(
