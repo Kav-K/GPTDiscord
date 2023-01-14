@@ -280,7 +280,7 @@ class Commands(discord.Cog, name="Commands"):
         top_p: float,
         codex: bool,
     ):
-        await self.converser_cog.ask_command(ctx, instruction, input, temperature, top_p, codex)
+        await self.converser_cog.edit_command(ctx, instruction, input, temperature, top_p, codex)
 
 
     @add_to_group("gpt")
