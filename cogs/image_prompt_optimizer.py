@@ -114,7 +114,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             )
 
             self.converser_cog.redo_users[user.id] = RedoUser(
-                prompt=final_prompt, message=ctx, ctx=ctx, response=response_message, instruction=None,codex=None,paginator=None
+                prompt=final_prompt, message=ctx, ctx=ctx, response=response_message, instruction=None,codex=False,paginator=None
             )
             self.converser_cog.redo_users[user.id].add_interaction(response_message.id)
             await response_message.edit(
