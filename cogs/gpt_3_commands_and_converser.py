@@ -230,30 +230,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         print(f"Commands synced")
 
-    async def set_usage_command(self, ctx: discord.ApplicationContext, usage_amount: float):
-        await ctx.defer()
-
-        # Attempt to convert the input usage value into a float
-        try:
-            usage = float(usage_amount)
-            await self.usage_service.set_usage(usage)
-            await ctx.respond(f"Set the usage to {usage}")
-        except:
-            await ctx.respond("The usage value must be a valid float.")
-            return
-
-    async def delete_all_conversation_threads_command(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
-
-        for guild in self.bot.guilds:
-            for thread in guild.threads:
-                thread_name = thread.name.lower()
-                if "with gpt" in thread_name or "closed-gpt" in thread_name:
-                    try:
-                        await thread.delete()
-                    except:
-                        pass
-        await ctx.respond("All conversation threads have been deleted.")
 
     # TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
     def check_conversing(self, user_id, channel_id, message_content, multi=None):
@@ -340,75 +316,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     traceback.print_exc()
                     pass
 
-    async def help_command(self, ctx):
-        await ctx.defer()
-        embed = discord.Embed(
-            title="GPT3Bot Help", description="The current commands", color=0xC730C7
-        )
-        embed.add_field(
-            name="/gpt ask",
-            value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
-            inline=False,
-        )
-        embed.add_field(
-            name="/gpt edit",
-            value="Use GPT3 to edit a piece of text given an instruction",
-            inline=False,
-        )
-        embed.add_field(
-            name="/gpt converse", value="Start a conversation with GPT3", inline=False
-        )
-        embed.add_field(
-            name="/gpt end",
-            value="End a conversation with GPT3. You can also type `end` in the conversation.",
-            inline=False,
-        )
-        embed.add_field(
-            name="/system settings",
-            value="Print the current settings of the model",
-            inline=False,
-        )
-        embed.add_field(
-            name="/system settings <model parameter> <value>",
-            value="Change the parameter of the model named by <model parameter> to new value <value>",
-            inline=False,
-        )
-        embed.add_field(
-            name="/dalle draw <image prompt>",
-            value="Use DALL-E2 to draw an image based on a text prompt",
-            inline=False,
-        )
-        embed.add_field(
-            name="/dalle optimize <image prompt>",
-            value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
-            inline=False,
-        )
-        embed.add_field(
-            name="/system moderations",
-            value="The automatic moderations service",
-            inline=False,
-        )
-
-        embed.add_field(name="/help", value="See this help text", inline=False)
-        await ctx.respond(embed=embed)
-
-    async def usage_command(self, ctx):
-        await ctx.defer()
-        embed = discord.Embed(
-            title="GPT3Bot Usage", description="The current usage", color=0x00FF00
-        )
-        # 1000 tokens costs 0.02 USD, so we can calculate the total tokens used from the price that we have stored
-        embed.add_field(
-            name="Total tokens used",
-            value=str(int((await self.usage_service.get_usage() / 0.02)) * 1000),
-            inline=False,
-        )
-        embed.add_field(
-            name="Total price",
-            value="$" + str(round(await self.usage_service.get_usage(), 2)),
-            inline=False,
-        )
-        await ctx.respond(embed=embed)
 
     async def send_settings_text(self, ctx):
         embed = discord.Embed(
@@ -441,7 +348,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         await ctx.respond(embed=embed)
 
-    async def process_settings_command(self, ctx, parameter, value):
+    async def process_settings(self, ctx, parameter, value):
 
         # Check if the parameter is a valid parameter
         if hasattr(self.model, parameter):
@@ -1242,6 +1149,107 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 pass
             return
 
+# COMMANDS
+
+    async def help_command(self, ctx):
+        await ctx.defer()
+        embed = discord.Embed(
+            title="GPT3Bot Help", description="The current commands", color=0xC730C7
+        )
+        embed.add_field(
+            name="/gpt ask",
+            value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/gpt edit",
+            value="Use GPT3 to edit a piece of text given an instruction",
+            inline=False,
+        )
+        embed.add_field(
+            name="/gpt converse", value="Start a conversation with GPT3", inline=False
+        )
+        embed.add_field(
+            name="/gpt end",
+            value="End a conversation with GPT3. You can also type `end` in the conversation.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/system settings",
+            value="Print the current settings of the model",
+            inline=False,
+        )
+        embed.add_field(
+            name="/system settings <model parameter> <value>",
+            value="Change the parameter of the model named by <model parameter> to new value <value>",
+            inline=False,
+        )
+        embed.add_field(
+            name="/dalle draw <image prompt>",
+            value="Use DALL-E2 to draw an image based on a text prompt",
+            inline=False,
+        )
+        embed.add_field(
+            name="/dalle optimize <image prompt>",
+            value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/system moderations",
+            value="The automatic moderations service",
+            inline=False,
+        )
+
+        embed.add_field(name="/help", value="See this help text", inline=False)
+        await ctx.respond(embed=embed)
+
+
+    async def set_usage_command(self, ctx: discord.ApplicationContext, usage_amount: float):
+        await ctx.defer()
+
+        # Attempt to convert the input usage value into a float
+        try:
+            usage = float(usage_amount)
+            await self.usage_service.set_usage(usage)
+            await ctx.respond(f"Set the usage to {usage}")
+        except:
+            await ctx.respond("The usage value must be a valid float.")
+            return
+
+
+    async def delete_all_conversation_threads_command(self, ctx: discord.ApplicationContext):
+        await ctx.defer()
+
+        for guild in self.bot.guilds:
+            for thread in guild.threads:
+                thread_name = thread.name.lower()
+                if "with gpt" in thread_name or "closed-gpt" in thread_name:
+                    try:
+                        await thread.delete()
+                    except:
+                        pass
+        await ctx.respond("All conversation threads have been deleted.")
+
+
+    async def usage_command(self, ctx):
+        await ctx.defer()
+        embed = discord.Embed(
+            title="GPT3Bot Usage", description="The current usage", color=0x00FF00
+        )
+        # 1000 tokens costs 0.02 USD, so we can calculate the total tokens used from the price that we have stored
+        embed.add_field(
+            name="Total tokens used",
+            value=str(int((await self.usage_service.get_usage() / 0.02)) * 1000),
+            inline=False,
+        )
+        embed.add_field(
+            name="Total price",
+            value="$" + str(round(await self.usage_service.get_usage(), 2)),
+            inline=False,
+        )
+        await ctx.respond(embed=embed)
+
+
     async def ask_command(
         self,
         ctx: discord.ApplicationContext,
@@ -1576,7 +1584,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         # Otherwise, process the settings change
-        await self.process_settings_command(ctx, parameter, value)
+        await self.process_settings(ctx, parameter, value)
 
     def check_guild_moderated(self, guild_id):
         return guild_id in MOD_DB and MOD_DB[guild_id]["moderated"]
@@ -1599,6 +1607,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         }
         MOD_DB.commit()
 
+# VIEWS AND MODALS
 
 class ConversationView(discord.ui.View):
     def __init__(self, ctx, converser_cog, id, model, from_ask_command=False, from_edit_command=False, custom_api_key=None):
