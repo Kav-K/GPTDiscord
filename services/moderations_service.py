@@ -7,7 +7,7 @@ from pathlib import Path
 import discord
 
 from models.openai_model import Model
-from models.usage_service_model import UsageService
+from services.usage_service import UsageService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)

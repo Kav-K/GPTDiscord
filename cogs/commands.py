@@ -1,7 +1,7 @@
 import discord
 from pycord.multicog import add_to_group
 
-from models.env_service_model import EnvService
+from services.environment_service import EnvService
 from models.check_model import Check
 from models.autocomplete_model import Settings_autocompleter, File_autocompleter
 

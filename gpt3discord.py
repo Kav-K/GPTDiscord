@@ -8,22 +8,22 @@ import pinecone
 from pycord.multicog import apply_multicog
 import os
 
-from models.pinecone_service_model import PineconeService
+from services.pinecone_service import PineconeService
 
 if sys.platform == "win32":
     separator = "\\"
 else:
     separator = "/"
 
-from cogs.draw_image_generation import DrawDallEService
-from cogs.gpt_3_commands_and_converser import GPT3ComCon
-from cogs.image_prompt_optimizer import ImgPromptOptimizer
+from cogs.image_service_cog import DrawDallEService
+from cogs.text_service_cog import GPT3ComCon
+from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.commands import Commands
-from models.deletion_service_model import Deletion
-from models.message_model import Message
+from services.deletion_service import Deletion
+from services.message_queue_service import Message
 from models.openai_model import Model
-from models.usage_service_model import UsageService
-from models.env_service_model import EnvService
+from services.usage_service import UsageService
+from services.environment_service import EnvService
 
 __version__ = "6.0"
 

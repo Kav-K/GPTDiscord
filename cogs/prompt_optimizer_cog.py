@@ -4,10 +4,11 @@ import traceback
 import discord
 from sqlitedict import SqliteDict
 
-from cogs.gpt_3_commands_and_converser import GPT3ComCon
-from models.env_service_model import EnvService
+from services.environment_service import EnvService
 from models.user_model import RedoUser
-from pycord.multicog import add_to_group
+from services.image_service import ImageService
+
+from services.text_service import TextService
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
@@ -55,7 +56,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     async def optimize_command(self, ctx: discord.ApplicationContext, prompt: str):
         user_api_key = None
         if USER_INPUT_API_KEYS:
-            user_api_key = await GPT3ComCon.get_user_api_key(ctx.user.id, ctx)
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx)
             if not user_api_key:
                 return
 
@@ -77,7 +78,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         try:
             response = await self.model.send_request(
                 final_prompt,
-                tokens=70,
+                tokens=60,
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
@@ -217,7 +218,8 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         prompt = re.sub(r"Optimized Prompt: ?", "", prompt)
 
         # Call the image service cog to draw the image
-        await self.image_service_cog.encapsulated_send(
+        await ImageService.encapsulated_send(
+            self.image_service_cog,
             user_id,
             prompt,
             interaction,
@@ -255,7 +257,8 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
             msg = await interaction.response.send_message(
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
-            await self.converser_cog.encapsulated_send(
+            await TextService.encapsulated_send(
+                self.converser_cog,
                 id=user_id,
                 prompt=prompt,
                 ctx=ctx,

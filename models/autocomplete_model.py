@@ -3,9 +3,9 @@ import os
 import re
 
 import discord
-from models.usage_service_model import UsageService
+from services.usage_service import UsageService
 from models.openai_model import Model
-from models.env_service_model import EnvService
+from services.environment_service import EnvService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
