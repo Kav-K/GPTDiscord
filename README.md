@@ -2,7 +2,7 @@
 ![PyPi](https://github.com/Kav-K/GPT3Discord/actions/workflows/pypi_upload.yml/badge.svg)
 ![Build](https://github.com/Kav-K/GPT3Discord/actions/workflows/build.yml/badge.svg)
 
-[![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.com/project/gpt3discord)
+[![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.org/project/gpt3discord)
 [![Latest release](https://badgen.net/github/release/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/releases)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Kav-K/GPT3Discord/graphs/commit-activity)
 [![GitHub license](https://img.shields.io/github/license/Kav-K/GPT3Discord)](https://github.com/Kav-K/GPT3Discord/blob/master/LICENSE)
@@ -121,11 +121,11 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 ### Automatic AI Moderation
 
-`/system moderations status:on` - Turn on automatic chat moderations. 
+`/mod set status:on` - Turn on automatic chat moderations. 
 
-`/system moderations status:off` - Turn off automatic chat moderations
+`/mod set status:off` - Turn off automatic chat moderations
 
-`/system moderations status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+`/mod set status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
 
 - The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
 - This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
@@ -134,7 +134,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)
 
-** The above server is NOT for support or discussions about GPT3Discord **
+**The above server is NOT for support or discussions about GPT3Discord**
 
 # Permanent Memory
 Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
@@ -230,26 +230,30 @@ You also need to add the allowed guilds that the bot can operate on, this is the
 
 You also need to add the roles that can use the bots various features, scroll down a bit to "Permissions", and check out the sample environment file below.
 
-```
-OPENAI_TOKEN="<openai_api_token>"
-DISCORD_TOKEN="<discord_bot_token>"
-DEBUG_GUILD="974519864045756446"   #discord_server_id
-DEBUG_CHANNEL="977697652147892304"  #discord_chanel_id
-ALLOWED_GUILDS="971268468148166697,971268468148166697"
+```shell
+OPENAI_TOKEN = "<openai_api_token>"
+DISCORD_TOKEN = "<discord_bot_token>"
+#PINECONE_TOKEN = "<pinecone_token>" # pinecone token if you have it enabled. See readme
+DEBUG_GUILD = "974519864045756446"  # discord_server_id
+DEBUG_CHANNEL = "977697652147892304"  # discord_chanel_id
+ALLOWED_GUILDS = "971268468148166697,971268468148166697"
 # People with the roles in ADMIN_ROLES can use admin commands like /clear-local, and etc
-ADMIN_ROLES="Admin,Owner" 
+ADMIN_ROLES = "Admin,Owner"
 # People with the roles in DALLE_ROLES can use commands like /dalle draw or /dalle imgoptimize
-DALLE_ROLES="Admin,Openai,Dalle,gpt"
+DALLE_ROLES = "Admin,Openai,Dalle,gpt"
 # People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse
-GPT_ROLES="openai,gpt"
-WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" # This is a fallback message if gpt3 fails to generate a welcome message.
-# This is the channel that auto-moderation alerts will be sent to
-MODERATIONS_ALERT_CHANNEL="977697652147892304"
+GPT_ROLES = "openai,gpt"
+WELCOME_MESSAGE = "Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!"  # This is a fallback message if gpt3 fails to generate a welcome message.
+USER_INPUT_API_KEYS="False" # If True, users must use their own API keys for OpenAI. If False, the bot will use the API key in the .env file.
+# Moderations Service alert channel, this is where moderation alerts will be sent as a default if enabled
+MODERATIONS_ALERT_CHANNEL = "977697652147892304"
+# User API key db path configuration. This is where the user API keys will be stored.
+USER_KEY_DB_PATH = user_key_db.sqlite
 ```
 
 **Permissions**
 
-As mentioned in the comments of the sample environment file, there are three permission groups that you can edit in the environment (`.env`) file. `ADMIN_ROLES` are roles that allow users to use `/system` commands. `GPT_ROLES` are roles that allow users to use `/gpt` commands, and `DALLE_ROLES` are roles that allow users to use `/dalle` commands.
+As mentioned in the comments of the sample environment file, there are three permission groups that you can edit in the environment (`.env`) file. `ADMIN_ROLES` are roles that allow users to use `/system` and `/mod` commands. `GPT_ROLES` are roles that allow users to use `/gpt` commands, and `DALLE_ROLES` are roles that allow users to use `/dalle` commands.
 
 Optionally, you can include your own conversation starter text for the bot that's used with `/gpt converse`, with `CONVERSATION_STARTER_TEXT`
 

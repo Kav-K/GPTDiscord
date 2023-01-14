@@ -44,14 +44,15 @@ path = "gpt3discord.py"
 include = [
   "cogs/*.py",
   "models/*.py",
+  "services/*.py",
   "gpt3discord.py",
 ]
 
 #[tool.hatch.build.targets.sdist]
-#packages = ["cogs", "gpt3discord.py", "models"]
+#packages = ["cogs", "gpt3discord.py", "models", "services"]
 
 #[tool.hatch.build.targets.wheel]
-#packages = ["cogs", "gpt3discord.py", "models"]
+#packages = ["cogs", "gpt3discord.py", "models", "services"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["39"]

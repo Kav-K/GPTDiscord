@@ -81,6 +81,14 @@ jobs:
           host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: openers
+          remote: /home/gptbot/services
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
       - name: copy file via ssh password (OAI)
         uses: appleboy/scp-action@master
         with:
@@ -129,6 +137,14 @@ jobs:
         with:
           local: openers
           remote: /home/gptbotopenai/openers
+          host: 104.248.105.234
+          username: root
+          password: ${{ secrets.SSH_PASS }}
+      - name: Copy via ssh (OAI)
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: openers
+          remote: /home/gptbotopenai/services
           host: 104.248.105.234
           username: root
           password: ${{ secrets.SSH_PASS }}

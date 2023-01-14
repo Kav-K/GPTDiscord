@@ -1,6 +1,6 @@
 import discord
 
-from models.env_service_model import EnvService
+from services.environment_service import EnvService
 from typing import Callable
 
 ADMIN_ROLES = EnvService.get_admin_roles()
