@@ -395,11 +395,7 @@ class TextService:
                 converser_cog.generate_debug_message(prompt, response), converser_cog.debug_channel
             )
 
-            if ctx.author.id in converser_cog.awaiting_responses:
-                converser_cog.awaiting_responses.remove(ctx.author.id)
-            if not from_ask_command and not from_edit_command:
-                if ctx.channel.id in converser_cog.awaiting_thread_responses:
-                    converser_cog.awaiting_thread_responses.remove(ctx.channel.id)
+            converser_cog.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
