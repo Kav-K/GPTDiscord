@@ -8,7 +8,6 @@ from models.autocomplete_model import Settings_autocompleter, File_autocompleter
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-
 class Commands(discord.Cog, name="Commands"):
     def __init__(
         self,
@@ -97,7 +96,6 @@ class Commands(discord.Cog, name="Commands"):
     async def local_size(self, ctx: discord.ApplicationContext):
         await self.image_draw_cog.local_size_command(ctx)
 
-
     @add_to_group("system")
     @discord.slash_command(
         name="clear-local",
@@ -108,7 +106,6 @@ class Commands(discord.Cog, name="Commands"):
     async def clear_local(self, ctx: discord.ApplicationContext):
         await self.image_draw_cog.clear_local_command(ctx)
 
-
     @add_to_group("system")
     @discord.slash_command(
         name="usage",
@@ -118,7 +115,6 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def usage(self, ctx: discord.ApplicationContext):
         await self.converser_cog.usage_command(ctx)
-
 
     @add_to_group("system")
     @discord.slash_command(
@@ -133,7 +129,6 @@ class Commands(discord.Cog, name="Commands"):
     )
     async def set_usage(self, ctx: discord.ApplicationContext, usage_amount: float):
         await self.converser_cog.set_usage_command(ctx, usage_amount)
-
 
     @add_to_group("system")
     @discord.slash_command(
@@ -162,7 +157,6 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def moderations_test(self, ctx: discord.ApplicationContext, prompt: str):
         await self.moderations_cog.moderations_test_command(ctx, prompt)
-
 
     @add_to_group("mod")
     @discord.slash_command(
@@ -241,8 +235,9 @@ class Commands(discord.Cog, name="Commands"):
         frequency_penalty: float,
         presence_penalty: float,
     ):
-        await self.converser_cog.ask_command(ctx, prompt, temperature, top_p, frequency_penalty, presence_penalty)
-
+        await self.converser_cog.ask_command(
+            ctx, prompt, temperature, top_p, frequency_penalty, presence_penalty
+        )
 
     @add_to_group("gpt")
     @discord.slash_command(
@@ -251,10 +246,15 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="instruction", description="How you want GPT3 to edit the text", required=True
+        name="instruction",
+        description="How you want GPT3 to edit the text",
+        required=True,
     )
     @discord.option(
-        name="input", description="The text you want to edit, can be empty", required=False, default=""
+        name="input",
+        description="The text you want to edit, can be empty",
+        required=False,
+        default="",
     )
     @discord.option(
         name="temperature",
@@ -273,10 +273,7 @@ class Commands(discord.Cog, name="Commands"):
         max_value=1,
     )
     @discord.option(
-        name="codex", 
-        description="Enable codex version", 
-        required=False, 
-        default=False
+        name="codex", description="Enable codex version", required=False, default=False
     )
     @discord.guild_only()
     async def edit(
@@ -288,8 +285,9 @@ class Commands(discord.Cog, name="Commands"):
         top_p: float,
         codex: bool,
     ):
-        await self.converser_cog.edit_command(ctx, instruction, input, temperature, top_p, codex)
-
+        await self.converser_cog.edit_command(
+            ctx, instruction, input, temperature, top_p, codex
+        )
 
     @add_to_group("gpt")
     @discord.slash_command(
@@ -329,8 +327,9 @@ class Commands(discord.Cog, name="Commands"):
         private: bool,
         minimal: bool,
     ):
-        await self.converser_cog.converse_command(ctx, opener, opener_file, private, minimal)
-
+        await self.converser_cog.converse_command(
+            ctx, opener, opener_file, private, minimal
+        )
 
     @add_to_group("gpt")
     @discord.slash_command(
@@ -356,7 +355,6 @@ class Commands(discord.Cog, name="Commands"):
     async def draw(self, ctx: discord.ApplicationContext, prompt: str):
         await self.image_draw_cog.draw_command(ctx, prompt)
 
-
     @add_to_group("dalle")
     @discord.slash_command(
         name="optimize",
@@ -375,14 +373,13 @@ class Commands(discord.Cog, name="Commands"):
     """
 
     @discord.slash_command(
-    name="private-test",
-    description="Private thread for testing. Only visible to you and server admins.",
-    guild_ids=ALLOWED_GUILDS,
+        name="private-test",
+        description="Private thread for testing. Only visible to you and server admins.",
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     async def private_test(self, ctx: discord.ApplicationContext):
         await self.converser_cog.private_test_command(ctx)
-
 
     @discord.slash_command(
         name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
@@ -390,7 +387,6 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def help(self, ctx: discord.ApplicationContext):
         await self.converser_cog.help_command(ctx)
-
 
     @discord.slash_command(
         name="setup",

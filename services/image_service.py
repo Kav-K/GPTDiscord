@@ -11,20 +11,19 @@ from models.user_model import RedoUser
 
 
 class ImageService:
-
     def __init__(self):
         pass
 
     @staticmethod
     async def encapsulated_send(
-            image_service_cog,
-            user_id,
-            prompt,
-            ctx,
-            response_message=None,
-            vary=None,
-            draw_from_optimizer=None,
-            custom_api_key=None,
+        image_service_cog,
+        user_id,
+        prompt,
+        ctx,
+        response_message=None,
+        vary=None,
+        draw_from_optimizer=None,
+        custom_api_key=None,
     ):
         await asyncio.sleep(0)
         # send the prompt to the model
@@ -93,7 +92,9 @@ class ImageService:
             )
 
             image_service_cog.converser_cog.users_to_interactions[user_id] = []
-            image_service_cog.converser_cog.users_to_interactions[user_id].append(result_message.id)
+            image_service_cog.converser_cog.users_to_interactions[user_id].append(
+                result_message.id
+            )
 
             # Get the actual result message object
             if from_context:
@@ -106,7 +107,7 @@ class ImageService:
                 response=response_message,
                 instruction=None,
                 codex=False,
-                paginator=None
+                paginator=None,
             )
 
         else:

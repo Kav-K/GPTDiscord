@@ -53,13 +53,18 @@ class TextService:
         try:
 
             # Pinecone is enabled, we will create embeddings for this conversation.
-            if converser_cog.pinecone_service and ctx.channel.id in converser_cog.conversation_threads:
+            if (
+                converser_cog.pinecone_service
+                and ctx.channel.id in converser_cog.conversation_threads
+            ):
                 # Delete "GPTie:  <|endofstatement|>" from the user's conversation history if it exists
                 # check if the text attribute for any object inside converser_cog.conversation_threads[converation_id].history
                 # contains ""GPTie: <|endofstatement|>"", if so, delete
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
                     if item.text.strip() == "GPTie:<|endofstatement|>":
-                        converser_cog.conversation_threads[ctx.channel.id].history.remove(item)
+                        converser_cog.conversation_threads[
+                            ctx.channel.id
+                        ].history.remove(item)
 
                 # The conversation_id is the id of the thread
                 conversation_id = ctx.channel.id
@@ -133,12 +138,18 @@ class TextService:
                     for i in range(
                         1,
                         min(
-                            len(converser_cog.conversation_threads[ctx.channel.id].history),
+                            len(
+                                converser_cog.conversation_threads[
+                                    ctx.channel.id
+                                ].history
+                            ),
                             converser_cog.model.num_static_conversation_items,
                         ),
                     ):
                         prompt_with_history.append(
-                            converser_cog.conversation_threads[ctx.channel.id].history[-i]
+                            converser_cog.conversation_threads[ctx.channel.id].history[
+                                -i
+                            ]
                         )
 
                     # remove duplicates from prompt_with_history and set the conversation history
@@ -191,7 +202,9 @@ class TextService:
                         "".join(
                             [
                                 item.text
-                                for item in converser_cog.conversation_threads[id].history
+                                for item in converser_cog.conversation_threads[
+                                    id
+                                ].history
                             ]
                         )
                         + "\nGPTie: "
@@ -238,12 +251,14 @@ class TextService:
                 )
 
             # Clean the request response
-            response_text = converser_cog.cleanse_response(str(response["choices"][0]["text"]))
+            response_text = converser_cog.cleanse_response(
+                str(response["choices"][0]["text"])
+            )
 
             if from_ask_command:
-                    # Append the prompt to the beginning of the response, in italics, then a new line
-                    response_text = response_text.strip()
-                    response_text = f"***{prompt}***\n\n{response_text}"
+                # Append the prompt to the beginning of the response, in italics, then a new line
+                response_text = response_text.strip()
+                response_text = f"***{prompt}***\n\n{response_text}"
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
@@ -293,12 +308,14 @@ class TextService:
                 )
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
-                embedding = await converser_cog.pinecone_service.upsert_conversation_embedding(
-                    converser_cog.model,
-                    conversation_id,
-                    response_text,
-                    timestamp,
-                    custom_api_key=custom_api_key,
+                embedding = (
+                    await converser_cog.pinecone_service.upsert_conversation_embedding(
+                        converser_cog.model,
+                        conversation_id,
+                        response_text,
+                        timestamp,
+                        custom_api_key=custom_api_key,
+                    )
                 )
 
             # Cleanse again
@@ -307,7 +324,6 @@ class TextService:
             # escape any other mentions like @here or @everyone
             response_text = discord.utils.escape_mentions(response_text)
 
-
             # If we don't have a response message, we are not doing a redo, send as a new message(s)
             if not response_message:
                 if len(response_text) > converser_cog.TEXT_CUTOFF:
@@ -315,9 +331,21 @@ class TextService:
                         paginator = None
                         await converser_cog.paginate_and_send(response_text, ctx)
                     else:
-                        embed_pages = await converser_cog.paginate_embed(response_text, codex, prompt, instruction)
-                        view=ConversationView(ctx, converser_cog, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
-                        paginator = pages.Paginator(pages=embed_pages, timeout=None, custom_view=view)
+                        embed_pages = await converser_cog.paginate_embed(
+                            response_text, codex, prompt, instruction
+                        )
+                        view = ConversationView(
+                            ctx,
+                            converser_cog,
+                            ctx.channel.id,
+                            model,
+                            from_ask_command,
+                            from_edit_command,
+                            custom_api_key=custom_api_key,
+                        )
+                        paginator = pages.Paginator(
+                            pages=embed_pages, timeout=None, custom_view=view
+                        )
                         response_message = await paginator.respond(ctx.interaction)
                 else:
                     paginator = None
@@ -336,24 +364,24 @@ class TextService:
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, 
-                                converser_cog, 
-                                ctx.channel.id, 
-                                model, 
-                                from_edit_command=from_edit_command, 
-                                custom_api_key=custom_api_key
+                                ctx,
+                                converser_cog,
+                                ctx.channel.id,
+                                model,
+                                from_edit_command=from_edit_command,
+                                custom_api_key=custom_api_key,
                             ),
                         )
                     else:
                         response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, 
-                                converser_cog, 
-                                ctx.channel.id, 
-                                model, 
-                                from_ask_command=from_ask_command, 
-                                custom_api_key=custom_api_key
+                                ctx,
+                                converser_cog,
+                                ctx.channel.id,
+                                model,
+                                from_ask_command=from_ask_command,
+                                custom_api_key=custom_api_key,
                             ),
                         )
 
@@ -366,13 +394,13 @@ class TextService:
                     )
 
                     converser_cog.redo_users[ctx.author.id] = RedoUser(
-                        prompt=new_prompt, 
-                        instruction=instruction, 
-                        ctx=ctx, 
-                        message=ctx, 
-                        response=actual_response_message, 
-                        codex=codex, 
-                        paginator=paginator
+                        prompt=new_prompt,
+                        instruction=instruction,
+                        ctx=ctx,
+                        message=ctx,
+                        response=actual_response_message,
+                        codex=codex,
+                        paginator=paginator,
                     )
                     converser_cog.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
@@ -382,20 +410,35 @@ class TextService:
             else:
                 paginator = converser_cog.redo_users.get(ctx.author.id).paginator
                 if isinstance(paginator, pages.Paginator):
-                    embed_pages = await converser_cog.paginate_embed(response_text, codex, prompt, instruction)
-                    view=ConversationView(ctx, converser_cog, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
+                    embed_pages = await converser_cog.paginate_embed(
+                        response_text, codex, prompt, instruction
+                    )
+                    view = ConversationView(
+                        ctx,
+                        converser_cog,
+                        ctx.channel.id,
+                        model,
+                        from_ask_command,
+                        from_edit_command,
+                        custom_api_key=custom_api_key,
+                    )
                     await paginator.update(pages=embed_pages, custom_view=view)
                 elif len(response_text) > converser_cog.TEXT_CUTOFF:
                     if not from_context:
-                        await response_message.channel.send("Over 2000 characters", delete_after=5)
+                        await response_message.channel.send(
+                            "Over 2000 characters", delete_after=5
+                        )
                 else:
                     await response_message.edit(content=response_text)
 
             await converser_cog.send_debug_message(
-                converser_cog.generate_debug_message(prompt, response), converser_cog.debug_channel
+                converser_cog.generate_debug_message(prompt, response),
+                converser_cog.debug_channel,
             )
 
-            converser_cog.remove_awaiting(ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command)
+            converser_cog.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
@@ -439,7 +482,9 @@ class TextService:
             return
 
     @staticmethod
-    async def process_conversation_message(converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB):
+    async def process_conversation_message(
+        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB
+    ):
         content = message.content.strip()
         conversing = converser_cog.check_conversing(
             message.author.id, message.channel.id, content
@@ -506,7 +551,9 @@ class TextService:
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
 
                 if not converser_cog.pinecone_service:
-                    converser_cog.conversation_threads[message.channel.id].history.append(
+                    converser_cog.conversation_threads[
+                        message.channel.id
+                    ].history.append(
                         EmbeddedConversationItem(
                             f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",
                             0,
@@ -519,8 +566,8 @@ class TextService:
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
             if (
-                    converser_cog.pinecone_service
-                    or message.channel.id not in converser_cog.conversation_threads
+                converser_cog.pinecone_service
+                or message.channel.id not in converser_cog.conversation_threads
             ):
                 primary_prompt = prompt
             else:
@@ -528,13 +575,15 @@ class TextService:
                     [
                         item.text
                         for item in converser_cog.conversation_threads[
-                        message.channel.id
-                    ].history
+                            message.channel.id
+                        ].history
                     ]
                 )
 
             # set conversation overrides
-            overrides = converser_cog.conversation_threads[message.channel.id].get_overrides()
+            overrides = converser_cog.conversation_threads[
+                message.channel.id
+            ].get_overrides()
 
             await TextService.encapsulated_send(
                 converser_cog,
@@ -554,7 +603,7 @@ class TextService:
     async def get_user_api_key(user_id, ctx, USER_KEY_DB):
         user_api_key = None if user_id not in USER_KEY_DB else USER_KEY_DB[user_id]
         if user_api_key is None or user_api_key == "":
-            modal = SetupModal(title="API Key Setup",user_key_db=USER_KEY_DB)
+            modal = SetupModal(title="API Key Setup", user_key_db=USER_KEY_DB)
             if isinstance(ctx, discord.ApplicationContext):
                 await ctx.send_modal(modal)
                 await ctx.send_followup(
@@ -574,17 +623,25 @@ class TextService:
                 ctx = converser_cog.redo_users[after.author.id].ctx
                 await response_message.edit(content="Redoing prompt 🔄...")
 
-                edited_content = await converser_cog.mention_to_username(after, after.content)
+                edited_content = await converser_cog.mention_to_username(
+                    after, after.content
+                )
 
                 if after.channel.id in converser_cog.conversation_threads:
                     # Remove the last two elements from the history array and add the new <username>: prompt
                     converser_cog.conversation_threads[
                         after.channel.id
-                    ].history = converser_cog.conversation_threads[after.channel.id].history[:-2]
+                    ].history = converser_cog.conversation_threads[
+                        after.channel.id
+                    ].history[
+                        :-2
+                    ]
 
                     pinecone_dont_reinsert = None
                     if not converser_cog.pinecone_service:
-                        converser_cog.conversation_threads[after.channel.id].history.append(
+                        converser_cog.conversation_threads[
+                            after.channel.id
+                        ].history.append(
                             EmbeddedConversationItem(
                                 f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n",
                                 0,
@@ -593,7 +650,9 @@ class TextService:
 
                     converser_cog.conversation_threads[after.channel.id].count += 1
 
-                overrides = converser_cog.conversation_threads[after.channel.id].get_overrides()
+                overrides = converser_cog.conversation_threads[
+                    after.channel.id
+                ].get_overrides()
 
                 await TextService.encapsulated_send(
                     converser_cog,
@@ -616,6 +675,8 @@ class TextService:
 """
 Conversation interaction buttons
 """
+
+
 class ConversationView(discord.ui.View):
     def __init__(
         self,
@@ -663,7 +724,11 @@ class ConversationView(discord.ui.View):
 
 class EndConvoButton(discord.ui.Button["ConversationView"]):
     def __init__(self, converser_cog):
-        super().__init__(style=discord.ButtonStyle.danger, label="End Conversation", custom_id="conversation_end")
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="End Conversation",
+            custom_id="conversation_end",
+        )
         self.converser_cog = converser_cog
 
     async def callback(self, interaction: discord.Interaction):
@@ -693,8 +758,14 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
 
 class RedoButton(discord.ui.Button["ConversationView"]):
-    def __init__(self, converser_cog, model, from_ask_command, from_edit_command, custom_api_key):
-        super().__init__(style=discord.ButtonStyle.danger, label="Retry", custom_id="conversation_redo")
+    def __init__(
+        self, converser_cog, model, from_ask_command, from_edit_command, custom_api_key
+    ):
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="Retry",
+            custom_id="conversation_redo",
+        )
         self.converser_cog = converser_cog
         self.model = model
         self.from_ask_command = from_ask_command
@@ -744,6 +815,8 @@ class RedoButton(discord.ui.Button["ConversationView"]):
 """
 The setup modal when using user input API keys
 """
+
+
 class SetupModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

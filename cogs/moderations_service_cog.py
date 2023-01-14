@@ -14,6 +14,7 @@ except Exception as e:
     print("Failed to retrieve the General and Moderations DB")
     raise e
 
+
 class ModerationsService(discord.Cog, name="ModerationsService"):
     def __init__(
         self,
@@ -32,6 +33,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self.moderation_enabled_guilds = []
         self.moderation_tasks = {}
         self.moderations_launched = []
+
     @discord.Cog.listener()
     async def on_ready(self):
         # Check moderation service for each guild
@@ -81,6 +83,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             return moderations_channel
 
         return None
+
     async def moderations_command(
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
@@ -118,9 +121,10 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             Moderation.moderations_launched.remove(ctx.guild_id)
             await ctx.respond("Moderations service disabled")
 
-    async def moderations_test_command(self, ctx: discord.ApplicationContext, prompt: str):
+    async def moderations_test_command(
+        self, ctx: discord.ApplicationContext, prompt: str
+    ):
         await ctx.defer()
         response = await self.model.send_moderations_request(prompt)
         await ctx.respond(response["results"][0]["category_scores"])
         await ctx.send_followup(response["results"][0]["flagged"])
-

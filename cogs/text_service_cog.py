@@ -112,7 +112,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_threads = {}
         self.summarize = self.model.summarize_conversations
 
-
         # Pinecone data
         self.pinecone_service = pinecone_service
 
@@ -156,7 +155,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.EMBED_CUTOFF = 3900
         self.message_queue = message_queue
         self.conversation_thread_owners = {}
-
 
     async def load_file(self, file, ctx):
         try:
@@ -211,7 +209,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             delete_existing=True,
         )
         print(f"Commands synced")
-
 
     # TODO: add extra condition to check if multi is enabled for the thread, stated in conversation_threads
     def check_conversing(self, user_id, channel_id, message_content, multi=None):
@@ -297,7 +294,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 except:
                     traceback.print_exc()
                     pass
-
 
     async def send_settings_text(self, ctx):
         embed = discord.Embed(
@@ -386,10 +382,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     async def paginate_embed(self, response_text, codex, prompt=None, instruction=None):
 
-        if codex: #clean codex input
+        if codex:  # clean codex input
             response_text = response_text.replace("```", "")
             response_text = response_text.replace(f"***Prompt: {prompt}***\n", "")
-            response_text = response_text.replace(f"***Instruction: {instruction}***\n\n", "")
+            response_text = response_text.replace(
+                f"***Instruction: {instruction}***\n\n", ""
+            )
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
@@ -400,12 +398,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Send each chunk as a message
         for count, chunk in enumerate(response_text, start=1):
             if not first:
-                page = discord.Embed(title=f"Page {count}", description=chunk if not codex else f"***Prompt:{prompt}***\n***Instruction:{instruction:}***\n```python\n{chunk}\n```")
+                page = discord.Embed(
+                    title=f"Page {count}",
+                    description=chunk
+                    if not codex
+                    else f"***Prompt:{prompt}***\n***Instruction:{instruction:}***\n```python\n{chunk}\n```",
+                )
                 first = True
             else:
-                page = discord.Embed(title=f"Page {count}", description=chunk if not codex else f"```python\n{chunk}\n```")
+                page = discord.Embed(
+                    title=f"Page {count}",
+                    description=chunk if not codex else f"```python\n{chunk}\n```",
+                )
             pages.append(page)
-         
+
         return pages
 
     async def queue_debug_message(self, debug_message, debug_channel):
@@ -511,10 +517,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ).timestamp()
                 await Moderation.moderation_queues[after.guild.id].put(
                     Moderation(after, timestamp)
-                ) # TODO Don't proceed if message was deleted!
+                )  # TODO Don't proceed if message was deleted!
 
         await TextService.process_conversation_edit(self, after, original_message)
-
 
     @discord.Cog.listener()
     async def on_message(self, message):
@@ -534,11 +539,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ).timestamp()
             await Moderation.moderation_queues[message.guild.id].put(
                 Moderation(message, timestamp)
-            ) # TODO Don't proceed to conversation processing if the message is deleted by moderations.
-
+            )  # TODO Don't proceed to conversation processing if the message is deleted by moderations.
 
         # Process the message if the user is in a conversation
-        if await TextService.process_conversation_message(self, message, USER_INPUT_API_KEYS, USER_KEY_DB):
+        if await TextService.process_conversation_message(
+            self, message, USER_INPUT_API_KEYS, USER_KEY_DB
+        ):
             original_message[message.author.id] = message.id
 
     def cleanse_response(self, response_text):
@@ -548,7 +554,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
-    def remove_awaiting(self, author_id, channel_id, from_ask_command, from_edit_command):
+    def remove_awaiting(
+        self, author_id, channel_id, from_ask_command, from_edit_command
+    ):
         if author_id in self.awaiting_responses:
             self.awaiting_responses.remove(author_id)
         if not from_ask_command and not from_edit_command:
@@ -569,7 +577,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     pass
             return message
 
-# COMMANDS
+    # COMMANDS
 
     async def help_command(self, ctx):
         await ctx.defer()
@@ -623,8 +631,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         embed.add_field(name="/help", value="See this help text", inline=False)
         await ctx.respond(embed=embed)
 
-
-    async def set_usage_command(self, ctx: discord.ApplicationContext, usage_amount: float):
+    async def set_usage_command(
+        self, ctx: discord.ApplicationContext, usage_amount: float
+    ):
         await ctx.defer()
 
         # Attempt to convert the input usage value into a float
@@ -636,8 +645,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.respond("The usage value must be a valid float.")
             return
 
-
-    async def delete_all_conversation_threads_command(self, ctx: discord.ApplicationContext):
+    async def delete_all_conversation_threads_command(
+        self, ctx: discord.ApplicationContext
+    ):
         await ctx.defer()
 
         for guild in self.bot.guilds:
@@ -649,7 +659,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     except:
                         pass
         await ctx.respond("All conversation threads have been deleted.")
-
 
     async def usage_command(self, ctx):
         await ctx.defer()
@@ -668,7 +677,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         await ctx.respond(embed=embed)
-
 
     async def ask_command(
         self,
@@ -908,7 +916,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if thread.id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(thread.id)
 
-
     async def end_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
         user_id = ctx.user.id
@@ -964,4 +971,3 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
-

@@ -40,11 +40,12 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         print("Draw service initialized")
         self.redo_users = {}
 
-
     async def draw_command(self, ctx: discord.ApplicationContext, prompt: str):
         user_api_key = None
         if USER_INPUT_API_KEYS:
-            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
+            user_api_key = await TextService.get_user_api_key(
+                ctx.user.id, ctx, USER_KEY_DB
+            )
             if not user_api_key:
                 return
 
@@ -58,8 +59,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         try:
             asyncio.ensure_future(
                 ImageService.encapsulated_send(
-                    self,
-                    user.id, prompt, ctx, custom_api_key=user_api_key
+                    self, user.id, prompt, ctx, custom_api_key=user_api_key
                 )
             )
 
@@ -98,4 +98,3 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     print(e)
 
         await ctx.respond("Local images cleared.")
-
