@@ -23,6 +23,9 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 </p>
 
 # Recent Notable Updates
+- **Edit Requests** - Ask GPT to edit a piece of text with a given instruction using a specific OpenAI edits model! `/gpt edit`! 
+
+
 - **Automatic retry on API errors** - The bot will automatically retry API requests if they fail due to some issue with OpenAI's APIs, this is becoming increasingly important now as their APIs become under heavy load.
 
 
@@ -30,9 +33,6 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 
 
 - **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
-
-
-- **Multi-user, group chats with GPT3** - Multiple users can converse with GPT3 in a chat now, and it will know that there are multiple distinct users chatting with it!
 
 
 - **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
@@ -46,6 +46,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 - **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
 - **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/dalle optimize <prompt>`
+
+- **Edit Requests** - Ask GPT to edit a piece of text or code with a given instruction. `/gpt edit <instruction> <text>`
 
 - **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!
 
@@ -182,9 +184,7 @@ USER_INPUT_API_KEYS="True"
 
 Then, restart the bot, and it will set up the system for everyone to input their own API keys. 
 
-The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot (by default).
-
-You can configure the location of the sqlite database by changing the `USER_KEY_DB_PATH` variable in your `.env` file (check the `sample.env` file for reference).
+The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot.
 
 With this feature enabled, any attempt to use a GPT3 or DALL-E command without a valid API key set for the user will pop up the following modal for them to enter their API key:
 <img src="https://i.imgur.com/ZDScoWk.png"/>
@@ -245,8 +245,6 @@ GPT_ROLES="openai,gpt"
 WELCOME_MESSAGE="Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!" # This is a fallback message if gpt3 fails to generate a welcome message.
 # This is the channel that auto-moderation alerts will be sent to
 MODERATIONS_ALERT_CHANNEL="977697652147892304"
-# User API key db path configuration. This is where the user API keys will be stored.
-USER_KEY_DB_PATH = user_key_db.sqlite
 ```
 
 **Permissions**
