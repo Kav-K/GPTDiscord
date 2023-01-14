@@ -398,6 +398,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
+            name="/gpt edit",
+            value="Use GPT3 to edit a piece of text given an instruction",
+            inline=False,
+        )
+        embed.add_field(
             name="/gpt converse", value="Start a conversation with GPT3", inline=False
         )
         embed.add_field(
@@ -677,6 +682,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     top_p_override=overrides["top_p"],
                     frequency_penalty_override=overrides["frequency_penalty"],
                     presence_penalty_override=overrides["presence_penalty"],
+                    model=self.conversation_threads[after.channel.id].model,
                     edited_request=True,
                 )
 
@@ -831,6 +837,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                model=self.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
             )
 
@@ -841,10 +848,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
-    def remove_awaiting(self, author_id, channel_id, from_g_command):
+    def remove_awaiting(self, author_id, channel_id, from_g_command, from_edit_command):
         if author_id in self.awaiting_responses:
             self.awaiting_responses.remove(author_id)
-        if not from_g_command:
+        if not from_g_command and not from_edit_command:
             if channel_id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(channel_id)
 
@@ -874,15 +881,22 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         frequency_penalty_override=None,
         presence_penalty_override=None,
         from_g_command=False,
+        instruction=None,
+        from_edit_command=False,
+        codex=False,
+        model=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
     ):
-        new_prompt = prompt + "\nGPTie: " if not from_g_command else prompt
+        new_prompt = prompt + "\nGPTie: " if not from_g_command and not from_edit_command else prompt
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
-        tokens = self.usage_service.count_tokens(new_prompt)
+        if not instruction:
+            tokens = self.usage_service.count_tokens(new_prompt) 
+        else: 
+            tokens = self.usage_service.count_tokens(new_prompt) + self.usage_service.count_tokens(instruction) 
 
         try:
 
@@ -1006,6 +1020,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 id in self.conversation_threads
                 and tokens > self.model.summarize_threshold
                 and not from_g_command
+                and not from_edit_command
                 and not self.pinecone_service  # This should only happen if we are not doing summarizations.
             ):
 
@@ -1049,23 +1064,41 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     return
 
             # Send the request to the model
-            response = await self.model.send_request(
-                new_prompt,
-                tokens=tokens,
-                temp_override=temp_override,
-                top_p_override=top_p_override,
-                frequency_penalty_override=frequency_penalty_override,
-                presence_penalty_override=presence_penalty_override,
-                custom_api_key=custom_api_key,
-            )
+            if from_edit_command:
+                response = await self.model.send_edit_request(
+                    input=new_prompt,
+                    instruction=instruction,
+                    temp_override=temp_override,
+                    top_p_override=top_p_override,
+                    codex=codex,
+                    custom_api_key=custom_api_key,
+                )
+            else:
+                response = await self.model.send_request(
+                    new_prompt,
+                    tokens=tokens,
+                    temp_override=temp_override,
+                    top_p_override=top_p_override,
+                    frequency_penalty_override=frequency_penalty_override,
+                    presence_penalty_override=presence_penalty_override,
+                    model=model,
+                    custom_api_key=custom_api_key,
+                )
 
             # Clean the request response
             response_text = self.cleanse_response(str(response["choices"][0]["text"]))
 
             if from_g_command:
-                # Append the prompt to the beginning of the response, in italics, then a new line
-                response_text = response_text.strip()
-                response_text = f"***{prompt}***\n\n{response_text}"
+                    # Append the prompt to the beginning of the response, in italics, then a new line
+                    response_text = response_text.strip()
+                    response_text = f"***{prompt}***\n\n{response_text}"
+            elif from_edit_command:
+                if codex:
+                    response_text = response_text.strip()
+                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n```\n{response_text}\n```"
+                else:
+                    response_text = response_text.strip()
+                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n{response_text}\n"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await self.mention_to_username(ctx, response_text)
@@ -1087,6 +1120,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             elif (
                 id in self.conversation_threads
                 and not from_g_command
+                and not from_edit_command
                 and self.pinecone_service
             ):
                 conversation_id = id
@@ -1126,21 +1160,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if len(response_text) > self.TEXT_CUTOFF:
                     await self.paginate_and_send(response_text, ctx)
                 else:
-                    response_message = (
-                        await ctx.respond(
+                    if not from_context:
+                        response_message = await ctx.reply(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, custom_api_key=custom_api_key
+                                ctx, self, ctx.channel.id, model, custom_api_key=custom_api_key
                             ),
                         )
-                        if from_context
-                        else await ctx.reply(
+                    elif from_edit_command:
+                        response_message = await ctx.respond(
                             response_text,
                             view=ConversationView(
-                                ctx, self, ctx.channel.id, custom_api_key=custom_api_key
+                                ctx, self, ctx.channel.id, model, from_edit_command, custom_api_key=custom_api_key
                             ),
                         )
-                    )
+                    else: 
+                        response_message = await ctx.respond(
+                            response_text,
+                            view=ConversationView(
+                                ctx, self, ctx.channel.id, model, custom_api_key=custom_api_key
+                            ),
+                        )
 
                     # Get the actual message object of response_message in case it's an WebhookMessage
                     actual_response_message = (
@@ -1150,7 +1190,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
 
                     self.redo_users[ctx.author.id] = RedoUser(
-                        new_prompt, ctx, ctx, actual_response_message
+                        prompt=new_prompt, instruction=instruction, ctx=ctx, message=ctx, response=actual_response_message, codex=codex
                     )
                     self.redo_users[ctx.author.id].add_interaction(
                         actual_response_message.id
@@ -1166,7 +1206,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             if ctx.author.id in self.awaiting_responses:
                 self.awaiting_responses.remove(ctx.author.id)
-            if not from_g_command:
+            if not from_g_command and not from_edit_command:
                 if ctx.channel.id in self.awaiting_thread_responses:
                     self.awaiting_thread_responses.remove(ctx.channel.id)
 
@@ -1179,7 +1219,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(message)
             else:
                 await ctx.reply(message)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
@@ -1187,7 +1227,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.send_followup(e)
             else:
                 await ctx.reply(e)
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
 
         # General catch case for everything
         except Exception:
@@ -1196,7 +1236,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.send_followup(message) if from_context else await ctx.reply(
                 message
             )
-            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command)
+            self.remove_awaiting(ctx.author.id, ctx.channel.id, from_g_command, from_edit_command)
             traceback.print_exc()
 
             try:
@@ -1278,6 +1318,75 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             from_g_command=True,
             custom_api_key=user_api_key,
         )
+    @add_to_group("gpt")
+    @discord.slash_command(
+        name="edit",
+        description="Ask GPT3 to edit some text!",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="instruction", description="How you want GPT3 to edit the text", required=True
+    )
+    @discord.option(
+        name="input", description="The text you want to edit, can be empty", required=False, default=""
+    )
+    @discord.option(
+        name="temperature",
+        description="Higher values means the model will take more risks",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="top_p",
+        description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="codex", 
+        description="Enable codex version", 
+        required=False, 
+        default=False
+    )
+    @discord.guild_only()
+    async def edit(
+        self,
+        ctx: discord.ApplicationContext,
+        instruction: str,
+        input: str,
+        temperature: float,
+        top_p: float,
+        codex: bool,
+    ):
+        user = ctx.user
+
+        input = await self.mention_to_username(ctx, input.strip())
+        instruction = await self.mention_to_username(ctx, instruction.strip())
+
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await GPT3ComCon.get_user_api_key(user.id, ctx)
+            if not user_api_key:
+                return
+
+        await ctx.defer()
+
+        await self.encapsulated_send(
+            user.id,
+            prompt=input,
+            ctx=ctx,
+            temp_override=temperature,
+            top_p_override=top_p,
+            instruction=instruction,
+            from_edit_command=True,
+            codex=codex,
+            custom_api_key=user_api_key,
+        )
 
     @discord.slash_command(
         name="private-test",
@@ -1317,13 +1426,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         name="private",
         description="Converse in a private thread",
         required=False,
-        choices=["yes"],
+        default=False,
     )
     @discord.option(
         name="minimal",
         description="Use minimal starter text, saves tokens and has a more open personality",
         required=False,
-        choices=["yes"],
+        default=False,
     )
     @discord.guild_only()
     async def converse(
@@ -1331,8 +1440,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ctx: discord.ApplicationContext,
         opener: str,
         opener_file: str,
-        private,
-        minimal,
+        private: bool,
+        minimal: bool,
     ):
         user = ctx.user
 
@@ -1371,6 +1480,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[thread.id] = Thread(thread.id)
+        self.conversation_threads[thread.id].model = self.model.model
 
         if opener:
             opener = await self.mention_to_username(ctx, opener)
@@ -1441,6 +1551,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await thread.send(
             f"<@{str(user_id_normalized)}> You are now conversing with GPT3. *Say hi to start!*\n"
             f"Overrides for this thread is **temp={overrides['temperature']}**, **top_p={overrides['top_p']}**, **frequency penalty={overrides['frequency_penalty']}**, **presence penalty={overrides['presence_penalty']}**\n"
+            f"The model used is **{self.conversation_threads[thread.id].model}**\n"
             f"End the conversation by saying `end`.\n\n"
             f"If you want GPT3 to ignore your messages, start your messages with `~`\n\n"
             f"Your conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
@@ -1475,6 +1586,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)
@@ -1683,13 +1795,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
 
 class ConversationView(discord.ui.View):
-    def __init__(self, ctx, converser_cog, id, custom_api_key=None):
+    def __init__(self, ctx, converser_cog, id, model, from_edit_command=False, custom_api_key=None):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
         self.ctx = ctx
+        self.model = model
+        self.from_edit_command = from_edit_command
         self.custom_api_key = custom_api_key
         self.add_item(
-            RedoButton(self.converser_cog, custom_api_key=self.custom_api_key)
+            RedoButton(self.converser_cog, model, from_edit_command, custom_api_key=self.custom_api_key)
         )
 
         if id in self.converser_cog.conversation_threads:
@@ -1741,9 +1855,11 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
 
 class RedoButton(discord.ui.Button["ConversationView"]):
-    def __init__(self, converser_cog, custom_api_key):
+    def __init__(self, converser_cog, model, from_edit_command, custom_api_key):
         super().__init__(style=discord.ButtonStyle.danger, label="Retry")
         self.converser_cog = converser_cog
+        self.model = model
+        self.from_edit_command = from_edit_command
         self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
@@ -1755,8 +1871,10 @@ class RedoButton(discord.ui.Button["ConversationView"]):
         ].in_interaction(interaction.message.id):
             # Get the message and the prompt and call encapsulated_send
             prompt = self.converser_cog.redo_users[user_id].prompt
+            instruction = self.converser_cog.redo_users[user_id].instruction
             ctx = self.converser_cog.redo_users[user_id].ctx
             response_message = self.converser_cog.redo_users[user_id].response
+            codex = self.converser_cog.redo_users[user_id].codex
 
             msg = await interaction.response.send_message(
                 "Retrying your original request...", ephemeral=True, delete_after=15
@@ -1765,10 +1883,14 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             await self.converser_cog.encapsulated_send(
                 id=user_id,
                 prompt=prompt,
+                instruction=instruction,
                 ctx=ctx,
+                model=self.model,
                 response_message=response_message,
+                codex=codex,
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
+                from_edit_command=self.from_edit_command
             )
         else:
             await interaction.response.send_message(
