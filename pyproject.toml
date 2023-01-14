@@ -44,7 +44,7 @@ path = "gpt3discord.py"
 include = [
   "cogs/*.py",
   "models/*.py",
-  "services/*.py"
+  "services/*.py",
   "gpt3discord.py",
 ]
 
