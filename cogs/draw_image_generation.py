@@ -123,7 +123,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             if from_context:
                 result_message = await ctx.fetch_message(result_message.id)
 
-            redo_users[user_id] = RedoUser(prompt, ctx, ctx, result_message)
+            redo_users[user_id] = RedoUser(prompt=prompt, message=ctx, ctx=ctx, response=response_message, instruction=None, codex=False)
 
         else:
             if not vary:  # Editing case
