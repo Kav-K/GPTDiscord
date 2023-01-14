@@ -8,6 +8,7 @@ import pinecone
 from pycord.multicog import apply_multicog
 import os
 
+from cogs.moderations_service_cog import ModerationsService
 from services.pinecone_service import PineconeService
 
 if sys.platform == "win32":
@@ -100,6 +101,9 @@ async def main():
     if not data_path.exists():
         raise OSError(f"Data path: {data_path} does not exist ... create it?")
 
+    # Load the cog for the moderations service
+    bot.add_cog(ModerationsService(bot, usage_service, model))
+
     # Load the main GPT3 Bot service
     bot.add_cog(
         GPT3ComCon(
@@ -147,9 +151,11 @@ async def main():
             deletion_queue,
             bot.get_cog("GPT3ComCon"),
             bot.get_cog("DrawDallEService"),
-            bot.get_cog("ImgPromptOptimizer")
+            bot.get_cog("ImgPromptOptimizer"),
+            bot.get_cog("ModerationsService"),
         )
     )
+
 
     apply_multicog(bot)
 

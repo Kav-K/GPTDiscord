@@ -20,6 +20,7 @@ class Commands(discord.Cog, name="Commands"):
         converser_cog,
         image_draw_cog,
         image_service_cog,
+        moderations_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -30,6 +31,7 @@ class Commands(discord.Cog, name="Commands"):
         self.converser_cog = converser_cog
         self.image_draw_cog = image_draw_cog
         self.image_service_cog = image_service_cog
+        self.moderations_cog = moderations_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
@@ -47,6 +49,12 @@ class Commands(discord.Cog, name="Commands"):
     system = discord.SlashCommandGroup(
         name="system",
         description="Admin/System settings for the bot",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_admin_roles()],
+    )
+    mod = discord.SlashCommandGroup(
+        name="mod",
+        description="AI-Moderation commands for the bot",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_admin_roles()],
     )
@@ -140,9 +148,9 @@ class Commands(discord.Cog, name="Commands"):
     (system) Moderation commands
     """
 
-    @add_to_group("system")
+    @add_to_group("mod")
     @discord.slash_command(
-        name="moderations-test",
+        name="test",
         description="Used to test a prompt and see what threshold values are returned by the moderations endpoint",
         guild_ids=ALLOWED_GUILDS,
     )
@@ -153,13 +161,13 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     async def moderations_test(self, ctx: discord.ApplicationContext, prompt: str):
-        await self.converser_cog.moderations_test_command(ctx, prompt)
+        await self.moderations_cog.moderations_test_command(ctx, prompt)
 
 
-    @add_to_group("system")
+    @add_to_group("mod")
     @discord.slash_command(
-        name="moderations",
-        description="The AI moderations service",
+        name="set",
+        description="Turn the moderations service on and off",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
@@ -176,7 +184,7 @@ class Commands(discord.Cog, name="Commands"):
     async def moderations(
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
-        await self.converser_cog.moderations_command(ctx, status, alert_channel_id)
+        await self.moderations_cog.moderations_command(ctx, status, alert_channel_id)
 
     """
     GPT commands

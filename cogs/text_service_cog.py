@@ -112,12 +112,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_threads = {}
         self.summarize = self.model.summarize_conversations
 
-        # Moderation service data
-        self.moderation_queues = {}
-        self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
-        self.moderation_enabled_guilds = []
-        self.moderation_tasks = {}
-        self.moderations_launched = []
 
         # Pinecone data
         self.pinecone_service = pinecone_service
@@ -206,10 +200,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.DEBUG_CHANNEL
         )
         print("The debug channel was acquired")
-
-        # Check moderation service for each guild
-        for guild in self.bot.guilds:
-            await self.check_and_launch_moderations(guild.id)
 
         await self.bot.sync_commands(
             commands=None,
@@ -512,40 +502,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Moderation
         if not isinstance(after.channel, discord.DMChannel):
             if (
-                after.guild.id in self.moderation_queues
-                and self.moderation_queues[after.guild.id] is not None
+                after.guild.id in Moderation.moderation_queues
+                and Moderation.moderation_queues[after.guild.id] is not None
             ):
                 # Create a timestamp that is 0.5 seconds from now
                 timestamp = (
                     datetime.datetime.now() + datetime.timedelta(seconds=0.5)
                 ).timestamp()
-                await self.moderation_queues[after.guild.id].put(
+                await Moderation.moderation_queues[after.guild.id].put(
                     Moderation(after, timestamp)
-                )
+                ) # TODO Don't proceed if message was deleted!
 
         await TextService.process_conversation_edit(self, after, original_message)
-    async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
-        # Create the moderations service.
-        print("Checking and attempting to launch moderations service...")
-        if self.check_guild_moderated(guild_id):
-            self.moderation_queues[guild_id] = asyncio.Queue()
 
-            moderations_channel = await self.bot.fetch_channel(
-                self.get_moderated_alert_channel(guild_id)
-                if not alert_channel_override
-                else alert_channel_override
-            )
-
-            self.moderation_tasks[guild_id] = asyncio.ensure_future(
-                Moderation.process_moderation_queue(
-                    self.moderation_queues[guild_id], 1, 1, moderations_channel
-                )
-            )
-            print("Launched the moderations service for guild " + str(guild_id))
-            self.moderations_launched.append(guild_id)
-            return moderations_channel
-
-        return None
 
     @discord.Cog.listener()
     async def on_message(self, message):
@@ -554,18 +523,18 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         content = message.content.strip()
 
-        # Moderations service
+        # Moderations service is done here.
         if (
-            message.guild.id in self.moderation_queues
-            and self.moderation_queues[message.guild.id] is not None
+            message.guild.id in Moderation.moderation_queues
+            and Moderation.moderation_queues[message.guild.id] is not None
         ):
             # Create a timestamp that is 0.5 seconds from now
             timestamp = (
                 datetime.datetime.now() + datetime.timedelta(seconds=0.5)
             ).timestamp()
-            await self.moderation_queues[message.guild.id].put(
+            await Moderation.moderation_queues[message.guild.id].put(
                 Moderation(message, timestamp)
-            )
+            ) # TODO Don't proceed to conversation processing if the message is deleted by moderations.
 
 
         # Process the message if the user is in a conversation
@@ -646,7 +615,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
-            name="/system moderations",
+            name="/mod",
             value="The automatic moderations service",
             inline=False,
         )
@@ -939,49 +908,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if thread.id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(thread.id)
 
-    async def moderations_test_command(self, ctx: discord.ApplicationContext, prompt: str):
-        await ctx.defer()
-        response = await self.model.send_moderations_request(prompt)
-        await ctx.respond(response["results"][0]["category_scores"])
-        await ctx.send_followup(response["results"][0]["flagged"])
-
-    async def moderations_command(
-        self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
-    ):
-        await ctx.defer()
-
-        status = status.lower().strip()
-        if status not in ["on", "off"]:
-            await ctx.respond("Invalid status, please use on or off")
-            return
-
-        if status == "on":
-            # Check if the current guild is already in the database and if so, if the moderations is on
-            if self.check_guild_moderated(ctx.guild_id):
-                await ctx.respond("Moderations is already enabled for this guild")
-                return
-
-            # Create the moderations service.
-            self.set_guild_moderated(ctx.guild_id)
-            moderations_channel = await self.check_and_launch_moderations(
-                ctx.guild_id,
-                self.moderation_alerts_channel
-                if not alert_channel_id
-                else alert_channel_id,
-            )
-            self.set_moderated_alert_channel(ctx.guild_id, moderations_channel.id)
-
-            await ctx.respond("Moderations service enabled")
-
-        elif status == "off":
-            # Cancel the moderations service.
-            self.set_guild_moderated(ctx.guild_id, False)
-            self.moderation_tasks[ctx.guild_id].cancel()
-            self.moderation_tasks[ctx.guild_id] = None
-            self.moderation_queues[ctx.guild_id] = None
-            self.moderations_launched.remove(ctx.guild_id)
-            await ctx.respond("Moderations service disabled")
-
 
     async def end_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
@@ -1039,23 +965,3 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
 
-    def check_guild_moderated(self, guild_id):
-        return guild_id in MOD_DB and MOD_DB[guild_id]["moderated"]
-
-    def get_moderated_alert_channel(self, guild_id):
-        return MOD_DB[guild_id]["alert_channel"]
-
-    def set_moderated_alert_channel(self, guild_id, channel_id):
-        MOD_DB[guild_id] = {"moderated": True, "alert_channel": channel_id}
-        MOD_DB.commit()
-
-    def set_guild_moderated(self, guild_id, status=True):
-        if guild_id not in MOD_DB:
-            MOD_DB[guild_id] = {"moderated": status, "alert_channel": 0}
-            MOD_DB.commit()
-            return
-        MOD_DB[guild_id] = {
-            "moderated": status,
-            "alert_channel": self.get_moderated_alert_channel(guild_id),
-        }
-        MOD_DB.commit()

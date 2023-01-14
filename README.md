@@ -121,11 +121,11 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 ### Automatic AI Moderation
 
-`/system moderations status:on` - Turn on automatic chat moderations. 
+`/mod set status:on` - Turn on automatic chat moderations. 
 
-`/system moderations status:off` - Turn off automatic chat moderations
+`/mod set status:off` - Turn off automatic chat moderations
 
-`/system moderations status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+`/mod set status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
 
 - The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
 - This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 

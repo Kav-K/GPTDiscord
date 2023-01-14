@@ -7,6 +7,7 @@ from pathlib import Path
 import discord
 
 from models.openai_model import Model
+from services.environment_service import EnvService
 from services.usage_service import UsageService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
@@ -51,6 +52,13 @@ class ThresholdSet:
 
 
 class Moderation:
+    # Moderation service data
+    moderation_queues = {}
+    moderation_alerts_channel = EnvService.get_moderations_alert_channel()
+    moderation_enabled_guilds = []
+    moderation_tasks = {}
+    moderations_launched = []
+
     def __init__(self, message, timestamp):
         self.message = message
         self.timestamp = timestamp
