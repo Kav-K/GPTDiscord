@@ -165,7 +165,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             f"The debug channel and guild IDs are {self.DEBUG_GUILD} and {self.DEBUG_CHANNEL}"
         )
         self.TEXT_CUTOFF = 1900
-        self.EMBED_CUTOFF = 4000
+        self.EMBED_CUTOFF = 3900
         self.message_queue = message_queue
         self.conversation_thread_owners = {}
 
@@ -419,8 +419,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         if codex: #clean codex input
             response_text = response_text.replace("```", "")
-            response_text = response_text.replace(f"***Prompt:{prompt}***\n", "")
-            response_text = response_text.replace(f"***Instruction:{instruction}***\n\n", "")
+            response_text = response_text.replace(f"***Prompt: {prompt}***\n", "")
+            response_text = response_text.replace(f"***Instruction: {instruction}***\n\n", "")
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
@@ -1133,13 +1133,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # We are doing a redo, edit the message.
             else:
                 paginator = self.redo_users.get(ctx.author.id).paginator
-                if len(response_text) > self.TEXT_CUTOFF:
+                if isinstance(paginator, pages.Paginator):
+                    embed_pages = await self.paginate_embed(response_text, codex, prompt, instruction)
+                    view=ConversationView(ctx, self, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
+                    await paginator.update(pages=embed_pages, custom_view=view)
+                elif len(response_text) > self.TEXT_CUTOFF:
                     if not from_context:
                         await response_message.channel.send("Over 2000 characters", delete_after=5)
-                    elif paginator:
-                        embed_pages = await self.paginate_embed(response_text, codex, prompt, instruction)
-                        view=ConversationView(ctx, self, ctx.channel.id, model, from_ask_command, from_edit_command, custom_api_key=custom_api_key)
-                        await paginator.update(pages=embed_pages, custom_view=view)
                 else:
                     await response_message.edit(content=response_text)
 
