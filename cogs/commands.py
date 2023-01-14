@@ -392,19 +392,3 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def setup(self, ctx: discord.ApplicationContext):
         await self.converser_cog.setup_command(ctx)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
