@@ -186,14 +186,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                     result_message.id
                 )
 
-    @add_to_group("dalle")
-    @discord.slash_command(
-        name="draw",
-        description="Draw an image from a prompt",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(name="prompt", description="The prompt to draw from", required=True)
-    async def draw(self, ctx: discord.ApplicationContext, prompt: str):
+    async def draw_command(self, ctx: discord.ApplicationContext, prompt: str):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await GPT3ComCon.get_user_api_key(ctx.user.id, ctx)
@@ -220,14 +213,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             await ctx.respond("Something went wrong. Please try again later.")
             await ctx.send_followup(e)
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="local-size",
-        description="Get the size of the dall-e images folder that we have on the current system",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def local_size(self, ctx: discord.ApplicationContext):
+    async def local_size_command(self, ctx: discord.ApplicationContext):
         await ctx.defer()
         # Get the size of the dall-e images folder that we have on the current system.
 
@@ -242,14 +228,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         total_size = total_size / 1000000
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="clear-local",
-        description="Clear the local dalleimages folder on system.",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def clear_local(self, ctx):
+    async def clear_local_command(self, ctx):
         await ctx.defer()
 
         # Delete all the local images in the images folder.

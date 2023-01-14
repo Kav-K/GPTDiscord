@@ -52,17 +52,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
-    @add_to_group("dalle")
-    @discord.slash_command(
-        name="optimize",
-        description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="prompt", description="The text prompt to optimize.", required=True
-    )
-    @discord.guild_only()
-    async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
+    async def optimize_command(self, ctx: discord.ApplicationContext, prompt: str):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await GPT3ComCon.get_user_api_key(ctx.user.id, ctx)

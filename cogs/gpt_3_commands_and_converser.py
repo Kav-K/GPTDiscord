@@ -156,26 +156,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.message_queue = message_queue
         self.conversation_thread_owners = {}
 
-    # Create slash command groups
-    dalle = discord.SlashCommandGroup(
-        name="dalle",
-        description="Dalle related commands",
-        guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_dalle_roles()],
-    )
-    gpt = discord.SlashCommandGroup(
-        name="gpt",
-        description="GPT related commands",
-        guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_gpt_roles()],
-    )
-    system = discord.SlashCommandGroup(
-        name="system",
-        description="Admin/System settings for the bot",
-        guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_admin_roles()],
-    )
-
     @staticmethod
     async def get_user_api_key(user_id, ctx):
         user_api_key = None if user_id not in USER_KEY_DB else USER_KEY_DB[user_id]
@@ -250,18 +230,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         print(f"Commands synced")
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="set-usage",
-        description="Set the current OpenAI usage (in dollars)",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="usage_amount",
-        description="The current usage amount in dollars and cents (e.g 10.24)",
-        type=float,
-    )
-    async def set_usage(self, ctx: discord.ApplicationContext, usage_amount: float):
+    async def set_usage_command(self, ctx: discord.ApplicationContext, usage_amount: float):
         await ctx.defer()
 
         # Attempt to convert the input usage value into a float
@@ -273,13 +242,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.respond("The usage value must be a valid float.")
             return
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="delete-conversation-threads",
-        description="Delete all conversation threads across the bot servers.",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    async def delete_all_conversation_threads(self, ctx: discord.ApplicationContext):
+    async def delete_all_conversation_threads_command(self, ctx: discord.ApplicationContext):
         await ctx.defer()
 
         for guild in self.bot.guilds:
@@ -377,7 +340,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     traceback.print_exc()
                     pass
 
-    async def send_help_text(self, ctx):
+    async def help_command(self, ctx):
+        await ctx.defer()
         embed = discord.Embed(
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
@@ -428,7 +392,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         embed.add_field(name="/help", value="See this help text", inline=False)
         await ctx.respond(embed=embed)
 
-    async def send_usage_text(self, ctx):
+    async def usage_command(self, ctx):
+        await ctx.defer()
         embed = discord.Embed(
             title="GPT3Bot Usage", description="The current usage", color=0x00FF00
         )
@@ -1277,49 +1242,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 pass
             return
 
-    @add_to_group("gpt")
-    @discord.slash_command(
-        name="ask",
-        description="Ask GPT3 something!",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="prompt", description="The prompt to send to GPT3", required=True
-    )
-    @discord.option(
-        name="temperature",
-        description="Higher values means the model will take more risks",
-        required=False,
-        input_type=float,
-        min_value=0,
-        max_value=1,
-    )
-    @discord.option(
-        name="top_p",
-        description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
-        required=False,
-        input_type=float,
-        min_value=0,
-        max_value=1,
-    )
-    @discord.option(
-        name="frequency_penalty",
-        description="Decreasing the model's likelihood to repeat the same line verbatim",
-        required=False,
-        input_type=float,
-        min_value=-2,
-        max_value=2,
-    )
-    @discord.option(
-        name="presence_penalty",
-        description="Increasing the model's likelihood to talk about new topics",
-        required=False,
-        input_type=float,
-        min_value=-2,
-        max_value=2,
-    )
-    @discord.guild_only()
-    async def ask(
+    async def ask_command(
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
@@ -1350,42 +1273,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             from_ask_command=True,
             custom_api_key=user_api_key,
         )
-    @add_to_group("gpt")
-    @discord.slash_command(
-        name="edit",
-        description="Ask GPT3 to edit some text!",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="instruction", description="How you want GPT3 to edit the text", required=True
-    )
-    @discord.option(
-        name="input", description="The text you want to edit, can be empty", required=False, default=""
-    )
-    @discord.option(
-        name="temperature",
-        description="Higher values means the model will take more risks",
-        required=False,
-        input_type=float,
-        min_value=0,
-        max_value=1,
-    )
-    @discord.option(
-        name="top_p",
-        description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
-        required=False,
-        input_type=float,
-        min_value=0,
-        max_value=1,
-    )
-    @discord.option(
-        name="codex", 
-        description="Enable codex version", 
-        required=False, 
-        default=False
-    )
-    @discord.guild_only()
-    async def edit(
+
+    async def edit_command(
         self,
         ctx: discord.ApplicationContext,
         instruction: str,
@@ -1420,13 +1309,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             custom_api_key=user_api_key,
         )
 
-    @discord.slash_command(
-        name="private-test",
-        description="Private thread for testing. Only visible to you and server admins.",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def private_test(self, ctx: discord.ApplicationContext):
+    async def private_test_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
         await ctx.respond("Your private test thread")
         thread = await ctx.channel.create_thread(
@@ -1437,37 +1320,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             f"<@{str(ctx.user.id)}> This is a private thread for testing. Only you and server admins can see this thread."
         )
 
-    @add_to_group("gpt")
-    @discord.slash_command(
-        name="converse",
-        description="Have a conversation with GPT3",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="opener",
-        description="Which sentence to start with, added after the file",
-        required=False,
-    )
-    @discord.option(
-        name="opener_file",
-        description="Which file to start with, added before the opener, sets minimal starter",
-        required=False,
-        autocomplete=File_autocompleter.get_openers,
-    )
-    @discord.option(
-        name="private",
-        description="Converse in a private thread",
-        required=False,
-        default=False,
-    )
-    @discord.option(
-        name="minimal",
-        description="Use minimal starter text, saves tokens and has a more open personality",
-        required=False,
-        default=False,
-    )
-    @discord.guild_only()
-    async def converse(
+    async def converse_command(
         self,
         ctx: discord.ApplicationContext,
         opener: str,
@@ -1625,42 +1478,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if thread.id in self.awaiting_thread_responses:
                 self.awaiting_thread_responses.remove(thread.id)
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="moderations-test",
-        description="Used to test a prompt and see what threshold values are returned by the moderations endpoint",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="prompt",
-        description="The prompt to test",
-        required=True,
-    )
-    @discord.guild_only()
-    async def moderations_test(self, ctx: discord.ApplicationContext, prompt: str):
+    async def moderations_test_command(self, ctx: discord.ApplicationContext, prompt: str):
         await ctx.defer()
         response = await self.model.send_moderations_request(prompt)
         await ctx.respond(response["results"][0]["category_scores"])
         await ctx.send_followup(response["results"][0]["flagged"])
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="moderations",
-        description="The AI moderations service",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="status",
-        description="Enable or disable the moderations service for the current guild (on/off)",
-        required=True,
-    )
-    @discord.option(
-        name="alert_channel_id",
-        description="The channel ID to send moderation alerts to",
-        required=False,
-    )
-    @discord.guild_only()
-    async def moderations(
+    async def moderations_command(
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
         await ctx.defer()
@@ -1697,14 +1521,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.moderations_launched.remove(ctx.guild_id)
             await ctx.respond("Moderations service disabled")
 
-    @add_to_group("gpt")
-    @discord.slash_command(
-        name="end",
-        description="End a conversation with GPT3",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def end(self, ctx: discord.ApplicationContext):
+
+    async def end_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
         user_id = ctx.user.id
         try:
@@ -1726,21 +1544,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 "You're not in any conversations", ephemeral=True, delete_after=10
             )
 
-    @discord.slash_command(
-        name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
-    )
-    @discord.guild_only()
-    async def help(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
-        await self.send_help_text(ctx)
-
-    @discord.slash_command(
-        name="setup",
-        description="Setup your API key for use with GPT3Discord",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def setup(self, ctx: discord.ApplicationContext):
+    async def setup_command(self, ctx: discord.ApplicationContext):
         if not USER_INPUT_API_KEYS:
             await ctx.respond(
                 "This server doesn't support user input API keys.",
@@ -1751,37 +1555,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         modal = SetupModal(title="API Key Setup")
         await ctx.send_modal(modal)
 
-    @add_to_group("system")
-    @discord.slash_command(
-        name="usage",
-        description="Get usage statistics for GPT3Discord",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.guild_only()
-    async def usage(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
-        await self.send_usage_text(ctx)
-
-    @add_to_group("system")
-    @discord.slash_command(
-        name="settings",
-        description="Get settings for GPT3Discord",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(
-        name="parameter",
-        description="The setting to change",
-        required=False,
-        autocomplete=Settings_autocompleter.get_settings,
-    )
-    @discord.option(
-        name="value",
-        description="The value to set the setting to",
-        required=False,
-        autocomplete=Settings_autocompleter.get_value,
-    )
-    @discord.guild_only()
-    async def settings(
+    async def settings_command(
         self, ctx: discord.ApplicationContext, parameter: str = None, value: str = None
     ):
         await ctx.defer()

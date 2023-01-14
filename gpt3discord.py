@@ -18,6 +18,7 @@ else:
 from cogs.draw_image_generation import DrawDallEService
 from cogs.gpt_3_commands_and_converser import GPT3ComCon
 from cogs.image_prompt_optimizer import ImgPromptOptimizer
+from cogs.commands import Commands
 from models.deletion_service_model import Deletion
 from models.message_model import Message
 from models.openai_model import Model
@@ -134,6 +135,19 @@ async def main():
             deletion_queue,
             bot.get_cog("GPT3ComCon"),
             bot.get_cog("DrawDallEService"),
+        )
+    )
+
+    bot.add_cog(
+        Commands(
+            bot,
+            usage_service,
+            model,
+            message_queue,
+            deletion_queue,
+            bot.get_cog("GPT3ComCon"),
+            bot.get_cog("DrawDallEService"),
+            bot.get_cog("ImgPromptOptimizer")
         )
     )
 
