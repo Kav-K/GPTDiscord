@@ -177,7 +177,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                         )
                     )
 
-                    redo_users[user_id] = RedoUser(prompt, ctx, ctx, result_message)
+                    redo_users[user_id] = RedoUser(prompt=prompt, message=ctx, ctx=ctx, response=response_message, instruction=None, codex=False)
 
                 self.converser_cog.users_to_interactions[user_id].append(
                     response_message.id
