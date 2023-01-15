@@ -25,6 +25,18 @@ class ImageService:
         draw_from_optimizer=None,
         custom_api_key=None,
     ):
+        """service function that takes input and returns an image generation
+
+        Args:
+            image_service_cog (Cog): The cog which contains draw related commands
+            user_id (int): A discord user id
+            prompt (string): Prompt for the model
+            ctx (ApplicationContext): A discord ApplicationContext, from an interaction
+            response_message (Message, optional): A discord message. Defaults to None.
+            vary (bool, optional): If the image is a variation of another one. Defaults to None.
+            draw_from_optimizer (bool, optional): If the prompt is passed from the optimizer command. Defaults to None.
+            custom_api_key (str, optional): User defined OpenAI API key. Defaults to None.
+        """        
         await asyncio.sleep(0)
         # send the prompt to the model
         from_context = isinstance(ctx, discord.ApplicationContext)
@@ -42,16 +54,18 @@ class ImageService:
             message = (
                 f"The API returned an invalid response: **{e.status}: {e.message}**"
             )
-            await ctx.channel.send(message) if not from_context else await ctx.respond(
-                message
-            )
+            if not from_context:
+                await ctx.channel.send(message)
+            else:
+                await ctx.respond(message, ephemeral=True)
             return
 
         except ValueError as e:
             message = f"Error: {e}. Please try again with a different prompt."
-            await ctx.channel.send(message) if not from_context else await ctx.respond(
-                message, ephemeral=True
-            )
+            if not from_context:
+                await ctx.channel.send(message)
+            else:
+                await ctx.respond(message, ephemeral=True)
 
             return
 
@@ -70,7 +84,8 @@ class ImageService:
         embed.set_image(url=f"attachment://{file.filename}")
 
         if not response_message:  # Original generation case
-            # Start an interaction with the user, we also want to send data embed=embed, file=file, view=SaveView(image_urls, image_service_cog, image_service_cog.converser_cog)
+            # Start an interaction with the user, we also want to send data embed=embed, file=file, 
+            # view=SaveView(image_urls, image_service_cog, image_service_cog.converser_cog)
             result_message = (
                 await ctx.channel.send(
                     embed=embed,
@@ -104,7 +119,7 @@ class ImageService:
                 prompt=prompt,
                 message=ctx,
                 ctx=ctx,
-                response=response_message,
+                response=result_message,
                 instruction=None,
                 codex=False,
                 paginator=None,
@@ -166,7 +181,7 @@ class ImageService:
                         prompt=prompt,
                         message=ctx,
                         ctx=ctx,
-                        response=response_message,
+                        response=result_message,
                         instruction=None,
                         codex=False,
                         paginator=None,
@@ -357,7 +372,7 @@ class RedoButton(discord.ui.Button["SaveView"]):
             prompt = self.cog.redo_users[user_id].prompt
             response_message = self.cog.redo_users[user_id].response
             message = await interaction.response.send_message(
-                f"Regenerating the image for your original prompt, check the original message.",
+                "Regenerating the image for your original prompt, check the original message.",
                 ephemeral=True,
             )
             self.converser_cog.users_to_interactions[user_id].append(message.id)

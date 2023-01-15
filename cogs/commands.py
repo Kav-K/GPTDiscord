@@ -9,6 +9,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
 class Commands(discord.Cog, name="Commands"):
+    '''Cog containing all slash and context commands as one-liners'''
     def __init__(
         self,
         bot,
@@ -58,9 +59,9 @@ class Commands(discord.Cog, name="Commands"):
         checks=[Check.check_admin_roles()],
     )
 
-    """
-    System commands
-    """
+    #
+    #System commands
+    #
 
     @add_to_group("system")
     @discord.slash_command(
@@ -139,9 +140,9 @@ class Commands(discord.Cog, name="Commands"):
     async def delete_all_conversation_threads(self, ctx: discord.ApplicationContext):
         await self.converser_cog.delete_all_conversation_threads_command(ctx)
 
-    """
-    (system) Moderation commands
-    """
+    #"""
+    #Moderation commands
+    #"""
 
     @add_to_group("mod")
     @discord.slash_command(
@@ -188,14 +189,15 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.option(
         name="type",
-        description="The type of moderation to configure ('warn' or 'delete')",
+        description="The type of moderation to configure",
+        choices=["warn", "delete"],
         required=True,
     )
     @discord.option(
         name="hate",
         description="The threshold for hate speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -203,7 +205,7 @@ class Commands(discord.Cog, name="Commands"):
         name="hate_threatening",
         description="The threshold for hate/threatening speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -211,7 +213,7 @@ class Commands(discord.Cog, name="Commands"):
         name="self_harm",
         description="The threshold for self_harm speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -219,7 +221,7 @@ class Commands(discord.Cog, name="Commands"):
         name="sexual",
         description="The threshold for sexual speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -227,7 +229,7 @@ class Commands(discord.Cog, name="Commands"):
         name="sexual_minors",
         description="The threshold for sexual speech with minors in context",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -235,7 +237,7 @@ class Commands(discord.Cog, name="Commands"):
         name="violence",
         description="The threshold for violent speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -243,7 +245,7 @@ class Commands(discord.Cog, name="Commands"):
         name="violence_graphic",
         description="The threshold for violent and graphic speech",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -272,9 +274,9 @@ class Commands(discord.Cog, name="Commands"):
             violence_graphic,
         )
 
-    """
-    GPT commands
-    """
+    #
+    #GPT commands
+    #
 
     @add_to_group("gpt")
     @discord.slash_command(
@@ -289,7 +291,7 @@ class Commands(discord.Cog, name="Commands"):
         name="temperature",
         description="Higher values means the model will take more risks",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -297,7 +299,7 @@ class Commands(discord.Cog, name="Commands"):
         name="top_p",
         description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -305,7 +307,7 @@ class Commands(discord.Cog, name="Commands"):
         name="frequency_penalty",
         description="Decreasing the model's likelihood to repeat the same line verbatim",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=-2,
         max_value=2,
     )
@@ -313,7 +315,7 @@ class Commands(discord.Cog, name="Commands"):
         name="presence_penalty",
         description="Increasing the model's likelihood to talk about new topics",
         required=False,
-        input_type=float,
+        input_type=discord.SlashCommandOptionType.number,
         min_value=-2,
         max_value=2,
     )
@@ -433,9 +435,9 @@ class Commands(discord.Cog, name="Commands"):
     async def end(self, ctx: discord.ApplicationContext):
         await self.converser_cog.end_command(ctx)
 
-    """
-    DALLE commands
-    """
+    #
+    #DALLE commands
+    #
 
     @add_to_group("dalle")
     @discord.slash_command(
@@ -460,9 +462,9 @@ class Commands(discord.Cog, name="Commands"):
     async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
         await self.image_service_cog.optimize_command(ctx, prompt)
 
-    """
-    Other commands
-    """
+    #
+    #Other commands
+    #
 
     @discord.slash_command(
         name="private-test",
@@ -489,9 +491,9 @@ class Commands(discord.Cog, name="Commands"):
     async def setup(self, ctx: discord.ApplicationContext):
         await self.converser_cog.setup_command(ctx)
 
-    """
-    Text-based context menu commands from here
-    """
+    #
+    #Text-based context menu commands from here
+    #
 
     @discord.message_command(
         name="Ask GPT", guild_ids=ALLOWED_GUILDS, checks=[Check.check_gpt_roles()]
@@ -499,9 +501,9 @@ class Commands(discord.Cog, name="Commands"):
     async def ask_gpt_action(self, ctx, message: discord.Message):
         await self.converser_cog.ask_gpt_action(ctx, message)
 
-    """
-    Image-based context menu commands from here
-    """
+    #
+    #Image-based context menu commands from here
+    #
 
     @discord.message_command(
         name="Draw", guild_ids=ALLOWED_GUILDS, checks=[Check.check_dalle_roles()]

@@ -5,7 +5,7 @@ import os
 import tempfile
 import traceback
 import uuid
-from typing import Tuple, List, Any
+from typing import Any, Tuple
 
 import aiohttp
 import backoff
@@ -14,7 +14,6 @@ import discord
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from PIL import Image
-from aiohttp import RequestInfo
 from discord import File
 
 
@@ -43,10 +42,9 @@ class Model:
         self._temp = 0.6  # Higher value means more random, lower value means more likely to be a coherent sentence
         self._top_p = 0.9  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
         self._max_tokens = 4000  # The maximum number of tokens the model can generate
-        self._presence_penalty = (
-            0  # Penalize new tokens based on whether they appear in the text so far
-        )
-        self._frequency_penalty = 0  # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
+        self._presence_penalty = 0  # Penalize new tokens based on whether they appear in the text so far
+        # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
+        self._frequency_penalty = 0 
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
         self._prompt_min_length = 8
         self._max_conversation_length = 100
@@ -66,7 +64,7 @@ class Model:
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
             self.custom_image_path = True
-        except:
+        except Exception:
             self.IMAGE_SAVE_PATH = "dalleimages"
             # Try to make this folder called images/ in the local directory if it doesnt exist
             if not os.path.exists(self.IMAGE_SAVE_PATH):
@@ -355,11 +353,11 @@ class Model:
         try:
             tokens_used = int(response["usage"]["total_tokens"])
             await self.usage_service.update_usage(tokens_used)
-        except:
+        except Exception as e:
             raise ValueError(
                 "The API returned an invalid response: "
                 + str(response["error"]["message"])
-            )
+            ) from e
 
     @backoff.on_exception(
         backoff.expo,
@@ -402,7 +400,7 @@ class Model:
     async def send_edit_request(
         self,
         instruction,
-        input=None,
+        text=None,
         temp_override=None,
         top_p_override=None,
         codex=False,
@@ -417,14 +415,14 @@ class Model:
             )
 
         print(
-            f"The text about to be edited is [{input}] with instructions [{instruction}] codex [{codex}]"
+            f"The text about to be edited is [{text}] with instructions [{instruction}] codex [{codex}]"
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "model": Models.EDIT if codex is False else Models.CODE_EDIT,
-                "input": "" if input is None else input,
+                "input": "" if text is None else text,
                 "instruction": instruction,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
@@ -477,8 +475,10 @@ class Model:
         """
         summary_request_text = []
         summary_request_text.append(
-            "The following is a conversation instruction set and a conversation"
-            " between two people, a <username>, and GPTie. Firstly, determine the <username>'s name from the conversation history, then summarize the conversation. Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If <username> mentioned their name, be sure to mention it in the summary. Pay close attention to things the <username> has told you, such as personal details."
+            "The following is a conversation instruction set and a conversation between two people, a <username>, and GPTie."
+            " Firstly, determine the <username>'s name from the conversation history, then summarize the conversation."
+            " Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If <username> mentioned"
+            " their name, be sure to mention it in the summary. Pay close attention to things the <username> has told you, such as personal details."
         )
         summary_request_text.append(prompt + "\nDetailed summary of conversation: \n")
 
@@ -533,8 +533,7 @@ class Model:
         model=None,
         custom_api_key=None,
     ) -> (
-        dict,
-        bool,
+        Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
 
         # Validate that  all the parameters are in a good state before we send the request

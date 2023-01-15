@@ -490,7 +490,7 @@ class TextService:
     ):
         content = message.content.strip()
         conversing = converser_cog.check_conversing(
-            message.author.id, message.channel.id, content
+            message.channel.id, content
         )
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
