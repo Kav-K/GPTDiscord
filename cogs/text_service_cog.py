@@ -979,5 +979,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     """
     Text-based context menu commands from here
     """
-    async def ask_gpt_action(self, ctx, message: discord.Message):  # message commands return the message
-        await self.ask_command(ctx, message.content, None, None, None, None, from_action=message.content)
+
+    async def ask_gpt_action(
+        self, ctx, message: discord.Message
+    ):  # message commands return the message
+        await self.ask_command(
+            ctx, message.content, None, None, None, None, from_action=message.content
+        )
