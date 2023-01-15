@@ -11,6 +11,7 @@ import json
 
 import discord
 
+from models.check_model import Check
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -686,6 +687,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
+        from_action=None,
     ):
         user = ctx.user
         prompt = await self.mention_to_username(ctx, prompt.strip())
@@ -709,6 +711,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             presence_penalty_override=presence_penalty,
             from_ask_command=True,
             custom_api_key=user_api_key,
+            from_action=prompt,
         )
 
     async def edit_command(
@@ -971,3 +974,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
+
+        """
+        Text-based context menu commands from here
+        """
+    async def ask_gpt_action(self, ctx, message: discord.Message):  # message commands return the message
+        await self.ask_command(ctx, message.content, 0.7, 0.9, 0,0,message.content)

@@ -61,7 +61,6 @@ class Commands(discord.Cog, name="Commands"):
     """
     System commands
     """
-
     @add_to_group("system")
     @discord.slash_command(
         name="settings",
@@ -396,3 +395,21 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def setup(self, ctx: discord.ApplicationContext):
         await self.converser_cog.setup_command(ctx)
+
+    """
+    Text-based context menu commands from here
+    """
+    @discord.message_command(
+        name="Ask GPT", guild_ids=ALLOWED_GUILDS, checks=[Check.check_gpt_roles()])
+    async def ask_gpt_action(self, ctx, message: discord.Message):
+        await self.converser_cog.ask_gpt_action(ctx, message)
+
+
+    """
+    Image-based context menu commands from here
+    """
+    @discord.message_command(
+        name="Draw", guild_ids=ALLOWED_GUILDS, checks=[Check.check_dalle_roles()])
+    async def draw_action(self, ctx, message: discord.Message):
+        await self.image_draw_cog.draw_action(ctx, message)
+

@@ -40,7 +40,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         print("Draw service initialized")
         self.redo_users = {}
 
-    async def draw_command(self, ctx: discord.ApplicationContext, prompt: str):
+    async def draw_command(self, ctx: discord.ApplicationContext, prompt: str, from_action=False):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -66,8 +66,11 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         except Exception as e:
             print(e)
             traceback.print_exc()
-            await ctx.respond("Something went wrong. Please try again later.")
-            await ctx.send_followup(e)
+            await ctx.respond("Something went wrong. Please try again later.", ephemeral=from_action)
+            await ctx.send_followup(e, ephemeral=from_action)
+
+    async def draw_action(self, ctx, message):
+        await self.draw_command(ctx, message.content, from_action=True)
 
     async def local_size_command(self, ctx: discord.ApplicationContext):
         await ctx.defer()

@@ -34,6 +34,7 @@ class TextService:
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
+        from_action=None,
     ):
         new_prompt = (
             prompt + "\nGPTie: "
@@ -255,7 +256,7 @@ class TextService:
                 str(response["choices"][0]["text"])
             )
 
-            if from_ask_command:
+            if from_ask_command or from_action:
                 # Append the prompt to the beginning of the response, in italics, then a new line
                 response_text = response_text.strip()
                 response_text = f"***{prompt}***\n\n{response_text}"
@@ -455,8 +456,10 @@ class TextService:
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
-            if from_context:
-                await ctx.send_followup(e)
+            if from_action:
+                await ctx.respond(e, ephemeral=True)
+            elif from_context:
+                await ctx.send_followup(e, ephemeral=True)
             else:
                 await ctx.reply(e)
             converser_cog.remove_awaiting(
