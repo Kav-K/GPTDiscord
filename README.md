@@ -300,6 +300,7 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.9 get-pip.py
 
 # Install project dependencies
+python3.9 -m pip install --ignore-installed PyYAML
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 
