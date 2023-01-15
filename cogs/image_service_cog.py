@@ -1,19 +1,13 @@
 import asyncio
 import os
-import tempfile
 import traceback
-from io import BytesIO
 
-import aiohttp
 import discord
-from PIL import Image
 
 # We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
 from sqlitedict import SqliteDict
 
-from cogs.text_service_cog import GPT3ComCon
 from services.environment_service import EnvService
-from models.user_model import RedoUser
 from services.image_service import ImageService
 from services.text_service import TextService
 
@@ -27,6 +21,7 @@ if USER_INPUT_API_KEYS:
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
+    '''Cog containing a draw commands and file management for saved images'''
     def __init__(
         self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
@@ -43,6 +38,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
     async def draw_command(
         self, ctx: discord.ApplicationContext, prompt: str, from_action=False
     ):
+        '''With an ApplicationContext and prompt, send a dalle image to the invoked channel. Ephemeral if from an action'''
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -74,11 +70,12 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             await ctx.send_followup(e, ephemeral=from_action)
 
     async def draw_action(self, ctx, message):
+        '''decoupler to handle context actions for the draw command'''
         await self.draw_command(ctx, message.content, from_action=True)
 
     async def local_size_command(self, ctx: discord.ApplicationContext):
+        '''Get the folder size of the image folder'''
         await ctx.defer()
-        # Get the size of the dall-e images folder that we have on the current system.
 
         image_path = self.model.IMAGE_SAVE_PATH
         total_size = 0
@@ -92,9 +89,9 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
     async def clear_local_command(self, ctx):
+        '''Delete all local images'''
         await ctx.defer()
 
-        # Delete all the local images in the images folder.
         image_path = self.model.IMAGE_SAVE_PATH
         for dirpath, dirnames, filenames in os.walk(image_path):
             for f in filenames:

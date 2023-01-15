@@ -22,7 +22,7 @@ class Message:
             # Send the message
             try:
                 await message.channel.send(message.content)
-            except:
+            except Exception:
                 pass
 
             # Sleep for a short time before processing the next message

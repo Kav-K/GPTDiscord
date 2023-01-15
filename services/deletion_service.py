@@ -39,6 +39,5 @@ class Deletion:
                 # Sleep for a short time before processing the next message
                 # This will prevent the bot from spamming messages too quickly
                 await asyncio.sleep(PROCESS_WAIT_TIME)
-            except:
+            except Exception:
                 traceback.print_exc()
-                pass

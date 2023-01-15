@@ -22,6 +22,17 @@ class ModerationResult:
 
 class ThresholdSet:
     def __init__(self, h_t, hv_t, sh_t, s_t, sm_t, v_t, vg_t):
+        """A set of thresholds for the OpenAI moderation endpoint
+
+        Args:
+            h_t (float): hate
+            hv_t (float): hate/violence
+            sh_t (float): self-harm
+            s_t (float): sexual
+            sm_t (float): sexual/minors
+            v_t (float): violence
+            vg_t (float): violence/graphic
+        """        
         self.keys = [
             "hate",
             "hate/threatening",
@@ -44,6 +55,7 @@ class ThresholdSet:
     # The string representation is just the keys alongside the threshold values
 
     def __str__(self):
+        '''"key": value format'''
         # "key": value format
         return ", ".join([f"{k}: {v}" for k, v in zip(self.keys, self.thresholds)])
 
@@ -143,10 +155,9 @@ class Moderation:
 
         if delete_result:
             return ModerationResult.DELETE
-        elif warn_result:
+        if warn_result:
             return ModerationResult.WARN
-        else:
-            return ModerationResult.NONE
+        return ModerationResult.NONE
 
     # This function will be called by the bot to process the message queue
     @staticmethod
@@ -226,9 +237,8 @@ class Moderation:
                 # Sleep for a short time before processing the next message
                 # This will prevent the bot from spamming messages too quickly
                 await asyncio.sleep(PROCESS_WAIT_TIME)
-            except:
+            except Exception:
                 traceback.print_exc()
-                pass
 
 
 class ModerationAdminView(discord.ui.View):
@@ -340,7 +350,7 @@ class KickUserButton(discord.ui.Button["ModerationAdminView"]):
             await self.message.author.kick(
                 reason="You broke the server rules. Please rejoin and review the rules."
             )
-        except:
+        except Exception:
             pass
         await interaction.response.send_message(
             "This user was attempted to be kicked", ephemeral=True, delete_after=10
@@ -380,7 +390,7 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
         # Get the user id
         try:
             await self.message.delete()
-        except:
+        except Exception:
             pass
 
         try:
@@ -388,9 +398,8 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
                 until=discord.utils.utcnow() + timedelta(hours=self.hours),
                 reason="Breaking the server chat rules",
             )
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
-            pass
 
         await interaction.response.send_message(
             f"This user was timed out for {self.hours} hour(s)",

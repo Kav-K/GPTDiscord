@@ -26,16 +26,38 @@ class TextService:
         top_p_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
-        from_ask_command=False,
         instruction=None,
+        from_ask_command=False,
         from_edit_command=False,
         codex=False,
         model=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
-        from_action=None,
+        from_action=False,
     ):
+        """General service function for sending and recieving gpt generations
+
+        Args:
+            converser_cog (Cog): The conversation cog with our gpt commands
+            id (user or thread id): A user or thread id for keeping track of conversations
+            prompt (str): The prompt to use for generation
+            ctx (ApplicationContext): The interaction which called this
+            response_message (discord.Message, optional): For when we're doing redos. Defaults to None.
+            temp_override (float, optional): Sets the temperature for the generation. Defaults to None.
+            top_p_override (float, optional): Sets the top p for the generation. Defaults to None.
+            frequency_penalty_override (float, optional): Sets the frequency penalty for the generation. Defaults to None.
+            presence_penalty_override (float, optional): Sets the presence penalty for the generation. Defaults to None.
+            instruction (str, optional): Instruction for use with the edit endpoint. Defaults to None.
+            from_ask_command (bool, optional): Called from the ask command. Defaults to False.
+            from_edit_command (bool, optional): Called from the edit command. Defaults to False.
+            codex (bool, optional): Pass along that we want to use a codex model. Defaults to False.
+            model (str, optional): Which model to genereate output with. Defaults to None.
+            custom_api_key (str, optional): per-user api key. Defaults to None.
+            edited_request (bool, optional): If we're doing an edited message. Defaults to False.
+            redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
+            from_action (bool, optional): If the function is being called from a message action. Defaults to False.
+        """        
         new_prompt = (
             prompt + "\nGPTie: "
             if not from_ask_command and not from_edit_command
@@ -232,7 +254,7 @@ class TextService:
             # Send the request to the model
             if from_edit_command:
                 response = await converser_cog.model.send_edit_request(
-                    input=new_prompt,
+                    text=new_prompt,
                     instruction=instruction,
                     temp_override=temp_override,
                     top_p_override=top_p_override,
@@ -345,7 +367,8 @@ class TextService:
                             custom_api_key=custom_api_key,
                         )
                         paginator = pages.Paginator(
-                            pages=embed_pages, timeout=None, custom_view=view
+                            pages=embed_pages, timeout=None, custom_view=view,
+                            author_check=True,
                         )
                         response_message = await paginator.respond(ctx.interaction)
                 else:
@@ -470,9 +493,11 @@ class TextService:
         except Exception:
 
             message = "Something went wrong, please try again later. This may be due to upstream issues on the API, or rate limiting."
-            await ctx.send_followup(message) if from_context else await ctx.reply(
-                message
-            )
+            if not from_context:
+                await ctx.send_followup(message)
+            else:
+                await ctx.reply(message)
+
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
@@ -480,7 +505,7 @@ class TextService:
 
             try:
                 await converser_cog.end_conversation(ctx)
-            except:
+            except Exception:
                 pass
             return
 
@@ -490,7 +515,7 @@ class TextService:
     ):
         content = message.content.strip()
         conversing = converser_cog.check_conversing(
-            message.author.id, message.channel.id, content
+            message.channel.id, content
         )
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
@@ -675,9 +700,9 @@ class TextService:
                     converser_cog.redo_users[after.author.id].prompt = edited_content
 
 
-"""
-Conversation interaction buttons
-"""
+#
+#Conversation interaction buttons
+#
 
 
 class ConversationView(discord.ui.View):
@@ -753,7 +778,6 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
                 await interaction.response.send_message(
                     e, ephemeral=True, delete_after=30
                 )
-                pass
         else:
             await interaction.response.send_message(
                 "This is not your conversation to end!", ephemeral=True, delete_after=10
@@ -789,7 +813,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             response_message = self.converser_cog.redo_users[user_id].response
             codex = self.converser_cog.redo_users[user_id].codex
 
-            msg = await interaction.response.send_message(
+            await interaction.response.send_message(
                 "Retrying your original request...", ephemeral=True, delete_after=15
             )
 
@@ -815,9 +839,9 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             )
 
 
-"""
-The setup modal when using user input API keys
-"""
+#
+#The setup modal when using user input API keys
+#
 
 
 class SetupModal(discord.ui.Modal):
@@ -880,7 +904,7 @@ class SetupModal(discord.ui.Modal):
                     ephemeral=True,
                     delete_after=10,
                 )
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
                 await interaction.followup.send(
                     "There was an error saving your API key.",
@@ -888,5 +912,3 @@ class SetupModal(discord.ui.Modal):
                     delete_after=30,
                 )
                 return
-
-            pass

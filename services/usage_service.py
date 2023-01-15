@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import aiofiles
@@ -36,8 +35,8 @@ class UsageService:
             await f.close()
         return usage
 
-    def count_tokens(self, input):
-        res = self.tokenizer(input)["input_ids"]
+    def count_tokens(self, text):
+        res = self.tokenizer(text)["input_ids"]
         return len(res)
 
     async def update_usage_image(self, image_size):

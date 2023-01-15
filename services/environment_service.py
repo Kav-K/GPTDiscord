@@ -31,9 +31,9 @@ class EnvService:
 
     @staticmethod
     def environment_path_with_fallback(env_name, relative_fallback=None):
-        dir = os.getenv(env_name)
-        if dir != None:
-            return Path(dir).resolve()
+        directory = os.getenv(env_name)
+        if directory is not None:
+            return Path(directory).resolve()
 
         if relative_fallback:
             app_relative = (app_root_path() / relative_fallback).resolve()
@@ -70,7 +70,7 @@ class EnvService:
         # Read these allowed guilds and return as a list of ints
         try:
             allowed_guilds = os.getenv("ALLOWED_GUILDS")
-        except:
+        except Exception:
             allowed_guilds = None
 
         if allowed_guilds is None:
@@ -93,7 +93,7 @@ class EnvService:
         # Read these allowed roles and return as a list of strings
         try:
             admin_roles = os.getenv("ADMIN_ROLES")
-        except:
+        except Exception:
             admin_roles = None
 
         if admin_roles is None:
@@ -119,7 +119,7 @@ class EnvService:
         # Read these allowed roles and return as a list of strings
         try:
             dalle_roles = os.getenv("DALLE_ROLES")
-        except:
+        except Exception:
             dalle_roles = None
 
         if dalle_roles is None:
@@ -145,7 +145,7 @@ class EnvService:
         # Read these allowed roles and return as a list of strings
         try:
             gpt_roles = os.getenv("GPT_ROLES")
-        except:
+        except Exception:
             gpt_roles = None
 
         if gpt_roles is None:
@@ -171,7 +171,7 @@ class EnvService:
         # The string is DMd to the new server member as part of an embed.
         try:
             welcome_message = os.getenv("WELCOME_MESSAGE")
-        except:
+        except Exception:
             welcome_message = "Hi there! Welcome to our Discord server!"
         return welcome_message
 
@@ -181,7 +181,7 @@ class EnvService:
         # The string can be blank but this is not advised. If a string cannot be found in the .env file, the below string is used.
         try:
             moderations_alert_channel = os.getenv("MODERATIONS_ALERT_CHANNEL")
-        except:
+        except Exception:
             moderations_alert_channel = None
         return moderations_alert_channel
 
@@ -191,9 +191,8 @@ class EnvService:
             user_input_api_keys = os.getenv("USER_INPUT_API_KEYS")
             if user_input_api_keys.lower().strip() == "true":
                 return True
-            else:
-                return False
-        except:
+            return False
+        except Exception:
             return False
 
     @staticmethod
@@ -202,7 +201,6 @@ class EnvService:
             user_key_db_path = os.getenv("USER_KEY_DB_PATH")
             if user_key_db_path is None:
                 return None
-            else:
-                return Path(user_key_db_path)
-        except:
+            return Path(user_key_db_path)
+        except Exception:
             return None

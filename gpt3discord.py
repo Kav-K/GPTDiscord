@@ -1,3 +1,4 @@
+import os
 import asyncio
 import sys
 import traceback
@@ -6,36 +7,37 @@ from pathlib import Path
 import discord
 import pinecone
 from pycord.multicog import apply_multicog
-import os
 
+from cogs.text_service_cog import GPT3ComCon
+from cogs.image_service_cog import DrawDallEService
+from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.moderations_service_cog import ModerationsService
+from cogs.commands import Commands
+
 from services.pinecone_service import PineconeService
+from services.deletion_service import Deletion
+from services.message_queue_service import Message
+from services.usage_service import UsageService
+from services.environment_service import EnvService
+
+from models.openai_model import Model
+
+
+__version__ = "7.1"
+
 
 if sys.platform == "win32":
     separator = "\\"
 else:
     separator = "/"
 
-from cogs.image_service_cog import DrawDallEService
-from cogs.text_service_cog import GPT3ComCon
-from cogs.prompt_optimizer_cog import ImgPromptOptimizer
-from cogs.commands import Commands
-from services.deletion_service import Deletion
-from services.message_queue_service import Message
-from models.openai_model import Model
-from services.usage_service import UsageService
-from services.environment_service import EnvService
+#
+# The pinecone service is used to store and retrieve conversation embeddings.
+#
 
-
-__version__ = "7.0.1"
-
-
-"""
-The pinecone service is used to store and retrieve conversation embeddings.
-"""
 try:
     PINECONE_TOKEN = os.getenv("PINECONE_TOKEN")
-except:
+except Exception:
     PINECONE_TOKEN = None
 
 pinecone_service = None
@@ -55,18 +57,18 @@ if PINECONE_TOKEN:
     print("Got the pinecone service")
 
 
-"""
-Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
-"""
+#
+# Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
+#
 message_queue = asyncio.Queue()
 deletion_queue = asyncio.Queue()
 asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
 asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 
 
-"""
-Settings for the bot
-"""
+#
+#Settings for the bot
+#
 activity = discord.Activity(
     type=discord.ActivityType.watching, name="for /help /gpt, and more!"
 )
@@ -75,10 +77,9 @@ usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
 
-"""
-An encapsulating wrapper for the discord.py client. This uses the old re-write without cogs, but it gets the job done!
-"""
-
+#
+# An encapsulating wrapper for the discord.py client. This uses the old re-write without cogs, but it gets the job done!
+#
 
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by

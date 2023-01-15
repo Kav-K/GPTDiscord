@@ -10,6 +10,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
 class Check:
+    @staticmethod
     def check_admin_roles() -> Callable:
         async def inner(ctx: discord.ApplicationContext):
             if ADMIN_ROLES == [None]:
@@ -18,7 +19,7 @@ class Check:
             if not any(role.name.lower() in ADMIN_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    f"You don't have permission to use this.",
+                    f"You don't have permission, list of roles is {ADMIN_ROLES}",
                     ephemeral=True,
                     delete_after=10,
                 )
@@ -27,6 +28,7 @@ class Check:
 
         return inner
 
+    @staticmethod
     def check_dalle_roles() -> Callable:
         async def inner(ctx: discord.ApplicationContext):
             if DALLE_ROLES == [None]:
@@ -34,7 +36,7 @@ class Check:
             if not any(role.name.lower() in DALLE_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    "You don't have permission to use this.",
+                    f"You don't have permission, list of roles is {DALLE_ROLES}",
                     ephemeral=True,
                     delete_after=10,
                 )
@@ -43,6 +45,7 @@ class Check:
 
         return inner
 
+    @staticmethod
     def check_gpt_roles() -> Callable:
         async def inner(ctx: discord.ApplicationContext):
             if GPT_ROLES == [None]:
@@ -50,7 +53,7 @@ class Check:
             if not any(role.name.lower() in GPT_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
-                    "You don't have permission to use this.",
+                    f"You don't have permission, list of roles is {GPT_ROLES}",
                     ephemeral=True,
                     delete_after=10,
                 )

@@ -18,6 +18,7 @@ if USER_INPUT_API_KEYS:
 
 
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
+    '''cog containing the optimizer command'''
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
     def __init__(
@@ -49,14 +50,15 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             with image_pretext_path.open("r") as file:
                 self.OPTIMIZER_PRETEXT = file.read()
             print(f"Loaded image optimizer pretext from {image_pretext_path}")
-        except:
+        except Exception:
             traceback.print_exc()
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
     async def optimize_command(self, ctx: discord.ApplicationContext, prompt: str):
+        '''Command handler. Given a string it generates an output that's fitting for image generation'''
         user_api_key = None
         if USER_INPUT_API_KEYS:
-            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx)
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
             if not user_api_key:
                 return
 
@@ -73,7 +75,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             final_prompt += "."
 
         # Get the token amount for the prompt
-        tokens = self.usage_service.count_tokens(final_prompt)
+        #tokens = self.usage_service.count_tokens(final_prompt)
 
         try:
             response = await self.model.send_request(
@@ -100,7 +102,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             try:
                 if len(response_text.split()) > 75:
                     response_text = " ".join(response_text.split()[-70:])
-            except:
+            except Exception:
                 pass
 
             response_message = await ctx.respond(
@@ -251,10 +253,10 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
         ].in_interaction(interaction_id):
             # Get the message and the prompt and call encapsulated_send
             ctx = self.converser_cog.redo_users[user_id].ctx
-            message = self.converser_cog.redo_users[user_id].message
+            #message = self.converser_cog.redo_users[user_id].message
             prompt = self.converser_cog.redo_users[user_id].prompt
             response_message = self.converser_cog.redo_users[user_id].response
-            msg = await interaction.response.send_message(
+            await interaction.response.send_message(
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
             await TextService.encapsulated_send(
