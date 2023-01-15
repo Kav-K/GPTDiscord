@@ -84,7 +84,7 @@ jobs:
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: openers
+          local: services
           remote: /home/gptbot/services
           host: 104.248.105.234
           username: root
@@ -143,7 +143,7 @@ jobs:
       - name: Copy via ssh (OAI)
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: openers
+          local: services
           remote: /home/gptbotopenai/services
           host: 104.248.105.234
           username: root
