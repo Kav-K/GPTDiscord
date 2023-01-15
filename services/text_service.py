@@ -232,7 +232,7 @@ class TextService:
             # Send the request to the model
             if from_edit_command:
                 response = await converser_cog.model.send_edit_request(
-                    input=new_prompt,
+                    text=new_prompt,
                     instruction=instruction,
                     temp_override=temp_override,
                     top_p_override=top_p_override,

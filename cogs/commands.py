@@ -169,6 +169,7 @@ class Commands(discord.Cog, name="Commands"):
         name="status",
         description="Enable or disable the moderations service for the current guild (on/off)",
         required=True,
+        choices=["on", "off"]
     )
     @discord.option(
         name="alert_channel_id",
@@ -197,7 +198,6 @@ class Commands(discord.Cog, name="Commands"):
         name="hate",
         description="The threshold for hate speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -205,7 +205,6 @@ class Commands(discord.Cog, name="Commands"):
         name="hate_threatening",
         description="The threshold for hate/threatening speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -213,7 +212,6 @@ class Commands(discord.Cog, name="Commands"):
         name="self_harm",
         description="The threshold for self_harm speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -221,7 +219,6 @@ class Commands(discord.Cog, name="Commands"):
         name="sexual",
         description="The threshold for sexual speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -229,7 +226,6 @@ class Commands(discord.Cog, name="Commands"):
         name="sexual_minors",
         description="The threshold for sexual speech with minors in context",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -237,7 +233,6 @@ class Commands(discord.Cog, name="Commands"):
         name="violence",
         description="The threshold for violent speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -245,7 +240,6 @@ class Commands(discord.Cog, name="Commands"):
         name="violence_graphic",
         description="The threshold for violent and graphic speech",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -291,7 +285,6 @@ class Commands(discord.Cog, name="Commands"):
         name="temperature",
         description="Higher values means the model will take more risks",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -299,7 +292,6 @@ class Commands(discord.Cog, name="Commands"):
         name="top_p",
         description="1 is greedy sampling, 0.1 means only considering the top 10% of probability distribution",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=0,
         max_value=1,
     )
@@ -307,7 +299,6 @@ class Commands(discord.Cog, name="Commands"):
         name="frequency_penalty",
         description="Decreasing the model's likelihood to repeat the same line verbatim",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=-2,
         max_value=2,
     )
@@ -315,7 +306,6 @@ class Commands(discord.Cog, name="Commands"):
         name="presence_penalty",
         description="Increasing the model's likelihood to talk about new topics",
         required=False,
-        input_type=discord.SlashCommandOptionType.number,
         min_value=-2,
         max_value=2,
     )
@@ -345,7 +335,7 @@ class Commands(discord.Cog, name="Commands"):
         required=True,
     )
     @discord.option(
-        name="input",
+        name="text",
         description="The text you want to edit, can be empty",
         required=False,
         default="",

@@ -147,11 +147,6 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         '''command handler for toggling moderation and setting an alert channel'''
         await ctx.defer()
 
-        status = status.lower().strip()
-        if status not in ["on", "off"]:
-            await ctx.respond("Invalid status, please use on or off")
-            return
-
         if status == "on":
             # Check if the current guild is already in the database and if so, if the moderations is on
             if self.check_guild_moderated(ctx.guild_id):
