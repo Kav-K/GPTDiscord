@@ -26,16 +26,18 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 - **Edit Requests** - Ask GPT to edit a piece of text with a given instruction using a specific OpenAI edits model! `/gpt edit`! 
 
 
+- **Context menu commands** - Allow people to prompt GPT and DALL-E directly by right clicking a message:
+<img src="https://i.imgur.com/fkfnJQ0.png"/>
+
+
 - **Automatic retry on API errors** - The bot will automatically retry API requests if they fail due to some issue with OpenAI's APIs, this is becoming increasingly important now as their APIs become under heavy load.
 
 
-- **Allow each individual user to enter their own API Key!** - Each request that a user makes will be made using their own API key! Check out the User-Input API Key section in this README for more details.
+- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
 
 
 - **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
 
-
-- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
 
 
 # Features

@@ -50,7 +50,7 @@ class ImageService:
         except ValueError as e:
             message = f"Error: {e}. Please try again with a different prompt."
             await ctx.channel.send(message) if not from_context else await ctx.respond(
-                message
+                message, ephemeral=True
             )
 
             return
