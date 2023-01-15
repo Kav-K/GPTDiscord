@@ -18,6 +18,7 @@ if USER_INPUT_API_KEYS:
 
 
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
+    '''cog containing the optimizer command'''
     _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
 
     def __init__(
@@ -54,6 +55,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             self.OPTIMIZER_PRETEXT = self._OPTIMIZER_PRETEXT
 
     async def optimize_command(self, ctx: discord.ApplicationContext, prompt: str):
+        '''Command handler. Given a string it generates an output that's fitting for image generation'''
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)

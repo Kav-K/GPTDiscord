@@ -669,7 +669,7 @@ class Model:
         images = await asyncio.get_running_loop().run_in_executor(
             None,
             lambda: [
-                Image.open(requests.get(url, stream=True).raw) for url in image_urls
+                Image.open(requests.get(url, stream=True, timeout=10).raw) for url in image_urls
             ],
         )
 

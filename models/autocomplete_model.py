@@ -66,5 +66,5 @@ class File_autocompleter:
             ][
                 :25
             ]  # returns the 25 first files from your current input
-        except:
+        except Exception:
             return ["No 'openers' folder"]

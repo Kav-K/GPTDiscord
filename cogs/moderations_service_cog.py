@@ -193,7 +193,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def restart_moderations_service(self, ctx):
         '''restarts the moderation of the guild it's run in'''
         if not self.check_guild_moderated(ctx.guild_id):
-            await ctx.respond("Moderations are not enabled, can't restart")
+            await ctx.respond("Moderations are not enabled, can't restart", ephemeral=True, delete_after=30)
             return
 
         await ctx.respond(

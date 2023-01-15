@@ -34,8 +34,8 @@ class RedoUser:
 
 
 class User:
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, user_id):
+        self.user_id = user_id
         self.history = []
         self.count = 0
 
@@ -43,21 +43,21 @@ class User:
     # objects in a list, and we did `if 1203910293001 in user_list`, it would return True
     # if the user with that ID was in the list
     def __eq__(self, other):
-        return self.id == other.id
+        return self.user_id == other.id
 
     def __hash__(self):
-        return hash(self.id)
+        return hash(self.user_id)
 
     def __repr__(self):
-        return f"User(id={self.id}, history={self.history})"
+        return f"User(id={self.user_id}, history={self.history})"
 
     def __str__(self):
         return self.__repr__()
 
 
 class Thread:
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, thread_id):
+        self.thread_id = thread_id
         self.history = []
         self.count = 0
         self.model = None
@@ -90,13 +90,13 @@ class Thread:
     # objects in a list, and we did `if 1203910293001 in user_list`, it would return True
     # if the user with that ID was in the list
     def __eq__(self, other):
-        return self.id == other.id
+        return self.thread_id == other.id
 
     def __hash__(self):
-        return hash(self.id)
+        return hash(self.thread_id)
 
     def __repr__(self):
-        return f"Thread(id={self.id}, history={self.history})"
+        return f"Thread(id={self.thread_id}, history={self.history})"
 
     def __str__(self):
         return self.__repr__()

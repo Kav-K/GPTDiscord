@@ -374,13 +374,13 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         instruction: str,
-        input: str,
+        text: str,
         temperature: float,
         top_p: float,
         codex: bool,
     ):
         await self.converser_cog.edit_command(
-            ctx, instruction, input, temperature, top_p, codex
+            ctx, instruction, text, temperature, top_p, codex
         )
 
     @add_to_group("gpt")

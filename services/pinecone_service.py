@@ -37,20 +37,19 @@ class PineconeService:
                     },
                 )
             return first_embedding
-        else:
-            embedding = await model.send_embedding_request(
-                text, custom_api_key=custom_api_key
-            )
-            self.index.upsert(
-                [
-                    (
-                        text,
-                        embedding,
-                        {"conversation_id": conversation_id, "timestamp": timestamp},
-                    )
-                ]
-            )
-            return embedding
+        embedding = await model.send_embedding_request(
+            text, custom_api_key=custom_api_key
+        )
+        self.index.upsert(
+            [
+                (
+                    text,
+                    embedding,
+                    {"conversation_id": conversation_id, "timestamp": timestamp},
+                )
+            ]
+        )
+        return embedding
 
     def get_n_similar(self, conversation_id: int, embedding, n=10):
         response = self.index.query(

@@ -470,9 +470,11 @@ class TextService:
         except Exception:
 
             message = "Something went wrong, please try again later. This may be due to upstream issues on the API, or rate limiting."
-            await ctx.send_followup(message) if from_context else await ctx.reply(
-                message
-            )
+            if not from_context:
+                await ctx.send_followup(message)
+            else:
+                await ctx.reply(message)
+
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
@@ -480,7 +482,7 @@ class TextService:
 
             try:
                 await converser_cog.end_conversation(ctx)
-            except:
+            except Exception:
                 pass
             return
 
@@ -675,9 +677,9 @@ class TextService:
                     converser_cog.redo_users[after.author.id].prompt = edited_content
 
 
-"""
-Conversation interaction buttons
-"""
+#
+#Conversation interaction buttons
+#
 
 
 class ConversationView(discord.ui.View):
@@ -753,7 +755,6 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
                 await interaction.response.send_message(
                     e, ephemeral=True, delete_after=30
                 )
-                pass
         else:
             await interaction.response.send_message(
                 "This is not your conversation to end!", ephemeral=True, delete_after=10
@@ -789,7 +790,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             response_message = self.converser_cog.redo_users[user_id].response
             codex = self.converser_cog.redo_users[user_id].codex
 
-            msg = await interaction.response.send_message(
+            await interaction.response.send_message(
                 "Retrying your original request...", ephemeral=True, delete_after=15
             )
 
@@ -815,9 +816,9 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             )
 
 
-"""
-The setup modal when using user input API keys
-"""
+#
+#The setup modal when using user input API keys
+#
 
 
 class SetupModal(discord.ui.Modal):
@@ -880,7 +881,7 @@ class SetupModal(discord.ui.Modal):
                     ephemeral=True,
                     delete_after=10,
                 )
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
                 await interaction.followup.send(
                     "There was an error saving your API key.",
@@ -888,5 +889,3 @@ class SetupModal(discord.ui.Modal):
                     delete_after=30,
                 )
                 return
-
-            pass
