@@ -13,6 +13,7 @@ RUN pip install --target="/install" -r requirements.txt
 COPY README.md /src
 COPY cogs /src/cogs
 COPY models /src/models
+COPY services /src/services
 COPY gpt3discord.py /src
 COPY pyproject.toml /src
 # For debugging + seeing that the modiles file layouts look correct ...
