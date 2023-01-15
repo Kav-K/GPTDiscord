@@ -27,7 +27,7 @@ from services.usage_service import UsageService
 from services.environment_service import EnvService
 
 
-__version__ = "6.1"
+__version__ = "6.5"
 
 
 """
