@@ -26,16 +26,38 @@ class TextService:
         top_p_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
-        from_ask_command=False,
         instruction=None,
+        from_ask_command=False,
         from_edit_command=False,
         codex=False,
         model=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
-        from_action=None,
+        from_action=False,
     ):
+        """General service function for sending and recieving gpt generations
+
+        Args:
+            converser_cog (Cog): The conversation cog with our gpt commands
+            id (user or thread id): A user or thread id for keeping track of conversations
+            prompt (str): The prompt to use for generation
+            ctx (ApplicationContext): The interaction which called this
+            response_message (discord.Message, optional): For when we're doing redos. Defaults to None.
+            temp_override (float, optional): Sets the temperature for the generation. Defaults to None.
+            top_p_override (float, optional): Sets the top p for the generation. Defaults to None.
+            frequency_penalty_override (float, optional): Sets the frequency penalty for the generation. Defaults to None.
+            presence_penalty_override (float, optional): Sets the presence penalty for the generation. Defaults to None.
+            instruction (str, optional): Instruction for use with the edit endpoint. Defaults to None.
+            from_ask_command (bool, optional): Called from the ask command. Defaults to False.
+            from_edit_command (bool, optional): Called from the edit command. Defaults to False.
+            codex (bool, optional): Pass along that we want to use a codex model. Defaults to False.
+            model (str, optional): Which model to genereate output with. Defaults to None.
+            custom_api_key (str, optional): per-user api key. Defaults to None.
+            edited_request (bool, optional): If we're doing an edited message. Defaults to False.
+            redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
+            from_action (bool, optional): If the function is being called from a message action. Defaults to False.
+        """        
         new_prompt = (
             prompt + "\nGPTie: "
             if not from_ask_command and not from_edit_command
