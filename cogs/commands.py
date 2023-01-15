@@ -195,49 +195,70 @@ class Commands(discord.Cog, name="Commands"):
         name="hate",
         description="The threshold for hate speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="hate_threatening",
         description="The threshold for hate/threatening speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="self_harm",
         description="The threshold for self_harm speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="sexual",
         description="The threshold for sexual speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="sexual_minors",
         description="The threshold for sexual speech with minors in context",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="violence",
         description="The threshold for violent speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.option(
         name="violence_graphic",
         description="The threshold for violent and graphic speech",
         required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
     )
     @discord.guild_only()
     async def config(
         self,
         ctx: discord.ApplicationContext,
         type: str,
-        hate: str,
-        hate_threatening: str,
-        self_harm: str,
-        sexual: str,
-        sexual_minors: str,
-        violence: str,
-        violence_graphic: str,
+        hate: float,
+        hate_threatening: float,
+        self_harm: float,
+        sexual: float,
+        sexual_minors: float,
+        violence: float,
+        violence_graphic: float,
     ):
         await self.moderations_cog.config_command(
             ctx,
