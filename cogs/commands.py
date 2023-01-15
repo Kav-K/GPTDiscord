@@ -228,10 +228,28 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     async def config(
-        self, ctx: discord.ApplicationContext, type: str, hate: str, hate_threatening: str, self_harm: str, sexual: str, sexual_minors: str, violence: str, violence_graphic: str
+        self,
+        ctx: discord.ApplicationContext,
+        type: str,
+        hate: str,
+        hate_threatening: str,
+        self_harm: str,
+        sexual: str,
+        sexual_minors: str,
+        violence: str,
+        violence_graphic: str,
     ):
-        await self.moderations_cog.config_command(ctx, type, hate, hate_threatening, self_harm, sexual, sexual_minors, violence, violence_graphic)
-
+        await self.moderations_cog.config_command(
+            ctx,
+            type,
+            hate,
+            hate_threatening,
+            self_harm,
+            sexual,
+            sexual_minors,
+            violence,
+            violence_graphic,
+        )
 
     """
     GPT commands

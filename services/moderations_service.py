@@ -40,6 +40,7 @@ class ThresholdSet:
             v_t,
             vg_t,
         ]
+
     # The string representation is just the keys alongside the threshold values
 
     def __str__(self):
@@ -150,7 +151,12 @@ class Moderation:
     # This function will be called by the bot to process the message queue
     @staticmethod
     async def process_moderation_queue(
-        moderation_queue, PROCESS_WAIT_TIME, EMPTY_WAIT_TIME, moderations_alert_channel, warn_set, delete_set
+        moderation_queue,
+        PROCESS_WAIT_TIME,
+        EMPTY_WAIT_TIME,
+        moderations_alert_channel,
+        warn_set,
+        delete_set,
     ):
         print("The warn and delete sets are ", warn_set, delete_set)
         while True:
