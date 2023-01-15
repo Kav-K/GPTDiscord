@@ -367,7 +367,8 @@ class TextService:
                             custom_api_key=custom_api_key,
                         )
                         paginator = pages.Paginator(
-                            pages=embed_pages, timeout=None, custom_view=view
+                            pages=embed_pages, timeout=None, custom_view=view,
+                            author_check=True,
                         )
                         response_message = await paginator.respond(ctx.interaction)
                 else:
