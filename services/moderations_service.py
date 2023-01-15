@@ -41,11 +41,18 @@ class ThresholdSet:
             vg_t,
         ]
 
+    # The string representation is just the keys alongside the threshold values
+
+    def __str__(self):
+        # "key": value format
+        return ", ".join([f"{k}: {v}" for k, v in zip(self.keys, self.thresholds)])
+
     def moderate(self, text, response_message):
         category_scores = response_message["results"][0]["category_scores"]
         flagged = response_message["results"][0]["flagged"]
 
         for category, threshold in zip(self.keys, self.thresholds):
+            threshold = float(threshold)
             if category_scores[category] > threshold:
                 return (True, flagged)
         return (False, flagged)
@@ -127,11 +134,9 @@ class Moderation:
         return embed
 
     @staticmethod
-    def determine_moderation_result(text, response):
+    def determine_moderation_result(text, response, warn_set, delete_set):
         # warn_set = ThresholdSet(0.005, 0.05, 0.05, 0.91, 0.1, 0.04, 0.1)
         # delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
-        warn_set = ThresholdSet(0.01, 0.05, 0.05, 0.91, 0.1, 0.45, 0.1)
-        delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
 
         warn_result, flagged_warn = warn_set.moderate(text, response)
         delete_result, flagged_delete = delete_set.moderate(text, response)
@@ -146,8 +151,14 @@ class Moderation:
     # This function will be called by the bot to process the message queue
     @staticmethod
     async def process_moderation_queue(
-        moderation_queue, PROCESS_WAIT_TIME, EMPTY_WAIT_TIME, moderations_alert_channel
+        moderation_queue,
+        PROCESS_WAIT_TIME,
+        EMPTY_WAIT_TIME,
+        moderations_alert_channel,
+        warn_set,
+        delete_set,
     ):
+        print("The warn and delete sets are ", warn_set, delete_set)
         while True:
             try:
                 # If the queue is empty, sleep for a short time before checking again
@@ -164,7 +175,7 @@ class Moderation:
                         to_moderate.message.content
                     )
                     moderation_result = Moderation.determine_moderation_result(
-                        to_moderate.message.content, response
+                        to_moderate.message.content, response, warn_set, delete_set
                     )
 
                     if moderation_result == ModerationResult.DELETE:
