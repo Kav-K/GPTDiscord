@@ -39,8 +39,8 @@ class ImageSize:
 class Model:
     def __init__(self, usage_service):
         self._mode = Mode.TEMPERATURE
-        self._temp = 0.6  # Higher value means more random, lower value means more likely to be a coherent sentence
-        self._top_p = 0.9  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
+        self._temp = 0.8  # Higher value means more random, lower value means more likely to be a coherent sentence
+        self._top_p = 0.95  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
         self._max_tokens = 4000  # The maximum number of tokens the model can generate
         self._presence_penalty = 0  # Penalize new tokens based on whether they appear in the text so far
         # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
@@ -55,11 +55,11 @@ class Model:
         self._image_size = ImageSize.MEDIUM
         self._num_images = 2
         self._summarize_conversations = True
-        self._summarize_threshold = 2500
+        self._summarize_threshold = 3000
         self.model_max_tokens = 4024
         self._welcome_message_enabled = True
-        self._num_static_conversation_items = 8
-        self._num_conversation_lookback = 6
+        self._num_static_conversation_items = 10
+        self._num_conversation_lookback = 5
 
         try:
             self.IMAGE_SAVE_PATH = os.environ["IMAGE_SAVE_PATH"]
