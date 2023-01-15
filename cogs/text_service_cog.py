@@ -27,7 +27,7 @@ else:
     separator = "/"
 
 #
-#Get the user key service if it is enabled.
+# Get the user key service if it is enabled.
 #
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = None
@@ -53,8 +53,8 @@ if USER_INPUT_API_KEYS:
 
 
 #
-#Obtain the Moderation table and the General table, these are two SQLite tables that contain
-#information about the server that are used for persistence and to auto-restart the moderation service.
+# Obtain the Moderation table and the General table, these are two SQLite tables that contain
+# information about the server that are used for persistence and to auto-restart the moderation service.
 #
 MOD_DB = None
 GENERAL_DB = None
@@ -156,7 +156,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_thread_owners = {}
 
     async def load_file(self, file, ctx):
-        '''Take filepath, return content or respond if not found'''
+        """Take filepath, return content or respond if not found"""
         try:
             async with aiofiles.open(file, "r") as f:
                 return await f.read()
@@ -169,7 +169,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @discord.Cog.listener()
     async def on_member_join(self, member):
-        '''When members join send welcome message if enabled'''
+        """When members join send welcome message if enabled"""
         if self.model.welcome_message_enabled:
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
 
@@ -195,7 +195,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @discord.Cog.listener()
     async def on_ready(self):
-        '''When ready to recieve data set debug channel and sync commands'''
+        """When ready to recieve data set debug channel and sync commands"""
         self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
             self.DEBUG_CHANNEL
         )
@@ -227,7 +227,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def end_conversation(
         self, ctx, opener_user_id=None, conversation_limit=False
     ):
-        '''end the thread of the user interacting with the bot, if the conversation has reached the limit close it for the owner'''
+        """end the thread of the user interacting with the bot, if the conversation has reached the limit close it for the owner"""
         normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
         if (
             conversation_limit
@@ -296,7 +296,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     traceback.print_exc()
 
     async def send_settings_text(self, ctx):
-        '''compose and return the settings menu to the interacting user'''
+        """compose and return the settings menu to the interacting user"""
         embed = discord.Embed(
             title="GPT3Bot Settings",
             description="The current settings of the model",
@@ -328,7 +328,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.respond(embed=embed, ephemeral=True)
 
     async def process_settings(self, ctx, parameter, value):
-        '''Given a parameter and value set the corresponding parameter in storage to the value'''
+        """Given a parameter and value set the corresponding parameter in storage to the value"""
 
         # Check if the parameter is a valid parameter
         if hasattr(self.model, parameter):
@@ -355,14 +355,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.respond("The parameter is not a valid parameter")
 
     def generate_debug_message(self, prompt, response):
-        '''create a debug message with a prompt and a response field'''
+        """create a debug message with a prompt and a response field"""
         debug_message = "----------------------------------------------------------------------------------\n"
         debug_message += "Prompt:\n```\n" + prompt + "\n```\n"
         debug_message += "Response:\n```\n" + json.dumps(response, indent=4) + "\n```\n"
         return debug_message
 
     async def paginate_and_send(self, response_text, ctx):
-        '''paginate a response to a text cutoff length and send it in chunks'''
+        """paginate a response to a text cutoff length and send it in chunks"""
         from_context = isinstance(ctx, discord.ApplicationContext)
 
         response_text = [
@@ -385,7 +385,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     await ctx.channel.send(chunk)
 
     async def paginate_embed(self, response_text, codex, prompt=None, instruction=None):
-        '''Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed'''
+        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
         if codex:  # clean codex input
             response_text = response_text.replace("```", "")
             response_text = response_text.replace(f"***Prompt: {prompt}***\n", "")
@@ -419,11 +419,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         return pages
 
     async def queue_debug_message(self, debug_message, debug_channel):
-        '''Put a message into the debug queue'''
+        """Put a message into the debug queue"""
         await self.message_queue.put(Message(debug_message, debug_channel))
 
     async def queue_debug_chunks(self, debug_message, debug_channel):
-        '''Put a message as chunks into the debug queue'''
+        """Put a message as chunks into the debug queue"""
         debug_message_chunks = [
             debug_message[i : i + self.TEXT_CUTOFF]
             for i in range(0, len(debug_message), self.TEXT_CUTOFF)
@@ -450,7 +450,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await self.message_queue.put(Message(chunk, debug_channel))
 
     async def send_debug_message(self, debug_message, debug_channel):
-        '''process a debug message and put directly into queue or chunk it'''
+        """process a debug message and put directly into queue or chunk it"""
         # Send the debug message
         try:
             if len(debug_message) > self.TEXT_CUTOFF:
@@ -464,7 +464,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
     async def check_conversation_limit(self, message):
-        '''Check if a conversation has reached the set limit and end it if it has'''
+        """Check if a conversation has reached the set limit and end it if it has"""
         # After each response, check if the user has reached the conversation limit in terms of messages or time.
         if message.channel.id in self.conversation_threads:
             # If the user has reached the max conversation length, end the conversation
@@ -478,7 +478,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await self.end_conversation(message, conversation_limit=True)
 
     async def summarize_conversation(self, message, prompt):
-        '''Takes a conversation history filled prompt and summarizes it to then start a new history with it as the base'''
+        """Takes a conversation history filled prompt and summarizes it to then start a new history with it as the base"""
         response = await self.model.send_summary_request(prompt)
         summarized_text = response["choices"][0]["text"]
 
@@ -510,7 +510,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     # A listener for message edits to redo prompts if they are edited
     @discord.Cog.listener()
     async def on_message_edit(self, before, after):
-        '''When a message is edited run moderation if enabled, and process if it a prompt that should be redone'''
+        """When a message is edited run moderation if enabled, and process if it a prompt that should be redone"""
 
         if after.author.id == self.bot.user.id:
             return
@@ -533,7 +533,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
-        '''On a new message check if it should be moderated then process it for conversation'''
+        """On a new message check if it should be moderated then process it for conversation"""
         if message.author == self.bot.user:
             return
 
@@ -558,7 +558,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             original_message[message.author.id] = message.id
 
     def cleanse_response(self, response_text):
-        '''Cleans history tokens from response'''
+        """Cleans history tokens from response"""
         response_text = response_text.replace("GPTie:\n", "")
         response_text = response_text.replace("GPTie:", "")
         response_text = response_text.replace("GPTie: ", "")
@@ -568,7 +568,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def remove_awaiting(
         self, author_id, channel_id, from_ask_command, from_edit_command
     ):
-        '''Remove user from ask/edit command response wait, if not any of those then process the id to remove user from thread response wait'''
+        """Remove user from ask/edit command response wait, if not any of those then process the id to remove user from thread response wait"""
         if author_id in self.awaiting_responses:
             self.awaiting_responses.remove(author_id)
         if not from_ask_command and not from_edit_command:
@@ -576,14 +576,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.awaiting_thread_responses.remove(channel_id)
 
     async def mention_to_username(self, ctx, message):
-        '''replaces discord mentions with their server nickname in text, if the user is not found keep the mention as is'''
+        """replaces discord mentions with their server nickname in text, if the user is not found keep the mention as is"""
         if not discord.utils.raw_mentions(message):
             return message
         for mention in discord.utils.raw_mentions(message):
             try:
-                user = await discord.utils.get_or_fetch(
-                    ctx.guild, "member", mention
-                )
+                user = await discord.utils.get_or_fetch(ctx.guild, "member", mention)
                 message = message.replace(f"<@{str(mention)}>", user.display_name)
             except Exception:
                 pass
@@ -592,7 +590,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     # COMMANDS
 
     async def help_command(self, ctx):
-        '''Command handler. Generates a help message and sends it to the user'''
+        """Command handler. Generates a help message and sends it to the user"""
         await ctx.defer()
         embed = discord.Embed(
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
@@ -647,7 +645,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def set_usage_command(
         self, ctx: discord.ApplicationContext, usage_amount: float
     ):
-        '''Command handler. Sets the usage file to the given value'''
+        """Command handler. Sets the usage file to the given value"""
         await ctx.defer()
 
         # Attempt to convert the input usage value into a float
@@ -662,7 +660,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def delete_all_conversation_threads_command(
         self, ctx: discord.ApplicationContext
     ):
-        '''Command handler. Deletes all threads made by the bot in the current guild'''
+        """Command handler. Deletes all threads made by the bot in the current guild"""
         await ctx.defer()
 
         for thread in ctx.guild.threads:
@@ -675,7 +673,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.respond("All conversation threads in this server have been deleted.")
 
     async def usage_command(self, ctx):
-        '''Command handler. Responds with the current usage of the bot'''
+        """Command handler. Responds with the current usage of the bot"""
         await ctx.defer()
         embed = discord.Embed(
             title="GPT3Bot Usage", description="The current usage", color=0x00FF00
@@ -713,7 +711,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             frequency_penalty (float): Sets the frequency penalty override
             presence_penalty (float): Sets the presence penalty override
             from_action (bool, optional): Enables ephemeral. Defaults to None.
-        """        
+        """
         user = ctx.user
         prompt = await self.mention_to_username(ctx, prompt.strip())
 
@@ -757,7 +755,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             temperature (float): Sets the temperature override
             top_p (float): Sets the top p override
             codex (bool): Enables the codex edit model
-        """        
+        """
         user = ctx.user
 
         text = await self.mention_to_username(ctx, text.strip())
@@ -785,7 +783,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
 
     async def private_test_command(self, ctx: discord.ApplicationContext):
-        '''Command handler. Creates a private thread in the current channel'''        
+        """Command handler. Creates a private thread in the current channel"""
         await ctx.defer(ephemeral=True)
         await ctx.respond("Your private test thread")
         thread = await ctx.channel.create_thread(
@@ -812,7 +810,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             opener_file (str): A .txt or .json file which is appended before the opener
             private (bool): If the thread should be private
             minimal (bool): If a minimal starter should be used
-        """        
+        """
 
         user = ctx.user
 
@@ -967,7 +965,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.awaiting_thread_responses.remove(thread.id)
 
     async def end_command(self, ctx: discord.ApplicationContext):
-        '''Command handler. Gets the user's thread and ends it'''
+        """Command handler. Gets the user's thread and ends it"""
         await ctx.defer(ephemeral=True)
         user_id = ctx.user.id
         try:
@@ -989,7 +987,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
     async def setup_command(self, ctx: discord.ApplicationContext):
-        '''Command handler. Opens the setup modal'''
+        """Command handler. Opens the setup modal"""
         if not USER_INPUT_API_KEYS:
             await ctx.respond(
                 "This server doesn't support user input API keys.",
@@ -1003,7 +1001,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def settings_command(
         self, ctx: discord.ApplicationContext, parameter: str = None, value: str = None
     ):
-        '''Command handler. Returns current settings or sets new values'''
+        """Command handler. Returns current settings or sets new values"""
         await ctx.defer()
         if parameter is None and value is None:
             await self.send_settings_text(ctx)
@@ -1025,13 +1023,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await self.process_settings(ctx, parameter, value)
 
     #
-    #Text-based context menu commands from here
+    # Text-based context menu commands from here
     #
 
-    async def ask_gpt_action(
-        self, ctx, message: discord.Message
-    ):  
-        '''Message command. Return the message'''
+    async def ask_gpt_action(self, ctx, message: discord.Message):
+        """Message command. Return the message"""
         await self.ask_command(
             ctx, message.content, None, None, None, None, from_action=message.content
         )

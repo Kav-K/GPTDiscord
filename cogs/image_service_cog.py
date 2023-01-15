@@ -21,7 +21,8 @@ if USER_INPUT_API_KEYS:
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
-    '''Cog containing a draw commands and file management for saved images'''
+    """Cog containing a draw commands and file management for saved images"""
+
     def __init__(
         self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
     ):
@@ -38,7 +39,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
     async def draw_command(
         self, ctx: discord.ApplicationContext, prompt: str, from_action=False
     ):
-        '''With an ApplicationContext and prompt, send a dalle image to the invoked channel. Ephemeral if from an action'''
+        """With an ApplicationContext and prompt, send a dalle image to the invoked channel. Ephemeral if from an action"""
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -70,11 +71,11 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             await ctx.send_followup(e, ephemeral=from_action)
 
     async def draw_action(self, ctx, message):
-        '''decoupler to handle context actions for the draw command'''
+        """decoupler to handle context actions for the draw command"""
         await self.draw_command(ctx, message.content, from_action=True)
 
     async def local_size_command(self, ctx: discord.ApplicationContext):
-        '''Get the folder size of the image folder'''
+        """Get the folder size of the image folder"""
         await ctx.defer()
 
         image_path = self.model.IMAGE_SAVE_PATH
@@ -89,7 +90,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         await ctx.respond(f"The size of the local images folder is {total_size} MB.")
 
     async def clear_local_command(self, ctx):
-        '''Delete all local images'''
+        """Delete all local images"""
         await ctx.defer()
 
         image_path = self.model.IMAGE_SAVE_PATH

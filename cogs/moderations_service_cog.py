@@ -16,7 +16,8 @@ except Exception as e:
 
 
 class ModerationsService(discord.Cog, name="ModerationsService"):
-    '''Cog containing moderation tools and features'''
+    """Cog containing moderation tools and features"""
+
     def __init__(
         self,
         bot,
@@ -41,7 +42,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
 
     @discord.Cog.listener()
     async def on_ready(self):
-        '''Check moderation service for each guild'''
+        """Check moderation service for each guild"""
         for guild in self.bot.guilds:
             self.get_or_set_warn_set(guild.id)
             self.get_or_set_delete_set(guild.id)
@@ -49,20 +50,20 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         print("The moderation service is ready.")
 
     def check_guild_moderated(self, guild_id):
-        '''Given guild id, return bool of moderation status'''
+        """Given guild id, return bool of moderation status"""
         return guild_id in MOD_DB and MOD_DB[guild_id]["moderated"]
 
     def get_moderated_alert_channel(self, guild_id):
-        '''Given guild id, return alert channel'''
+        """Given guild id, return alert channel"""
         return MOD_DB[guild_id]["alert_channel"]
 
     def set_moderated_alert_channel(self, guild_id, channel_id):
-        '''Given guild id and channel id, set channel to recieve alerts'''
+        """Given guild id and channel id, set channel to recieve alerts"""
         MOD_DB[guild_id] = {"moderated": True, "alert_channel": channel_id}
         MOD_DB.commit()
 
     def get_or_set_warn_set(self, guild_id):
-        '''Get warn_set set for the guild, if not set them from default values'''
+        """Get warn_set set for the guild, if not set them from default values"""
         guild_id = str(guild_id)
         key = guild_id + "_warn_set"
         if key not in MOD_DB:
@@ -73,7 +74,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         return dict(MOD_DB[key])
 
     def get_or_set_delete_set(self, guild_id):
-        '''Get delete_set set for the guild, if not set them from default values'''
+        """Get delete_set set for the guild, if not set them from default values"""
         guild_id = str(guild_id)
         key = guild_id + "_delete_set"
         if key not in MOD_DB:
@@ -84,21 +85,21 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         return dict(MOD_DB[key])
 
     def set_warn_set(self, guild_id, threshold_set):
-        '''Set threshold for warning a message'''
+        """Set threshold for warning a message"""
         guild_id = str(guild_id)
         key = guild_id + "_warn_set"
         MOD_DB[key] = zip(threshold_set.keys, threshold_set.thresholds)
         MOD_DB.commit()
 
     def set_delete_set(self, guild_id, threshold_set):
-        '''Set threshold for deleting a message'''
+        """Set threshold for deleting a message"""
         guild_id = str(guild_id)
         key = guild_id + "_delete_set"
         MOD_DB[key] = zip(threshold_set.keys, threshold_set.thresholds)
         MOD_DB.commit()
 
     def set_guild_moderated(self, guild_id, status=True):
-        '''Set the guild to moderated or not'''
+        """Set the guild to moderated or not"""
         if guild_id not in MOD_DB:
             MOD_DB[guild_id] = {"moderated": status, "alert_channel": 0}
             MOD_DB.commit()
@@ -110,7 +111,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         MOD_DB.commit()
 
     async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
-        '''Create the moderation service'''
+        """Create the moderation service"""
         print("Checking and attempting to launch moderations service...")
         if self.check_guild_moderated(guild_id):
             Moderation.moderation_queues[guild_id] = asyncio.Queue()
@@ -144,7 +145,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def moderations_command(
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
-        '''command handler for toggling moderation and setting an alert channel'''
+        """command handler for toggling moderation and setting an alert channel"""
         await ctx.defer()
 
         try:
@@ -175,7 +176,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             )
 
     async def stop_moderations_service(self, guild_id):
-        '''Remove guild moderation status and stop the service'''
+        """Remove guild moderation status and stop the service"""
         self.set_guild_moderated(guild_id, False)
         Moderation.moderation_tasks[guild_id].cancel()
         Moderation.moderation_tasks[guild_id] = None
@@ -183,7 +184,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         Moderation.moderations_launched.remove(guild_id)
 
     async def start_moderations_service(self, guild_id, alert_channel_id=None):
-        '''Set guild moderation and start the service'''
+        """Set guild moderation and start the service"""
         self.set_guild_moderated(guild_id)
         moderations_channel = await self.check_and_launch_moderations(
             guild_id,
@@ -194,9 +195,13 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self.set_moderated_alert_channel(guild_id, moderations_channel.id)
 
     async def restart_moderations_service(self, ctx):
-        '''restarts the moderation of the guild it's run in'''
+        """restarts the moderation of the guild it's run in"""
         if not self.check_guild_moderated(ctx.guild_id):
-            await ctx.respond("Moderations are not enabled, can't restart", ephemeral=True, delete_after=30)
+            await ctx.respond(
+                "Moderations are not enabled, can't restart",
+                ephemeral=True,
+                delete_after=30,
+            )
             return
 
         await ctx.respond(
@@ -221,7 +226,8 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
 
         embed = discord.Embed(
             title="Moderation Settings",
-            description="The moderation settings for this guild for the type: " + category,
+            description="The moderation settings for this guild for the type: "
+            + category,
             color=discord.Color.yellow() if type == "warn" else discord.Color.red(),
         )
 
@@ -243,7 +249,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         violence,
         violence_graphic,
     ):
-        '''command handler for assigning threshold values for warn or delete'''
+        """command handler for assigning threshold values for warn or delete"""
         all_args = [
             hate,
             hate_threatening,
@@ -306,7 +312,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def moderations_test_command(
         self, ctx: discord.ApplicationContext, prompt: str
     ):
-        '''command handler for checking moderation values of a given input'''
+        """command handler for checking moderation values of a given input"""
         await ctx.defer()
         response = await self.model.send_moderations_request(prompt)
         await ctx.respond(response["results"][0]["category_scores"])

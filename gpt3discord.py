@@ -67,7 +67,7 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 
 
 #
-#Settings for the bot
+# Settings for the bot
 #
 activity = discord.Activity(
     type=discord.ActivityType.watching, name="for /help /gpt, and more!"
@@ -80,6 +80,7 @@ model = Model(usage_service)
 #
 # An encapsulating wrapper for the discord.py client. This uses the old re-write without cogs, but it gets the job done!
 #
+
 
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by

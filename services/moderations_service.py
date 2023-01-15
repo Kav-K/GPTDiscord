@@ -32,7 +32,7 @@ class ThresholdSet:
             sm_t (float): sexual/minors
             v_t (float): violence
             vg_t (float): violence/graphic
-        """        
+        """
         self.keys = [
             "hate",
             "hate/threatening",
@@ -55,7 +55,7 @@ class ThresholdSet:
     # The string representation is just the keys alongside the threshold values
 
     def __str__(self):
-        '''"key": value format'''
+        """ "key": value format"""
         # "key": value format
         return ", ".join([f"{k}: {v}" for k, v in zip(self.keys, self.thresholds)])
 

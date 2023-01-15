@@ -12,9 +12,10 @@ model = Model(usage_service)
 
 
 class Settings_autocompleter:
-    '''autocompleter for the settings command'''
+    """autocompleter for the settings command"""
+
     async def get_settings(ctx: discord.AutocompleteContext):
-        '''get settings for the settings option'''
+        """get settings for the settings option"""
         SETTINGS = [
             re.sub("^_", "", key)
             for key in model.__dict__.keys()
@@ -29,7 +30,7 @@ class Settings_autocompleter:
     async def get_value(
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
-        '''gets valid values for the value option'''
+        """gets valid values for the value option"""
         values = {
             "max_conversation_length": [str(num) for num in range(1, 500, 2)],
             "num_images": [str(num) for num in range(1, 4 + 1)],
@@ -57,16 +58,14 @@ class Settings_autocompleter:
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
-        '''gets valid values for the type option'''
+        """gets valid values for the type option"""
         print(f"The value is {ctx.value}")
         return [
-            value
-            for value in ["warn", "delete"]
-            if value.startswith(ctx.value.lower())
+            value for value in ["warn", "delete"] if value.startswith(ctx.value.lower())
         ]
 
     async def get_value_alert_id_channel(self, ctx: discord.AutocompleteContext):
-        '''gets valid values for the channel option'''
+        """gets valid values for the channel option"""
         return [
             channel.name
             for channel in ctx.interaction.guild.channels
@@ -74,11 +73,11 @@ class Settings_autocompleter:
         ]
 
 
-
 class File_autocompleter:
-    '''Autocompleter for the opener command'''
+    """Autocompleter for the opener command"""
+
     async def get_openers(ctx: discord.AutocompleteContext):
-        '''get all files in the openers folder'''
+        """get all files in the openers folder"""
         try:
             return [
                 file

@@ -42,9 +42,11 @@ class Model:
         self._temp = 0.8  # Higher value means more random, lower value means more likely to be a coherent sentence
         self._top_p = 0.95  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
         self._max_tokens = 4000  # The maximum number of tokens the model can generate
-        self._presence_penalty = 0  # Penalize new tokens based on whether they appear in the text so far
+        self._presence_penalty = (
+            0  # Penalize new tokens based on whether they appear in the text so far
+        )
         # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
-        self._frequency_penalty = 0 
+        self._frequency_penalty = 0
         self._best_of = 1  # Number of responses to compare the loglikelihoods of
         self._prompt_min_length = 8
         self._max_conversation_length = 100
@@ -669,7 +671,8 @@ class Model:
         images = await asyncio.get_running_loop().run_in_executor(
             None,
             lambda: [
-                Image.open(requests.get(url, stream=True, timeout=10).raw) for url in image_urls
+                Image.open(requests.get(url, stream=True, timeout=10).raw)
+                for url in image_urls
             ],
         )
 

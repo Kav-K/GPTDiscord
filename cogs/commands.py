@@ -9,7 +9,8 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
 class Commands(discord.Cog, name="Commands"):
-    '''Cog containing all slash and context commands as one-liners'''
+    """Cog containing all slash and context commands as one-liners"""
+
     def __init__(
         self,
         bot,
@@ -60,7 +61,7 @@ class Commands(discord.Cog, name="Commands"):
     )
 
     #
-    #System commands
+    # System commands
     #
 
     @add_to_group("system")
@@ -140,9 +141,9 @@ class Commands(discord.Cog, name="Commands"):
     async def delete_all_conversation_threads(self, ctx: discord.ApplicationContext):
         await self.converser_cog.delete_all_conversation_threads_command(ctx)
 
-    #"""
-    #Moderation commands
-    #"""
+    # """
+    # Moderation commands
+    # """
 
     @add_to_group("mod")
     @discord.slash_command(
@@ -169,13 +170,13 @@ class Commands(discord.Cog, name="Commands"):
         name="status",
         description="Enable or disable the moderations service for the current guild (on/off)",
         required=True,
-        choices=["on", "off"]
+        choices=["on", "off"],
     )
     @discord.option(
         name="alert_channel_id",
         description="The channel ID to send moderation alerts to",
         required=False,
-        autocomplete=Settings_autocompleter.get_value_alert_id_channel
+        autocomplete=Settings_autocompleter.get_value_alert_id_channel,
     )
     @discord.guild_only()
     async def moderations(
@@ -270,7 +271,7 @@ class Commands(discord.Cog, name="Commands"):
         )
 
     #
-    #GPT commands
+    # GPT commands
     #
 
     @add_to_group("gpt")
@@ -427,7 +428,7 @@ class Commands(discord.Cog, name="Commands"):
         await self.converser_cog.end_command(ctx)
 
     #
-    #DALLE commands
+    # DALLE commands
     #
 
     @add_to_group("dalle")
@@ -454,7 +455,7 @@ class Commands(discord.Cog, name="Commands"):
         await self.image_service_cog.optimize_command(ctx, prompt)
 
     #
-    #Other commands
+    # Other commands
     #
 
     @discord.slash_command(
@@ -483,7 +484,7 @@ class Commands(discord.Cog, name="Commands"):
         await self.converser_cog.setup_command(ctx)
 
     #
-    #Text-based context menu commands from here
+    # Text-based context menu commands from here
     #
 
     @discord.message_command(
@@ -493,7 +494,7 @@ class Commands(discord.Cog, name="Commands"):
         await self.converser_cog.ask_gpt_action(ctx, message)
 
     #
-    #Image-based context menu commands from here
+    # Image-based context menu commands from here
     #
 
     @discord.message_command(

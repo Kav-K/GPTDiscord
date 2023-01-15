@@ -57,7 +57,7 @@ class TextService:
             edited_request (bool, optional): If we're doing an edited message. Defaults to False.
             redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
-        """        
+        """
         new_prompt = (
             prompt + "\nGPTie: "
             if not from_ask_command and not from_edit_command
@@ -367,7 +367,9 @@ class TextService:
                             custom_api_key=custom_api_key,
                         )
                         paginator = pages.Paginator(
-                            pages=embed_pages, timeout=None, custom_view=view,
+                            pages=embed_pages,
+                            timeout=None,
+                            custom_view=view,
                             author_check=True,
                         )
                         response_message = await paginator.respond(ctx.interaction)
@@ -514,9 +516,7 @@ class TextService:
         converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB
     ):
         content = message.content.strip()
-        conversing = converser_cog.check_conversing(
-            message.channel.id, content
-        )
+        conversing = converser_cog.check_conversing(message.channel.id, content)
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in converser_cog.END_PROMPTS:
@@ -701,7 +701,7 @@ class TextService:
 
 
 #
-#Conversation interaction buttons
+# Conversation interaction buttons
 #
 
 
@@ -840,7 +840,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
 
 
 #
-#The setup modal when using user input API keys
+# The setup modal when using user input API keys
 #
 
 

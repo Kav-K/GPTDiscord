@@ -36,7 +36,7 @@ class ImageService:
             vary (bool, optional): If the image is a variation of another one. Defaults to None.
             draw_from_optimizer (bool, optional): If the prompt is passed from the optimizer command. Defaults to None.
             custom_api_key (str, optional): User defined OpenAI API key. Defaults to None.
-        """        
+        """
         await asyncio.sleep(0)
         # send the prompt to the model
         from_context = isinstance(ctx, discord.ApplicationContext)
@@ -84,7 +84,7 @@ class ImageService:
         embed.set_image(url=f"attachment://{file.filename}")
 
         if not response_message:  # Original generation case
-            # Start an interaction with the user, we also want to send data embed=embed, file=file, 
+            # Start an interaction with the user, we also want to send data embed=embed, file=file,
             # view=SaveView(image_urls, image_service_cog, image_service_cog.converser_cog)
             result_message = (
                 await ctx.channel.send(
