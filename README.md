@@ -248,7 +248,7 @@ USER_INPUT_API_KEYS="False" # If True, users must use their own API keys for Ope
 # Moderations Service alert channel, this is where moderation alerts will be sent as a default if enabled
 MODERATIONS_ALERT_CHANNEL = "977697652147892304"
 # User API key db path configuration. This is where the user API keys will be stored.
-USER_KEY_DB_PATH = user_key_db.sqlite
+USER_KEY_DB_PATH = "user_key_db.sqlite"
 ```
 
 **Permissions**
