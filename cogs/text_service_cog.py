@@ -976,8 +976,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
 
-        """
-        Text-based context menu commands from here
-        """
+    """
+    Text-based context menu commands from here
+    """
     async def ask_gpt_action(self, ctx, message: discord.Message):  # message commands return the message
-        await self.ask_command(ctx, message.content, 0.7, 0.9, 0,0,message.content)
+        await self.ask_command(ctx, message.content, None, None, None, None, from_action=message.content)
