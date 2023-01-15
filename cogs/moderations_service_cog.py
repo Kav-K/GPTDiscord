@@ -147,6 +147,14 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         '''command handler for toggling moderation and setting an alert channel'''
         await ctx.defer()
 
+        try:
+            if alert_channel_id:
+                int(alert_channel_id)
+        except ValueError:
+            # the alert_channel_id was passed in as a channel NAME instead of an ID, fetch the ID.
+            alert_channel = discord.utils.get(ctx.guild.channels, name=alert_channel_id)
+            alert_channel_id = alert_channel.id
+
         if status == "on":
             # Check if the current guild is already in the database and if so, if the moderations is on
             if self.check_guild_moderated(ctx.guild_id):

@@ -42,6 +42,7 @@ class Settings_autocompleter:
             "num_static_conversation_items": [str(num) for num in range(5, 20 + 1)],
             "num_conversation_lookback": [str(num) for num in range(5, 15 + 1)],
             "summarize_threshold": [str(num) for num in range(800, 3500, 50)],
+            "type": ["warn", "delete"],
         }
         for parameter in values:
             if parameter == ctx.options["parameter"]:
@@ -52,6 +53,26 @@ class Settings_autocompleter:
                 ]
         await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
         return []
+
+    async def get_value_moderations(
+        ctx: discord.AutocompleteContext,
+    ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
+        '''gets valid values for the type option'''
+        print(f"The value is {ctx.value}")
+        return [
+            value
+            for value in ["warn", "delete"]
+            if value.startswith(ctx.value.lower())
+        ]
+
+    async def get_value_alert_id_channel(self, ctx: discord.AutocompleteContext):
+        '''gets valid values for the channel option'''
+        return [
+            channel.name
+            for channel in ctx.interaction.guild.channels
+            if channel.name.startswith(ctx.value.lower())
+        ]
+
 
 
 class File_autocompleter:

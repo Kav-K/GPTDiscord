@@ -175,6 +175,7 @@ class Commands(discord.Cog, name="Commands"):
         name="alert_channel_id",
         description="The channel ID to send moderation alerts to",
         required=False,
+        autocomplete=Settings_autocompleter.get_value_alert_id_channel
     )
     @discord.guild_only()
     async def moderations(
@@ -191,8 +192,8 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="type",
         description="The type of moderation to configure",
-        choices=["warn", "delete"],
         required=True,
+        autocomplete=Settings_autocompleter.get_value_moderations,
     )
     @discord.option(
         name="hate",
