@@ -3,10 +3,9 @@ from pycord.multicog import add_to_group
 
 from services.environment_service import EnvService
 from models.check_model import Check
-from models.autocomplete_model import Settings_autocompleter, File_autocompleter
+from models.autocomplete_model import Settings_autocompleter, File_autocompleter, Translations_autocompleter
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
-
 
 class Commands(discord.Cog, name="Commands"):
     """Cog containing all slash and context commands as one-liners"""
@@ -22,6 +21,7 @@ class Commands(discord.Cog, name="Commands"):
         image_draw_cog,
         image_service_cog,
         moderations_cog,
+        translations_cog=None,
     ):
         super().__init__()
         self.bot = bot
@@ -33,6 +33,7 @@ class Commands(discord.Cog, name="Commands"):
         self.image_draw_cog = image_draw_cog
         self.image_service_cog = image_service_cog
         self.moderations_cog = moderations_cog
+        self.translations_cog = translations_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
@@ -502,3 +503,37 @@ class Commands(discord.Cog, name="Commands"):
     )
     async def draw_action(self, ctx, message: discord.Message):
         await self.image_draw_cog.draw_action(ctx, message)
+
+    """
+    Translation commands and actions
+    """
+    @discord.slash_command(name="translate", description="Translate text to a given language", guild_ids=ALLOWED_GUILDS,
+                           checks=[Check.check_translator_roles()],
+)
+    @discord.option(name="text", description="The text to translate", required=True)
+    @discord.option(name="target_language", description="The language to translate to", required=True, autocomplete=Translations_autocompleter.get_languages)
+    @discord.guild_only()
+    async def translate(self, ctx: discord.ApplicationContext, text: str, target_language: str):
+        if self.translations_cog:
+            await self.translations_cog.translate_command(ctx, text, target_language)
+        else:
+            await ctx.respond("Translations are disabled on this server.", ephemeral=True)
+
+    @discord.slash_command(name="languages", description="View the supported languages for translation", guild_ids=ALLOWED_GUILDS,
+                           checks=[Check.check_translator_roles()],)
+    @discord.guild_only()
+    async def languages(self, ctx: discord.ApplicationContext):
+        if self.translations_cog:
+            await self.translations_cog.languages_command(ctx)
+        else:
+            await ctx.respond("Translations are disabled on this server.", ephemeral=True)
+
+
+    @discord.message_command(
+        name="Translate", guild_ids=ALLOWED_GUILDS, checks=[Check.check_translator_roles()]
+    )
+    async def translate_action(self, ctx, message: discord.Message):
+        if self.translations_cog:
+            await self.translations_cog.translate_action(ctx, message)
+        else:
+            await ctx.respond("Translations are disabled on this server.", ephemeral=True)

@@ -13,6 +13,8 @@ from cogs.image_service_cog import DrawDallEService
 from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
+from cogs.translation_service_cog import TranslationService
+from models.deepl_model import TranslationModel
 
 from services.pinecone_service import PineconeService
 from services.deletion_service import Deletion
@@ -23,7 +25,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "7.1"
+__version__ = "8.0"
 
 
 if sys.platform == "win32":
@@ -55,7 +57,6 @@ if PINECONE_TOKEN:
 
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
     print("Got the pinecone service")
-
 
 #
 # Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
@@ -146,6 +147,10 @@ async def main():
         )
     )
 
+    if EnvService.get_deepl_token():
+        bot.add_cog(TranslationService(bot, TranslationModel()))
+        print("The translation service is enabled.")
+
     bot.add_cog(
         Commands(
             bot,
@@ -157,8 +162,10 @@ async def main():
             bot.get_cog("DrawDallEService"),
             bot.get_cog("ImgPromptOptimizer"),
             bot.get_cog("ModerationsService"),
+            bot.get_cog("TranslationService"),
         )
     )
+
 
     apply_multicog(bot)
 

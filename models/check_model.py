@@ -6,6 +6,7 @@ from typing import Callable
 ADMIN_ROLES = EnvService.get_admin_roles()
 DALLE_ROLES = EnvService.get_dalle_roles()
 GPT_ROLES = EnvService.get_gpt_roles()
+TRANSLATOR_ROLES = EnvService.get_translator_roles()
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
@@ -54,6 +55,23 @@ class Check:
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
                     f"You don't have permission, list of roles is {GPT_ROLES}",
+                    ephemeral=True,
+                    delete_after=10,
+                )
+                return False
+            return True
+
+        return inner
+
+    @staticmethod
+    def check_translator_roles() -> Callable:
+        async def inner(ctx: discord.ApplicationContext):
+            if TRANSLATOR_ROLES == [None]:
+                return True
+            if not any(role.name.lower() in TRANSLATOR_ROLES for role in ctx.user.roles):
+                await ctx.defer(ephemeral=True)
+                await ctx.respond(
+                    f"You don't have permission, list of roles is {TRANSLATOR_ROLES}",
                     ephemeral=True,
                     delete_after=10,
                 )

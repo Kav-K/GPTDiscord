@@ -11,7 +11,7 @@
 # Overview
 A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
 
-SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the bot here, it is for setup support ONLY)
+SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)
 # Screenshots
 
 <p align="center">
@@ -23,14 +23,12 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 </p>
 
 # Recent Notable Updates
-- **Edit Requests** - Ask GPT to edit a piece of text with a given instruction using a specific OpenAI edits model! `/gpt edit`! 
+- **Translations with DeepL** - DeepL integration for translations. `/translate`
 
 
 - **Context menu commands** - Allow people to prompt GPT and DALL-E directly by right clicking a message:
-<img src="https://i.imgur.com/fkfnJQ0.png"/>
-
-
-- **Automatic retry on API errors** - The bot will automatically retry API requests if they fail due to some issue with OpenAI's APIs, this is becoming increasingly important now as their APIs become under heavy load.
+<center>
+<img src="https://i.imgur.com/fkfnJQ0.png"/></center>
 
 
 - **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
@@ -50,6 +48,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can NOT use the
 - **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/dalle optimize <prompt>`
 
 - **Edit Requests** - Ask GPT to edit a piece of text or code with a given instruction. `/gpt edit <instruction> <text>`
+
+- **DeepL Translations** - Translate text with DeepL. `/translate <text>`
 
 - **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!
 
@@ -145,7 +145,7 @@ If you'd like to help us test and fine tune our thresholds for the moderation se
 
 **The above server is NOT for support or discussions about GPT3Discord**
 
-# Permanent Memory
+# Permanent Memory and Conversations
 Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
 
 PineconeDB is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
@@ -161,17 +161,15 @@ To get a pinecone token, you can sign up for a free pinecone account here: https
 
 After signing up for a free pinecone account, you need to create an index in pinecone. To do this, go to the pinecone dashboard and click "Create Index" on the top right.
 
-<img src="https://i.imgur.com/L9LXVE0.png"/>
+<center><img src="https://i.imgur.com/L9LXVE0.png"/></center>
 
 Then, name the index `conversation-embeddings`, set the dimensions to `1536`, and set the metric to `DotProduct`:
 
-<img src="https://i.imgur.com/zoeLsrw.png"/>
-
-Moreover, an important thing to keep in mind is: pinecone indexes are currently not automatically cleared by the bot, so you will eventually need to clear the index manually through the pinecone website if things are getting too slow (although it should be a very long time until this happens). Pinecone indexes are keyed on the `metadata` field using the thread id of the conversation thread.
+<center><img src="https://i.imgur.com/zoeLsrw.png"/></center>
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
-# Permanent overrides in threads
+### Permanent overrides in threads
 This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
 ```json
 {
@@ -182,6 +180,24 @@ This bot now supports having overrides be permanent in an entire conversation if
   "presence_penalty":0
 }
 ```
+
+# Translations with DeepL
+This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
+
+```
+DEEPL_TOKEN="your deepl token"
+```
+
+You can get a DeepL token by signing up at https://www.deepl.com/pro-api?cta=header-pro-api/ and clicking on the *free plan* to start. The DeepL translation service unlocks some new commands for your bot:
+
+`/translate <text> <language>` - Translate any given piece of text into the language that you provide
+
+`/languages` - See a list of all supported languages
+
+Using DeepL also adds a new app menu button (when you right click a message) to the bot which allows you to quickly translate any message in a channel into any language you want:
+
+<img src="https://i.imgur.com/MlNVWKu.png"/>
+
 
 # User-Input API Keys (Multi-key tenancy)
 This bot supports multi-user tenancy in regards to API keys. This means that, if you wanted, you could make it such that each user needs to enter their own API key in order to use commands that use GPT3 and DALLE.
@@ -196,7 +212,8 @@ Then, restart the bot, and it will set up the system for everyone to input their
 The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot.
 
 With this feature enabled, any attempt to use a GPT3 or DALL-E command without a valid API key set for the user will pop up the following modal for them to enter their API key:
-<img src="https://i.imgur.com/ZDScoWk.png"/>
+
+<center><img src="https://i.imgur.com/ZDScoWk.png"/></center>
 
 Once the user enters their key, the bot will send a small test request to OpenAI to validate that the key indeed works, if not, it will tell the user to try again and tell them why it did not work.
 

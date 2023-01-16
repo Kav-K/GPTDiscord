@@ -3,6 +3,8 @@ import os
 import re
 
 import discord
+
+from models.deepl_model import TranslationModel
 from services.usage_service import UsageService
 from models.openai_model import Model
 from services.environment_service import EnvService
@@ -70,6 +72,17 @@ class Settings_autocompleter:
             channel.name
             for channel in ctx.interaction.guild.channels
             if channel.name.startswith(ctx.value.lower())
+        ]
+
+class Translations_autocompleter:
+    """autocompleter for the translations command"""
+
+    async def get_languages(ctx: discord.AutocompleteContext):
+        """gets valid values for the language option"""
+        return [
+            language
+            for language in TranslationModel.get_all_country_names()
+            if language.lower().startswith(ctx.value.lower())
         ]
 
 

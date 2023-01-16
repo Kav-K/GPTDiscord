@@ -139,6 +139,32 @@ class EnvService:
         return dalle_roles
 
     @staticmethod
+    def get_translator_roles():
+        # DALLE_ROLES is a comma separated list of string roles
+        # It can also just be one role
+        # Read these allowed roles and return as a list of strings
+        try:
+            translator_roles = os.getenv("TRANSLATOR_ROLES")
+        except Exception:
+            translator_roles = None
+
+        if translator_roles is None:
+            print(
+                "TRANSLATOR_ROLES is not defined properly in the environment file!"
+                "Please copy your server's role and put it into TRANSLATOR in the .env file."
+                'For example a line should look like: `TRANSLATOR="Translate"`'
+            )
+            print("Defaulting to allowing all users to use Translator commands...")
+            return [None]
+
+        translator_roles = (
+            translator_roles.lower().split(",")
+            if "," in translator_roles
+            else [translator_roles.lower()]
+        )
+        return translator_roles
+
+    @staticmethod
     def get_gpt_roles():
         # GPT_ROLES is a comma separated list of string roles
         # It can also just be one role
@@ -202,5 +228,13 @@ class EnvService:
             if user_key_db_path is None:
                 return None
             return Path(user_key_db_path)
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_deepl_token():
+        try:
+            deepl_token = os.getenv("DEEPL_TOKEN")
+            return deepl_token
         except Exception:
             return None
