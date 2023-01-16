@@ -526,12 +526,18 @@ class Commands(discord.Cog, name="Commands"):
         required=True,
         autocomplete=Translations_autocompleter.get_languages,
     )
+    @discord.option(
+        name="formality",
+        description="Formal/Informal tone of translation",
+        required=False,
+        autocomplete=Translations_autocompleter.get_formality_values,
+    )
     @discord.guild_only()
     async def translate(
-        self, ctx: discord.ApplicationContext, text: str, target_language: str
+        self, ctx: discord.ApplicationContext, text: str, target_language: str, formality: str,
     ):
         if self.translations_cog:
-            await self.translations_cog.translate_command(ctx, text, target_language)
+            await self.translations_cog.translate_command(ctx, text, target_language, formality)
         else:
             await ctx.respond(
                 "Translations are disabled on this server.", ephemeral=True

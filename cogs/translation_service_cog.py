@@ -58,7 +58,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
 
         return embed
 
-    async def translate_command(self, ctx, text, target_language):
+    async def translate_command(self, ctx, text, target_language, formality):
         """Delete all local images"""
         await ctx.defer()
         # TODO Add pagination!
@@ -74,7 +74,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
 
         try:
             response = await self.translation_model.send_translate_request(
-                text, TranslationModel.get_country_code_from_name(target_language)
+                text, TranslationModel.get_country_code_from_name(target_language), formality
             )
         except aiohttp.ClientResponseError as e:
             await ctx.respond(f"There was an error with the DeepL API: {e.message}")

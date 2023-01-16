@@ -51,7 +51,7 @@ class TranslationModel:
         max_tries=4,
         on_backoff=backoff_handler,
     )
-    async def send_translate_request(self, text, translate_language):
+    async def send_translate_request(self, text, translate_language, formality):
         print("The text is: ", text)
         print("The language is: ", translate_language)
         print("The token is ", self.deepl_token)
@@ -59,6 +59,7 @@ class TranslationModel:
             payload = {
                 "text": text,
                 "target_lang": translate_language,
+                "formality": "default" if formality is None else formality,
             }
             # Instead of sending as json, we want to send as regular post params
             headers = {

@@ -86,6 +86,14 @@ class Translations_autocompleter:
             if language.lower().startswith(ctx.value.lower())
         ]
 
+    async def get_formality_values(self, ctx: discord.AutocompleteContext):
+        """gets valid values for the formality option"""
+        return [
+            value
+            for value in ["prefer_more", "prefer_less"]
+            if value.lower().startswith(ctx.value.lower())
+        ]
+
 
 class File_autocompleter:
     """Autocompleter for the opener command"""
