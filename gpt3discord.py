@@ -166,7 +166,6 @@ async def main():
         )
     )
 
-
     apply_multicog(bot)
 
     await bot.start(os.getenv("DISCORD_TOKEN"))
