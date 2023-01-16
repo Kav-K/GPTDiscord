@@ -9,20 +9,24 @@ from healthcheck import HealthCheck
 app = Flask(__name__)
 health = HealthCheck()
 start_time = datetime.datetime.now()
-@app.route('/')
+
+
+@app.route("/")
 def health():
     # Find the difference between the current time and start_time in seconds
     uptime = (datetime.datetime.now() - start_time).total_seconds()
     # Set the response status
     status = 200
-    return {"status": "ok",
-            "uptime": uptime,
-            "uptime_unit": "seconds"}, status
+    return {"status": "ok", "uptime": uptime, "uptime_unit": "seconds"}, status
+
+
 def run_target(host, port):
     try:
         app.run(host=host, port=port, debug=False, use_reloader=False)
     except:
         pass
+
+
 class HealthService:
     """
     Service for health checks, for cloud services like Azure App Service.
