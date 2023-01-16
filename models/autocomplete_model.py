@@ -74,6 +74,7 @@ class Settings_autocompleter:
             if channel.name.startswith(ctx.value.lower())
         ]
 
+
 class Translations_autocompleter:
     """autocompleter for the translations command"""
 

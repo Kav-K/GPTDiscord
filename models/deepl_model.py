@@ -31,8 +31,9 @@ COUNTRY_CODES = {
     "UK": "Ukrainian",
     "ZH": "Chinese (simplified)",
 }
-class TranslationModel:
 
+
+class TranslationModel:
     def __init__(self):
         self.deepl_token = os.getenv("DEEPL_TOKEN")
 
@@ -64,7 +65,9 @@ class TranslationModel:
                 "Authorization": f"DeepL-Auth-Key {self.deepl_token}",
             }
             async with session.post(
-                "https://api-free.deepl.com/v2/translate", params=payload, headers=headers
+                "https://api-free.deepl.com/v2/translate",
+                params=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
                 print(response)
@@ -75,10 +78,15 @@ class TranslationModel:
                     print(response)
                     traceback.print_exc()
                     return response
+
     @staticmethod
     def get_all_country_names(lower=False):
         """Get a list of all the country names"""
-        return list(COUNTRY_CODES.values()) if not lower else [name.lower() for name in COUNTRY_CODES.values()]
+        return (
+            list(COUNTRY_CODES.values())
+            if not lower
+            else [name.lower() for name in COUNTRY_CODES.values()]
+        )
 
     @staticmethod
     def get_all_country_codes():
