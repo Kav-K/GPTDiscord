@@ -534,10 +534,16 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     async def translate(
-        self, ctx: discord.ApplicationContext, text: str, target_language: str, formality: str,
+        self,
+        ctx: discord.ApplicationContext,
+        text: str,
+        target_language: str,
+        formality: str,
     ):
         if self.translations_cog:
-            await self.translations_cog.translate_command(ctx, text, target_language, formality)
+            await self.translations_cog.translate_command(
+                ctx, text, target_language, formality
+            )
         else:
             await ctx.respond(
                 "Translations are disabled on this server.", ephemeral=True
