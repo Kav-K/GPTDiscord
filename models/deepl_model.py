@@ -5,15 +5,16 @@ import aiohttp
 import backoff
 
 COUNTRY_CODES = {
+    "EN": "English",
+    "ES": "Spanish",
+    "FR": "French",
+    "ZH": "Chinese (simplified)",
     "BG": "Bulgarian",
     "CS": "Czech",
     "DA": "Danish",
     "DE": "German",
     "EL": "Greek",
-    "EN": "English",
-    "ES": "Spanish",
     "FI": "Finnish",
-    "FR": "French",
     "HU": "Hungarian",
     "ID": "Indonesian",
     "IT": "Italian",
@@ -29,7 +30,6 @@ COUNTRY_CODES = {
     "SV": "Swedish",
     "TR": "Turkish",
     "UK": "Ukrainian",
-    "ZH": "Chinese (simplified)",
 }
 
 
