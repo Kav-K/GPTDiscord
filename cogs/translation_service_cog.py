@@ -16,10 +16,10 @@ from services.text_service import TextService
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-def build_translation_embed( text, translated_text, translated_language):
+def build_translation_embed(text, translated_text, translated_language):
     """Build an embed for the translation"""
     embed = discord.Embed(
-        title=f"Translation to "+translated_language,
+        title=f"Translation to " + translated_language,
         color=0x311432,
     )
     embed.add_field(name="Original text", value=text, inline=False)
@@ -125,7 +125,9 @@ class TranslateView(discord.ui.View):
             )
             await self.message.reply(
                 mention_author=False,
-                embed=build_translation_embed(self.message.content, response, select.values[0]),
+                embed=build_translation_embed(
+                    self.message.content, response, select.values[0]
+                ),
             )
             await self.selection_message.delete()
         except aiohttp.ClientResponseError as e:
