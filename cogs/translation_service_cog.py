@@ -15,14 +15,14 @@ from services.text_service import TextService
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-def build_translation_embed( text, target_language):
+def build_translation_embed( text, translated_text, translated_language):
     """Build an embed for the translation"""
     embed = discord.Embed(
-        title=f"Translation results",
+        title=f"Translation to "+translated_language,
         color=0x311432,
     )
     embed.add_field(name="Original text", value=text, inline=False)
-    embed.add_field(name="Target language", value=target_language, inline=False)
+    embed.add_field(name="Translated Text", value=translated_text, inline=False)
 
     return embed
 class TranslationService(discord.Cog, name="TranslationService"):
@@ -105,7 +105,7 @@ class TranslateView(discord.ui.View):
     async def select_callback(self, select, interaction): # the function called when the user is done selecting options
         try:
             response = await self.translation_model.send_translate_request(self.message.content, TranslationModel.get_country_code_from_name(select.values[0]))
-            await self.message.reply(mention_author=False, embed=build_translation_embed(self.message.content, response))
+            await self.message.reply(mention_author=False, embed=build_translation_embed(self.message.content, response, select.values[0]))
             await self.selection_message.delete()
         except aiohttp.ClientResponseError as e:
             await interaction.response.send_message(f"There was an error with the DeepL API: {e.message}", ephemeral=True, delete_after=15)
