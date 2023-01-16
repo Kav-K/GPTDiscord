@@ -222,6 +222,16 @@ class EnvService:
             return False
 
     @staticmethod
+    def get_health_service_enabled():
+        try:
+            user_input_api_keys = os.getenv("HEALTH_SERVICE_ENABLED")
+            if user_input_api_keys.lower().strip() == "true":
+                return True
+            return False
+        except Exception:
+            return False
+
+    @staticmethod
     def get_user_key_db_path() -> Union[Path, None]:
         try:
             user_key_db_path = os.getenv("USER_KEY_DB_PATH")

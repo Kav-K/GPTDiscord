@@ -112,7 +112,6 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
 
     async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
         """Create the moderation service"""
-        print("Checking and attempting to launch moderations service...")
         if self.check_guild_moderated(guild_id):
             Moderation.moderation_queues[guild_id] = asyncio.Queue()
 

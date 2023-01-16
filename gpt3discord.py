@@ -1,6 +1,7 @@
 import os
 import asyncio
 import sys
+import threading
 import traceback
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
 from cogs.translation_service_cog import TranslationService
 from models.deepl_model import TranslationModel
+from services.health_service import HealthService
 
 from services.pinecone_service import PineconeService
 from services.deletion_service import Deletion
@@ -25,7 +27,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.0"
+__version__ = "8.1"
 
 
 if sys.platform == "win32":
@@ -174,6 +176,7 @@ async def main():
 # Run the bot with a token taken from an environment file.
 def init():
     PID_FILE = "bot.pid"
+    process = None
     if os.path.exists(PID_FILE):
         print("Process ID file already exists")
         sys.exit(1)
@@ -183,6 +186,13 @@ def init():
             print("" "Wrote PID to f" "ile the file " + PID_FILE)
             f.close()
     try:
+        if EnvService.get_health_service_enabled():
+            try:
+                process = HealthService().get_process()
+            except:
+                traceback.print_exc()
+                print("The health service failed to start.")
+
         asyncio.get_event_loop().run_until_complete(main())
     except KeyboardInterrupt:
         print("Caught keyboard interrupt, killing and removing PID")
@@ -193,7 +203,12 @@ def init():
         print("Removing PID file")
         os.remove(PID_FILE)
     finally:
+        # Kill all threads
+        print("Killing all subprocesses")
+        process.terminate()
+        print("Killed all subprocesses")
         sys.exit(0)
+
 
 
 if __name__ == "__main__":

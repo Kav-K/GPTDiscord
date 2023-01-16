@@ -28,6 +28,7 @@ dependencies = [
   "pinecone-client",
   "sqlitedict",
   "backoff",
+  "flask",
 ]
 dynamic = ["version"]
 [project.scripts]

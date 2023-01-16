@@ -417,3 +417,13 @@ This can also be run via screen/tmux or detached like a daemon.
     - Copy the link generated below and paste it on the browser
     - On add to server select the desired server to add the bot
 - Make sure you have updated your .env file with valid values for `DEBUG_GUILD`, `DEBUG_CHANNEL` and `ALLOWED_GUILDS`, otherwise the bot will not work. Guild IDs can be found by right clicking a server and clicking `Copy ID`, similarly, channel IDs can be found by right clicking a channel and clicking `Copy ID`.
+
+## Health Check Service
+
+The bot has the ability to launch a HTTP endpoint at `<host>:8181/` that will return a json response of the bot's status and uptime. This is especially useful if you want to run this bot on cloud application containers, like Azure App Service.
+
+To enable this, add `HEALTH_SERVICE_ENABLED="True"` to your `.env` file.
+
+The health check endpoint will then be present in your bot's console when it is starting up, it will look like this, the possible HTTP urls for your health endpoint will be visible near the bottom:
+
+<center><img src="https://i.imgur.com/RqV2xN6.png"/></center>

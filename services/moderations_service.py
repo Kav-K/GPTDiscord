@@ -169,7 +169,6 @@ class Moderation:
         warn_set,
         delete_set,
     ):
-        print("The warn and delete sets are ", warn_set, delete_set)
         while True:
             try:
                 # If the queue is empty, sleep for a short time before checking again
