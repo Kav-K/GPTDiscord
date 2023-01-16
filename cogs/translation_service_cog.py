@@ -80,7 +80,9 @@ class TranslationService(discord.Cog, name="TranslationService"):
             await ctx.respond(f"There was an error with the DeepL API: {e.message}")
             return
 
-        await ctx.respond(embed=build_translation_embed(text, response, target_language))
+        await ctx.respond(
+            embed=build_translation_embed(text, response, target_language)
+        )
 
     async def translate_action(self, ctx, message):
         await ctx.defer(ephemeral=True)
