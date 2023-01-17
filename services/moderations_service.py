@@ -158,32 +158,7 @@ class Moderation:
         if warn_result:
             return ModerationResult.WARN
         return ModerationResult.NONE
-    
-    @staticmethod
-    def get_bypass_roles():
-        # GPT_ROLES is a comma separated list of string roles
-        # It can also just be one role
-        # Read these allowed roles and return as a list of strings
-        try:
-            bypass_roles = os.getenv("CHAT_BYPASS_ROLES")
-        except Exception:
-            bypass_roles = None
 
-        if bypass_roles is None:
-            print(
-                "CHAT_BYPASS_ROLES is not defined properly in the environment file!"
-                "Please copy your server's role and put it into CHAT_BYPASS_ROLES in the .env file."
-                'For example a line should look like: `CHAT_BYPASS_ROLES="bypass"`'
-            )
-            print("Defaulting to allowing NO ONE to bypass chat moderation")
-            return [None]
-
-        bypass_roles = (
-            bypass_roles.lower().strip().split(",")
-            if "," in bypass_roles
-            else [bypass_roles.lower()]
-        )
-        return bypass_roles
     # This function will be called by the bot to process the message queue
     @staticmethod
     async def process_moderation_queue(

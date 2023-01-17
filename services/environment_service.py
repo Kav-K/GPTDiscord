@@ -269,6 +269,32 @@ class EnvService:
         return user_key_db
 
     @staticmethod
+    def get_bypass_roles():
+        # GPT_ROLES is a comma separated list of string roles
+        # It can also just be one role
+        # Read these allowed roles and return as a list of strings
+        try:
+            bypass_roles = os.getenv("CHAT_BYPASS_ROLES")
+        except Exception:
+            bypass_roles = None
+
+        if bypass_roles is None:
+            print(
+                "CHAT_BYPASS_ROLES is not defined properly in the environment file!"
+                "Please copy your server's role and put it into CHAT_BYPASS_ROLES in the .env file."
+                'For example a line should look like: `CHAT_BYPASS_ROLES="bypass"`'
+            )
+            print("Defaulting to allowing NO ONE to bypass chat moderation")
+            return [None]
+
+        bypass_roles = (
+            bypass_roles.lower().strip().split(",")
+            if "," in bypass_roles
+            else [bypass_roles.lower()]
+        )
+        return bypass_roles
+
+    @staticmethod
     def get_deepl_token():
         try:
             deepl_token = os.getenv("DEEPL_TOKEN")

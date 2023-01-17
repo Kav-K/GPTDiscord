@@ -31,6 +31,7 @@ else:
 #
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
+CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -524,8 +525,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             and Moderation.moderation_queues[message.guild.id] is not None
         ):
             # Verify that the user is not in a role that can bypass moderation
-            if (CHAT_BYPASS_ROLES is not [None]
-            and message.author.roles is not in CHAT_BYPASS_ROLES):
+            if CHAT_BYPASS_ROLES is [None] or message.author.roles not in CHAT_BYPASS_ROLES:
                 # Create a timestamp that is 0.5 seconds from now
                 timestamp = (
                     datetime.datetime.now() + datetime.timedelta(seconds=0.5)
