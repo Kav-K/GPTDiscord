@@ -5,7 +5,6 @@ from flask import Flask
 from multiprocessing import Process
 
 app = Flask(__name__)
-health = HealthCheck()
 start_time = datetime.datetime.now()
 
 
