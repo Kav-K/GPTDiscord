@@ -12,9 +12,7 @@ from services.text_service import TextService
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
-USER_KEY_DB = None
-if USER_INPUT_API_KEYS:
-    USER_KEY_DB = SqliteDict("user_key_db.sqlite")
+USER_KEY_DB = EnvService.get_api_db()
 
 
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):

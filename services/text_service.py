@@ -631,7 +631,7 @@ class TextService:
     async def get_user_api_key(user_id, ctx, USER_KEY_DB):
         user_api_key = None if user_id not in USER_KEY_DB else USER_KEY_DB[user_id]
         if user_api_key is None or user_api_key == "":
-            modal = SetupModal(title="API Key Setup", user_key_db=USER_KEY_DB)
+            modal = SetupModal(user_key_db=USER_KEY_DB)
             if isinstance(ctx, discord.ApplicationContext):
                 await ctx.send_modal(modal)
                 await ctx.send_followup(
@@ -845,10 +845,10 @@ class RedoButton(discord.ui.Button["ConversationView"]):
 
 
 class SetupModal(discord.ui.Modal):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, user_key_db) -> None:
+        super().__init__(title="API Key Setup")
         # Get the argument named "user_key_db" and save it as USER_KEY_DB
-        self.USER_KEY_DB = kwargs.pop("user_key_db")
+        self.USER_KEY_DB = user_key_db
 
         self.add_item(
             discord.ui.InputText(
