@@ -143,6 +143,8 @@ There are two thresholds for the bot, there are instances in which the bot will 
 
 If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)
 
+To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.
+
 **The above server is NOT for support or discussions about GPT3Discord**
 
 # Permanent Memory and Conversations

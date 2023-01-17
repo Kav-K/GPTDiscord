@@ -9,8 +9,6 @@ from discord.ext import pages
 from services.deletion_service import Deletion
 from models.openai_model import Model
 from models.user_model import EmbeddedConversationItem, RedoUser
-
-
 class TextService:
     def __init__(self):
         pass
