@@ -4,8 +4,6 @@ import traceback
 from flask import Flask
 from multiprocessing import Process
 
-from healthcheck import HealthCheck
-
 app = Flask(__name__)
 health = HealthCheck()
 start_time = datetime.datetime.now()
