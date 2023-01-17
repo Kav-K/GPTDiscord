@@ -120,7 +120,7 @@ class TranslateView(discord.ui.View):
             response = await self.translation_model.send_translate_request(
                 self.message.content,
                 TranslationModel.get_country_code_from_name(select.values[0]),
-                self.formality
+                self.formality,
             )
             await self.message.reply(
                 mention_author=False,
@@ -146,13 +146,13 @@ class TranslateView(discord.ui.View):
         placeholder="Formality (optional)",
         min_values=1,
         max_values=1,
-        options=[discord.SelectOption(label="Prefer more", value="prefer_more"),
-        discord.SelectOption(label="default", value="default"),
-        discord.SelectOption(label="Prefer less", value="prefer_less")]
+        options=[
+            discord.SelectOption(label="Prefer more", value="prefer_more"),
+            discord.SelectOption(label="default", value="default"),
+            discord.SelectOption(label="Prefer less", value="prefer_less"),
+        ],
     )
-    async def formality_callback(
-        self, select, interaction
-    ):
+    async def formality_callback(self, select, interaction):
         try:
             self.formality = select.values[0]
             await interaction.response.defer()
@@ -167,4 +167,4 @@ class TranslateView(discord.ui.View):
             await interaction.response.send_message(
                 f"There was an error: {e}", ephemeral=True, delete_after=15
             )
-            return    
+            return
