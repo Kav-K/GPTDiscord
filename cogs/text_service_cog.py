@@ -30,27 +30,7 @@ else:
 # Get the user key service if it is enabled.
 #
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
-USER_KEY_DB = None
-if USER_INPUT_API_KEYS:
-    print(
-        "This server was configured to enforce user input API keys. Doing the required database setup now"
-    )
-    # Get USER_KEY_DB from the environment variable
-    USER_KEY_DB_PATH = EnvService.get_user_key_db_path()
-    # Check if USER_KEY_DB_PATH is valid
-    if not USER_KEY_DB_PATH:
-        print(
-            "No user key database path was provided. Defaulting to user_key_db.sqlite"
-        )
-        USER_KEY_DB_PATH = "user_key_db.sqlite"
-    else:
-        # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
-        if not USER_KEY_DB_PATH.match("*.sqlite"):
-            # append "user_key_db.sqlite" to USER_KEY_DB_PATH
-            USER_KEY_DB_PATH = USER_KEY_DB_PATH / "user_key_db.sqlite"
-    USER_KEY_DB = SqliteDict(USER_KEY_DB_PATH)
-    print("Retrieved/created the user key database")
-
+USER_KEY_DB = EnvService.get_api_db()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -994,8 +974,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ephemeral=True,
                 delete_after=30,
             )
+            return
 
-        modal = SetupModal(title="API Key Setup")
+        modal = SetupModal(user_key_db=USER_KEY_DB)
         await ctx.send_modal(modal)
 
     async def settings_command(

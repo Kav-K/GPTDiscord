@@ -204,8 +204,9 @@ def init():
         os.remove(PID_FILE)
     finally:
         # Kill all threads
-        print("Killing all subprocesses")
-        process.terminate()
+        if process:
+            print("Killing all subprocesses")
+            process.terminate()
         print("Killed all subprocesses")
         sys.exit(0)
 

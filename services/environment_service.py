@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Union
 
 from dotenv import load_dotenv
+from sqlitedict import SqliteDict
 
 
 def app_root_path():
@@ -240,6 +241,32 @@ class EnvService:
             return Path(user_key_db_path)
         except Exception:
             return None
+
+
+    @staticmethod
+    def get_api_db():
+        user_input_api_keys = EnvService.get_user_input_api_keys()
+        user_key_db = None
+        if user_input_api_keys:
+            print("This server was configured to enforce user input API keys. Doing the required database setup now")
+            # Get user_key_db from environment variable
+            user_key_db_path = EnvService.get_user_key_db_path()
+            # Check if user_key_db_path is valid
+            if not user_key_db_path:
+                print("No user key database path was provided. Defaulting to user_key_db.sqlite")
+                user_key_db_path = "user_key_db.sqlite"
+            else:
+                # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
+                if not user_key_db_path.match("*.sqlite"):
+                    # append "user_key_db.sqlite" to USER_KEY_DB_PATH
+                    user_key_db_path = user_key_db_path / "user_key_db.sqlite"
+            user_key_db = SqliteDict(user_key_db_path)
+            print("Retrieved/created the user key database")
+            return user_key_db
+        return user_key_db
+
+
+
 
     @staticmethod
     def get_deepl_token():
