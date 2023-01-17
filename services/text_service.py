@@ -10,6 +10,7 @@ from services.deletion_service import Deletion
 from models.openai_model import Model
 from models.user_model import EmbeddedConversationItem, RedoUser
 
+CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
 
 class TextService:
     def __init__(self):
