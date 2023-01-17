@@ -1,17 +1,9 @@
-import asyncio
-import os
-import traceback
-
 import aiohttp
 import discord
 
-# We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
-from sqlitedict import SqliteDict
-
 from models.deepl_model import TranslationModel
 from services.environment_service import EnvService
-from services.image_service import ImageService
-from services.text_service import TextService
+
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
@@ -19,7 +11,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 def build_translation_embed(text, translated_text, translated_language):
     """Build an embed for the translation"""
     embed = discord.Embed(
-        title=f"Translation to " + translated_language,
+        title=f"Translation to {translated_language}",
         color=0x311432,
     )
     embed.add_field(name="Original text", value=text, inline=False)
@@ -29,7 +21,7 @@ def build_translation_embed(text, translated_text, translated_language):
 
 
 class TranslationService(discord.Cog, name="TranslationService"):
-    """Cog containing a draw commands and file management for saved images"""
+    """Cog containing translation commands and retrieval of translation services"""
 
     def __init__(
         self,
@@ -44,7 +36,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
     def build_supported_language_embed(self):
         """Build an embed for the translation"""
         embed = discord.Embed(
-            title=f"Translator supported languages",
+            title="Translator supported languages",
             color=0x311432,
         )
         # Add the list of supported languages in a nice format
@@ -59,7 +51,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
         return embed
 
     async def translate_command(self, ctx, text, target_language, formality):
-        """Delete all local images"""
+        """Command handler for the translation command"""
         await ctx.defer()
         # TODO Add pagination!
 
@@ -107,6 +99,7 @@ class TranslateView(discord.ui.View):
         self.translation_model = translation_model
         self.message = message
         self.selection_message = selection_message
+        self.formality = None
 
     @discord.ui.select(  # the decorator that lets you specify the properties of the select menu
         placeholder="Language",  # the placeholder text that will be displayed if nothing is selected
@@ -123,9 +116,11 @@ class TranslateView(discord.ui.View):
         self, select, interaction
     ):  # the function called when the user is done selecting options
         try:
+            await interaction.response.defer()
             response = await self.translation_model.send_translate_request(
                 self.message.content,
                 TranslationModel.get_country_code_from_name(select.values[0]),
+                self.formality
             )
             await self.message.reply(
                 mention_author=False,
@@ -146,3 +141,30 @@ class TranslateView(discord.ui.View):
                 f"There was an error: {e}", ephemeral=True, delete_after=15
             )
             return
+
+    @discord.ui.select(
+        placeholder="Formality (optional)",
+        min_values=1,
+        max_values=1,
+        options=[discord.SelectOption(label="Prefer more", value="prefer_more"),
+        discord.SelectOption(label="default", value="default"),
+        discord.SelectOption(label="Prefer less", value="prefer_less")]
+    )
+    async def formality_callback(
+        self, select, interaction
+    ):
+        try:
+            self.formality = select.values[0]
+            await interaction.response.defer()
+        except aiohttp.ClientResponseError as e:
+            await interaction.response.send_message(
+                f"There was an error with the DeepL API: {e.message}",
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+        except Exception as e:
+            await interaction.response.send_message(
+                f"There was an error: {e}", ephemeral=True, delete_after=15
+            )
+            return    
