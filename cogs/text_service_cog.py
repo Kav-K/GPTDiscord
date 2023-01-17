@@ -524,9 +524,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             and message.guild.id in Moderation.moderation_queues
             and Moderation.moderation_queues[message.guild.id] is not None
         ):
-            print("The chat bypass roles are " + str(CHAT_BYPASS_ROLES))
             # Verify that the user is not in a role that can bypass moderation
-            if CHAT_BYPASS_ROLES is [None] or any(role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles):
+            if CHAT_BYPASS_ROLES is [None] or not any(role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles):
                 # Create a timestamp that is 0.5 seconds from now
                 timestamp = (
                     datetime.datetime.now() + datetime.timedelta(seconds=0.5)
