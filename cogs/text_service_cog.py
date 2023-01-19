@@ -554,7 +554,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def cleanse_response(self, response_text):
         """Cleans history tokens from response"""
         response_text = response_text.replace("GPTie:\n", "")
-        response_text = response_text.replace(BOT_NAME.replace(" ",""), "")
+        response_text = response_text.replace(BOT_NAME.replace(" ", ""), "")
         response_text = response_text.replace(BOT_NAME, "")
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
@@ -828,13 +828,22 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         if private:
-            await ctx.respond(embed=discord.Embed(title=f"{user.name}'s private conversation with GPT3", color=0x808080))
+            await ctx.respond(
+                embed=discord.Embed(
+                    title=f"{user.name}'s private conversation with GPT3",
+                    color=0x808080,
+                )
+            )
             thread = await ctx.channel.create_thread(
                 name=user.name + "'s private conversation with GPT3",
                 auto_archive_duration=60,
             )
         elif not private:
-            message_thread = await ctx.respond(embed=discord.Embed(title=f"{user.name} 's conversation with GPT3", color=0x808080))
+            message_thread = await ctx.respond(
+                embed=discord.Embed(
+                    title=f"{user.name} 's conversation with GPT3", color=0x808080
+                )
+            )
             # Get the actual message object for the message_thread
             message_thread_real = await ctx.fetch_message(message_thread.id)
             thread = await message_thread_real.create_thread(
@@ -912,12 +921,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         overrides = self.conversation_threads[thread.id].get_overrides()
 
         await thread.send(
-            embed=EmbedStatics.generate_conversation_embed(self.conversation_threads,thread, opener, overrides)
+            embed=EmbedStatics.generate_conversation_embed(
+                self.conversation_threads, thread, opener, overrides
+            )
         )
 
         # send opening
         if opener:
-            thread_message = await thread.send(embed=EmbedStatics.generate_opener_embed(opener))
+            thread_message = await thread.send(
+                embed=EmbedStatics.generate_opener_embed(opener)
+            )
             if thread.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 self.awaiting_thread_responses.append(thread.id)
@@ -1020,5 +1033,3 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await self.ask_command(
             ctx, message.content, None, None, None, None, from_action=message.content
         )
-
-

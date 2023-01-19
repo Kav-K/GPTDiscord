@@ -3,6 +3,8 @@ import discord
 from services.environment_service import EnvService
 
 BOT_NAME = EnvService.get_custom_bot_name()
+
+
 class EmbedStatics:
     def __init__(self):
         pass
