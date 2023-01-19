@@ -841,7 +841,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         elif not private:
             message_thread = await ctx.respond(
                 embed=discord.Embed(
-                    title=f"{user.name} 's conversation with GPT3", color=0x808080
+                    title=f"{user.name}'s conversation with GPT3", color=0x808080
                 )
             )
             # Get the actual message object for the message_thread
@@ -921,6 +921,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         overrides = self.conversation_threads[thread.id].get_overrides()
 
         await thread.send(
+            f"<@{str(ctx.user.id)}> is the thread owner."
+        )
+        
+        await thread.send(
             embed=EmbedStatics.generate_conversation_embed(
                 self.conversation_threads, thread, opener, overrides
             )
@@ -938,7 +942,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if not self.pinecone_service:
                     self.conversation_threads[thread.id].history.append(
                         EmbeddedConversationItem(
-                            f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n",
+                            f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
                             0,
                         )
                     )
@@ -958,6 +962,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                user=user,
                 model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,
             )

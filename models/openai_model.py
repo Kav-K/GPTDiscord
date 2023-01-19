@@ -533,6 +533,7 @@ class Model:
         presence_penalty_override=None,
         max_tokens_override=None,
         model=None,
+        stop=None,
         custom_api_key=None,
     ) -> (
         Tuple[dict, bool]
@@ -554,6 +555,7 @@ class Model:
             payload = {
                 "model": self.model if model is None else model,
                 "prompt": prompt,
+                "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
                 "max_tokens": self.max_tokens - tokens

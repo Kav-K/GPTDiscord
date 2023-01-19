@@ -35,6 +35,7 @@ class TextService:
         from_edit_command=False,
         codex=False,
         model=None,
+        user=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
@@ -67,6 +68,8 @@ class TextService:
             if not from_ask_command and not from_edit_command
             else prompt
         )
+
+        stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -273,6 +276,7 @@ class TextService:
                     frequency_penalty_override=frequency_penalty_override,
                     presence_penalty_override=presence_penalty_override,
                     model=model,
+                    stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
                 )
 
@@ -282,9 +286,7 @@ class TextService:
             )
 
             if from_ask_command or from_action:
-                # Append the prompt to the beginning of the response, in italics, then a new line
-                response_text = response_text.strip()
-                response_text = f"***{prompt}***\n\n{response_text}"
+                response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
@@ -597,7 +599,7 @@ class TextService:
                         message.channel.id
                     ].history.append(
                         EmbeddedConversationItem(
-                            f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",
+                            f"\n{message.author.display_name}: {prompt} <|endofstatement|>\n",
                             0,
                         )
                     )
