@@ -492,7 +492,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
             EmbeddedConversationItem(
-                self.conversation_threads[message.channel.id].history[-1] + "\n", 0
+                self.conversation_threads[message.channel.id].history[-1].text + "\n", 0
             )
         )
         self.conversation_threads[message.channel.id].history = new_conversation_history

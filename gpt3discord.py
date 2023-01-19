@@ -27,7 +27,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.3"
+__version__ = "8.3.1"
 
 
 if sys.platform == "win32":
