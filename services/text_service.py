@@ -14,6 +14,7 @@ from services.environment_service import EnvService
 
 BOT_NAME = EnvService.get_custom_bot_name()
 
+
 class TextService:
     def __init__(self):
         pass
@@ -62,7 +63,7 @@ class TextService:
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
         new_prompt = (
-            prompt + "\n"+BOT_NAME
+            prompt + "\n" + BOT_NAME
             if not from_ask_command and not from_edit_command
             else prompt
         )
@@ -84,7 +85,7 @@ class TextService:
             ):
                 # Delete "GPTie:  <|endofstatement|>" from the user's conversation history if it exists
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
-                    if item.text.strip() == BOT_NAME+"<|endofstatement|>":
+                    if item.text.strip() == BOT_NAME + "<|endofstatement|>":
                         converser_cog.conversation_threads[
                             ctx.channel.id
                         ].history.remove(item)
@@ -197,7 +198,7 @@ class TextService:
                         [item.text for item in prompt_with_history]
                     )
 
-                    new_prompt = prompt_with_history + "\n"+BOT_NAME
+                    new_prompt = prompt_with_history + "\n" + BOT_NAME
 
                 tokens = converser_cog.usage_service.count_tokens(new_prompt)
 
@@ -230,7 +231,8 @@ class TextService:
                                 ].history
                             ]
                         )
-                        + "\n"+BOT_NAME
+                        + "\n"
+                        + BOT_NAME
                     )
 
                     tokens = converser_cog.usage_service.count_tokens(new_prompt)
@@ -303,7 +305,11 @@ class TextService:
                 if not redo_request:
                     converser_cog.conversation_threads[id].history.append(
                         EmbeddedConversationItem(
-                            "\n"+BOT_NAME + str(response_text) + "<|endofstatement|>\n", 0
+                            "\n"
+                            + BOT_NAME
+                            + str(response_text)
+                            + "<|endofstatement|>\n",
+                            0,
                         )
                     )
 
@@ -318,7 +324,7 @@ class TextService:
 
                 # Create an embedding and timestamp for the prompt
                 response_text = (
-                    "\n"+BOT_NAME + str(response_text) + "<|endofstatement|>\n"
+                    "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
 
                 response_text = response_text.encode("ascii", "ignore").decode()
@@ -469,7 +475,7 @@ class TextService:
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
-            embed=EmbedStatics.get_invalid_api_response_embed(e)
+            embed = EmbedStatics.get_invalid_api_response_embed(e)
             if from_context:
                 await ctx.send_followup(embed=embed)
             else:
@@ -544,9 +550,12 @@ class TextService:
                 # Since this is async, we don't want to allow the user to send another prompt while a conversation
                 # prompt is processing, that'll mess up the conversation history!
                 if message.author.id in converser_cog.awaiting_responses:
-                    message = await message.reply(embed=discord.Embed(
-                        title=f"You are already waiting for a response, please wait and speak afterwards.",
-                        color=0x808080))
+                    message = await message.reply(
+                        embed=discord.Embed(
+                            title=f"You are already waiting for a response, please wait and speak afterwards.",
+                            color=0x808080,
+                        )
+                    )
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
@@ -561,8 +570,12 @@ class TextService:
                     return
 
                 if message.channel.id in converser_cog.awaiting_thread_responses:
-                    message = await message.reply(embed=discord.Embed(title=f"This thread is already waiting for a response, please wait and speak afterwards.", color=0x808080))
-
+                    message = await message.reply(
+                        embed=discord.Embed(
+                            title=f"This thread is already waiting for a response, please wait and speak afterwards.",
+                            color=0x808080,
+                        )
+                    )
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
