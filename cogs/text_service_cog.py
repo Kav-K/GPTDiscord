@@ -228,19 +228,23 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # allow them to click the end button on the other person's thread and it will end their own convo.
         self.conversation_threads.pop(channel_id)
 
-        if isinstance(ctx, discord.ApplicationContext): # When the conversation is ended from the slash command
+        if isinstance(
+            ctx, discord.ApplicationContext
+        ):  # When the conversation is ended from the slash command
             await ctx.respond(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
-        elif isinstance(ctx, discord.Interaction): # When the user ends the conversation from the button
+        elif isinstance(
+            ctx, discord.Interaction
+        ):  # When the user ends the conversation from the button
             await ctx.response.send_message(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
-        else: # The case for when the user types "end" in the channel
+        else:  # The case for when the user types "end" in the channel
             await ctx.reply(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 delete_after=10,
@@ -904,7 +908,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_thread_owners[user_id_normalized] = thread.id
         overrides = self.conversation_threads[thread.id].get_overrides()
 
-        await thread.send(embed=self.generate_conversation_embed(thread, opener, overrides))
+        await thread.send(
+            embed=self.generate_conversation_embed(thread, opener, overrides)
+        )
 
         # send opening
         if opener:
@@ -1019,6 +1025,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             color=0x808080,
         )
         return embed
+
     def generate_opener_embed(self, opener):
         embed = discord.Embed(
             title="Opening Prompt",
@@ -1037,7 +1044,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         embed.add_field(
             name="Model",
             value=f"The model used is **{self.conversation_threads[thread.id].model}**",
-
         )
         embed.add_field(
             name="Overrides",
@@ -1047,7 +1053,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         embed.add_field(
             name="End the conversation",
             value="End the conversation by saying `end`, or clicking the red 'End Conversation' button\n\n",
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name="Ignoring Messages",
@@ -1055,4 +1061,3 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         return embed
-
