@@ -313,6 +313,7 @@ class ModerationAdminView(discord.ui.View):
                 KickUserButton(self.message, self.moderation_message, component_number)
             )
 
+
 class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
         super().__init__(style=discord.ButtonStyle.green, label="Approve")
@@ -325,6 +326,7 @@ class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
         # Remove reactions on the message, delete the moderation message
         await self.message.clear_reactions()
         await self.moderation_message[0].delete()
+
 
 class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):

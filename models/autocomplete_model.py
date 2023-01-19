@@ -63,7 +63,9 @@ class Settings_autocompleter:
         """gets valid values for the type option"""
         print(f"The value is {ctx.value}")
         return [
-            value for value in ["warn", "delete", "reset"] if value.startswith(ctx.value.lower())
+            value
+            for value in ["warn", "delete", "reset"]
+            if value.startswith(ctx.value.lower())
         ]
 
     async def get_value_alert_id_channel(self, ctx: discord.AutocompleteContext):
