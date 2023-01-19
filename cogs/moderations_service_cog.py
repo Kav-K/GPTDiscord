@@ -261,7 +261,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         await ctx.defer(ephemeral=True)
 
         # Case for printing the current config
-        if not any(all_args):
+        if not any(all_args) and config_type != "reset":
             await ctx.respond(
                 ephemeral=True,
                 embed=await self.build_moderation_settings_embed(
@@ -306,6 +306,11 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
                 else delete_set["violence/graphic"],
             )
             self.set_delete_set(ctx.guild_id, new_delete_set)
+            await self.restart_moderations_service(ctx)
+
+        elif config_type == "reset":
+            self.set_delete_set(ctx.guild_id, self.default_delete_set)
+            self.set_warn_set(ctx.guild_id, self.default_warn_set)
             await self.restart_moderations_service(ctx)
 
     async def moderations_test_command(

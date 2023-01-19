@@ -147,8 +147,6 @@ class Moderation:
 
     @staticmethod
     def determine_moderation_result(text, response, warn_set, delete_set):
-        # warn_set = ThresholdSet(0.005, 0.05, 0.05, 0.91, 0.1, 0.04, 0.1)
-        # delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
 
         warn_result, flagged_warn = warn_set.moderate(text, response)
         delete_result, flagged_delete = delete_set.moderate(text, response)
@@ -304,11 +302,29 @@ class ModerationAdminView(discord.ui.View):
                 )
             )
             component_number += 1
+            self.add_item(
+                ApproveMessageButton(
+                    self.message, self.moderation_message, component_number
+                )
+            )
+            component_number += 1
         if deleted_message:
             self.add_item(
                 KickUserButton(self.message, self.moderation_message, component_number)
             )
 
+class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
+    def __init__(self, message, moderation_message, current_num):
+        super().__init__(style=discord.ButtonStyle.green, label="Approve")
+        self.message = message
+        self.moderation_message = moderation_message
+        self.current_num = current_num
+
+    async def callback(self, interaction: discord.Interaction):
+
+        # Remove reactions on the message, delete the moderation message
+        await self.message.clear_reactions()
+        await self.moderation_message[0].delete()
 
 class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
