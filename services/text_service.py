@@ -6,10 +6,13 @@ import aiohttp
 import discord
 from discord.ext import pages
 
+from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from models.openai_model import Model
 from models.user_model import EmbeddedConversationItem, RedoUser
+from services.environment_service import EnvService
 
+BOT_NAME = EnvService.get_custom_bot_name()
 
 class TextService:
     def __init__(self):
@@ -59,7 +62,7 @@ class TextService:
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
         new_prompt = (
-            prompt + "\nGPTie: "
+            prompt + "\n"+BOT_NAME
             if not from_ask_command and not from_edit_command
             else prompt
         )
@@ -74,17 +77,14 @@ class TextService:
             ) + converser_cog.usage_service.count_tokens(instruction)
 
         try:
-
             # Pinecone is enabled, we will create embeddings for this conversation.
             if (
                 converser_cog.pinecone_service
                 and ctx.channel.id in converser_cog.conversation_threads
             ):
                 # Delete "GPTie:  <|endofstatement|>" from the user's conversation history if it exists
-                # check if the text attribute for any object inside converser_cog.conversation_threads[converation_id].history
-                # contains ""GPTie: <|endofstatement|>"", if so, delete
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
-                    if item.text.strip() == "GPTie:<|endofstatement|>":
+                    if item.text.strip() == BOT_NAME+"<|endofstatement|>":
                         converser_cog.conversation_threads[
                             ctx.channel.id
                         ].history.remove(item)
@@ -197,7 +197,7 @@ class TextService:
                         [item.text for item in prompt_with_history]
                     )
 
-                    new_prompt = prompt_with_history + "\nGPTie: "
+                    new_prompt = prompt_with_history + "\n"+BOT_NAME
 
                 tokens = converser_cog.usage_service.count_tokens(new_prompt)
 
@@ -230,7 +230,7 @@ class TextService:
                                 ].history
                             ]
                         )
-                        + "\nGPTie: "
+                        + "\n"+BOT_NAME
                     )
 
                     tokens = converser_cog.usage_service.count_tokens(new_prompt)
@@ -302,7 +302,7 @@ class TextService:
                 if not redo_request:
                     converser_cog.conversation_threads[id].history.append(
                         EmbeddedConversationItem(
-                            "\nGPTie: " + str(response_text) + "<|endofstatement|>\n", 0
+                            "\n"+BOT_NAME + str(response_text) + "<|endofstatement|>\n", 0
                         )
                     )
 
@@ -317,7 +317,7 @@ class TextService:
 
                 # Create an embedding and timestamp for the prompt
                 response_text = (
-                    "\nGPTie: " + str(response_text) + "<|endofstatement|>\n"
+                    "\n"+BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
 
                 response_text = response_text.encode("ascii", "ignore").decode()
@@ -468,23 +468,22 @@ class TextService:
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
-            message = (
-                f"The API returned an invalid response: **{e.status}: {e.message}**"
-            )
+            embed=EmbedStatics.get_invalid_api_response_embed(e)
             if from_context:
-                await ctx.send_followup(message)
+                await ctx.send_followup(embed=embed)
             else:
-                await ctx.reply(message)
+                await ctx.reply(embed=embed)
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
         # Error catching for OpenAI model value errors
         except ValueError as e:
+            embed = EmbedStatics.get_invalid_value_embed(e)
             if from_action:
-                await ctx.respond(e, ephemeral=True)
+                await ctx.respond(embed=embed, ephemeral=True)
             elif from_context:
-                await ctx.send_followup(e, ephemeral=True)
+                await ctx.send_followup(embed=embed, ephemeral=True)
             else:
                 await ctx.reply(e)
             converser_cog.remove_awaiting(
@@ -492,13 +491,15 @@ class TextService:
             )
 
         # General catch case for everything
-        except Exception:
+        except Exception as e:
+            embed = EmbedStatics.get_general_error_embed(e)
 
-            message = "Something went wrong, please try again later. This may be due to upstream issues on the API, or rate limiting."
             if not from_context:
-                await ctx.send_followup(message)
+                await ctx.send_followup(embed=embed)
+            elif from_ask_command:
+                await ctx.respond(embed=embed)
             else:
-                await ctx.reply(message)
+                await ctx.reply(embed=embed)
 
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
@@ -542,9 +543,9 @@ class TextService:
                 # Since this is async, we don't want to allow the user to send another prompt while a conversation
                 # prompt is processing, that'll mess up the conversation history!
                 if message.author.id in converser_cog.awaiting_responses:
-                    message = await message.reply(
-                        "You are already waiting for a response from GPT3. Please wait for it to respond before sending another message."
-                    )
+                    message = await message.reply(embed=discord.Embed(
+                        title=f"You are already waiting for a response, please wait and speak afterwards.",
+                        color=0x808080))
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
@@ -559,9 +560,8 @@ class TextService:
                     return
 
                 if message.channel.id in converser_cog.awaiting_thread_responses:
-                    message = await message.reply(
-                        "This thread is already waiting for a response from GPT3. Please wait for it to respond before sending another message."
-                    )
+                    message = await message.reply(embed=discord.Embed(title=f"This thread is already waiting for a response, please wait and speak afterwards.", color=0x808080))
+
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
@@ -881,7 +881,7 @@ class SetupModal(discord.ui.Modal):
 
             except aiohttp.ClientResponseError as e:
                 await interaction.response.send_message(
-                    f"The API returned an invalid response: **{e.status}: {e.message}**",
+                    embed=EmbedStatics.get_invalid_api_response_embed(e),
                     ephemeral=True,
                     delete_after=30,
                 )

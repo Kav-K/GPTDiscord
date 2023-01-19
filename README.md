@@ -278,7 +278,6 @@ MODERATIONS_ALERT_CHANNEL = "977697652147892304"
 # User API key db path configuration. This is where the user API keys will be stored.
 USER_KEY_DB_PATH = "user_key_db.sqlite"
 ```
-
 **Permissions**
 
 As mentioned in the comments of the sample environment file, there are three permission groups that you can edit in the environment (`.env`) file. `ADMIN_ROLES` are roles that allow users to use `/system` and `/mod` commands. `GPT_ROLES` are roles that allow users to use `/gpt` commands, and `DALLE_ROLES` are roles that allow users to use `/dalle` commands.
@@ -429,3 +428,6 @@ To enable this, add `HEALTH_SERVICE_ENABLED="True"` to your `.env` file.
 The health check endpoint will then be present in your bot's console when it is starting up, it will look like this, the possible HTTP urls for your health endpoint will be visible near the bottom:
 
 <center><img src="https://i.imgur.com/RqV2xN6.png"/></center>
+
+### Custom Bot Name
+Add a line `CUSTOM_BOT_NAME=<NAME>` to your `.env` to give your bot a custom name in conversations.

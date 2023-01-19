@@ -10,6 +10,7 @@ import json
 
 import discord
 
+from models.embed_statics_model import EmbedStatics
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -47,6 +48,8 @@ try:
 except Exception as e:
     print("Failed to retrieve the General and Moderations DB. The bot is terminating.")
     raise e
+
+BOT_NAME = EnvService.get_custom_bot_name()
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -250,7 +253,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 delete_after=10,
             )
 
-        await ctx.channel.send(embed=self.generate_end_embed())
+        await ctx.channel.send(embed=EmbedStatics.generate_end_embed())
 
         # Close all conversation threads for the user
         # If at conversation limit then fetch the owner and close the thread for them
@@ -551,8 +554,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     def cleanse_response(self, response_text):
         """Cleans history tokens from response"""
         response_text = response_text.replace("GPTie:\n", "")
-        response_text = response_text.replace("GPTie:", "")
-        response_text = response_text.replace("GPTie: ", "")
+        response_text = response_text.replace(BOT_NAME.replace(" ",""), "")
+        response_text = response_text.replace(BOT_NAME, "")
         response_text = response_text.replace("<|endofstatement|>", "")
         return response_text
 
@@ -825,13 +828,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         if private:
-            await ctx.respond(user.name + "'s private conversation with GPT3")
+            await ctx.respond(embed=discord.Embed(title=f"{user.name}'s private conversation with GPT3", color=0x808080))
             thread = await ctx.channel.create_thread(
                 name=user.name + "'s private conversation with GPT3",
                 auto_archive_duration=60,
             )
         elif not private:
-            message_thread = await ctx.respond(user.name + "'s conversation with GPT3")
+            message_thread = await ctx.respond(embed=discord.Embed(title=f"{user.name} 's conversation with GPT3", color=0x808080))
             # Get the actual message object for the message_thread
             message_thread_real = await ctx.fetch_message(message_thread.id)
             thread = await message_thread_real.create_thread(
@@ -909,12 +912,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         overrides = self.conversation_threads[thread.id].get_overrides()
 
         await thread.send(
-            embed=self.generate_conversation_embed(thread, opener, overrides)
+            embed=EmbedStatics.generate_conversation_embed(self.conversation_threads,thread, opener, overrides)
         )
 
         # send opening
         if opener:
-            thread_message = await thread.send(embed=self.generate_opener_embed(opener))
+            thread_message = await thread.send(embed=EmbedStatics.generate_opener_embed(opener))
             if thread.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 self.awaiting_thread_responses.append(thread.id)
@@ -1018,46 +1021,4 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ctx, message.content, None, None, None, None, from_action=message.content
         )
 
-    def generate_end_embed(self):
-        embed = discord.Embed(
-            title="Conversation Ended",
-            description=f"This conversation has ended. You can start a new one with `/gpt converse`",
-            color=0x808080,
-        )
-        return embed
 
-    def generate_opener_embed(self, opener):
-        embed = discord.Embed(
-            title="Opening Prompt",
-            description=f"{opener}",
-            color=0x808080,
-        )
-        return embed
-
-    def generate_conversation_embed(self, thread, opener, overrides):
-        # Generate a nice looking embed for the above text
-        embed = discord.Embed(
-            title="Conversation started",
-            description=f"Conversation started with {self.bot.user.display_name}",
-            color=0x808080,
-        )
-        embed.add_field(
-            name="Model",
-            value=f"The model used is **{self.conversation_threads[thread.id].model}**",
-        )
-        embed.add_field(
-            name="Overrides",
-            value=f"**temp={overrides['temperature']}**, **top_p={overrides['top_p']}**"
-            f", **freq. penalty={overrides['frequency_penalty']}**, **pres. penalty={overrides['presence_penalty']}**\n",
-        )
-        embed.add_field(
-            name="End the conversation",
-            value="End the conversation by saying `end`, or clicking the red 'End Conversation' button\n\n",
-            inline=False,
-        )
-        embed.add_field(
-            name="Ignoring Messages",
-            value="If you want GPT3 to ignore your messages, start your messages with `~`\n\n",
-            inline=False,
-        )
-        return embed

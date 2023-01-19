@@ -223,6 +223,14 @@ class EnvService:
             return False
 
     @staticmethod
+    def get_custom_bot_name():
+        try:
+            custom_bot_name = os.getenv("CUSTOM_BOT_NAME") + ": "
+            return custom_bot_name
+        except Exception:
+            return "GPTie: "
+
+    @staticmethod
     def get_health_service_enabled():
         try:
             user_input_api_keys = os.getenv("HEALTH_SERVICE_ENABLED")
