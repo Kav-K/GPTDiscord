@@ -228,23 +228,25 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # allow them to click the end button on the other person's thread and it will end their own convo.
         self.conversation_threads.pop(channel_id)
 
-        if isinstance(ctx, discord.ApplicationContext):
+        if isinstance(ctx, discord.ApplicationContext): # When the conversation is ended from the slash command
             await ctx.respond(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
-        elif isinstance(ctx, discord.Interaction):
+        elif isinstance(ctx, discord.Interaction): # When the user ends the conversation from the button
             await ctx.response.send_message(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
-        else:
+        else: # The case for when the user types "end" in the channel
             await ctx.reply(
                 "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
                 delete_after=10,
             )
+
+        await ctx.channel.send(embed=self.generate_end_embed())
 
         # Close all conversation threads for the user
         # If at conversation limit then fetch the owner and close the thread for them
@@ -902,19 +904,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_thread_owners[user_id_normalized] = thread.id
         overrides = self.conversation_threads[thread.id].get_overrides()
 
-        await thread.send(
-            f"<@{str(user_id_normalized)}> You are now conversing with GPT3. *Say hi to start!*\n"
-            f"Overrides for this thread is **temp={overrides['temperature']}**, **top_p={overrides['top_p']}**"
-            f", **frequency penalty={overrides['frequency_penalty']}**, **presence penalty={overrides['presence_penalty']}**\n"
-            f"The model used is **{self.conversation_threads[thread.id].model}**\n"
-            f"End the conversation by saying `end`.\n\n"
-            f"If you want GPT3 to ignore your messages, start your messages with `~`\n\n"
-            f"Your conversation will remain active even if you leave this thread and talk in other GPT supported channels, unless you end the conversation!"
-        )
+        await thread.send(embed=self.generate_conversation_embed(thread, opener, overrides))
 
         # send opening
         if opener:
-            thread_message = await thread.send("***Opening prompt*** \n" + str(opener))
+            thread_message = await thread.send(embed=self.generate_opener_embed(opener))
             if thread.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 self.awaiting_thread_responses.append(thread.id)
@@ -1017,3 +1011,48 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await self.ask_command(
             ctx, message.content, None, None, None, None, from_action=message.content
         )
+
+    def generate_end_embed(self):
+        embed = discord.Embed(
+            title="Conversation Ended",
+            description=f"This conversation has ended. You can start a new one with `/gpt converse`",
+            color=0x808080,
+        )
+        return embed
+    def generate_opener_embed(self, opener):
+        embed = discord.Embed(
+            title="Opening Prompt",
+            description=f"{opener}",
+            color=0x808080,
+        )
+        return embed
+
+    def generate_conversation_embed(self, thread, opener, overrides):
+        # Generate a nice looking embed for the above text
+        embed = discord.Embed(
+            title="Conversation started",
+            description=f"Conversation started with {self.bot.user.display_name}",
+            color=0x808080,
+        )
+        embed.add_field(
+            name="Model",
+            value=f"The model used is **{self.conversation_threads[thread.id].model}**",
+
+        )
+        embed.add_field(
+            name="Overrides",
+            value=f"**temp={overrides['temperature']}**, **top_p={overrides['top_p']}**"
+            f", **freq. penalty={overrides['frequency_penalty']}**, **pres. penalty={overrides['presence_penalty']}**\n",
+        )
+        embed.add_field(
+            name="End the conversation",
+            value="End the conversation by saying `end`, or clicking the red 'End Conversation' button\n\n",
+            inline=False
+        )
+        embed.add_field(
+            name="Ignoring Messages",
+            value="If you want GPT3 to ignore your messages, start your messages with `~`\n\n",
+            inline=False,
+        )
+        return embed
+
