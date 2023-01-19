@@ -34,7 +34,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
 
 
-- **Permanent memory with embeddings and PineconeDB finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
+- **Permanent memory with embeddings and <a href="https://www.pinecone.io/">Pinecone</a> finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
 
 
 
@@ -148,9 +148,9 @@ To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Ro
 **The above server is NOT for support or discussions about GPT3Discord**
 
 # Permanent Memory and Conversations
-Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone DB.
+Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and <a href="https://www.pinecone.io/">Pinecone</a>.
 
-PineconeDB is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
+Pinecone is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
 
 **You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**
 
