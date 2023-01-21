@@ -1,5 +1,6 @@
 import os
 import asyncio
+import signal
 import sys
 import threading
 import traceback
@@ -29,6 +30,8 @@ from models.openai_model import Model
 
 __version__ = "8.3.5"
 
+PID_FILE = Path("bot.pid")
+PROCESS = None
 
 if sys.platform == "win32":
     separator = "\\"
@@ -173,22 +176,53 @@ async def main():
     await bot.start(os.getenv("DISCORD_TOKEN"))
 
 
+def check_process_file(pid_file: Path) -> bool:
+    """Check the pid file exists and if the Process ID is actually running"""
+    if not pid_file.exists():
+        return False
+    if system() == "Linux":
+        with pid_file.open("r") as pfp:
+            try:
+                proc_pid_path = Path("/proc") / "{int(pfp.read().strip())}"
+                print("Checking if PID proc path {proc_pid_path} exists")
+            except ValueError:
+                # We don't have a valid int in the PID File^M
+                pid_file.unlink()
+                return False
+        return proc_pid_path.exists()
+    return True
+
+
+def cleanup_pid_file(signum, frame):
+    # Kill all threads
+    if PROCESS:
+        print("Killing all subprocesses")
+        PROCESS.terminate()
+    print("Killed all subprocesses")
+    # Always cleanup PID File if it exists
+    if PID_FILE.exists():
+        print(f"Removing PID file {PID_FILE}", flush=True)
+        PID_FILE.unlink()
+
+
 # Run the bot with a token taken from an environment file.
 def init():
-    PID_FILE = "bot.pid"
-    process = None
-    if os.path.exists(PID_FILE):
+    global PROCESS
+    # Handle SIGTERM cleanly - Docker sends this ...
+    signal.signal(signal.SIGTERM, cleanup_pid_file)
+
+    if check_process_file(PID_FILE):
         print("Process ID file already exists")
         sys.exit(1)
     else:
-        with open(PID_FILE, "w") as f:
+        with PID_FILE.open("w") as f:
             f.write(str(os.getpid()))
-            print("" "Wrote PID to f" "ile the file " + PID_FILE)
+            print(f"Wrote PID to file {PID_FILE}")
             f.close()
     try:
         if EnvService.get_health_service_enabled():
             try:
-                process = HealthService().get_process()
+                PROCESS = HealthService().get_process()
             except:
                 traceback.print_exc()
                 print("The health service failed to start.")
@@ -196,19 +230,14 @@ def init():
         asyncio.get_event_loop().run_until_complete(main())
     except KeyboardInterrupt:
         print("Caught keyboard interrupt, killing and removing PID")
-        os.remove(PID_FILE)
     except Exception as e:
         traceback.print_exc()
         print(str(e))
         print("Removing PID file")
-        os.remove(PID_FILE)
     finally:
-        # Kill all threads
-        if process:
-            print("Killing all subprocesses")
-            process.terminate()
-        print("Killed all subprocesses")
-        sys.exit(0)
+        cleanup_pid_file(None, None)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
