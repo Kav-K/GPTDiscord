@@ -197,7 +197,7 @@ def cleanup_pid_file(signum, frame):
     # Kill all threads
     if PROCESS:
         print("Killing all subprocesses")
-        process.terminate()
+        PROCESS.terminate()
     print("Killed all subprocesses")
     # Always cleanup PID File if it exists
     if PID_FILE.exists():
