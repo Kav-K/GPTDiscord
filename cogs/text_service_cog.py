@@ -511,9 +511,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 after.guild.id in Moderation.moderation_queues
                 and Moderation.moderation_queues[after.guild.id] is not None
             ):
-                # Create a timestamp that is 0.5 seconds from now
+                # Create a timestamp that is 0.25 seconds from now
                 timestamp = (
-                    datetime.datetime.now() + datetime.timedelta(seconds=0.5)
+                    datetime.datetime.now() + datetime.timedelta(seconds=0.25)
                 ).timestamp()
                 await Moderation.moderation_queues[after.guild.id].put(
                     Moderation(after, timestamp)

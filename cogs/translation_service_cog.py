@@ -1,3 +1,5 @@
+import traceback
+
 import aiohttp
 import discord
 
@@ -8,14 +10,14 @@ from services.environment_service import EnvService
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-def build_translation_embed(text, translated_text, translated_language):
+def build_translation_embed(text, translated_text, translated_language, detected_language):
     """Build an embed for the translation"""
+    embed_description = f"**Original Text:** \n\n{text}\n\n **Translated Text:** \n\n{translated_text}"
     embed = discord.Embed(
-        title=f"Translation to {translated_language}",
+        title=f"Translation from {detected_language} to {translated_language}",
+        description=embed_description,
         color=0x311432,
     )
-    embed.add_field(name="Original text", value=text, inline=False)
-    embed.add_field(name="Translated Text", value=translated_text, inline=False)
 
     return embed
 
@@ -65,7 +67,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
             return
 
         try:
-            response = await self.translation_model.send_translate_request(
+            response, detected_language = await self.translation_model.send_translate_request(
                 text,
                 TranslationModel.get_country_code_from_name(target_language),
                 formality,
@@ -75,7 +77,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
             return
 
         await ctx.respond(
-            embed=build_translation_embed(text, response, target_language)
+            embed=build_translation_embed(text, response, target_language, TranslationModel.get_country_name_from_code(detected_language))
         )
 
     async def translate_action(self, ctx, message):
@@ -96,6 +98,8 @@ class TranslationService(discord.Cog, name="TranslationService"):
 class TranslateView(discord.ui.View):
     def __init__(self, translation_model, message, selection_message):
         super().__init__()
+        self.language_long = None
+        self.language = None
         self.translation_model = translation_model
         self.message = message
         self.selection_message = selection_message
@@ -115,32 +119,12 @@ class TranslateView(discord.ui.View):
     async def select_callback(
         self, select, interaction
     ):  # the function called when the user is done selecting options
+        await interaction.response.defer()
         try:
-            await interaction.response.defer()
-            response = await self.translation_model.send_translate_request(
-                self.message.content,
-                TranslationModel.get_country_code_from_name(select.values[0]),
-                self.formality,
-            )
-            await self.message.reply(
-                mention_author=False,
-                embed=build_translation_embed(
-                    self.message.content, response, select.values[0]
-                ),
-            )
-            await self.selection_message.delete()
-        except aiohttp.ClientResponseError as e:
-            await interaction.response.send_message(
-                f"There was an error with the DeepL API: {e.message}",
-                ephemeral=True,
-                delete_after=15,
-            )
-            return
-        except Exception as e:
-            await interaction.response.send_message(
-                f"There was an error: {e}", ephemeral=True, delete_after=15
-            )
-            return
+            self.language = TranslationModel.get_country_code_from_name(select.values[0])
+            self.language_long = select.values[0]
+        except:
+            traceback.print_exc()
 
     @discord.ui.select(
         placeholder="Formality (optional)",
@@ -156,6 +140,41 @@ class TranslateView(discord.ui.View):
         try:
             self.formality = select.values[0]
             await interaction.response.defer()
+        except aiohttp.ClientResponseError as e:
+            await interaction.response.send_message(
+                f"There was an error with the DeepL API: {e.message}",
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+        except Exception as e:
+            await interaction.response.send_message(
+                f"There was an error: {e}", ephemeral=True, delete_after=15
+            )
+            return
+
+    # A button "Translate"
+    @discord.ui.button(label="Translate", style=discord.ButtonStyle.green)
+    async def button_callback(self, button, interaction):
+        if not self.language or not self.language_long:
+            await interaction.response.send_message(
+                "Please select a language first.", ephemeral=True, delete_after=15
+            )
+            return
+        try:
+            await interaction.response.defer()
+            response, detected_language = await self.translation_model.send_translate_request(
+                self.message.content,
+                self.language,
+                self.formality,
+            )
+            await self.message.reply(
+                mention_author=False,
+                embed=build_translation_embed(
+                    self.message.content, response, self.language_long, TranslationModel.get_country_name_from_code(detected_language)
+                ),
+            )
+            await self.selection_message.delete()
         except aiohttp.ClientResponseError as e:
             await interaction.response.send_message(
                 f"There was an error with the DeepL API: {e.message}",

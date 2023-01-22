@@ -52,9 +52,6 @@ class TranslationModel:
         on_backoff=backoff_handler,
     )
     async def send_translate_request(self, text, translate_language, formality):
-        print("The text is: ", text)
-        print("The language is: ", translate_language)
-        print("The token is ", self.deepl_token)
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             payload = {
                 "text": text,
@@ -74,7 +71,7 @@ class TranslationModel:
                 print(response)
 
                 try:
-                    return response["translations"][0]["text"]
+                    return response["translations"][0]["text"], response["translations"][0]["detected_source_language"]
                 except Exception:
                     print(response)
                     traceback.print_exc()
@@ -97,7 +94,10 @@ class TranslationModel:
     @staticmethod
     def get_country_name_from_code(code):
         """Get the country name from the code"""
-        return COUNTRY_CODES[code]
+        try:
+            return COUNTRY_CODES[code]
+        except KeyError:
+            return "Unknown Language"
 
     @staticmethod
     def get_country_code_from_name(name):
