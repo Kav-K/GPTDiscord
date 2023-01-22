@@ -28,7 +28,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.3.5"
+__version__ = "8.4"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None

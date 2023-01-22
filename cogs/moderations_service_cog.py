@@ -128,8 +128,8 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             Moderation.moderation_tasks[guild_id] = asyncio.ensure_future(
                 Moderation.process_moderation_queue(
                     Moderation.moderation_queues[guild_id],
-                    1,
-                    1,
+                    0.25,
+                    0.25,
                     moderations_channel,
                     warn_set,
                     delete_set,

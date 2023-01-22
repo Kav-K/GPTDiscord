@@ -1,3 +1,5 @@
+import traceback
+
 import aiohttp
 import discord
 
@@ -8,14 +10,15 @@ from services.environment_service import EnvService
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-def build_translation_embed(text, translated_text, translated_language):
+def build_translation_embed(text, translated_text, translated_language, detected_language, requestor: discord.User):
     """Build an embed for the translation"""
+    embed_description = f"**Original Text:** \n\n{text}\n\n **Translated Text:** \n\n{translated_text}"
     embed = discord.Embed(
-        title=f"Translation to {translated_language}",
+        title=f"Translation from {detected_language} to {translated_language}",
+        description=embed_description,
         color=0x311432,
     )
-    embed.add_field(name="Original text", value=text, inline=False)
-    embed.add_field(name="Translated Text", value=translated_text, inline=False)
+    embed.set_footer(text=f"Requested by {requestor.name}#{requestor.discriminator}", icon_url=requestor.avatar.url)
 
     return embed
 
@@ -65,7 +68,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
             return
 
         try:
-            response = await self.translation_model.send_translate_request(
+            response, detected_language = await self.translation_model.send_translate_request(
                 text,
                 TranslationModel.get_country_code_from_name(target_language),
                 formality,
@@ -75,16 +78,25 @@ class TranslationService(discord.Cog, name="TranslationService"):
             return
 
         await ctx.respond(
-            embed=build_translation_embed(text, response, target_language)
+            embed=build_translation_embed(text, response, target_language, TranslationModel.get_country_name_from_code(detected_language), ctx.user)
         )
 
-    async def translate_action(self, ctx, message):
+    async def translate_action(self, ctx: discord.ApplicationContext, message):
         await ctx.defer(ephemeral=True)
+        # If the message is only an embed and there's no content, don't translate.
+        if message.content == "" and len(message.embeds) > 0:
+            await ctx.respond("Cannot translate an embed.", ephemeral=True, delete_after=30)
+            return
+
+        if len(message.content) > 2000:
+            await ctx.respond("Message is too long to translate.", ephemeral=True, delete_after=30)
+            return
+
         selection_message = await ctx.respond(
             "Select language", ephemeral=True, delete_after=60
         )
         await selection_message.edit(
-            view=TranslateView(self.translation_model, message, selection_message)
+            view=TranslateView(self.translation_model, message, selection_message, ctx.user)
         )
 
     async def languages_command(self, ctx):
@@ -94,12 +106,15 @@ class TranslationService(discord.Cog, name="TranslationService"):
 
 
 class TranslateView(discord.ui.View):
-    def __init__(self, translation_model, message, selection_message):
+    def __init__(self, translation_model, message, selection_message, requestor):
         super().__init__()
+        self.language_long = None
+        self.language = None
         self.translation_model = translation_model
         self.message = message
         self.selection_message = selection_message
         self.formality = None
+        self.requestor = requestor
 
     @discord.ui.select(  # the decorator that lets you specify the properties of the select menu
         placeholder="Language",  # the placeholder text that will be displayed if nothing is selected
@@ -116,31 +131,11 @@ class TranslateView(discord.ui.View):
         self, select, interaction
     ):  # the function called when the user is done selecting options
         try:
+            self.language = TranslationModel.get_country_code_from_name(select.values[0])
+            self.language_long = select.values[0]
             await interaction.response.defer()
-            response = await self.translation_model.send_translate_request(
-                self.message.content,
-                TranslationModel.get_country_code_from_name(select.values[0]),
-                self.formality,
-            )
-            await self.message.reply(
-                mention_author=False,
-                embed=build_translation_embed(
-                    self.message.content, response, select.values[0]
-                ),
-            )
-            await self.selection_message.delete()
-        except aiohttp.ClientResponseError as e:
-            await interaction.response.send_message(
-                f"There was an error with the DeepL API: {e.message}",
-                ephemeral=True,
-                delete_after=15,
-            )
-            return
-        except Exception as e:
-            await interaction.response.send_message(
-                f"There was an error: {e}", ephemeral=True, delete_after=15
-            )
-            return
+        except:
+            traceback.print_exc()
 
     @discord.ui.select(
         placeholder="Formality (optional)",
@@ -167,4 +162,45 @@ class TranslateView(discord.ui.View):
             await interaction.response.send_message(
                 f"There was an error: {e}", ephemeral=True, delete_after=15
             )
+            return
+
+    # A button "Translate"
+    @discord.ui.button(label="Translate", style=discord.ButtonStyle.green)
+    async def button_callback(self, button, interaction):
+        if not self.language or not self.language_long:
+            await interaction.response.send_message(
+                "Please select a language first.", ephemeral=True, delete_after=15
+            )
+            return
+        try:
+            response, detected_language = await self.translation_model.send_translate_request(
+                self.message.content,
+                self.language,
+                self.formality,
+            )
+            await self.message.reply(
+                mention_author=False,
+                embed=build_translation_embed(
+                    self.message.content, response, self.language_long, TranslationModel.get_country_name_from_code(detected_language), self.requestor
+                ),
+            )
+            await self.selection_message.delete()
+        except aiohttp.ClientResponseError as e:
+            await interaction.response.send_message(
+                f"There was an error with the DeepL API: {e.message}",
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+        except discord.errors.HTTPException as e:
+            if e.code == 50035:
+                await interaction.response.send_message(
+                    "Message was too long to translate.", ephemeral=True, delete_after=15
+                )
+                return
+        except Exception as e:
+            await interaction.response.send_message(
+                f"There was an error: {e}", ephemeral=True, delete_after=15
+            )
+            traceback.print_exc()
             return

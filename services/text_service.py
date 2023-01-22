@@ -35,6 +35,7 @@ class TextService:
         from_edit_command=False,
         codex=False,
         model=None,
+        user=None,
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
@@ -57,6 +58,7 @@ class TextService:
             from_edit_command (bool, optional): Called from the edit command. Defaults to False.
             codex (bool, optional): Pass along that we want to use a codex model. Defaults to False.
             model (str, optional): Which model to genereate output with. Defaults to None.
+            user (discord.User, optinal): An user object that can be used to set the stop. Defaults to None.
             custom_api_key (str, optional): per-user api key. Defaults to None.
             edited_request (bool, optional): If we're doing an edited message. Defaults to False.
             redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
@@ -67,6 +69,8 @@ class TextService:
             if not from_ask_command and not from_edit_command
             else prompt
         )
+
+        stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
         from_context = isinstance(ctx, discord.ApplicationContext)
 
@@ -97,10 +101,10 @@ class TextService:
                 new_prompt = prompt.encode("ascii", "ignore").decode()
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
-                user_displayname = ctx.author.display_name
+                user_displayname = ctx.author.display_name if not user else user.display_name
 
                 new_prompt = (
-                    f"\n'{user_displayname}': {new_prompt} <|endofstatement|>\n"
+                    f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
                 )
                 new_prompt = new_prompt.encode("ascii", "ignore").decode()
 
@@ -273,6 +277,7 @@ class TextService:
                     frequency_penalty_override=frequency_penalty_override,
                     presence_penalty_override=presence_penalty_override,
                     model=model,
+                    stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
                 )
 
@@ -282,9 +287,7 @@ class TextService:
             )
 
             if from_ask_command or from_action:
-                # Append the prompt to the beginning of the response, in italics, then a new line
-                response_text = response_text.strip()
-                response_text = f"***{prompt}***\n\n{response_text}"
+                response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
@@ -597,7 +600,7 @@ class TextService:
                         message.channel.id
                     ].history.append(
                         EmbeddedConversationItem(
-                            f"\n'{message.author.display_name}': {prompt} <|endofstatement|>\n",
+                            f"\n{message.author.display_name}: {prompt} <|endofstatement|>\n",
                             0,
                         )
                     )

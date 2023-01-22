@@ -511,9 +511,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 after.guild.id in Moderation.moderation_queues
                 and Moderation.moderation_queues[after.guild.id] is not None
             ):
-                # Create a timestamp that is 0.5 seconds from now
+                # Create a timestamp that is 0.25 seconds from now
                 timestamp = (
-                    datetime.datetime.now() + datetime.timedelta(seconds=0.5)
+                    datetime.datetime.now() + datetime.timedelta(seconds=0.25)
                 ).timestamp()
                 await Moderation.moderation_queues[after.guild.id].put(
                     Moderation(after, timestamp)
@@ -533,8 +533,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             and message.guild.id in Moderation.moderation_queues
             and Moderation.moderation_queues[message.guild.id] is not None
         ):
+            # Don't moderate if there is no "roles" attribute for the author
+            if not hasattr(message.author, "roles"):
+                pass
             # Verify that the user is not in a role that can bypass moderation
-            if CHAT_BYPASS_ROLES is [None] or not any(
+            elif CHAT_BYPASS_ROLES is [None] or not any(
                 role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles
             ):
                 # Create a timestamp that is 0.5 seconds from now
@@ -841,7 +844,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         elif not private:
             message_thread = await ctx.respond(
                 embed=discord.Embed(
-                    title=f"{user.name} 's conversation with GPT3", color=0x808080
+                    title=f"{user.name}'s conversation with GPT3", color=0x808080
                 )
             )
             # Get the actual message object for the message_thread
@@ -921,6 +924,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         overrides = self.conversation_threads[thread.id].get_overrides()
 
         await thread.send(
+            f"<@{str(ctx.user.id)}> is the thread owner."
+        )
+        
+        await thread.send(
             embed=EmbedStatics.generate_conversation_embed(
                 self.conversation_threads, thread, opener, overrides
             )
@@ -938,7 +945,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if not self.pinecone_service:
                     self.conversation_threads[thread.id].history.append(
                         EmbeddedConversationItem(
-                            f"\n'{ctx.author.display_name}': {opener} <|endofstatement|>\n",
+                            f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
                             0,
                         )
                     )
@@ -958,6 +965,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 top_p_override=overrides["top_p"],
                 frequency_penalty_override=overrides["frequency_penalty"],
                 presence_penalty_override=overrides["presence_penalty"],
+                user=user,
                 model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,
             )
