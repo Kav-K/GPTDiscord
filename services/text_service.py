@@ -104,7 +104,7 @@ class TextService:
                 user_displayname = ctx.author.display_name
 
                 new_prompt = (
-                    f"\n'{user_displayname}': {new_prompt} <|endofstatement|>\n"
+                    f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
                 )
                 new_prompt = new_prompt.encode("ascii", "ignore").decode()
 
