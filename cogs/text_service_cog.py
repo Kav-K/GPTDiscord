@@ -533,8 +533,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             and message.guild.id in Moderation.moderation_queues
             and Moderation.moderation_queues[message.guild.id] is not None
         ):
+            # Don't moderate if there is no "roles" attribute for the author
+            if not hasattr(message.author, "roles"):
+                pass
             # Verify that the user is not in a role that can bypass moderation
-            if CHAT_BYPASS_ROLES is [None] or not any(
+            elif CHAT_BYPASS_ROLES is [None] or not any(
                 role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles
             ):
                 # Create a timestamp that is 0.5 seconds from now
