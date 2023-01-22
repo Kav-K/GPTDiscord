@@ -10,7 +10,7 @@ from services.environment_service import EnvService
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
-def build_translation_embed(text, translated_text, translated_language, detected_language):
+def build_translation_embed(text, translated_text, translated_language, detected_language, requestor: discord.User):
     """Build an embed for the translation"""
     embed_description = f"**Original Text:** \n\n{text}\n\n **Translated Text:** \n\n{translated_text}"
     embed = discord.Embed(
@@ -18,6 +18,7 @@ def build_translation_embed(text, translated_text, translated_language, detected
         description=embed_description,
         color=0x311432,
     )
+    embed.set_footer(text=f"Requested by {requestor.name}#{requestor.discriminator}", icon_url=requestor.avatar.url)
 
     return embed
 
@@ -77,16 +78,25 @@ class TranslationService(discord.Cog, name="TranslationService"):
             return
 
         await ctx.respond(
-            embed=build_translation_embed(text, response, target_language, TranslationModel.get_country_name_from_code(detected_language))
+            embed=build_translation_embed(text, response, target_language, TranslationModel.get_country_name_from_code(detected_language), ctx.user)
         )
 
-    async def translate_action(self, ctx, message):
+    async def translate_action(self, ctx: discord.ApplicationContext, message):
         await ctx.defer(ephemeral=True)
+        # If the message is only an embed and there's no content, don't translate.
+        if message.content == "" and len(message.embeds) > 0:
+            await ctx.respond("Cannot translate an embed.", ephemeral=True, delete_after=30)
+            return
+
+        if len(message.content) > 2000:
+            await ctx.respond("Message is too long to translate.", ephemeral=True, delete_after=30)
+            return
+
         selection_message = await ctx.respond(
             "Select language", ephemeral=True, delete_after=60
         )
         await selection_message.edit(
-            view=TranslateView(self.translation_model, message, selection_message)
+            view=TranslateView(self.translation_model, message, selection_message, ctx.user)
         )
 
     async def languages_command(self, ctx):
@@ -96,7 +106,7 @@ class TranslationService(discord.Cog, name="TranslationService"):
 
 
 class TranslateView(discord.ui.View):
-    def __init__(self, translation_model, message, selection_message):
+    def __init__(self, translation_model, message, selection_message, requestor):
         super().__init__()
         self.language_long = None
         self.language = None
@@ -104,6 +114,7 @@ class TranslateView(discord.ui.View):
         self.message = message
         self.selection_message = selection_message
         self.formality = None
+        self.requestor = requestor
 
     @discord.ui.select(  # the decorator that lets you specify the properties of the select menu
         placeholder="Language",  # the placeholder text that will be displayed if nothing is selected
@@ -119,10 +130,10 @@ class TranslateView(discord.ui.View):
     async def select_callback(
         self, select, interaction
     ):  # the function called when the user is done selecting options
-        await interaction.response.defer()
         try:
             self.language = TranslationModel.get_country_code_from_name(select.values[0])
             self.language_long = select.values[0]
+            await interaction.response.defer()
         except:
             traceback.print_exc()
 
@@ -162,7 +173,6 @@ class TranslateView(discord.ui.View):
             )
             return
         try:
-            await interaction.response.defer()
             response, detected_language = await self.translation_model.send_translate_request(
                 self.message.content,
                 self.language,
@@ -171,7 +181,7 @@ class TranslateView(discord.ui.View):
             await self.message.reply(
                 mention_author=False,
                 embed=build_translation_embed(
-                    self.message.content, response, self.language_long, TranslationModel.get_country_name_from_code(detected_language)
+                    self.message.content, response, self.language_long, TranslationModel.get_country_name_from_code(detected_language), self.requestor
                 ),
             )
             await self.selection_message.delete()
@@ -182,8 +192,15 @@ class TranslateView(discord.ui.View):
                 delete_after=15,
             )
             return
+        except discord.errors.HTTPException as e:
+            if e.code == 50035:
+                await interaction.response.send_message(
+                    "Message was too long to translate.", ephemeral=True, delete_after=15
+                )
+                return
         except Exception as e:
             await interaction.response.send_message(
                 f"There was an error: {e}", ephemeral=True, delete_after=15
             )
+            traceback.print_exc()
             return
