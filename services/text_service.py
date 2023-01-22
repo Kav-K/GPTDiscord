@@ -101,7 +101,7 @@ class TextService:
                 new_prompt = prompt.encode("ascii", "ignore").decode()
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
-                user_displayname = ctx.author.display_name
+                user_displayname = ctx.author.display_name if not user else user.display_name
 
                 new_prompt = (
                     f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
