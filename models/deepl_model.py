@@ -71,7 +71,10 @@ class TranslationModel:
                 print(response)
 
                 try:
-                    return response["translations"][0]["text"], response["translations"][0]["detected_source_language"]
+                    return (
+                        response["translations"][0]["text"],
+                        response["translations"][0]["detected_source_language"],
+                    )
                 except Exception:
                     print(response)
                     traceback.print_exc()

@@ -923,10 +923,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.conversation_thread_owners[user_id_normalized] = thread.id
         overrides = self.conversation_threads[thread.id].get_overrides()
 
-        await thread.send(
-            f"<@{str(ctx.user.id)}> is the thread owner."
-        )
-        
+        await thread.send(f"<@{str(ctx.user.id)}> is the thread owner.")
+
         await thread.send(
             embed=EmbedStatics.generate_conversation_embed(
                 self.conversation_threads, thread, opener, overrides
