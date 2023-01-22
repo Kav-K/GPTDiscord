@@ -5,6 +5,7 @@ import sys
 import threading
 import traceback
 from pathlib import Path
+from platform import system
 
 import discord
 import pinecone
@@ -28,7 +29,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.4"
+__version__ = "8.4.1"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
