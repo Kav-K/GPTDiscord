@@ -66,7 +66,7 @@ class TextService:
         """
         new_prompt = (
             prompt + "\n" + BOT_NAME
-            if not from_ask_command and not from_edit_command
+            if not from_ask_command and not from_edit_command and not redo_request
             else prompt
         )
 
@@ -191,7 +191,7 @@ class TextService:
                         prompt_with_history.sort(key=lambda x: x.timestamp)
 
                     # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
-                    if prompt_with_history[-1] != new_prompt_item:
+                    if prompt_with_history[-1].text != new_prompt_item.text:
                         try:
                             prompt_with_history.remove(new_prompt_item)
                         except ValueError:
@@ -420,27 +420,18 @@ class TextService:
                                 custom_api_key=custom_api_key,
                             ),
                         )
-
-                if response_message:
-                    # Get the actual message object of response_message in case it's an WebhookMessage
-                    actual_response_message = (
-                        response_message
-                        if not from_context
-                        else await ctx.fetch_message(response_message.id)
-                    )
-
-                    converser_cog.redo_users[ctx.author.id] = RedoUser(
-                        prompt=new_prompt,
-                        instruction=instruction,
-                        ctx=ctx,
-                        message=ctx,
-                        response=actual_response_message,
-                        codex=codex,
-                        paginator=paginator,
-                    )
-                    converser_cog.redo_users[ctx.author.id].add_interaction(
-                        actual_response_message.id
-                    )
+                converser_cog.redo_users[ctx.author.id] = RedoUser(
+                    prompt=new_prompt if not converser_cog.pinecone_service else prompt,
+                    instruction=instruction,
+                    ctx=ctx,
+                    message=ctx,
+                    response=response_message,
+                    codex=codex,
+                    paginator=paginator,
+                )
+                converser_cog.redo_users[ctx.author.id].add_interaction(
+                    response_message.id
+                )
 
             # We are doing a redo, edit the message.
             else:
@@ -758,6 +749,10 @@ class ConversationView(discord.ui.View):
         self.clear_items()
         # Send a message to the user saying the view has timed out
         if self.message:
+            # check if the timeout happens in a thread and if it's locked
+            if isinstance(self.message.channel, discord.Thread):
+                if self.message.channel.locked:
+                    return
             await self.message.edit(
                 view=None,
             )
