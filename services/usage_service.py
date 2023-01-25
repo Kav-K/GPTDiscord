@@ -58,3 +58,11 @@ class UsageService:
         async with aiofiles.open(self.usage_file_path, "w") as f:
             await f.write(str(usage + float(price)))
             await f.close()
+
+    @staticmethod
+    def count_tokens_static(text):
+        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+        res = tokenizer(text)["input_ids"]
+        return len(res)
+
+

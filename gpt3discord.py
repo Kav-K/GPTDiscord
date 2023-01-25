@@ -11,6 +11,7 @@ import discord
 import pinecone
 from pycord.multicog import apply_multicog
 
+from cogs.search_service_cog import SearchService
 from cogs.text_service_cog import GPT3ComCon
 from cogs.image_service_cog import DrawDallEService
 from cogs.prompt_optimizer_cog import ImgPromptOptimizer
@@ -29,7 +30,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.4.1"
+__version__ = "8.5"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
@@ -55,13 +56,23 @@ if PINECONE_TOKEN:
     if PINECONE_INDEX not in pinecone.list_indexes():
         print("Creating pinecone index. Please wait...")
         pinecone.create_index(
-            "conversation-embeddings",
+            PINECONE_INDEX,
+            dimension=1536,
+            metric="dotproduct",
+            pod_type="s1",
+        )
+    PINECONE_INDEX_SEARCH = "search-embeddings"
+    if PINECONE_INDEX_SEARCH not in pinecone.list_indexes():
+        print("Creating pinecone index for seraches. Please wait...")
+        pinecone.create_index(
+            PINECONE_INDEX_SEARCH,
             dimension=1536,
             metric="dotproduct",
             pod_type="s1",
         )
 
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
+    pinecone_search_service = PineconeService(pinecone.Index(PINECONE_INDEX_SEARCH))
     print("Got the pinecone service")
 
 #
@@ -157,6 +168,10 @@ async def main():
         bot.add_cog(TranslationService(bot, TranslationModel()))
         print("The translation service is enabled.")
 
+    if EnvService.get_google_search_api_key() and EnvService.get_google_search_engine_id():
+        bot.add_cog(SearchService(bot, model, pinecone_search_service))
+        print("The Search service is enabled.")
+
     bot.add_cog(
         Commands(
             bot,
@@ -169,6 +184,7 @@ async def main():
             bot.get_cog("ImgPromptOptimizer"),
             bot.get_cog("ModerationsService"),
             bot.get_cog("TranslationService"),
+            bot.get_cog("SearchService")
         )
     )
 

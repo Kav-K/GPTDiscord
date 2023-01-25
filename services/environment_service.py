@@ -309,3 +309,20 @@ class EnvService:
             return deepl_token
         except Exception:
             return None
+
+    @staticmethod
+    def get_google_search_api_key():
+        try:
+            google_search_api_key = os.getenv("GOOGLE_SEARCH_API_KEY")
+            return google_search_api_key
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_google_search_engine_id():
+        try:
+            google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+            return google_search_engine_id
+        except Exception:
+            return None
+

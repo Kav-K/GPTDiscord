@@ -27,6 +27,7 @@ class Commands(discord.Cog, name="Commands"):
         image_service_cog,
         moderations_cog,
         translations_cog=None,
+        search_cog=None,
     ):
         super().__init__()
         self.bot = bot
@@ -39,6 +40,7 @@ class Commands(discord.Cog, name="Commands"):
         self.image_service_cog = image_service_cog
         self.moderations_cog = moderations_cog
         self.translations_cog = translations_cog
+        self.search_cog = search_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
@@ -576,3 +578,25 @@ class Commands(discord.Cog, name="Commands"):
             await ctx.respond(
                 "Translations are disabled on this server.", ephemeral=True
             )
+
+    @discord.message_command(
+        name="Paraphrase",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_dalle_roles()],
+    )
+    async def paraphrase_action(self, ctx, message: discord.Message):
+        await self.converser_cog.paraphrase_action(ctx, message)
+
+
+    # Search slash commands
+    @discord.slash_command(
+        name="search",
+        description="Search google alongside GPT3 for something",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(name="query", description="The query to search", required=True)
+    @discord.guild_only()
+    async def search(self, ctx: discord.ApplicationContext, query: str):
+        await ctx.respond("Not implemented yet")
+        #await self.search_cog.search_command(ctx, query)
+
