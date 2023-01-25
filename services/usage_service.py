@@ -64,5 +64,3 @@ class UsageService:
         tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
         res = tokenizer(text)["input_ids"]
         return len(res)
-
-

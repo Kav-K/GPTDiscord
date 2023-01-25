@@ -8,7 +8,6 @@ from services.usage_service import UsageService
 
 
 class Search:
-
     def __init__(self, gpt_model, pinecone_service):
         self.model = gpt_model
         self.pinecone_service = pinecone_service
@@ -58,13 +57,17 @@ class Search:
                 # Create an embedding for the chunk
                 embedding = await self.model.send_embedding_request(chunk)
                 # Upsert the embedding for the conversation ID
-                self.pinecone_service.upsert_conversation_embedding(self.model, conversation_id, chunk,0)
+                self.pinecone_service.upsert_conversation_embedding(
+                    self.model, conversation_id, chunk, 0
+                )
         print("Finished creating embeddings for the text")
 
         # Now that we have all the embeddings for the search, we can embed the query and then
         # query pinecone for the top 5 results
         query_embedding = await self.model.send_embedding_request(query)
-        results = self.pinecone_service.get_n_similar(conversation_id, query_embedding, n=3)
+        results = self.pinecone_service.get_n_similar(
+            conversation_id, query_embedding, n=3
+        )
         # Get only the first elements of each result
         results = [result[0] for result in results]
 
@@ -72,6 +75,8 @@ class Search:
         GPT_QUERY = f"This is a search query. I want to know the answer to the query: {query}. Here are some results from the web: {[str(result) for result in results]}. \n\n Answer:"
         # Generate the answer
         # Use the tokenizer to determine token amount of the query
-        await self.model.send_request(GPT_QUERY, UsageService.count_tokens_static(GPT_QUERY))
+        await self.model.send_request(
+            GPT_QUERY, UsageService.count_tokens_static(GPT_QUERY)
+        )
 
         print(texts)

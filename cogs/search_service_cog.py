@@ -10,6 +10,7 @@ from services.environment_service import EnvService
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
+
 class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
 
@@ -24,14 +25,8 @@ class SearchService(discord.Cog, name="SearchService"):
         self.model = Search(gpt_model, pinecone_service)
         # Make a mapping of all the country codes and their full country names:
 
-
     async def search_command(self, ctx, query):
         """Command handler for the translation command"""
         await ctx.defer()
         await self.model.search(query)
         await ctx.respond("ok")
-
-
-
-
-
