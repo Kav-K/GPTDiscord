@@ -8,7 +8,7 @@ app = Flask(__name__)
 start_time = datetime.datetime.now()
 
 
-@app.route('/healthz')
+@app.route("/healthz")
 def health():
     # Find the difference between the current time and start_time in seconds
     uptime = (datetime.datetime.now() - start_time).total_seconds()
