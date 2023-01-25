@@ -587,7 +587,6 @@ class Commands(discord.Cog, name="Commands"):
     async def paraphrase_action(self, ctx, message: discord.Message):
         await self.converser_cog.paraphrase_action(ctx, message)
 
-
     # Search slash commands
     @discord.slash_command(
         name="search",
@@ -598,5 +597,4 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def search(self, ctx: discord.ApplicationContext, query: str):
         await ctx.respond("Not implemented yet")
-        #await self.search_cog.search_command(ctx, query)
-
+        # await self.search_cog.search_command(ctx, query)

@@ -1037,9 +1037,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def ask_gpt_action(self, ctx, message: discord.Message):
         """Message command. Return the message"""
         prompt = await self.mention_to_username(ctx, message.content)
-        await self.ask_command(
-            ctx, prompt, None, None, None, None, from_action=prompt
-        )
+        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
 
     async def paraphrase_action(self, ctx, message: discord.Message):
         """Message command. paraphrase the current message content"""
@@ -1049,6 +1047,4 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Construct the paraphrase prompt
         prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \n\nParaphrased:"
 
-        await self.ask_command(
-            ctx, prompt, None, None, None, None, from_action=prompt
-        )
+        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)

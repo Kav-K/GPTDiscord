@@ -168,7 +168,10 @@ async def main():
         bot.add_cog(TranslationService(bot, TranslationModel()))
         print("The translation service is enabled.")
 
-    if EnvService.get_google_search_api_key() and EnvService.get_google_search_engine_id():
+    if (
+        EnvService.get_google_search_api_key()
+        and EnvService.get_google_search_engine_id()
+    ):
         bot.add_cog(SearchService(bot, model, pinecone_search_service))
         print("The Search service is enabled.")
 
@@ -184,7 +187,7 @@ async def main():
             bot.get_cog("ImgPromptOptimizer"),
             bot.get_cog("ModerationsService"),
             bot.get_cog("TranslationService"),
-            bot.get_cog("SearchService")
+            bot.get_cog("SearchService"),
         )
     )
 
