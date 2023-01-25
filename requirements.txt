@@ -9,3 +9,4 @@ pinecone-client==2.1.0
 sqlitedict==2.1.0
 backoff==2.2.1
 flask==2.2.2
+beautifulsoup4==4.11.1

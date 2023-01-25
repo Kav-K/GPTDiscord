@@ -29,6 +29,8 @@ dependencies = [
   "sqlitedict",
   "backoff",
   "flask",
+  "flask",
+  "beautifulsoup4",
 ]
 dynamic = ["version"]
 [project.scripts]
