@@ -62,7 +62,10 @@ if PINECONE_TOKEN:
             pod_type="s1",
         )
     PINECONE_INDEX_SEARCH = "search-embeddings"
-    if EnvService.get_google_search_api_key() and EnvService.get_google_search_engine_id():
+    if (
+        EnvService.get_google_search_api_key()
+        and EnvService.get_google_search_engine_id()
+    ):
         if PINECONE_INDEX_SEARCH not in pinecone.list_indexes():
             print("Creating pinecone index for seraches. Please wait...")
             pinecone.create_index(
