@@ -290,7 +290,6 @@ class Model:
 
         # Set the token count
         self._max_tokens = Models.get_max_tokens(self._model)
-        print("Set the max tokens to", self._max_tokens)
 
     @property
     def max_conversation_length(self):
