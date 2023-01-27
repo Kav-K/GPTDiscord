@@ -697,7 +697,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
-        from_action=None,
+        from_ask_action=None,
+        from_other_action=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -731,7 +732,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             overrides=overrides,
             from_ask_command=True,
             custom_api_key=user_api_key,
-            from_action=from_action,
+            from_ask_action=from_ask_action,
+            from_other_action=from_other_action,
         )
 
     async def edit_command(
@@ -1056,24 +1058,61 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def ask_gpt_action(self, ctx, message: discord.Message):
         """Message command. Return the message"""
         prompt = await self.mention_to_username(ctx, message.content)
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        await self.ask_command(ctx, prompt, None, None, None, None, from_ask_action=prompt)
 
     async def paraphrase_action(self, ctx, message: discord.Message):
         """Message command. paraphrase the current message content"""
         user = ctx.user
         prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = prompt+"\nParaphrased:"
 
         # Construct the paraphrase prompt
-        prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \n\nParaphrased:"
+        prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \nParaphrased:"
 
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens-1000:
+            await ctx.respond(
+                f"This message is too long to paraphrase.",
+                ephemeral=True, delete_after=10,
+            )
+            return
+
+        await self.ask_command(ctx, prompt, None, None, None, None, from_other_action=from_other_action)
 
     async def elaborate_action(self, ctx, message: discord.Message):
         """Message command. elaborate on the subject of the current message content"""
         user = ctx.user
         prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = prompt+"\nElaboration:"
 
         # Construct the paraphrase prompt
-        prompt = f"Elaborate upon the subject of the following message: {prompt} \n\nElaboration:"
+        prompt = f"Elaborate with more information about the subject of the following message. Be objective and detailed and respond with elaborations only about the subject(s) of the message: {prompt} \n\nElaboration:"
 
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens-1000:
+            await ctx.respond(
+                f"This message is too long to elaborate on.",
+                ephemeral=True, delete_after=10,
+            )
+            return
+
+        await self.ask_command(ctx, prompt, None, None, None, None, from_other_action=from_other_action)
+
+    async def summarize_action(self, ctx, message: discord.Message):
+        """Message command. elaborate on the subject of the current message content"""
+        user = ctx.user
+        prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = "Message at message link: " + message.jump_url + "\nSummarized:"
+
+        # Construct the paraphrase prompt
+        prompt = f"Summarize the following message, be as short and concise as possible: {prompt} \n\nSummary:"
+
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens-300:
+            await ctx.respond(
+                f"Your prompt is too long. It has {tokens} tokens, but the maximum is {self.model.max_tokens-300}.",
+                ephemeral=True, delete_after=10,
+            )
+            return
+
+        await self.ask_command(ctx, prompt, None, None, None, None, from_other_action=from_other_action)

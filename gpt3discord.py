@@ -237,7 +237,7 @@ def init():
     signal.signal(signal.SIGTERM, cleanup_pid_file)
 
     if check_process_file(PID_FILE):
-        print("Process ID file already exists")
+        print("Process ID file already exists. Remove the file if you're sure another instance isn't running with the command: rm bot.pid")
         sys.exit(1)
     else:
         with PID_FILE.open("w") as f:

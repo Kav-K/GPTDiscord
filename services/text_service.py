@@ -36,7 +36,8 @@ class TextService:
         custom_api_key=None,
         edited_request=False,
         redo_request=False,
-        from_action=False,
+        from_ask_action=False,
+        from_other_action=None,
     ):
         """General service function for sending and receiving gpt generations
 
@@ -288,7 +289,9 @@ class TextService:
                 str(response["choices"][0]["text"])
             )
 
-            if from_ask_command or from_action:
+            if from_other_action:
+                response_text = f"***{from_other_action}*** {response_text}"
+            elif from_ask_command or from_ask_action:
                 response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
                 if codex:
@@ -483,7 +486,7 @@ class TextService:
         # Error catching for OpenAI model value errors
         except ValueError as e:
             embed = EmbedStatics.get_invalid_value_embed(e)
-            if from_action:
+            if from_ask_action:
                 await ctx.respond(embed=embed, ephemeral=True)
             elif from_context:
                 await ctx.send_followup(embed=embed, ephemeral=True)
