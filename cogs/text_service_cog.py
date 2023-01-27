@@ -1043,6 +1043,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
 
+    async def settings_reset_command(self, ctx: discord.ApplicationContext):
+        """Command handler. Resets all settings to default"""
+        await ctx.defer()
+        self.model.reset_settings()
+        await ctx.respond("Settings reset to default")
+
     #
     # Text-based context menu commands from here
     #

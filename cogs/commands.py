@@ -98,6 +98,16 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("system")
     @discord.slash_command(
+        name="settings-reset",
+        description="Reset all settings for GPT3Discord",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    async def settings_reset(self, ctx: discord.ApplicationContext):
+        await self.converser_cog.settings_reset_command(ctx)
+
+    @add_to_group("system")
+    @discord.slash_command(
         name="local-size",
         description="Get the size of the dall-e images folder that we have on the current system",
         guild_ids=ALLOWED_GUILDS,
