@@ -1063,7 +1063,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
 
     async def elaborate_action(self, ctx, message: discord.Message):
-        """Message command. paraphrase the current message content"""
+        """Message command. elaborate on the subject of the current message content"""
         user = ctx.user
         prompt = await self.mention_to_username(ctx, message.content)
 
