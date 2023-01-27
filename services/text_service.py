@@ -839,6 +839,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
 
             await TextService.encapsulated_send(
                 self.converser_cog,
+                overrides=Override(None,None,None,None),
                 id=user_id,
                 prompt=prompt,
                 instruction=instruction,
