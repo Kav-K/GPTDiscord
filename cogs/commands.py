@@ -412,6 +412,38 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         default=False,
     )
+    @discord.option(
+        name="temperature",
+        description="Higher values means the model will take more risks",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=2,
+    )
+    @discord.option(
+        name="top_p",
+        description="1 is greedy sampling, 0.1 means only top 10%",
+        required=False,
+        input_type=float,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="frequency_penalty",
+        description="Decreasing the model's likelihood to repeat the same line verbatim",
+        required=False,
+        input_type=float,
+        min_value=-2,
+        max_value=2,
+    )
+    @discord.option(
+        name="presence_penalty",
+        description="Increasing the model's likelihood to talk about new topics",
+        required=False,
+        input_type=float,
+        min_value=-2,
+        max_value=2,
+    )
     @discord.guild_only()
     async def converse(
         self,
@@ -420,9 +452,13 @@ class Commands(discord.Cog, name="Commands"):
         opener_file: str,
         private: bool,
         minimal: bool,
+        temperature: float,
+        top_p: float,
+        frequency_penalty: float,
+        presence_penalty: float,
     ):
         await self.converser_cog.converse_command(
-            ctx, opener, opener_file, private, minimal
+            ctx, opener, opener_file, private, minimal, temperature, top_p, frequency_penalty, presence_penalty
         )
 
     @add_to_group("gpt")

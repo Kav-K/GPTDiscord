@@ -30,7 +30,8 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.5.1"
+__version__ = "8.6"
+
 
 PID_FILE = Path("bot.pid")
 PROCESS = None

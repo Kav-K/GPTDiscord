@@ -139,6 +139,6 @@ replace [3] with a list of detailed descriptions about the environment of the sc
 replace [4] with a list of detailed descriptions about the mood/feelings and atmosphere of the scene
 replace [5] with a list of detailed descriptions about the technical basis like render engine/camera model and details
 
-The outcome depends on the coherency of the prompt. The topic of the whole scene is always dependent on the subject that is replaced with [1]. There is not always a need to add lighting information, decide as neccessary. Do not use more than 70 words.
+The outcome depends on the coherency of the prompt. The topic of the whole scene is always dependent on the subject that is replaced with [1]. There is not always a need to add lighting information, decide as neccessary. Do not use more than 50 words under any circumstance.
 
 Input Prompt:

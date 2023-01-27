@@ -256,9 +256,9 @@ class Model:
     @temp.setter
     def temp(self, value):
         value = float(value)
-        if value < 0 or value > 1:
+        if value < 0 or value > 2:
             raise ValueError(
-                "temperature must be greater than 0 and less than 1, it is currently "
+                "temperature must be greater than 0 and less than 2, it is currently "
                 + str(value)
             )
 
