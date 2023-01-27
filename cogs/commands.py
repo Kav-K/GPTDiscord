@@ -306,7 +306,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Higher values means the model will take more risks",
         required=False,
         min_value=0,
-        max_value=1,
+        max_value=2,
     )
     @discord.option(
         name="top_p",
@@ -366,7 +366,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=float,
         min_value=0,
-        max_value=1,
+        max_value=2,
     )
     @discord.option(
         name="top_p",

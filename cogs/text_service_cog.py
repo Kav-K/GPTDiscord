@@ -11,6 +11,7 @@ import json
 import discord
 
 from models.embed_statics_model import EmbedStatics
+from models.openai_model import Override
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -720,15 +721,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer()
 
+        overrides = Override(temperature,top_p,frequency_penalty,presence_penalty)
+
         await TextService.encapsulated_send(
             self,
             user.id,
             prompt,
             ctx,
-            temp_override=temperature,
-            top_p_override=top_p,
-            frequency_penalty_override=frequency_penalty,
-            presence_penalty_override=presence_penalty,
+            overrides=overrides,
             from_ask_command=True,
             custom_api_key=user_api_key,
             from_action=from_action,
@@ -766,13 +766,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer()
 
+        overrides = Override(temperature,top_p,0,0)
+
         await TextService.encapsulated_send(
             self,
             user.id,
             prompt=text,
             ctx=ctx,
-            temp_override=temperature,
-            top_p_override=top_p,
+            overrides=overrides,
             instruction=instruction,
             from_edit_command=True,
             codex=codex,
@@ -963,6 +964,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 self.conversation_threads[thread.id].count += 1
 
+            overrides = Override(overrides['temperature'], overrides['top_p'], overrides['frequency_penalty'], overrides['presence_penalty'])
+
             await TextService.encapsulated_send(
                 self,
                 thread.id,
@@ -972,10 +975,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     [item.text for item in self.conversation_threads[thread.id].history]
                 ),
                 thread_message,
-                temp_override=overrides["temperature"],
-                top_p_override=overrides["top_p"],
-                frequency_penalty_override=overrides["frequency_penalty"],
-                presence_penalty_override=overrides["presence_penalty"],
+                overrides=overrides,
                 user=user,
                 model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,

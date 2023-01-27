@@ -8,7 +8,7 @@ from discord.ext import pages
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
-from models.openai_model import Model
+from models.openai_model import Model, Override
 from models.user_model import EmbeddedConversationItem, RedoUser
 from services.environment_service import EnvService
 
@@ -26,10 +26,7 @@ class TextService:
         prompt,
         ctx,
         response_message=None,
-        temp_override=None,
-        top_p_override=None,
-        frequency_penalty_override=None,
-        presence_penalty_override=None,
+        overrides=None,
         instruction=None,
         from_ask_command=False,
         from_edit_command=False,
@@ -268,8 +265,8 @@ class TextService:
                 response = await converser_cog.model.send_edit_request(
                     text=new_prompt,
                     instruction=instruction,
-                    temp_override=temp_override,
-                    top_p_override=top_p_override,
+                    temp_override=overrides.temperature,
+                    top_p_override=overrides.top_p,
                     codex=codex,
                     custom_api_key=custom_api_key,
                 )
@@ -277,10 +274,10 @@ class TextService:
                 response = await converser_cog.model.send_request(
                     new_prompt,
                     tokens=tokens,
-                    temp_override=temp_override,
-                    top_p_override=top_p_override,
-                    frequency_penalty_override=frequency_penalty_override,
-                    presence_penalty_override=presence_penalty_override,
+                    temp_override=overrides.temperature,
+                    top_p_override=overrides.top_p,
+                    frequency_penalty_override=overrides.frequency_penalty,
+                    presence_penalty_override=overrides.presence_penalty,
                     model=model,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
@@ -622,19 +619,18 @@ class TextService:
                 )
 
             # set conversation overrides
-            overrides = converser_cog.conversation_threads[
+            conversation_overrides = converser_cog.conversation_threads[
                 message.channel.id
             ].get_overrides()
+            overrides = Override(conversation_overrides['temperature'],conversation_overrides['top_p'],conversation_overrides['frequency_penalty'],conversation_overrides['presence_penalty'])
+
 
             await TextService.encapsulated_send(
                 converser_cog,
                 message.channel.id,
                 primary_prompt,
                 message,
-                temp_override=overrides["temperature"],
-                top_p_override=overrides["top_p"],
-                frequency_penalty_override=overrides["frequency_penalty"],
-                presence_penalty_override=overrides["presence_penalty"],
+                overrides=overrides,
                 model=converser_cog.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
             )

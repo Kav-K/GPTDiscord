@@ -31,6 +31,13 @@ class Mode:
 
     ALL_MODES = [TEMPERATURE, TOP_P]
 
+class Override:
+    def __init__(self, temp=None, top_p=None, frequency=None, presence=None):
+        self.temperature = temp
+        self.top_p = top_p
+        self.frequency_penalty = frequency
+        self.presence_penalty = presence
+
 
 class Models:
     # Text models
