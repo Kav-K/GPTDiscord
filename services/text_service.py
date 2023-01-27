@@ -195,7 +195,6 @@ class TextService:
                         ctx.channel.id
                     ].history = prompt_with_history
 
-
                     # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
                     if prompt_with_history[-1].text != new_prompt_item.text:
                         try:

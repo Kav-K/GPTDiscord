@@ -458,7 +458,15 @@ class Commands(discord.Cog, name="Commands"):
         presence_penalty: float,
     ):
         await self.converser_cog.converse_command(
-            ctx, opener, opener_file, private, minimal, temperature, top_p, frequency_penalty, presence_penalty
+            ctx,
+            opener,
+            opener_file,
+            private,
+            minimal,
+            temperature,
+            top_p,
+            frequency_penalty,
+            presence_penalty,
         )
 
     @add_to_group("gpt")
