@@ -23,9 +23,20 @@ class Mode:
 
 
 class Models:
+    # Text models
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    BABBAGE = "text-babbage-001"
+    ADA = "text-ada-001"
+    
+    # Code models
+    CODE_DAVINCI = "code-davinci-002"
+    CODE_CUSHMAN = "code-cushman-001"
+    
+    # Embedding models
     EMBEDDINGS = "text-embedding-ada-002"
+    
+    # Edit models
     EDIT = "text-davinci-edit-001"
     CODE_EDIT = "code-davinci-edit-001"
 
