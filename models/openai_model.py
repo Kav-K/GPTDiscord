@@ -99,7 +99,7 @@ class Model:
     def __init__(self, usage_service):
         self._mode = Mode.TEMPERATURE
         self._temp = 0.8  # Higher value means more random, lower value means more likely to be a coherent sentence
-        self._top_p = 0.95  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
+        self._top_p = 1  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
         self._max_tokens = 4000  # The maximum number of tokens the model can generate
         self._presence_penalty = (
             0  # Penalize new tokens based on whether they appear in the text so far
@@ -298,12 +298,12 @@ class Model:
         if value not in Mode.ALL_MODES:
             raise ValueError(f"Mode must be one of: {Mode.ALL_MODES}")
 
+        # Set the other mode to 1 (the default) so that it is not used
+        # See https://beta.openai.com/docs/api-reference/completions/create#completions/create-temperature
         if value == Mode.TOP_P:
-            self._top_p = 0.1
-            self._temp = 0.7
+            self._temp = 1
         elif value == Mode.TEMPERATURE:
-            self._top_p = 0.9
-            self._temp = 0.6
+            self._top_p = 1
         else:
             raise ValueError(f"Unknown mode: {value}")
 
