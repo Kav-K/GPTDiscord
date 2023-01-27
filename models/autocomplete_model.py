@@ -5,8 +5,9 @@ import re
 import discord
 
 from models.deepl_model import TranslationModel
+from services.moderations_service import ModerationOptions
 from services.usage_service import UsageService
-from models.openai_model import Model
+from models.openai_model import ImageSize, Model, ModelLimits, Models, Mode
 from services.environment_service import EnvService
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
@@ -34,26 +35,27 @@ class Settings_autocompleter:
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
         """gets valid values for the value option"""
         values = {
-            "max_conversation_length": [str(num) for num in range(1, 500, 2)],
-            "num_images": [str(num) for num in range(1, 4 + 1)],
-            "mode": ["temperature", "top_p"],
-            "model": ["text-davinci-003", "text-curie-001"],
+            "max_conversation_length": [str(num) for num in range(ModelLimits.MIN_CONVERSATION_LENGTH, ModelLimits.MAX_CONVERSATION_LENGTH + 1, 2)],
+            "num_images": [str(num) for num in range(ModelLimits.MIN_NUM_IMAGES, ModelLimits.MAX_NUM_IMAGES + 1)],
+            "mode": Mode.ALL_MODES,
+            "model": Models.TEXT_MODELS,
             "low_usage_mode": ["True", "False"],
-            "image_size": ["256x256", "512x512", "1024x1024"],
+            "image_size": ImageSize.ALL_SIZES,
             "summarize_conversation": ["True", "False"],
             "welcome_message_enabled": ["True", "False"],
-            "num_static_conversation_items": [str(num) for num in range(5, 20 + 1)],
-            "num_conversation_lookback": [str(num) for num in range(5, 15 + 1)],
-            "summarize_threshold": [str(num) for num in range(800, 3500, 50)],
+            "num_static_conversation_items": [str(num) for num in range(ModelLimits.MIN_NUM_STATIC_CONVERSATION_ITEMS, ModelLimits.MAX_NUM_STATIC_CONVERSATION_ITEMS + 1)],
+            "num_conversation_lookback": [str(num) for num in range(ModelLimits.MIN_NUM_CONVERSATION_LOOKBACK, ModelLimits.MAX_NUM_CONVERSATION_LOOKBACK + 1)],
+            "summarize_threshold": [str(num) for num in range(ModelLimits.MIN_SUMMARIZE_THRESHOLD, ModelLimits.MAX_SUMMARIZE_THRESHOLD + 1, 50)],
             "type": ["warn", "delete"],
         }
-        for parameter in values:
-            if parameter == ctx.options["parameter"]:
-                return [
-                    value
-                    for value in values[ctx.options["parameter"]]
-                    if value.startswith(ctx.value.lower())
-                ]
+        options = values.get(ctx.options["parameter"], [])
+        if options:
+            return [
+                value
+                for value in options
+                if value.startswith(ctx.value.lower())
+            ]
+
         await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
         return []
 
@@ -64,7 +66,7 @@ class Settings_autocompleter:
         print(f"The value is {ctx.value}")
         return [
             value
-            for value in ["warn", "delete", "reset"]
+            for value in ModerationOptions.OPTIONS
             if value.startswith(ctx.value.lower())
         ]
 

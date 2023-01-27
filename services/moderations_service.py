@@ -19,6 +19,13 @@ class ModerationResult:
     DELETE = "delete"
     NONE = "none"
 
+class ModerationOptions:
+    WARN = "warn"
+    DELETE = "delete"
+    RESET = "reset"
+
+    OPTIONS = [WARN, DELETE, RESET]
+
 
 class ThresholdSet:
     def __init__(self, h_t, hv_t, sh_t, s_t, sm_t, v_t, vg_t):
