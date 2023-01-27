@@ -32,6 +32,7 @@ from models.openai_model import Model
 
 __version__ = "8.6"
 
+
 PID_FILE = Path("bot.pid")
 PROCESS = None
 
