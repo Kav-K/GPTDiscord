@@ -41,7 +41,7 @@ class TextService:
         redo_request=False,
         from_action=False,
     ):
-        """General service function for sending and recieving gpt generations
+        """General service function for sending and receiving gpt generations
 
         Args:
             converser_cog (Cog): The conversation cog with our gpt commands
@@ -57,8 +57,8 @@ class TextService:
             from_ask_command (bool, optional): Called from the ask command. Defaults to False.
             from_edit_command (bool, optional): Called from the edit command. Defaults to False.
             codex (bool, optional): Pass along that we want to use a codex model. Defaults to False.
-            model (str, optional): Which model to genereate output with. Defaults to None.
-            user (discord.User, optinal): An user object that can be used to set the stop. Defaults to None.
+            model (str, optional): Which model to generate output with. Defaults to None.
+            user (discord.User, optional): An user object that can be used to set the stop. Defaults to None.
             custom_api_key (str, optional): per-user api key. Defaults to None.
             edited_request (bool, optional): If we're doing an edited message. Defaults to False.
             redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
