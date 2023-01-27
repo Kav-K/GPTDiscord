@@ -49,6 +49,20 @@ class Models:
     DEFAULT = DAVINCI
     LOW_USAGE_MODEL = CURIE
 
+    # Tokens Mapping
+    TOKEN_MAPPING = {
+        "text-davinci-003": 4024,
+        "text-curie-001": 2024,
+        "text-babbage-001": 2024,
+        "text-ada-001": 2024,
+        "code-davinci-002": 7900,
+        "code-cushman-001": 2024,
+    }
+
+    @staticmethod
+    def get_max_tokens(model: str) -> int:
+        return Models.TOKEN_MAPPING.get(model, 4024)
+
 
 class ImageSize:
     SMALL = "256x256"
@@ -273,6 +287,10 @@ class Model:
         if model not in Models.TEXT_MODELS:
             raise ValueError(f"Invalid model, must be one of: {Models.TEXT_MODELS}")
         self._model = model
+
+        # Set the token count
+        self._max_tokens = Models.get_max_tokens(self._model)
+        print("Set the max tokens to", self._max_tokens)
 
     @property
     def max_conversation_length(self):
