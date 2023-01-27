@@ -25,11 +25,13 @@ except Exception as e:
     print("Failed to retrieve the settings DB. The bot is terminating.")
     raise e
 
+
 class Mode:
     TEMPERATURE = "temperature"
     TOP_P = "top_p"
 
     ALL_MODES = [TEMPERATURE, TOP_P]
+
 
 class Override:
     def __init__(self, temp=None, top_p=None, frequency=None, presence=None):
@@ -126,33 +128,101 @@ class ModelLimits:
 
 
 class Model:
-
     def set_initial_state(self, usage_service):
         self.mode = Mode.TEMPERATURE
-        self.temp = SETTINGS_DB['temp'] if 'temp' in SETTINGS_DB else 0.8  # Higher value means more random, lower value means more likely to be a coherent sentence
-        self.top_p = SETTINGS_DB['top_p'] if 'top_p' in SETTINGS_DB else 1  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
-        self.max_tokens = SETTINGS_DB['max_tokens'] if 'max_tokens' in SETTINGS_DB else 4000  # The maximum number of tokens the model can generate
-        self.presence_penalty = SETTINGS_DB['presence_penalty'] if 'presence_penalty' in SETTINGS_DB else 0.0  # The presence penalty is a number between -2 and 2 that determines how much the model should avoid repeating the same text
+        self.temp = (
+            SETTINGS_DB["temp"] if "temp" in SETTINGS_DB else 0.8
+        )  # Higher value means more random, lower value means more likely to be a coherent sentence
+        self.top_p = (
+            SETTINGS_DB["top_p"] if "top_p" in SETTINGS_DB else 1
+        )  # 1 is equivalent to greedy sampling, 0.1 means that the model will only consider the top 10% of the probability distribution
+        self.max_tokens = (
+            SETTINGS_DB["max_tokens"] if "max_tokens" in SETTINGS_DB else 4000
+        )  # The maximum number of tokens the model can generate
+        self.presence_penalty = (
+            SETTINGS_DB["presence_penalty"]
+            if "presence_penalty" in SETTINGS_DB
+            else 0.0
+        )  # The presence penalty is a number between -2 and 2 that determines how much the model should avoid repeating the same text
         # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
-        self.frequency_penalty = SETTINGS_DB['frequency_penalty'] if 'frequency_penalty' in SETTINGS_DB else 0.0
-        self.best_of = SETTINGS_DB['best_of'] if 'best_of' in SETTINGS_DB else 1  # Number of responses to compare the loglikelihoods of
-        self.prompt_min_length = SETTINGS_DB['prompt_min_length'] if 'prompt_min_length' in SETTINGS_DB else 6  # The minimum length of the prompt
-        self.max_conversation_length = SETTINGS_DB['max_conversation_length'] if 'max_conversation_length' in SETTINGS_DB else 100  # The maximum number of conversation items to keep in memory
-        self.model = SETTINGS_DB['model'] if 'model' in SETTINGS_DB else Models.DEFAULT  # The model to use
+        self.frequency_penalty = (
+            SETTINGS_DB["frequency_penalty"]
+            if "frequency_penalty" in SETTINGS_DB
+            else 0.0
+        )
+        self.best_of = (
+            SETTINGS_DB["best_of"] if "best_of" in SETTINGS_DB else 1
+        )  # Number of responses to compare the loglikelihoods of
+        self.prompt_min_length = (
+            SETTINGS_DB["prompt_min_length"]
+            if "prompt_min_length" in SETTINGS_DB
+            else 6
+        )  # The minimum length of the prompt
+        self.max_conversation_length = (
+            SETTINGS_DB["max_conversation_length"]
+            if "max_conversation_length" in SETTINGS_DB
+            else 100
+        )  # The maximum number of conversation items to keep in memory
+        self.model = (
+            SETTINGS_DB["model"] if "model" in SETTINGS_DB else Models.DEFAULT
+        )  # The model to use
         self._low_usage_mode = False
         self.usage_service = usage_service
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
-        self.image_size = SETTINGS_DB['image_size'] if 'image_size' in SETTINGS_DB else ImageSize.MEDIUM
-        self.num_images = SETTINGS_DB['num_images'] if 'num_images' in SETTINGS_DB else 2
-        self.summarize_conversations = bool(SETTINGS_DB['summarize_conversations']) if 'summarize_conversations' in SETTINGS_DB else True
-        self.summarize_threshold = SETTINGS_DB['summarize_threshold'] if 'summarize_threshold' in SETTINGS_DB else 3000
+        self.image_size = (
+            SETTINGS_DB["image_size"]
+            if "image_size" in SETTINGS_DB
+            else ImageSize.MEDIUM
+        )
+        self.num_images = (
+            SETTINGS_DB["num_images"] if "num_images" in SETTINGS_DB else 2
+        )
+        self.summarize_conversations = (
+            bool(SETTINGS_DB["summarize_conversations"])
+            if "summarize_conversations" in SETTINGS_DB
+            else True
+        )
+        self.summarize_threshold = (
+            SETTINGS_DB["summarize_threshold"]
+            if "summarize_threshold" in SETTINGS_DB
+            else 3000
+        )
         self.model_max_tokens = 4024
-        self.welcome_message_enabled = bool(SETTINGS_DB['welcome_message_enabled']) if 'welcome_message_enabled' in SETTINGS_DB else False
-        self.num_static_conversation_items = SETTINGS_DB['num_static_conversation_items'] if 'num_static_conversation_items' in SETTINGS_DB else 10
-        self.num_conversation_lookback = SETTINGS_DB['num_conversation_lookback'] if 'num_conversation_lookback' in SETTINGS_DB else 5
+        self.welcome_message_enabled = (
+            bool(SETTINGS_DB["welcome_message_enabled"])
+            if "welcome_message_enabled" in SETTINGS_DB
+            else False
+        )
+        self.num_static_conversation_items = (
+            SETTINGS_DB["num_static_conversation_items"]
+            if "num_static_conversation_items" in SETTINGS_DB
+            else 10
+        )
+        self.num_conversation_lookback = (
+            SETTINGS_DB["num_conversation_lookback"]
+            if "num_conversation_lookback" in SETTINGS_DB
+            else 5
+        )
 
     def reset_settings(self):
-        keys = ['temp', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'best_of', 'prompt_min_length', 'max_conversation_length', 'model', 'image_size', 'num_images', 'summarize_conversations', 'summarize_threshold', 'welcome_message_enabled', 'num_static_conversation_items', 'num_conversation_lookback']
+        keys = [
+            "temp",
+            "top_p",
+            "max_tokens",
+            "presence_penalty",
+            "frequency_penalty",
+            "best_of",
+            "prompt_min_length",
+            "max_conversation_length",
+            "model",
+            "image_size",
+            "num_images",
+            "summarize_conversations",
+            "summarize_threshold",
+            "welcome_message_enabled",
+            "num_static_conversation_items",
+            "num_conversation_lookback",
+        ]
         for key in keys:
             try:
                 del SETTINGS_DB[key]
@@ -224,7 +294,7 @@ class Model:
                 f"Number of static conversation items must be <= {ModelLimits.MAX_NUM_STATIC_CONVERSATION_ITEMS}, this is to ensure reliability and reduce token wastage!"
             )
         self._num_static_conversation_items = value
-        SETTINGS_DB['num_static_conversation_items'] = value
+        SETTINGS_DB["num_static_conversation_items"] = value
 
     @property
     def num_conversation_lookback(self):
@@ -242,7 +312,7 @@ class Model:
                 f"Number of conversations to look back on must be <= {ModelLimits.MIN_NUM_CONVERSATION_LOOKBACK}, this is to ensure reliability and reduce token wastage!"
             )
         self._num_conversation_lookback = value
-        SETTINGS_DB['num_conversation_lookback'] = value
+        SETTINGS_DB["num_conversation_lookback"] = value
 
     @property
     def welcome_message_enabled(self):
@@ -258,7 +328,7 @@ class Model:
             else:
                 raise ValueError("Value must be either `true` or `false`!")
         self._welcome_message_enabled = value
-        SETTINGS_DB['welcome_message_enabled'] = self._welcome_message_enabled
+        SETTINGS_DB["welcome_message_enabled"] = self._welcome_message_enabled
 
     @property
     def summarize_threshold(self):
@@ -275,7 +345,7 @@ class Model:
                 f"Summarize threshold should be a number between {ModelLimits.MIN_SUMMARIZE_THRESHOLD} and {ModelLimits.MAX_SUMMARIZE_THRESHOLD}!"
             )
         self._summarize_threshold = value
-        SETTINGS_DB['summarize_threshold'] = value
+        SETTINGS_DB["summarize_threshold"] = value
 
     @property
     def summarize_conversations(self):
@@ -292,7 +362,7 @@ class Model:
             else:
                 raise ValueError("Value must be either `true` or `false`!")
         self._summarize_conversations = value
-        SETTINGS_DB['summarize_conversations'] = value
+        SETTINGS_DB["summarize_conversations"] = value
 
     @property
     def image_size(self):
@@ -302,7 +372,7 @@ class Model:
     def image_size(self, value):
         if value in ImageSize.ALL_SIZES:
             self._image_size = value
-            SETTINGS_DB['image_size'] = value
+            SETTINGS_DB["image_size"] = value
         else:
             raise ValueError(
                 f"Image size must be one of the following: {ImageSize.ALL_SIZES}"
@@ -320,7 +390,7 @@ class Model:
                 f"Number of images to generate should be a number between {ModelLimits.MIN_NUM_IMAGES} and {ModelLimits.MAX_NUM_IMAGES}!"
             )
         self._num_images = value
-        SETTINGS_DB['num_images'] = value
+        SETTINGS_DB["num_images"] = value
 
     @property
     def low_usage_mode(self):
@@ -357,7 +427,7 @@ class Model:
 
         # Set the token count
         self._max_tokens = Models.get_max_tokens(self._model)
-        SETTINGS_DB['model'] = model
+        SETTINGS_DB["model"] = model
 
     @property
     def max_conversation_length(self):
@@ -375,7 +445,7 @@ class Model:
                 f"Max conversation length must be less than {ModelLimits.MIN_CONVERSATION_LENGTH}, this will start using credits quick."
             )
         self._max_conversation_length = value
-        SETTINGS_DB['max_conversation_length'] = value
+        SETTINGS_DB["max_conversation_length"] = value
 
     @property
     def mode(self):
@@ -396,7 +466,7 @@ class Model:
             raise ValueError(f"Unknown mode: {value}")
 
         self._mode = value
-        SETTINGS_DB['mode'] = value
+        SETTINGS_DB["mode"] = value
 
     @property
     def temp(self):
@@ -411,7 +481,7 @@ class Model:
             )
 
         self._temp = value
-        SETTINGS_DB['temp'] = value
+        SETTINGS_DB["temp"] = value
 
     @property
     def top_p(self):
@@ -425,7 +495,7 @@ class Model:
                 f"Top P must be between {ModelLimits.MIN_TOP_P} and {ModelLimits.MAX_TOP_P}, it is currently: {value}"
             )
         self._top_p = value
-        SETTINGS_DB['top_p'] = value
+        SETTINGS_DB["top_p"] = value
 
     @property
     def max_tokens(self):
@@ -439,7 +509,7 @@ class Model:
                 f"Max tokens must be between {ModelLimits.MIN_TOKENS} and {ModelLimits.MAX_TOKENS}, it is currently: {value}"
             )
         self._max_tokens = value
-        SETTINGS_DB['max_tokens'] = value
+        SETTINGS_DB["max_tokens"] = value
 
     @property
     def presence_penalty(self):
@@ -456,7 +526,7 @@ class Model:
                 f"Presence penalty must be between {ModelLimits.MIN_PRESENCE_PENALTY} and {ModelLimits.MAX_PRESENCE_PENALTY}, it is currently: {value}"
             )
         self._presence_penalty = value
-        SETTINGS_DB['presence_penalty'] = value
+        SETTINGS_DB["presence_penalty"] = value
 
     @property
     def frequency_penalty(self):
@@ -473,7 +543,7 @@ class Model:
                 f"Frequency penalty must be greater between {ModelLimits.MIN_FREQUENCY_PENALTY} and {ModelLimits.MAX_FREQUENCY_PENALTY}, it is currently: {value}"
             )
         self._frequency_penalty = value
-        SETTINGS_DB['frequency_penalty'] = value
+        SETTINGS_DB["frequency_penalty"] = value
 
     @property
     def best_of(self):
@@ -487,7 +557,7 @@ class Model:
                 f"Best of must be between {ModelLimits.MIN_BEST_OF} and {ModelLimits.MAX_BEST_OF}, it is currently: {value}\nNote that increasing the value of this parameter will act as a multiplier on the number of tokens requested!"
             )
         self._best_of = value
-        SETTINGS_DB['best_of'] = value
+        SETTINGS_DB["best_of"] = value
 
     @property
     def prompt_min_length(self):
@@ -504,7 +574,7 @@ class Model:
                 f"Minimal prompt length must be between {ModelLimits.MIN_PROMPT_MIN_LENGTH} and {ModelLimits.MAX_PROMPT_MIN_LENGTH}, it is currently: {value}"
             )
         self._prompt_min_length = value
-        SETTINGS_DB['prompt_min_length'] = value
+        SETTINGS_DB["prompt_min_length"] = value
 
     def backoff_handler(details):
         print(
