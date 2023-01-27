@@ -133,7 +133,7 @@ class Model:
         self._summarize_conversations = True
         self._summarize_threshold = 3000
         self.model_max_tokens = 4024
-        self._welcome_message_enabled = True
+        self._welcome_message_enabled = False
         self._num_static_conversation_items = 10
         self._num_conversation_lookback = 5
 
