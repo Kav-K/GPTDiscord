@@ -19,6 +19,7 @@ class ModerationResult:
     DELETE = "delete"
     NONE = "none"
 
+
 class ModerationOptions:
     WARN = "warn"
     DELETE = "delete"

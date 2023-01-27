@@ -35,26 +35,53 @@ class Settings_autocompleter:
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
         """gets valid values for the value option"""
         values = {
-            "max_conversation_length": [str(num) for num in range(ModelLimits.MIN_CONVERSATION_LENGTH, ModelLimits.MAX_CONVERSATION_LENGTH + 1, 2)],
-            "num_images": [str(num) for num in range(ModelLimits.MIN_NUM_IMAGES, ModelLimits.MAX_NUM_IMAGES + 1)],
+            "max_conversation_length": [
+                str(num)
+                for num in range(
+                    ModelLimits.MIN_CONVERSATION_LENGTH,
+                    ModelLimits.MAX_CONVERSATION_LENGTH + 1,
+                    2,
+                )
+            ],
+            "num_images": [
+                str(num)
+                for num in range(
+                    ModelLimits.MIN_NUM_IMAGES, ModelLimits.MAX_NUM_IMAGES + 1
+                )
+            ],
             "mode": Mode.ALL_MODES,
             "model": Models.TEXT_MODELS,
             "low_usage_mode": ["True", "False"],
             "image_size": ImageSize.ALL_SIZES,
             "summarize_conversation": ["True", "False"],
             "welcome_message_enabled": ["True", "False"],
-            "num_static_conversation_items": [str(num) for num in range(ModelLimits.MIN_NUM_STATIC_CONVERSATION_ITEMS, ModelLimits.MAX_NUM_STATIC_CONVERSATION_ITEMS + 1)],
-            "num_conversation_lookback": [str(num) for num in range(ModelLimits.MIN_NUM_CONVERSATION_LOOKBACK, ModelLimits.MAX_NUM_CONVERSATION_LOOKBACK + 1)],
-            "summarize_threshold": [str(num) for num in range(ModelLimits.MIN_SUMMARIZE_THRESHOLD, ModelLimits.MAX_SUMMARIZE_THRESHOLD + 1, 50)],
+            "num_static_conversation_items": [
+                str(num)
+                for num in range(
+                    ModelLimits.MIN_NUM_STATIC_CONVERSATION_ITEMS,
+                    ModelLimits.MAX_NUM_STATIC_CONVERSATION_ITEMS + 1,
+                )
+            ],
+            "num_conversation_lookback": [
+                str(num)
+                for num in range(
+                    ModelLimits.MIN_NUM_CONVERSATION_LOOKBACK,
+                    ModelLimits.MAX_NUM_CONVERSATION_LOOKBACK + 1,
+                )
+            ],
+            "summarize_threshold": [
+                str(num)
+                for num in range(
+                    ModelLimits.MIN_SUMMARIZE_THRESHOLD,
+                    ModelLimits.MAX_SUMMARIZE_THRESHOLD + 1,
+                    50,
+                )
+            ],
             "type": ["warn", "delete"],
         }
         options = values.get(ctx.options["parameter"], [])
         if options:
-            return [
-                value
-                for value in options
-                if value.startswith(ctx.value.lower())
-            ]
+            return [value for value in options if value.startswith(ctx.value.lower())]
 
         await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
         return []
