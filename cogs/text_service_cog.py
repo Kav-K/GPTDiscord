@@ -1089,7 +1089,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         prompt = f"Elaborate with more information about the subject of the following message. Be objective and detailed and respond with elaborations only about the subject(s) of the message: {prompt} \n\nElaboration:"
 
         tokens = self.model.usage_service.count_tokens(prompt)
-        if tokens > self.model.max_tokens-1000:
+        if tokens > self.model.max_tokens-500:
             await ctx.respond(
                 f"This message is too long to elaborate on.",
                 ephemeral=True, delete_after=10,
