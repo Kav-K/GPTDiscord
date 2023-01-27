@@ -626,10 +626,18 @@ class Commands(discord.Cog, name="Commands"):
     @discord.message_command(
         name="Paraphrase",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_dalle_roles()],
+        checks=[Check.check_gpt_roles()],
     )
     async def paraphrase_action(self, ctx, message: discord.Message):
         await self.converser_cog.paraphrase_action(ctx, message)
+
+    @discord.message_command(
+        name="Elaborate",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_gpt_roles()],
+    )
+    async def elaborate_action(self, ctx, message: discord.Message):
+        await self.converser_cog.elaborate_action(ctx, message)
 
     # Search slash commands
     @discord.slash_command(

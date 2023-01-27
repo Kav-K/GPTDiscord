@@ -1061,3 +1061,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \n\nParaphrased:"
 
         await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+
+    async def elaborate_action(self, ctx, message: discord.Message):
+        """Message command. paraphrase the current message content"""
+        user = ctx.user
+        prompt = await self.mention_to_username(ctx, message.content)
+
+        # Construct the paraphrase prompt
+        prompt = f"Elaborate upon the subject of the following message: {prompt} \n\nElaboration:"
+
+        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
