@@ -30,7 +30,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "8.7.5"
+__version__ = "9.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -237,7 +237,7 @@ def init():
     signal.signal(signal.SIGTERM, cleanup_pid_file)
 
     if check_process_file(PID_FILE):
-        print("Process ID file already exists")
+        print("Process ID file already exists. Remove the file if you're sure another instance isn't running with the command: rm bot.pid")
         sys.exit(1)
     else:
         with PID_FILE.open("w") as f:

@@ -98,6 +98,16 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("system")
     @discord.slash_command(
+        name="settings-reset",
+        description="Reset all settings for GPT3Discord",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    async def settings_reset(self, ctx: discord.ApplicationContext):
+        await self.converser_cog.settings_reset_command(ctx)
+
+    @add_to_group("system")
+    @discord.slash_command(
         name="local-size",
         description="Get the size of the dall-e images folder that we have on the current system",
         guild_ids=ALLOWED_GUILDS,
@@ -296,7 +306,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Higher values means the model will take more risks",
         required=False,
         min_value=0,
-        max_value=1,
+        max_value=2,
     )
     @discord.option(
         name="top_p",
@@ -356,7 +366,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=float,
         min_value=0,
-        max_value=1,
+        max_value=2,
     )
     @discord.option(
         name="top_p",
@@ -623,13 +633,13 @@ class Commands(discord.Cog, name="Commands"):
                 "Translations are disabled on this server.", ephemeral=True
             )
 
-    @discord.message_command(
-        name="Paraphrase",
-        guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_gpt_roles()],
-    )
-    async def paraphrase_action(self, ctx, message: discord.Message):
-        await self.converser_cog.paraphrase_action(ctx, message)
+    # @discord.message_command(
+    #     name="Paraphrase",
+    #     guild_ids=ALLOWED_GUILDS,
+    #     checks=[Check.check_gpt_roles()],
+    # )
+    # async def paraphrase_action(self, ctx, message: discord.Message):
+    #     await self.converser_cog.paraphrase_action(ctx, message)
 
     @discord.message_command(
         name="Elaborate",
@@ -638,6 +648,14 @@ class Commands(discord.Cog, name="Commands"):
     )
     async def elaborate_action(self, ctx, message: discord.Message):
         await self.converser_cog.elaborate_action(ctx, message)
+
+    @discord.message_command(
+        name="Summarize",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_gpt_roles()],
+    )
+    async def summarize_action(self, ctx, message: discord.Message):
+        await self.converser_cog.summarize_action(ctx, message)
 
     # Search slash commands
     @discord.slash_command(
