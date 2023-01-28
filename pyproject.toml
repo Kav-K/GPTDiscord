@@ -31,6 +31,7 @@ dependencies = [
   "flask",
   "flask",
   "beautifulsoup4",
+  "gpt-index",
 ]
 dynamic = ["version"]
 [project.scripts]

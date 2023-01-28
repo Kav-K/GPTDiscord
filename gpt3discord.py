@@ -18,6 +18,7 @@ from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
 from cogs.translation_service_cog import TranslationService
+from cogs.index_service_cog import IndexService
 from models.deepl_model import TranslationModel
 from services.health_service import HealthService
 
@@ -169,6 +170,12 @@ async def main():
         )
     )
 
+    bot.add_cog(
+        IndexService(
+            bot
+        )
+    )
+
     if EnvService.get_deepl_token():
         bot.add_cog(TranslationService(bot, TranslationModel()))
         print("The translation service is enabled.")
@@ -191,6 +198,7 @@ async def main():
             bot.get_cog("DrawDallEService"),
             bot.get_cog("ImgPromptOptimizer"),
             bot.get_cog("ModerationsService"),
+            bot.get_cog("IndexService"),
             bot.get_cog("TranslationService"),
             bot.get_cog("SearchService"),
         )

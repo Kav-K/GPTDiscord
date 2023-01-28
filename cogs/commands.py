@@ -26,6 +26,7 @@ class Commands(discord.Cog, name="Commands"):
         image_draw_cog,
         image_service_cog,
         moderations_cog,
+        index_cog,
         translations_cog=None,
         search_cog=None,
     ):
@@ -39,6 +40,7 @@ class Commands(discord.Cog, name="Commands"):
         self.image_draw_cog = image_draw_cog
         self.image_service_cog = image_service_cog
         self.moderations_cog = moderations_cog
+        self.index_cog = index_cog
         self.translations_cog = translations_cog
         self.search_cog = search_cog
 
@@ -66,6 +68,12 @@ class Commands(discord.Cog, name="Commands"):
         description="AI-Moderation commands for the bot",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_admin_roles()],
+    )
+    index = discord.SlashCommandGroup(
+        name="index",
+        description="gpt-index commands",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_gpt_roles()],
     )
 
     #
@@ -488,6 +496,35 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     async def end(self, ctx: discord.ApplicationContext):
         await self.converser_cog.end_command(ctx)
+
+    #
+    # Index commands
+    #
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="set",
+        description="Set an index to query from",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(name="file", description="A file to create the index from", required=True, input_type=discord.Attachment)
+    async def set(self, ctx:discord.ApplicationContext, file: discord.Attachment):
+        await self.index_cog.set_index_command(ctx, file)
+
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="query",
+        description="Query from your index",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(name="query", description="What to query the index", required=True)
+    async def query(self, ctx:discord.ApplicationContext, query: str):
+        await self.index_cog.query_command(ctx, query)
+
+
 
     #
     # DALLE commands

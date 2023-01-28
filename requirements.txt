@@ -10,3 +10,4 @@ sqlitedict==2.1.0
 backoff==2.2.1
 flask==2.2.2
 beautifulsoup4==4.11.1
+gpt-index==0.2.16
