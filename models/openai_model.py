@@ -578,10 +578,15 @@ class Model:
         self._prompt_min_length = value
         SETTINGS_DB["prompt_min_length"] = value
 
-    def backoff_handler(details):
+    def backoff_handler_http(details):
         print(
             f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
             f"{details['exception'].status}: {details['exception'].message}"
+        )
+    def backoff_handler_request(details):
+        print(
+            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
+            f"{details['exception'].args}"
         )
 
     async def valid_text_request(self, response):
@@ -600,7 +605,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_embedding_request(self, text, custom_api_key=None):
         async with aiohttp.ClientSession(raise_for_status=True) as session:
@@ -626,11 +631,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
-        max_tries=6,
-        on_backoff=backoff_handler,
+        max_tries=4,
+        on_backoff=backoff_handler_request,
     )
     async def send_edit_request(
         self,
@@ -679,7 +684,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=6,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
@@ -698,11 +703,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_request,
     )
     async def send_summary_request(self, prompt, custom_api_key=None):
         """
@@ -749,11 +754,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_request,
     )
     async def send_request(
         self,
@@ -783,14 +788,14 @@ class Model:
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
         )
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": self.model if model is None else model,
                 "prompt": prompt,
                 "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
-                "max_tokens": self.max_tokens - tokens
+                "max_tokens": self.max_tokens if not model else Models.get_max_tokens(model) - tokens
                 if not max_tokens_override
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
@@ -844,7 +849,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_image_request(
         self, ctx, prompt, vary=None, custom_api_key=None
