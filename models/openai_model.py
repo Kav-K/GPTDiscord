@@ -45,6 +45,7 @@ class Models:
     # Text models
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
+    BABBAGES = "babbage"
     BABBAGE = "text-babbage-001"
     ADA = "text-ada-001"
 
@@ -60,7 +61,7 @@ class Models:
     CODE_EDIT = "code-davinci-edit-001"
 
     # Model collections
-    TEXT_MODELS = [DAVINCI, CURIE, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
+    TEXT_MODELS = [DAVINCI, CURIE, BABBAGES, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
     EDIT_MODELS = [EDIT, CODE_EDIT]
 
     DEFAULT = DAVINCI
@@ -78,7 +79,7 @@ class Models:
 
     @staticmethod
     def get_max_tokens(model: str) -> int:
-        return Models.TOKEN_MAPPING.get(model, 4024)
+        return Models.TOKEN_MAPPING.get(model, 2024)
 
 
 class ImageSize:
@@ -781,6 +782,10 @@ class Model:
                 f"Prompt must be greater than {self.prompt_min_length} characters, it is currently: {len(prompt)} characters"
             )
 
+        if not max_tokens_override:
+            if model:
+                max_tokens_override = Models.get_max_tokens(model) - tokens
+
         print(f"The prompt about to be sent is {prompt}")
         print(
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
@@ -793,8 +798,8 @@ class Model:
                 "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
-                "max_tokens": self.max_tokens if not model else Models.get_max_tokens(model) - tokens
-                if not max_tokens_override
+                "max_tokens": self.max_tokens - tokens 
+                if max_tokens_override is None
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
                 if presence_penalty_override is None
