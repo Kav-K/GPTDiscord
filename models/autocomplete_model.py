@@ -86,6 +86,17 @@ class Settings_autocompleter:
         await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
         return []
 
+    async def get_models(
+        ctx: discord.AutocompleteContext,
+    ):
+        """Gets all models"""
+        return [
+            value
+            for value in Models.TEXT_MODELS
+            if value.startswith(ctx.value.lower())
+        ]
+    
+    
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command

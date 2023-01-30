@@ -423,6 +423,13 @@ class Commands(discord.Cog, name="Commands"):
         default=False,
     )
     @discord.option(
+        name="model",
+        description="Which model to use with the bot",
+        required=False,
+        default=False,
+        autocomplete=Settings_autocompleter.get_models,
+    )
+    @discord.option(
         name="temperature",
         description="Higher values means the model will take more risks",
         required=False,
@@ -462,6 +469,7 @@ class Commands(discord.Cog, name="Commands"):
         opener_file: str,
         private: bool,
         minimal: bool,
+        model: str,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
@@ -473,6 +481,7 @@ class Commands(discord.Cog, name="Commands"):
             opener_file,
             private,
             minimal,
+            model,
             temperature,
             top_p,
             frequency_penalty,
