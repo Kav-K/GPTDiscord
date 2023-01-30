@@ -11,3 +11,4 @@ backoff==2.2.1
 flask==2.2.2
 beautifulsoup4==4.11.1
 gpt-index==0.2.16
+PyPDF2==3.0.1

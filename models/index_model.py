@@ -29,7 +29,14 @@ class Index_handler:
     
         try:
             temp_path = tempfile.TemporaryDirectory()
-            temp_file = tempfile.NamedTemporaryFile(suffix=".txt", dir=temp_path.name, delete=False)
+            if file.content_type.startswith("text/plain"):
+                suffix = ".txt"
+            elif file.content_type.startswith("application/pdf"):
+                suffix = ".pdf"
+            else:
+                await ctx.respond("Only accepts txt or pdf files")
+                return
+            temp_file = tempfile.NamedTemporaryFile(suffix=suffix, dir=temp_path.name, delete=False)
             await file.save(temp_file.name)
             index = await self.loop.run_in_executor(None, partial(self.index_file, temp_path.name))
             self.index_storage[ctx.user.id] = index

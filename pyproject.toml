@@ -32,6 +32,7 @@ dependencies = [
   "flask",
   "beautifulsoup4",
   "gpt-index",
+  "PyPDF2",
 ]
 dynamic = ["version"]
 [project.scripts]
