@@ -44,7 +44,6 @@ class Override:
 class Models:
     # Text models
     DAVINCI = "text-davinci-003"
-    DAVINCI_FT = "davinci:ft-personal-2023-01-28-08-02-00"
     CURIE = "text-curie-001"
     BABBAGE = "text-babbage-001"
     ADA = "text-ada-001"
@@ -61,7 +60,7 @@ class Models:
     CODE_EDIT = "code-davinci-edit-001"
 
     # Model collections
-    TEXT_MODELS = [DAVINCI, DAVINCI_FT,CURIE, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
+    TEXT_MODELS = [DAVINCI, CURIE, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
     EDIT_MODELS = [EDIT, CODE_EDIT]
 
     DEFAULT = DAVINCI
@@ -70,7 +69,6 @@ class Models:
     # Tokens Mapping
     TOKEN_MAPPING = {
         "text-davinci-003": 4024,
-        "davinci:ft-personal-2023-01-28-08-02-00": 4042,
         "text-curie-001": 2024,
         "text-babbage-001": 2024,
         "text-ada-001": 2024,
