@@ -693,6 +693,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        ephemeral: bool,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
@@ -720,7 +721,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
+        await ctx.defer(ephemeral=ephemeral)
 
         overrides = Override(temperature, top_p, frequency_penalty, presence_penalty)
 
@@ -741,6 +742,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ctx: discord.ApplicationContext,
         instruction: str,
         text: str,
+        ephemeral: bool,
         temperature: float,
         top_p: float,
         codex: bool,
@@ -766,7 +768,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
+        await ctx.defer(ephemeral=ephemeral)
 
         overrides = Override(temperature, top_p, 0, 0)
 

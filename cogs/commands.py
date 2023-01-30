@@ -302,6 +302,11 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
+        name="ephemeral", 
+        description="Will only be visible to you", 
+        required=False
+    )
+    @discord.option(
         name="temperature",
         description="Higher values means the model will take more risks",
         required=False,
@@ -334,13 +339,14 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        ephemeral: bool,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
     ):
         await self.converser_cog.ask_command(
-            ctx, prompt, temperature, top_p, frequency_penalty, presence_penalty
+            ctx, prompt, ephemeral, temperature, top_p, frequency_penalty, presence_penalty
         )
 
     @add_to_group("gpt")
@@ -359,6 +365,11 @@ class Commands(discord.Cog, name="Commands"):
         description="The text you want to edit, can be empty",
         required=False,
         default="",
+    )
+    @discord.option(
+        name="ephemeral", 
+        description="Will only be visible to you", 
+        required=False
     )
     @discord.option(
         name="temperature",
@@ -385,12 +396,13 @@ class Commands(discord.Cog, name="Commands"):
         ctx: discord.ApplicationContext,
         instruction: str,
         text: str,
+        ephemeral: bool,
         temperature: float,
         top_p: float,
         codex: bool,
     ):
         await self.converser_cog.edit_command(
-            ctx, instruction, text, temperature, top_p, codex
+            ctx, instruction, text, ephemeral, temperature, top_p, codex
         )
 
     @add_to_group("gpt")

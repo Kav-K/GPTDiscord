@@ -584,7 +584,7 @@ class Model:
     def backoff_handler_request(details):
         print(
             f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
-            f"{details['exception'].args}"
+            f"{details['exception'].args[0]}"
         )
 
     async def valid_text_request(self, response):
@@ -657,7 +657,7 @@ class Model:
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": Models.EDIT if codex is False else Models.CODE_EDIT,
                 "input": "" if text is None else text,
@@ -724,7 +724,7 @@ class Model:
 
         tokens = self.usage_service.count_tokens(summary_request_text)
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": Models.DAVINCI,
                 "prompt": summary_request_text,
