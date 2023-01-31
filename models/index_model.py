@@ -9,8 +9,7 @@ from pathlib import Path
 from datetime import date, datetime
 
 from gpt_index.readers.schema.base import Document
-from gpt_index.response.schema import Response
-from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt, GPTPineconeIndex
+from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt
 
 from services.environment_service import EnvService, app_root_path
 
@@ -61,7 +60,7 @@ class Index_handler:
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
                 async with aiofiles.tempfile.NamedTemporaryFile(suffix=suffix, dir=temp_path.name, delete=False) as temp_file:
                     await file.save(temp_file.name)
-            index = await self.loop.run_in_executor(None, partial(self.index_file, temp_path.name))
+                    index = await self.loop.run_in_executor(None, partial(self.index_file, temp_path.name))
             self.index_storage[ctx.user.id] = index
             temp_path.cleanup()
             await ctx.respond("Index set")
@@ -131,7 +130,7 @@ class Index_handler:
         
         try:
             index: GPTSimpleVectorIndex = self.index_storage[ctx.user.id]
-            response: Response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, response_mode=response_mode, text_qa_template=self.qaprompt))
+            response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, response_mode=response_mode, text_qa_template=self.qaprompt))
             await ctx.respond(f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}")
         except Exception:
             await ctx.respond("Failed to send query", delete_after=10)
