@@ -45,7 +45,6 @@ class Models:
     # Text models
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
-    BABBAGES = "babbage"
     BABBAGE = "text-babbage-001"
     ADA = "text-ada-001"
 
@@ -61,7 +60,7 @@ class Models:
     CODE_EDIT = "code-davinci-edit-001"
 
     # Model collections
-    TEXT_MODELS = [DAVINCI, CURIE, BABBAGES, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
+    TEXT_MODELS = [DAVINCI, CURIE, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN]
     EDIT_MODELS = [EDIT, CODE_EDIT]
 
     DEFAULT = DAVINCI
