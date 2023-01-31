@@ -141,3 +141,16 @@ class File_autocompleter:
             ]  # returns the 25 first files from your current input
         except Exception:
             return ["No 'openers' folder"]
+
+    async def get_indexes(ctx: discord.AutocompleteContext):
+        """get all files in the openers folder"""
+        try:
+            return [
+                file
+                for file in os.listdir(EnvService.find_shared_file("indexes"))
+                if file.startswith(ctx.value.lower())
+            ][
+                :25
+            ]  # returns the 25 first files from your current input
+        except Exception:
+            return ["No 'indexes' folder"]

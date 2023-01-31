@@ -503,6 +503,18 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
+        name="load_file",
+        description="Set an index to query from",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(name="index", description="Which file to load the index from", required=True, autocomplete=File_autocompleter.get_indexes)
+    async def load_index(self, ctx:discord.ApplicationContext, index: str):
+        await self.index_cog.load_index_command(ctx, index)
+
+
+    @add_to_group("index")
+    @discord.slash_command(
         name="set_file",
         description="Set an index to query from",
         guild_ids=ALLOWED_GUILDS
@@ -522,6 +534,17 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(name="channel", description="A channel to create the index from", required=False, input_type=discord.SlashCommandOptionType.channel)
     async def set_discord(self, ctx:discord.ApplicationContext, channel: discord.TextChannel):
         await self.index_cog.set_discord_command(ctx, channel)
+
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="discord_backup",
+        description="Save an index made from the whole server",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    async def discord_backup(self, ctx:discord.ApplicationContext):
+        await self.index_cog.discord_backup_command(ctx)
 
 
     @add_to_group("index")

@@ -15,7 +15,7 @@ class IndexService(discord.Cog, name="IndexService"):
     ):
         super().__init__()
         self.bot = bot
-        self.index_handler = Index_handler()
+        self.index_handler = Index_handler(bot)
     
     async def set_index_command(self, ctx, file: discord.Attachment):
         """Command handler to set a file as your personal index"""
@@ -40,10 +40,31 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await ctx.defer(ephemeral=True)
-        if not channel:
-            await self.index_handler.set_discord_index(ctx, channel, user_api_key=user_api_key, no_channel=True)
-            return
         await self.index_handler.set_discord_index(ctx, channel, user_api_key=user_api_key)
+
+    async def discord_backup_command(self, ctx):
+        """Command handler to backup the entire server"""
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        await ctx.defer(ephemeral=True)
+        await self.index_handler.backup_discord(ctx, user_api_key=user_api_key)
+
+
+    async def load_index_command(self, ctx, index):
+        """Command handler to backup the entire server"""
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        await ctx.defer(ephemeral=True)
+        await self.index_handler.load_index(ctx, index, user_api_key)
 
 
     async def query_command(self, ctx, query, response_mode):
