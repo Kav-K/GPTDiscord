@@ -503,14 +503,25 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="set",
+        name="set_file",
         description="Set an index to query from",
         guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()
-    @discord.option(name="file", description="A file to create the index from", required=True, input_type=discord.Attachment)
-    async def set(self, ctx:discord.ApplicationContext, file: discord.Attachment):
+    @discord.option(name="file", description="A file to create the index from", required=True, input_type=discord.SlashCommandOptionType.attachment)
+    async def set_file(self, ctx:discord.ApplicationContext, file: discord.Attachment):
         await self.index_cog.set_index_command(ctx, file)
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="set_discord",
+        description="Set a index from a discord channel",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(name="channel", description="A channel to create the index from", required=False, input_type=discord.SlashCommandOptionType.channel)
+    async def set_discord(self, ctx:discord.ApplicationContext, channel: discord.TextChannel):
+        await self.index_cog.set_discord_command(ctx, channel)
 
 
     @add_to_group("index")

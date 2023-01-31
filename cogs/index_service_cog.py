@@ -27,7 +27,23 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await ctx.defer(ephemeral=True)
-        await self.index_handler.set_index(ctx, file, user_api_key=user_api_key)
+        await self.index_handler.set_file_index(ctx, file, user_api_key=user_api_key)
+
+
+    async def set_discord_command(self, ctx, channel: discord.TextChannel = None):
+        """Command handler to set a channel as your personal index"""
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        await ctx.defer(ephemeral=True)
+        if not channel:
+            await self.index_handler.set_discord_index(ctx, channel, user_api_key=user_api_key, no_channel=True)
+            return
+        await self.index_handler.set_discord_index(ctx, channel, user_api_key=user_api_key)
 
 
     async def query_command(self, ctx, query):
