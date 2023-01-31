@@ -80,22 +80,18 @@ class Index_handler:
 
     
 
-    async def query(self, ctx: discord.ApplicationContext, query:str, user_api_key):
+    async def query(self, ctx: discord.ApplicationContext, query:str, response_mode, user_api_key):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        if not self.index_storage[ctx.user.id]:
-            await ctx.respond("You need to set an index", ephemeral=True, delete_after=5)
-            return
-        
-        index: GPTSimpleVectorIndex = self.index_storage[ctx.user.id]
         try:
-            response: Response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True))
+            index: GPTSimpleVectorIndex = self.index_storage[ctx.user.id]
+            response: Response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, response_mode=response_mode))
+            await ctx.respond(f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}")
         except Exception:
-            ctx.respond("You haven't set and index", delete_after=5)
-        await ctx.respond(f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}")
+            await ctx.respond("You haven't set and index", delete_after=10)
 
 
 #Set our own version of the DiscordReader class that's async
@@ -147,13 +143,16 @@ class DiscordReader(BaseReader):
                     async for msg in channel.history(
                         limit=limit, oldest_first=oldest_first
                     ):
-                        messages.append(msg)
-                        if msg.id in thread_dict:
-                            thread = thread_dict[msg.id]
-                            async for thread_msg in thread.history(
-                                limit=limit, oldest_first=oldest_first
-                            ):
-                                messages.append(thread_msg)
+                        if msg.author.bot:
+                            pass
+                        else:
+                            messages.append(msg)
+                            if msg.id in thread_dict:
+                                thread = thread_dict[msg.id]
+                                async for thread_msg in thread.history(
+                                    limit=limit, oldest_first=oldest_first
+                                ):
+                                    messages.append(thread_msg)
                 except Exception as e:
                     print("Encountered error: " + str(e))
                 finally:
@@ -164,8 +163,8 @@ class DiscordReader(BaseReader):
         client = CustomClient(intents=intents)
         await client.start(self.discord_token)
 
-        msg_txt_list = [f"{m.author.display_name}: {m.content}" for m in messages]
         channel = client.get_channel(channel_id)
+        msg_txt_list = [f"user:{m.author.display_name}, content:{m.content}" for m in messages]
 
         return ("\n\n".join(msg_txt_list), channel.name)
 

@@ -532,9 +532,16 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     @discord.option(name="query", description="What to query the index", required=True)
-    async def query(self, ctx:discord.ApplicationContext, query: str):
-        await self.index_cog.query_command(ctx, query)
-
+    @discord.option(
+        name="response_mode",
+        description="Response mode",
+        guild_ids=ALLOWED_GUILDS,
+        required=False,
+        default="default",
+        choices=["default", "compact", "tree_summarize"]
+    )
+    async def query(self, ctx:discord.ApplicationContext, query: str, response_mode: str):
+        await self.index_cog.query_command(ctx, query, response_mode)
 
 
     #
