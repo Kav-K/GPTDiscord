@@ -17,8 +17,15 @@ class IndexService(discord.Cog, name="IndexService"):
         self.bot = bot
         self.index_handler = Index_handler(bot)
     
-    async def set_index_command(self, ctx, file: discord.Attachment):
+    async def set_index_command(self, ctx, file: discord.Attachment = None, link: str = None):
         """Command handler to set a file as your personal index"""
+        if not file and not link:
+            await ctx.respond("Please provide a file or a link")
+            return
+
+        if file and link:
+            await ctx.respond("Please provide only one file or link. Only one or the other.")
+            return
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -27,7 +34,10 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await ctx.defer(ephemeral=True)
-        await self.index_handler.set_file_index(ctx, file, user_api_key=user_api_key)
+        if file:
+            await self.index_handler.set_file_index(ctx, file, user_api_key=user_api_key)
+        elif link:
+            await self.index_handler.set_link_index(ctx, link, user_api_key=user_api_key)
 
 
     async def set_discord_command(self, ctx, channel: discord.TextChannel = None):

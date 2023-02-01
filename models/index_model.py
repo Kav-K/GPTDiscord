@@ -9,7 +9,9 @@ from pathlib import Path
 from datetime import date, datetime
 
 from gpt_index.readers.schema.base import Document
-from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt
+from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt, BeautifulSoupWebReader, \
+    GPTFaissIndex
+from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from services.environment_service import EnvService, app_root_path
 
@@ -41,6 +43,11 @@ class Index_handler:
     def index_discord(self, document):
         index = GPTSimpleVectorIndex(document)
         return index
+
+    def index_webpage(self, url):
+        documents = BeautifulSoupWebReader(website_extractor=DEFAULT_WEBSITE_EXTRACTOR).load_data(urls=[url])
+        index = GPTSimpleVectorIndex(documents)
+        return index
     
     
     async def set_file_index(self, ctx: discord.ApplicationContext, file: discord.Attachment, user_api_key):
@@ -66,6 +73,26 @@ class Index_handler:
         except Exception:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
+
+    async def set_link_index(self, ctx: discord.ApplicationContext, link: str, user_api_key):
+        if not user_api_key:
+            os.environ["OPENAI_API_KEY"] = self.openai_key
+        else:
+            os.environ["OPENAI_API_KEY"] = user_api_key
+
+        # TODO Link validation
+        try:
+
+            index = await self.loop.run_in_executor(None, partial(self.index_webpage, link))
+
+            self.index_storage[ctx.user.id] = index
+
+        except Exception:
+            await ctx.respond("Failed to set index")
+            traceback.print_exc()
+
+        await ctx.respond("Index set")
+
 
     async def set_discord_index(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, user_api_key):
         if not user_api_key:
