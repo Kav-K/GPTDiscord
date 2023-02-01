@@ -58,16 +58,14 @@ class Index_handler:
                 await ctx.respond("Only accepts txt or pdf files")
                 return
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
-                async with aiofiles.tempfile.NamedTemporaryFile(suffix=suffix, dir=temp_path.name, delete=False) as temp_file:
+                async with aiofiles.tempfile.NamedTemporaryFile(suffix=suffix, dir=temp_path, delete=False) as temp_file:
                     await file.save(temp_file.name)
-                    index = await self.loop.run_in_executor(None, partial(self.index_file, temp_path.name))
+                    index = await self.loop.run_in_executor(None, partial(self.index_file, temp_path))
             self.index_storage[ctx.user.id] = index
-            temp_path.cleanup()
             await ctx.respond("Index set")
         except Exception:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
-
 
     async def set_discord_index(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, user_api_key):
         if not user_api_key:
