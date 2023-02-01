@@ -48,8 +48,7 @@ class Index_handler:
         documents = BeautifulSoupWebReader(website_extractor=DEFAULT_WEBSITE_EXTRACTOR).load_data(urls=[url])
         index = GPTSimpleVectorIndex(documents)
         return index
-    
-    
+
     async def set_file_index(self, ctx: discord.ApplicationContext, file: discord.Attachment, user_api_key):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key

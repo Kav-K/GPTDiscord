@@ -71,9 +71,9 @@ class Commands(discord.Cog, name="Commands"):
     )
     index = discord.SlashCommandGroup(
         name="index",
-        description="gpt-index commands",
+        description="Custom index commands for the bot",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_gpt_roles()],
+        checks=[Check.check_index_roles()],
     )
 
     #

@@ -69,7 +69,7 @@ if PINECONE_TOKEN:
         and EnvService.get_google_search_engine_id()
     ):
         if PINECONE_INDEX_SEARCH not in pinecone.list_indexes():
-            print("Creating pinecone index for seraches. Please wait...")
+            print("Creating pinecone index for searches. Please wait...")
             pinecone.create_index(
                 PINECONE_INDEX_SEARCH,
                 dimension=1536,

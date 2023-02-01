@@ -23,25 +23,15 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 </p>
 
 # Recent Notable Updates
-- **Translations with DeepL** - DeepL integration for translations. `/translate`
 
-
-- **Context menu commands** - Allow people to prompt GPT and DALL-E directly by right clicking a message:
-<center>
-<img src="https://i.imgur.com/fkfnJQ0.png"/></center>
-
-
-- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
-
-
-- **Permanent memory with embeddings and <a href="https://www.pinecone.io/">Pinecone</a> finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
-
-
+- **CUSTOM INDEXES** - This is a huge update. You can now upload files to your server and use them as custom context when asking GPT3 questions. You can also use links to use webpages as context, and you can even use discord channels, or your entire discord server's messages as context! Read more in the 'Custom Indexes' section below.
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
 
 - **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
+
+- **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT3 questions!
 
 - **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
@@ -105,6 +95,10 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 `/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
 
+### Custom Indexes Commands
+
+TODO
+
 ### System and Settings
 
 `/system settings` - Display settings for the model (temperature, top_p, etc)
@@ -120,6 +114,10 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 `/system local-size` - Get the size of the local dalleimages folder
 
 `/system clear-local` - Clear all the local dalleimages.
+
+### Custom Indexes
+
+TODO
 
 ### Automatic AI Moderation
 
