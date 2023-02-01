@@ -302,7 +302,7 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
-        name="ephemeral", 
+        name="private", 
         description="Will only be visible to you", 
         required=False
     )
@@ -339,14 +339,14 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
-        ephemeral: bool,
+        private: bool,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
     ):
         await self.converser_cog.ask_command(
-            ctx, prompt, ephemeral, temperature, top_p, frequency_penalty, presence_penalty
+            ctx, prompt, private, temperature, top_p, frequency_penalty, presence_penalty
         )
 
     @add_to_group("gpt")
@@ -367,7 +367,7 @@ class Commands(discord.Cog, name="Commands"):
         default="",
     )
     @discord.option(
-        name="ephemeral", 
+        name="private", 
         description="Will only be visible to you", 
         required=False
     )
@@ -396,13 +396,13 @@ class Commands(discord.Cog, name="Commands"):
         ctx: discord.ApplicationContext,
         instruction: str,
         text: str,
-        ephemeral: bool,
+        private: bool,
         temperature: float,
         top_p: float,
         codex: bool,
     ):
         await self.converser_cog.edit_command(
-            ctx, instruction, text, ephemeral, temperature, top_p, codex
+            ctx, instruction, text, private, temperature, top_p, codex
         )
 
     @add_to_group("gpt")
