@@ -217,7 +217,6 @@ class TextService:
                 and not from_edit_command
                 and not converser_cog.pinecone_service  # This should only happen if we are not doing summarizations.
             ):
-
                 # We don't need to worry about the differences between interactions and messages in this block,
                 # because if we are in this block, we can only be using a message object for ctx
                 if converser_cog.model.summarize_conversations:
@@ -545,7 +544,6 @@ class TextService:
 
             # If the user is in a conversation thread
             if message.channel.id in converser_cog.conversation_threads:
-
                 # Since this is async, we don't want to allow the user to send another prompt while a conversation
                 # prompt is processing, that'll mess up the conversation history!
                 if message.author.id in converser_cog.awaiting_responses:
@@ -780,7 +778,6 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
         self.converser_cog = converser_cog
 
     async def callback(self, interaction: discord.Interaction):
-
         # Get the user
         user_id = interaction.user.id
         if (
@@ -820,7 +817,6 @@ class RedoButton(discord.ui.Button["ConversationView"]):
         self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
-
         # Get the user
         user_id = interaction.user.id
         if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[

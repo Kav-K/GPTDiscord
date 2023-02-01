@@ -188,7 +188,6 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
-
         user_id = interaction.user.id
         interaction_id = interaction.message.id
 
