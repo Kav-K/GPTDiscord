@@ -11,6 +11,7 @@ import json
 import discord
 
 from models.embed_statics_model import EmbedStatics
+from models.openai_model import Override
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -696,7 +697,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
-        from_action=None,
+        from_ask_action=None,
+        from_other_action=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -720,18 +722,18 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer()
 
+        overrides = Override(temperature, top_p, frequency_penalty, presence_penalty)
+
         await TextService.encapsulated_send(
             self,
             user.id,
             prompt,
             ctx,
-            temp_override=temperature,
-            top_p_override=top_p,
-            frequency_penalty_override=frequency_penalty,
-            presence_penalty_override=presence_penalty,
+            overrides=overrides,
             from_ask_command=True,
             custom_api_key=user_api_key,
-            from_action=from_action,
+            from_ask_action=from_ask_action,
+            from_other_action=from_other_action,
         )
 
     async def edit_command(
@@ -766,13 +768,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer()
 
+        overrides = Override(temperature, top_p, 0, 0)
+
         await TextService.encapsulated_send(
             self,
             user.id,
             prompt=text,
             ctx=ctx,
-            temp_override=temperature,
-            top_p_override=top_p,
+            overrides=overrides,
             instruction=instruction,
             from_edit_command=True,
             codex=codex,
@@ -963,6 +966,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
                 self.conversation_threads[thread.id].count += 1
 
+            overrides = Override(
+                overrides["temperature"],
+                overrides["top_p"],
+                overrides["frequency_penalty"],
+                overrides["presence_penalty"],
+            )
+
             await TextService.encapsulated_send(
                 self,
                 thread.id,
@@ -972,10 +982,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     [item.text for item in self.conversation_threads[thread.id].history]
                 ),
                 thread_message,
-                temp_override=overrides["temperature"],
-                top_p_override=overrides["top_p"],
-                frequency_penalty_override=overrides["frequency_penalty"],
-                presence_penalty_override=overrides["presence_penalty"],
+                overrides=overrides,
                 user=user,
                 model=self.conversation_threads[thread.id].model,
                 custom_api_key=user_api_key,
@@ -1043,6 +1050,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Otherwise, process the settings change
         await self.process_settings(ctx, parameter, value)
 
+    async def settings_reset_command(self, ctx: discord.ApplicationContext):
+        """Command handler. Resets all settings to default"""
+        await ctx.defer()
+        self.model.reset_settings()
+        await ctx.respond("Settings reset to default")
+
     #
     # Text-based context menu commands from here
     #
@@ -1050,24 +1063,74 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def ask_gpt_action(self, ctx, message: discord.Message):
         """Message command. Return the message"""
         prompt = await self.mention_to_username(ctx, message.content)
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        await self.ask_command(
+            ctx, prompt, None, None, None, None, from_ask_action=prompt
+        )
 
     async def paraphrase_action(self, ctx, message: discord.Message):
         """Message command. paraphrase the current message content"""
         user = ctx.user
         prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = prompt + "\nParaphrased:"
 
         # Construct the paraphrase prompt
-        prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \n\nParaphrased:"
+        prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \nParaphrased:"
 
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens - 1000:
+            await ctx.respond(
+                f"This message is too long to paraphrase.",
+                ephemeral=True,
+                delete_after=10,
+            )
+            return
+
+        await self.ask_command(
+            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+        )
 
     async def elaborate_action(self, ctx, message: discord.Message):
         """Message command. elaborate on the subject of the current message content"""
         user = ctx.user
         prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = prompt + "\nElaboration:"
 
         # Construct the paraphrase prompt
-        prompt = f"Elaborate upon the subject of the following message: {prompt} \n\nElaboration:"
+        prompt = f"Elaborate with more information about the subject of the following message. Be objective and detailed and respond with elaborations only about the subject(s) of the message: {prompt} \n\nElaboration:"
 
-        await self.ask_command(ctx, prompt, None, None, None, None, from_action=prompt)
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens - 500:
+            await ctx.respond(
+                f"This message is too long to elaborate on.",
+                ephemeral=True,
+                delete_after=10,
+            )
+            return
+
+        await self.ask_command(
+            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+        )
+
+    async def summarize_action(self, ctx, message: discord.Message):
+        """Message command. elaborate on the subject of the current message content"""
+        user = ctx.user
+        prompt = await self.mention_to_username(ctx, message.content)
+        from_other_action = (
+            "Message at message link: " + message.jump_url + "\nSummarized:"
+        )
+
+        # Construct the paraphrase prompt
+        prompt = f"Summarize the following message, be as short and concise as possible: {prompt} \n\nSummary:"
+
+        tokens = self.model.usage_service.count_tokens(prompt)
+        if tokens > self.model.max_tokens - 300:
+            await ctx.respond(
+                f"Your prompt is too long. It has {tokens} tokens, but the maximum is {self.model.max_tokens-300}.",
+                ephemeral=True,
+                delete_after=10,
+            )
+            return
+
+        await self.ask_command(
+            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+        )
