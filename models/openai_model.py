@@ -581,6 +581,7 @@ class Model:
             f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
             f"{details['exception'].status}: {details['exception'].message}"
         )
+
     def backoff_handler_request(details):
         print(
             f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
@@ -795,7 +796,7 @@ class Model:
                 "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
-                "max_tokens": self.max_tokens - tokens 
+                "max_tokens": self.max_tokens - tokens
                 if max_tokens_override is None
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty

@@ -870,7 +870,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[thread.id] = Thread(thread.id)
-        self.conversation_threads[thread.id].model = self.model.model if not model else model
+        self.conversation_threads[thread.id].model = (
+            self.model.model if not model else model
+        )
 
         # Set the overrides for the conversation
         self.conversation_threads[thread.id].set_overrides(

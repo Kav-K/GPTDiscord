@@ -91,12 +91,9 @@ class Settings_autocompleter:
     ):
         """Gets all models"""
         return [
-            value
-            for value in Models.TEXT_MODELS
-            if value.startswith(ctx.value.lower())
+            value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
         ]
-    
-    
+
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command

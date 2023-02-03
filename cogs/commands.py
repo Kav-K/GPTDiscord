@@ -302,9 +302,7 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
-        name="private", 
-        description="Will only be visible to you", 
-        required=False
+        name="private", description="Will only be visible to you", required=False
     )
     @discord.option(
         name="temperature",
@@ -346,7 +344,13 @@ class Commands(discord.Cog, name="Commands"):
         presence_penalty: float,
     ):
         await self.converser_cog.ask_command(
-            ctx, prompt, private, temperature, top_p, frequency_penalty, presence_penalty
+            ctx,
+            prompt,
+            private,
+            temperature,
+            top_p,
+            frequency_penalty,
+            presence_penalty,
         )
 
     @add_to_group("gpt")
@@ -367,9 +371,7 @@ class Commands(discord.Cog, name="Commands"):
         default="",
     )
     @discord.option(
-        name="private", 
-        description="Will only be visible to you", 
-        required=False
+        name="private", description="Will only be visible to you", required=False
     )
     @discord.option(
         name="temperature",
