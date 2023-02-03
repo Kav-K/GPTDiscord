@@ -1,6 +1,5 @@
 ![image](https://user-images.githubusercontent.com/39274208/216566367-e1311c9e-bbc1-42fe-9e09-69e9fb728133.png)
 
-
 You can choose to host the docker contained on app service so you have less maintenance, and it is also cheaper than a VM. 
 As a student, you can get free Azure credits and you can get free Azure credits with you MSDN license if you work at a Microsoft partner.
 The steps are also fairly straightforward.
