@@ -6,7 +6,7 @@ The steps are also fairly straightforward.
 
 To make it work on Azure App service follow the following steps: 
 
-<img src="https://user-images.githubusercontent.com/39274208/216566481-e06ccf0d-7346-438b-ab5a-7cd4ac6b08f5.png" width="200">
+<img src="https://user-images.githubusercontent.com/39274208/216566481-e06ccf0d-7346-438b-ab5a-7cd4ac6b08f5.png" width="150">
 
 Creating the container: 
 
