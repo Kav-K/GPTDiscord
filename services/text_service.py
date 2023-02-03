@@ -630,6 +630,14 @@ class TextService:
                 conversation_overrides["presence_penalty"],
             )
 
+            # Send an embed that tells the user that the bot is thinking
+            thinking_embed = discord.Embed(
+                title=f"🤖💬 Thinking...",
+                color=0x808080,
+            )
+            thinking_embed.set_footer(text="This may take a few seconds.")
+            thinking_message = await message.reply(embed=thinking_embed)
+
             await TextService.encapsulated_send(
                 converser_cog,
                 message.channel.id,
@@ -639,6 +647,10 @@ class TextService:
                 model=converser_cog.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
             )
+
+            # Delete the thinking embed
+            await thinking_message.delete()
+
             return True
 
     @staticmethod
