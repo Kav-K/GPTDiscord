@@ -30,7 +30,7 @@ Configurating the container:
 
 App services makes it easy for you to add ENV files without using the CLI. We do this first
 
-1. go to "configuration" under "settings"
+1. Go to "configuration" under "settings"
 Enter the following env files as defined in the readme.md file in this repository: 
 
 The most important application settings are:
@@ -43,8 +43,6 @@ DISCORD_TOKEN
 GPT_ROLES
 OPENAI_TOKEN
 HEALTH_SERVICE_ENABLED
-
-
 
 Health 
  1. It's important to also add WEBSITES_PORT to the application settings, since we are using the port for the health check of the container. Use 8181.
