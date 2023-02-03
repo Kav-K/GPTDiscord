@@ -4,6 +4,7 @@ import traceback
 import discord
 from sqlitedict import SqliteDict
 
+from models.openai_model import Override
 from services.environment_service import EnvService
 from models.user_model import RedoUser
 from services.image_service import ImageService
@@ -85,7 +86,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 top_p_override=1.0,
                 temp_override=0.9,
                 presence_penalty_override=0.5,
-                best_of_override=2,
+                best_of_override=1,
                 max_tokens_override=80,
                 custom_api_key=user_api_key,
             )
@@ -188,7 +189,6 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
         self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
-
         user_id = interaction.user.id
         interaction_id = interaction.message.id
 
@@ -260,10 +260,12 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
             await interaction.response.send_message(
                 "Redoing your original request...", ephemeral=True, delete_after=20
             )
+            overrides = Override(1.0, 0.9, 0.5)
             await TextService.encapsulated_send(
                 self.converser_cog,
                 id=user_id,
                 prompt=prompt,
+                overrides=overrides,
                 ctx=ctx,
                 response_message=response_message,
                 custom_api_key=self.custom_api_key,
