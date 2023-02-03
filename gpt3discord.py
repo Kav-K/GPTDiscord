@@ -30,7 +30,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "9.0.2"
+__version__ = "9.0.3"
 
 
 PID_FILE = Path("bot.pid")
