@@ -44,6 +44,7 @@ HEALTH_SERVICE_ENABLED
 
 <img src="https://user-images.githubusercontent.com/39274208/216571201-1f5f96e8-b2f9-4e45-8b29-89c2bc3be97e.png" width="200">
 Health 
+
  1. It's important to also add WEBSITES_PORT to the application settings, since we are using the port for the health check of the container. Use 8181.
  2. Go to "Health check" under monitoring and enter the following value: /healthz
  3. Of course, set health check to: "on"
