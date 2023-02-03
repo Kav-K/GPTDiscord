@@ -155,7 +155,6 @@ class Moderation:
 
     @staticmethod
     def determine_moderation_result(text, response, warn_set, delete_set):
-
         warn_result, flagged_warn = warn_set.moderate(text, response)
         delete_result, flagged_delete = delete_set.moderate(text, response)
 
@@ -330,7 +329,6 @@ class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
         self.current_num = current_num
 
     async def callback(self, interaction: discord.Interaction):
-
         # Remove reactions on the message, delete the moderation message
         await self.message.clear_reactions()
         await self.moderation_message[0].delete()
@@ -344,7 +342,6 @@ class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
         self.current_num = current_num
 
     async def callback(self, interaction: discord.Interaction):
-
         # Get the user
         await self.message.delete()
         await interaction.response.send_message(

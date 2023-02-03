@@ -222,7 +222,6 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         )
 
     async def build_moderation_settings_embed(self, category, mod_set):
-
         embed = discord.Embed(
             title="Moderation Settings",
             description="The moderation settings for this guild for the type: "

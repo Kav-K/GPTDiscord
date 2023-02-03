@@ -644,7 +644,6 @@ class Model:
         codex=False,
         custom_api_key=None,
     ):
-
         # Validate that  all the parameters are in a good state before we send the request
         if len(instruction) < self.prompt_min_length:
             raise ValueError(
@@ -774,7 +773,6 @@ class Model:
     ) -> (
         Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
-
         # Validate that  all the parameters are in a good state before we send the request
         if len(prompt) < self.prompt_min_length:
             raise ValueError(
@@ -824,7 +822,6 @@ class Model:
 
     @staticmethod
     async def send_test_request(api_key):
-
         async with aiohttp.ClientSession() as session:
             payload = {
                 "model": Models.LOW_USAGE_MODEL,
