@@ -1,4 +1,4 @@
-![image](https://user-images.githubusercontent.com/39274208/216566367-e1311c9e-bbc1-42fe-9e09-69e9fb728133.png)
+<img src="https://user-images.githubusercontent.com/39274208/216566367-e1311c9e-bbc1-42fe-9e09-69e9fb728133.png" width="300">
 
 You can choose to host the docker contained on app service so you have less maintenance, and it is also cheaper than a VM. 
 As a student, you can get free Azure credits and you can get free Azure credits with you MSDN license if you work at a Microsoft partner.
@@ -6,8 +6,7 @@ The steps are also fairly straightforward.
 
 To make it work on Azure App service follow the following steps: 
 
-![image](https://user-images.githubusercontent.com/39274208/216566481-e06ccf0d-7346-438b-ab5a-7cd4ac6b08f5.png)
-
+<img src="https://user-images.githubusercontent.com/39274208/216566481-e06ccf0d-7346-438b-ab5a-7cd4ac6b08f5.png" width="200">
 
 Creating the container: 
 
@@ -23,7 +22,7 @@ Creating the container:
 10. Go to "review and create" and create the container! 
 11. Wait a minute until it gets provisioned. 
 
-![image](https://user-images.githubusercontent.com/39274208/216566567-a00bd5c1-1ab4-4250-a6d6-9ab9d872bd31.png)
+<img src="https://user-images.githubusercontent.com/39274208/216566567-a00bd5c1-1ab4-4250-a6d6-9ab9d872bd31.png" width="200">
 
 Configurating the container:
 
@@ -43,6 +42,9 @@ GPT_ROLES
 OPENAI_TOKEN
 HEALTH_SERVICE_ENABLED
 
+
+
+<img src="https://user-images.githubusercontent.com/39274208/216566567-a00bd5c1-1ab4-4250-a6d6-9ab9d872bd31.png" width="200">
 Health 
  1. It's important to also add WEBSITES_PORT to the application settings, since we are using the port for the health check of the container. Use 8181.
  2. Go to "Health check" under monitoring and enter the following value: /healthz
