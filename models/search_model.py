@@ -6,7 +6,12 @@ from functools import partial
 
 from bs4 import BeautifulSoup
 import aiohttp
-from gpt_index import QuestionAnswerPrompt, GPTSimpleVectorIndex, BeautifulSoupWebReader, Document
+from gpt_index import (
+    QuestionAnswerPrompt,
+    GPTSimpleVectorIndex,
+    BeautifulSoupWebReader,
+    Document,
+)
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from services.environment_service import EnvService
@@ -29,6 +34,7 @@ class Search:
             "answer the question, say that you were unable to answer the question if there is not sufficient context to formulate a decisive answer. The search query was: {query_str}\n"
         )
         self.openai_key = os.getenv("OPENAI_TOKEN")
+
     def index_webpage(self, url) -> list[Document]:
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
@@ -61,7 +67,9 @@ class Search:
         # Concatenate all the text for a given website into one string and save it into an array:
         documents = []
         for link in links:
-            document = await self.loop.run_in_executor(None, partial(self.index_webpage, link))
+            document = await self.loop.run_in_executor(
+                None, partial(self.index_webpage, link)
+            )
             [documents.append(doc) for doc in document]
 
         index = GPTSimpleVectorIndex(documents)
@@ -70,4 +78,3 @@ class Search:
         response = index.query(query, text_qa_template=self.qaprompt)
 
         return response
-
