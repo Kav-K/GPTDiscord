@@ -221,8 +221,9 @@ class Index_handler:
                     index = await self.loop.run_in_executor(
                         None, partial(self.index_file, temp_path, embedding_model)
                     )
-                    await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
-
+                    await self.usage_service.update_usage(
+                        embedding_model.last_token_usage, embeddings=True
+                    )
 
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
@@ -251,7 +252,9 @@ class Index_handler:
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_webpage, link, embedding_model)
                 )
-            await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
 
             # Make the url look nice, remove https, useless stuff, random characters
             file_name = (
@@ -293,7 +296,9 @@ class Index_handler:
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document, embedding_model)
             )
-            await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
             await ctx.respond("Index set")
         except Exception:
@@ -351,13 +356,10 @@ class Index_handler:
                 llm_predictor=llm_predictor,
                 embed_model=embedding_model,
             )
-            await self.usage_service.update_usage(
-                llm_predictor.last_token_usage
-            )
+            await self.usage_service.update_usage(llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
-
 
             # Now we have a list of tree indexes, we can compose them
             if not name:
@@ -383,7 +385,9 @@ class Index_handler:
             simple_index = GPTSimpleVectorIndex(
                 documents=documents, embed_model=embedding_model
             )
-            await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
 
             if not name:
                 name = f"composed_index_{date.today().month}_{date.today().day}.json"
@@ -409,7 +413,9 @@ class Index_handler:
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document, embedding_model)
             )
-            await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
             Path(app_root_path() / "indexes" / str(ctx.guild.id)).mkdir(
                 parents=True, exist_ok=True
             )
@@ -457,7 +463,9 @@ class Index_handler:
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(llm_predictor.last_token_usage)
-            await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
             await ctx.respond(
                 f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}"
             )

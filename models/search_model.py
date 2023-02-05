@@ -110,9 +110,7 @@ class Search:
             similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
             text_qa_template=self.qaprompt,
         )
-        await self.usage_service.update_usage(
-            llm_predictor.last_token_usage
-        )
+        await self.usage_service.update_usage(llm_predictor.last_token_usage)
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )

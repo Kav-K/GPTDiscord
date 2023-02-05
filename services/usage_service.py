@@ -17,7 +17,9 @@ class UsageService:
     async def update_usage(self, tokens_used, embeddings=False):
         tokens_used = int(tokens_used)
         if not embeddings:
-            price = (tokens_used / 1000) * 0.02 # Just use the highest rate instead of model-based... I am overestimating on purpose.
+            price = (
+                tokens_used / 1000
+            ) * 0.02  # Just use the highest rate instead of model-based... I am overestimating on purpose.
         else:
             price = (tokens_used / 1000) * 0.0004
         usage = await self.get_usage()
