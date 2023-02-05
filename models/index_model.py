@@ -44,6 +44,19 @@ class IndexData:
         # Save the index to file under the user id
         index.save_to_disk(app_root_path() / "indexes" / f"{str(user_id)}"/f"{file_name}_{date.today()}-H{datetime.now().hour}.json")
 
+    def reset_indexes(self, user_id):
+        self.individual_indexes = []
+        self.queryable_index = None
+
+        # Delete the user indexes
+        try:
+            # First, clear all the files inside it
+            for file in os.listdir(f"{app_root_path()}/indexes/{user_id}"):
+                os.remove(f"{app_root_path()}/indexes/{user_id}/{file}")
+
+        except:
+            traceback.print_exc()
+            pass
 
 class Index_handler:
     def __init__(self, bot):
@@ -76,6 +89,9 @@ class Index_handler:
         documents = BeautifulSoupWebReader(website_extractor=DEFAULT_WEBSITE_EXTRACTOR).load_data(urls=[url])
         index = GPTSimpleVectorIndex(documents)
         return index
+
+    def reset_indexes(self, user_id):
+        self.index_storage[user_id].reset_indexes(user_id)
 
     async def set_file_index(self, ctx: discord.ApplicationContext, file: discord.Attachment, user_api_key):
         if not user_api_key:
@@ -168,7 +184,7 @@ class Index_handler:
             channel_ids:List[int] = []
             for c in ctx.guild.text_channels:
                 channel_ids.append(c.id)
-            document = await self.load_data(channel_ids=channel_ids, limit=1000, oldest_first=False)
+            document = await self.load_data(channel_ids=channel_ids, limit=3000, oldest_first=False)
             index = await self.loop.run_in_executor(None, partial(self.index_discord, document))
             Path(app_root_path() / "indexes").mkdir(parents = True, exist_ok=True)
             index.save_to_disk(app_root_path() / "indexes" / f"{ctx.guild.name.replace(' ', '-')}_{date.today()}-H{datetime.now().hour}.json")
@@ -196,7 +212,7 @@ class Index_handler:
             await ctx.respond(f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}")
         except Exception:
             traceback.print_exc()
-            await ctx.respond("Failed to send query", delete_after=10)
+            await ctx.respond("Failed to send query. You may not have an index set, load an index with /index load", delete_after=10)
 
     # Extracted functions from DiscordReader
 

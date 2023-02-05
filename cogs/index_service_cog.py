@@ -1,3 +1,5 @@
+import traceback
+
 import discord
 
 from services.environment_service import EnvService
@@ -51,6 +53,15 @@ class IndexService(discord.Cog, name="IndexService"):
 
         await ctx.defer(ephemeral=True)
         await self.index_handler.set_discord_index(ctx, channel, user_api_key=user_api_key)
+
+    async def reset_command(self, ctx):
+        await ctx.defer(ephemeral=True)
+        try:
+            self.index_handler.reset_indexes(ctx.user.id)
+            await ctx.respond("Your indexes have been reset")
+        except:
+            traceback.print_exc()
+            await ctx.respond("Something went wrong while resetting your indexes. Contact the server admin.")
 
     async def discord_backup_command(self, ctx):
         """Command handler to backup the entire server"""

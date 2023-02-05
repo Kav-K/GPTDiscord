@@ -503,8 +503,8 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="load_file",
-        description="Set an index to query from",
+        name="load",
+        description="Select one of your saved indexes to query from",
         guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()
@@ -515,8 +515,8 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="set",
-        description="Set an index to query from",
+        name="add",
+        description="Add an index to query from",
         guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()
@@ -527,7 +527,17 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="set_discord",
+        name="reset",
+        description="Reset (delete) all of your saved indexes",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    async def reset(self, ctx:discord.ApplicationContext):
+        await self.index_cog.reset_command(ctx)
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="add_discord",
         description="Set a index from a discord channel",
         guild_ids=ALLOWED_GUILDS
     )
