@@ -113,10 +113,23 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
     
         try:
+            print(file.content_type)
             if file.content_type.startswith("text/plain"):
                 suffix = ".txt"
             elif file.content_type.startswith("application/pdf"):
                 suffix = ".pdf"
+            # Allow for images too
+            elif file.content_type.startswith("image/png"):
+                suffix = ".png"
+            elif file.content_type.startswith("image/"):
+                suffix = ".jpg"
+            elif "csv" in file.content_type:
+                suffix = ".csv"
+            elif "vnd." in file.content_type:
+                suffix = ".pptx"
+            # Catch all audio files and suffix with "mp3"
+            elif file.content_type.startswith("audio/"):
+                suffix = ".mp3"
             else:
                 await ctx.respond("Only accepts txt or pdf files")
                 return
@@ -128,7 +141,7 @@ class Index_handler:
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
 
-            await ctx.respond("Index added to your indexes")
+            await ctx.respond("Index added to your indexes.")
         except Exception:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
