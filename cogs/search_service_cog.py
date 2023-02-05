@@ -47,7 +47,7 @@ class SearchService(discord.Cog, name="SearchService"):
 
         await ctx.defer()
 
-        response = await self.model.search(query, user_api_key, search_scope,nodes)
+        response = await self.model.search(query, user_api_key, search_scope, nodes)
 
         await ctx.respond(
             f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}"
