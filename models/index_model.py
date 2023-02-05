@@ -149,7 +149,8 @@ class Index_handler:
     def index_youtube_transcript(self, link, embed_model):
         documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
         index = GPTSimpleVectorIndex(
-            documents, embed_model=embed_model,
+            documents,
+            embed_model=embed_model,
         )
         return index
 
@@ -162,7 +163,8 @@ class Index_handler:
 
     def index_discord(self, document, embed_model) -> GPTSimpleVectorIndex:
         index = GPTSimpleVectorIndex(
-            document, embed_model=embed_model,
+            document,
+            embed_model=embed_model,
         )
         return index
 
@@ -220,6 +222,7 @@ class Index_handler:
                         None, partial(self.index_file, temp_path, embedding_model)
                     )
                     await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+
 
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
