@@ -14,10 +14,11 @@ class IndexService(discord.Cog, name="IndexService"):
     def __init__(
         self,
         bot,
+        usage_service,
     ):
         super().__init__()
         self.bot = bot
-        self.index_handler = Index_handler(bot)
+        self.index_handler = Index_handler(bot, usage_service)
     
     async def set_index_command(self, ctx, file: discord.Attachment = None, link: str = None):
         """Command handler to set a file as your personal index"""
@@ -98,3 +99,13 @@ class IndexService(discord.Cog, name="IndexService"):
 
         await ctx.defer()
         await self.index_handler.query(ctx, query, response_mode, user_api_key)
+
+    async def compose_command(self, ctx, name):
+        """Command handler to compose from your index"""
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(ctx.user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        await self.index_handler.compose(ctx, name, user_api_key)

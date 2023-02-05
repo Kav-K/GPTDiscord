@@ -13,7 +13,8 @@ from datetime import date, datetime
 from gpt_index.readers import YoutubeTranscriptReader
 from gpt_index.readers.schema.base import Document
 from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt, BeautifulSoupWebReader, \
-    GPTFaissIndex, GPTListIndex, QueryMode, GPTTreeIndex, GoogleDocsReader
+    GPTFaissIndex, GPTListIndex, QueryMode, GPTTreeIndex, GoogleDocsReader, MockLLMPredictor, QueryConfig, \
+    IndexStructType
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from gpt_index.composability import ComposableGraph
@@ -21,6 +22,24 @@ from gpt_index.composability import ComposableGraph
 from services.environment_service import EnvService, app_root_path
 
 
+def get_and_query(user_id, index_storage, query, llm_predictor):
+    # TODO Do prediction here for token usage
+    index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[user_id].get_index_or_throw()
+    if isinstance(index, GPTSimpleVectorIndex):
+        response = index.query(query,verbose=True)
+    else:
+        query_configs = [
+            QueryConfig(
+                index_struct_type=IndexStructType.TREE,
+                query_mode=QueryMode.RECURSIVE,
+                query_kwargs={
+                    "child_branch_factor": 4
+                }
+            )
+        ]
+        response = index.query(query, verbose=True, query_configs=[])
+
+    return response
 
 class IndexData:
     def __init__(self):
@@ -41,7 +60,6 @@ class IndexData:
 
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
         Path(f"{app_root_path()}/indexes/{user_id}").mkdir(parents=True, exist_ok=True)
-        print(f"{app_root_path()}/indexes/{user_id}")
         # Save the index to file under the user id
         index.save_to_disk(app_root_path() / "indexes" / f"{str(user_id)}"/f"{file_name}_{date.today()}-H{datetime.now().hour}.json")
 
@@ -60,11 +78,12 @@ class IndexData:
             pass
 
 class Index_handler:
-    def __init__(self, bot):
+    def __init__(self, bot, usage_service):
         self.bot = bot
         self.openai_key = os.getenv("OPENAI_TOKEN")
         self.index_storage = defaultdict(IndexData)
         self.loop = asyncio.get_running_loop()
+        self.usage_service = usage_service
         self.qaprompt = QuestionAnswerPrompt(
             "Context information is below. The text '<|endofstatement|>' is used to separate chat entries and make it easier for you to understand the context\n"
             "---------------------\n"
@@ -74,31 +93,35 @@ class Index_handler:
             "Given the context information and not prior knowledge, "
             "answer the question: {query_str}\n"
         )
-    
-    def index_file(self, file_path):
+
+    # TODO We need to do predictions below for token usage.
+    def index_file(self, file_path) -> GPTSimpleVectorIndex:
         document = SimpleDirectoryReader(file_path).load_data()
         index = GPTSimpleVectorIndex(document)
         return index
 
-    def index_gdoc(self, doc_id):
+    def index_gdoc(self, doc_id) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
         index = GPTSimpleVectorIndex(document)
         return index
 
     def index_youtube_transcript(self, link):
         documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
-        index = GPTSimpleVectorIndex(documents)
+        index = GPTSimpleVectorIndex(documents,)
         return index
 
-    def index_load_file(self, file_path):
-        index = GPTSimpleVectorIndex.load_from_disk(file_path)
+    def index_load_file(self, file_path) -> [GPTSimpleVectorIndex, ComposableGraph]:
+        if not "composed" in str(file_path):
+            index = GPTSimpleVectorIndex.load_from_disk(file_path)
+        else:
+            index = ComposableGraph.load_from_disk(file_path)
         return index
 
-    def index_discord(self, document):
-        index = GPTSimpleVectorIndex(document)
+    def index_discord(self, document) -> GPTSimpleVectorIndex:
+        index = GPTSimpleVectorIndex(document,)
         return index
 
-    def index_webpage(self, url):
+    def index_webpage(self, url) -> GPTSimpleVectorIndex:
         documents = BeautifulSoupWebReader(website_extractor=DEFAULT_WEBSITE_EXTRACTOR).load_data(urls=[url])
         index = GPTSimpleVectorIndex(documents)
         return index
@@ -143,7 +166,6 @@ class Index_handler:
 
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
-
             await ctx.respond("Index added to your indexes.")
         except Exception:
             await ctx.respond("Failed to set index")
@@ -204,8 +226,42 @@ class Index_handler:
             await ctx.respond("Loaded index")
         except Exception as e:
             await ctx.respond(e)
-    
-    
+
+    async def compose_indexes(self, user_id, indexes, name):
+        # Load all the indexes first
+        index_objects = []
+        for _index in indexes:
+            index_file = EnvService.find_shared_file(f"indexes/{user_id}/{_index}")
+            index = await self.loop.run_in_executor(None, partial(self.index_load_file, index_file))
+            index_objects.append(index)
+
+        # For each index object, add its documents to a GPTTreeIndex
+        tree_indexes = []
+        for _index in index_objects:
+            # Get all the document objects out of _index.docstore.docs
+            document_ids = [docmeta for docmeta in _index.docstore.docs.keys()]
+            documents = list([_index.docstore.get_document(doc_id) for doc_id in document_ids if isinstance(_index.docstore.get_document(doc_id), Document)])
+            tree_index = GPTTreeIndex(documents=documents)
+
+            summary = tree_index.query(
+                "What is a summary of this document?", mode="summarize"
+            )
+            tree_index.set_text(str(summary))
+            tree_indexes.append(tree_index)
+
+        # Now we have a list of tree indexes, we can compose them
+        list_index = GPTListIndex(tree_indexes)
+        graph = ComposableGraph.build_from_index(list_index)
+
+        if not name:
+            name = f"composed_index_{date.today()}-H{datetime.now().hour}.json"
+
+        # Save the composed index
+        graph.save_to_disk(f"indexes/{user_id}/{name}.json")
+
+        self.index_storage[user_id].queryable_index = graph
+
+
     async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -235,12 +291,10 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
         
         try:
-            index: [GPTSimpleVectorIndex, ComposableGraph] = self.index_storage[ctx.user.id].get_index_or_throw()
-            if isinstance(index, GPTSimpleVectorIndex):
-                response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, text_qa_template=self.qaprompt))
-            else:
-                response = await self.loop.run_in_executor(None,
-                                                           partial(index.query, query, query_configs=[], verbose=True))
+            llm_predictor = MockLLMPredictor(max_tokens=256)
+            response = await self.loop.run_in_executor(None, partial(get_and_query, ctx.user.id, self.index_storage, query, llm_predictor))
+            print("The last token usage was ", llm_predictor.last_token_usage)
+            await self.usage_service.update_usage(llm_predictor.last_token_usage)
             await ctx.respond(f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}")
         except Exception:
             traceback.print_exc()
@@ -319,3 +373,70 @@ class Index_handler:
                 Document(channel_content, extra_info={"channel_name": channel_name})
             )
         return results
+
+    async def compose(self, ctx: discord.ApplicationContext, name, user_api_key):
+        # Send the ComposeModal
+        if not user_api_key:
+            os.environ["OPENAI_API_KEY"] = self.openai_key
+        else:
+            os.environ["OPENAI_API_KEY"] = user_api_key
+
+        if not self.index_storage[ctx.user.id].queryable():
+            await ctx.respond("You must load at least two indexes before composing")
+            return
+
+        await ctx.respond("Select the indexes to compose.", view=ComposeModal(self, ctx.user.id, name))
+
+
+class ComposeModal(discord.ui.View):
+    def __init__(self, index_cog, user_id, name=None) -> None:
+        super().__init__()
+        # Get the argument named "user_key_db" and save it as USER_KEY_DB
+        self.index_cog = index_cog
+        self.user_id = user_id
+
+        # Get all the indexes for the user
+        self.indexes = [
+            file
+            for file in os.listdir(EnvService.find_shared_file(f"indexes/{str(user_id)}/"))
+        ]
+
+        # A text entry field for the name of the composed index
+        self.name = name
+
+        # A discord UI select menu with all the indexes
+        self.index_select = discord.ui.Select(
+            placeholder="Select an index",
+            options=[
+                discord.SelectOption(label=index, value=index)
+                for index in self.indexes
+            ],
+            max_values=len(self.indexes),
+            min_values=1,
+
+        )
+        # Add the select menu to the modal
+        self.add_item(self.index_select)
+
+        # Add a button to the modal called "Compose"
+        self.add_item(discord.ui.Button(label="Compose", style=discord.ButtonStyle.green, custom_id="compose"))
+
+    # The callback for the button
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Check that the interaction was for custom_id "compose"
+        if interaction.data["custom_id"] == "compose":
+            # Check that the user selected at least one index
+            if len(self.index_select.values) < 2:
+                await interaction.response.send_message("You must select at least two indexes")
+            else:
+                composing_message = await interaction.response.send_message("Composing indexes, this may take a long time...", ephemeral=True, delete_after=120)
+                # Compose the indexes
+                await self.index_cog.compose_indexes(self.user_id,self.index_select.values,self.name)
+                await interaction.followup.send("Composed indexes", ephemeral=True, delete_after=10)
+
+                try:
+                    await composing_message.delete()
+                except:
+                    pass
+        else:
+            await interaction.response.defer()

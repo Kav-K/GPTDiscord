@@ -172,7 +172,8 @@ async def main():
 
     bot.add_cog(
         IndexService(
-            bot
+            bot,
+            usage_service,
         )
     )
 

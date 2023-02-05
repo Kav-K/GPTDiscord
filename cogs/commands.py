@@ -537,6 +537,17 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
+        name="compose",
+        description="Combine multiple indexes together",
+        guild_ids=ALLOWED_GUILDS
+    )
+    @discord.option(name="name", description="The name of the new index", required=False, input_type=discord.SlashCommandOptionType.string)
+    @discord.guild_only()
+    async def compose(self, ctx:discord.ApplicationContext, name : str):
+        await self.index_cog.compose_command(ctx,name)
+
+    @add_to_group("index")
+    @discord.slash_command(
         name="add_discord",
         description="Set a index from a discord channel",
         guild_ids=ALLOWED_GUILDS
