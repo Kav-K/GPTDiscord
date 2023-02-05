@@ -528,75 +528,97 @@ class Commands(discord.Cog, name="Commands"):
     @discord.slash_command(
         name="load",
         description="Select one of your saved indexes to query from",
-        guild_ids=ALLOWED_GUILDS
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
-    @discord.option(name="index", description="Which file to load the index from", required=True, autocomplete=File_autocompleter.get_indexes)
-    async def load_index(self, ctx:discord.ApplicationContext, index: str):
+    @discord.option(
+        name="index",
+        description="Which file to load the index from",
+        required=True,
+        autocomplete=File_autocompleter.get_indexes,
+    )
+    async def load_index(self, ctx: discord.ApplicationContext, index: str):
         await self.index_cog.load_index_command(ctx, index)
-
 
     @add_to_group("index")
     @discord.slash_command(
-        name="add",
-        description="Add an index to query from",
-        guild_ids=ALLOWED_GUILDS
+        name="add", description="Add an index to query from", guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()
-    @discord.option(name="file", description="A file to create the index from", required=False, input_type=discord.SlashCommandOptionType.attachment)
-    @discord.option(name="link", description="A link to a file to a webpage ", required=False, input_type=str)
-    async def set_file(self, ctx:discord.ApplicationContext, file: discord.Attachment, link: str):
+    @discord.option(
+        name="file",
+        description="A file to create the index from",
+        required=False,
+        input_type=discord.SlashCommandOptionType.attachment,
+    )
+    @discord.option(
+        name="link",
+        description="A link to a file to a webpage ",
+        required=False,
+        input_type=str,
+    )
+    async def set_file(
+        self, ctx: discord.ApplicationContext, file: discord.Attachment, link: str
+    ):
         await self.index_cog.set_index_command(ctx, file, link)
 
     @add_to_group("index")
     @discord.slash_command(
         name="reset",
         description="Reset (delete) all of your saved indexes",
-        guild_ids=ALLOWED_GUILDS
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
-    async def reset(self, ctx:discord.ApplicationContext):
+    async def reset(self, ctx: discord.ApplicationContext):
         await self.index_cog.reset_command(ctx)
 
     @add_to_group("index")
     @discord.slash_command(
         name="compose",
         description="Combine multiple indexes together",
-        guild_ids=ALLOWED_GUILDS
+        guild_ids=ALLOWED_GUILDS,
     )
-    @discord.option(name="name", description="The name of the new index", required=False, input_type=discord.SlashCommandOptionType.string)
+    @discord.option(
+        name="name",
+        description="The name of the new index",
+        required=False,
+        input_type=discord.SlashCommandOptionType.string,
+    )
     @discord.guild_only()
-    async def compose(self, ctx:discord.ApplicationContext, name : str):
-        await self.index_cog.compose_command(ctx,name)
+    async def compose(self, ctx: discord.ApplicationContext, name: str):
+        await self.index_cog.compose_command(ctx, name)
 
     @add_to_group("index")
     @discord.slash_command(
         name="add_discord",
         description="Set a index from a discord channel",
-        guild_ids=ALLOWED_GUILDS
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
-    @discord.option(name="channel", description="A channel to create the index from", required=False, input_type=discord.SlashCommandOptionType.channel)
-    async def set_discord(self, ctx:discord.ApplicationContext, channel: discord.TextChannel):
+    @discord.option(
+        name="channel",
+        description="A channel to create the index from",
+        required=False,
+        input_type=discord.SlashCommandOptionType.channel,
+    )
+    async def set_discord(
+        self, ctx: discord.ApplicationContext, channel: discord.TextChannel
+    ):
         await self.index_cog.set_discord_command(ctx, channel)
-
 
     @add_to_group("index")
     @discord.slash_command(
         name="discord_backup",
         description="Save an index made from the whole server",
-        guild_ids=ALLOWED_GUILDS
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
-    async def discord_backup(self, ctx:discord.ApplicationContext):
+    async def discord_backup(self, ctx: discord.ApplicationContext):
         await self.index_cog.discord_backup_command(ctx)
-
 
     @add_to_group("index")
     @discord.slash_command(
-        name="query",
-        description="Query from your index",
-        guild_ids=ALLOWED_GUILDS
+        name="query", description="Query from your index", guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()
     @discord.option(name="query", description="What to query the index", required=True)
@@ -606,11 +628,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         required=False,
         default="default",
-        choices=["default", "compact", "tree_summarize"]
+        choices=["default", "compact", "tree_summarize"],
     )
-    async def query(self, ctx:discord.ApplicationContext, query: str, response_mode: str):
+    async def query(
+        self, ctx: discord.ApplicationContext, query: str, response_mode: str
+    ):
         await self.index_cog.query_command(ctx, query, response_mode)
-
 
     #
     # DALLE commands
