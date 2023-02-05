@@ -9,9 +9,9 @@ COPY . .
 RUN mkdir /install /src
 WORKDIR /install
 RUN pip install --target="/install" --upgrade pip setuptools wheel
-RUN pip install setuptools_rust
-RUN pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install git+https://github.com/openai/whisper.git
+RUN pip install --target="/install" --upgrade setuptools_rust
+RUN pip install --target="/install" --upgrade torch==1.9.0+cpu torchvision==0.10.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --target="/install" --upgrade git+https://github.com/openai/whisper.git
 COPY requirements.txt /install
 RUN pip install --target="/install" -r requirements.txt
 COPY README.md /src

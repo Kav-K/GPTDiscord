@@ -18,7 +18,9 @@ class UsageService:
         tokens_used = int(tokens_used)
         price = (tokens_used / 1000) * 0.02
         usage = await self.get_usage()
-        print("The current usage is " + str(usage) + " credits")
+        print(
+            f"Cost -> Old: {str(usage)} | New: {str(usage + float(price))}, used {str(float(price))} credits"
+        )
         # Do the same as above but with aiofiles
         async with aiofiles.open(self.usage_file_path, "w") as f:
             await f.write(str(usage + float(price)))

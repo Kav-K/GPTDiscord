@@ -532,13 +532,21 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     @discord.option(
-        name="index",
-        description="Which file to load the index from",
-        required=True,
-        autocomplete=File_autocompleter.get_indexes,
+        name="user_index",
+        description="Which user file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
     )
-    async def load_index(self, ctx: discord.ApplicationContext, index: str):
-        await self.index_cog.load_index_command(ctx, index)
+    @discord.option(
+        name="server_index",
+        description="Which server file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_server_indexes,
+    )
+    async def load_index(
+        self, ctx: discord.ApplicationContext, user_index: str, server_index: str
+    ):
+        await self.index_cog.load_index_command(ctx, user_index, server_index)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -611,6 +619,7 @@ class Commands(discord.Cog, name="Commands"):
         name="discord_backup",
         description="Save an index made from the whole server",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_admin_roles(), Check.check_index_roles()],
     )
     @discord.guild_only()
     async def discord_backup(self, ctx: discord.ApplicationContext):
@@ -623,17 +632,30 @@ class Commands(discord.Cog, name="Commands"):
     @discord.guild_only()
     @discord.option(name="query", description="What to query the index", required=True)
     @discord.option(
+        name="nodes",
+        description="How many nodes should the response be queried from, only non-deep indexes",
+        required=False,
+        default=1,
+        min_value=1,
+        max_value=3,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
+    @discord.option(
         name="response_mode",
-        description="Response mode",
+        description="Response mode, doesn't work on deep composed indexes",
         guild_ids=ALLOWED_GUILDS,
         required=False,
         default="default",
         choices=["default", "compact", "tree_summarize"],
     )
     async def query(
-        self, ctx: discord.ApplicationContext, query: str, response_mode: str
+        self,
+        ctx: discord.ApplicationContext,
+        query: str,
+        nodes: int,
+        response_mode: str,
     ):
-        await self.index_cog.query_command(ctx, query, response_mode)
+        await self.index_cog.query_command(ctx, query, nodes, response_mode)
 
     #
     # DALLE commands
