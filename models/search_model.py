@@ -47,7 +47,7 @@ class Search:
         ).load_data(urls=[url])
         return documents
 
-    async def get_links(self, query, search_scope=5):
+    async def get_links(self, query, search_scope=2):
         """Search the web for a query"""
         async with aiohttp.ClientSession() as session:
             async with session.get(
