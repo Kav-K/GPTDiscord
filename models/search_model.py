@@ -94,10 +94,11 @@ class Search:
 
         prompthelper = PromptHelper(4096, 1024, 20)
 
-        index = GPTSimpleVectorIndex(documents)
+        embedding_model = OpenAIEmbedding()
+        index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
+        await self.usage_service.update_usage(embedding_model.last_token_usage)
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
-        embedding_model = OpenAIEmbedding()
         # Now we can search the index for a query:
         response = index.query(
             query,
