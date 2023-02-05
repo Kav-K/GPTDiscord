@@ -532,13 +532,19 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     @discord.option(
-        name="index",
-        description="Which file to load the index from",
-        required=True,
-        autocomplete=File_autocompleter.get_indexes,
+        name="user_index",
+        description="Which user file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
     )
-    async def load_index(self, ctx: discord.ApplicationContext, index: str):
-        await self.index_cog.load_index_command(ctx, index)
+    @discord.option(
+        name="server_index",
+        description="Which serever file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_server_indexes,
+    )
+    async def load_index(self, ctx: discord.ApplicationContext, user_index: str, server_index: str):
+        await self.index_cog.load_index_command(ctx, user_index, server_index)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -624,7 +630,7 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(name="query", description="What to query the index", required=True)
     @discord.option(
         name="response_mode",
-        description="Response mode",
+        description="Response mode, doesn't work on deep composed indexes",
         guild_ids=ALLOWED_GUILDS,
         required=False,
         default="default",
