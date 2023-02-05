@@ -78,7 +78,7 @@ class Models:
 
     @staticmethod
     def get_max_tokens(model: str) -> int:
-        return Models.TOKEN_MAPPING.get(model, 4024)
+        return Models.TOKEN_MAPPING.get(model, 2024)
 
 
 class ImageSize:
@@ -576,10 +576,16 @@ class Model:
         self._prompt_min_length = value
         SETTINGS_DB["prompt_min_length"] = value
 
-    def backoff_handler(details):
+    def backoff_handler_http(details):
         print(
             f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
             f"{details['exception'].status}: {details['exception'].message}"
+        )
+
+    def backoff_handler_request(details):
+        print(
+            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
+            f"{details['exception'].args[0]}"
         )
 
     async def valid_text_request(self, response):
@@ -598,7 +604,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_embedding_request(self, text, custom_api_key=None):
         async with aiohttp.ClientSession(raise_for_status=True) as session:
@@ -624,11 +630,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
-        max_tries=6,
-        on_backoff=backoff_handler,
+        max_tries=4,
+        on_backoff=backoff_handler_request,
     )
     async def send_edit_request(
         self,
@@ -651,7 +657,7 @@ class Model:
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": Models.EDIT if codex is False else Models.CODE_EDIT,
                 "input": "" if text is None else text,
@@ -676,7 +682,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=6,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_moderations_request(self, text):
         # Use aiohttp to send the above request:
@@ -695,11 +701,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_request,
     )
     async def send_summary_request(self, prompt, custom_api_key=None):
         """
@@ -718,7 +724,7 @@ class Model:
 
         tokens = self.usage_service.count_tokens(summary_request_text)
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": Models.DAVINCI,
                 "prompt": summary_request_text,
@@ -746,11 +752,11 @@ class Model:
 
     @backoff.on_exception(
         backoff.expo,
-        aiohttp.ClientResponseError,
+        ValueError,
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_request,
     )
     async def send_request(
         self,
@@ -774,12 +780,16 @@ class Model:
                 f"Prompt must be greater than {self.prompt_min_length} characters, it is currently: {len(prompt)} characters"
             )
 
+        if not max_tokens_override:
+            if model:
+                max_tokens_override = Models.get_max_tokens(model) - tokens
+
         print(f"The prompt about to be sent is {prompt}")
         print(
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
         )
 
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
                 "model": self.model if model is None else model,
                 "prompt": prompt,
@@ -787,7 +797,7 @@ class Model:
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
                 "max_tokens": self.max_tokens - tokens
-                if not max_tokens_override
+                if max_tokens_override is None
                 else max_tokens_override,
                 "presence_penalty": self.presence_penalty
                 if presence_penalty_override is None
@@ -839,7 +849,7 @@ class Model:
         factor=3,
         base=5,
         max_tries=4,
-        on_backoff=backoff_handler,
+        on_backoff=backoff_handler_http,
     )
     async def send_image_request(
         self, ctx, prompt, vary=None, custom_api_key=None

@@ -693,6 +693,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        private: bool,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
@@ -720,7 +721,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
+        await ctx.defer(ephemeral=private)
 
         overrides = Override(temperature, top_p, frequency_penalty, presence_penalty)
 
@@ -741,6 +742,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ctx: discord.ApplicationContext,
         instruction: str,
         text: str,
+        private: bool,
         temperature: float,
         top_p: float,
         codex: bool,
@@ -766,7 +768,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
+        await ctx.defer(ephemeral=private)
 
         overrides = Override(temperature, top_p, 0, 0)
 
@@ -801,6 +803,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         opener_file: str,
         private: bool,
         minimal: bool,
+        model: str,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
@@ -814,6 +817,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             opener_file (str): A .txt or .json file which is appended before the opener
             private (bool): If the thread should be private
             minimal (bool): If a minimal starter should be used
+            model (str): The openai model that should be used
             temperature (float): Sets the temperature override
             top_p (float): Sets the top p override
             frequency_penalty (float): Sets the frequency penalty override
@@ -866,7 +870,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         self.conversation_threads[thread.id] = Thread(thread.id)
-        self.conversation_threads[thread.id].model = self.model.model
+        self.conversation_threads[thread.id].model = (
+            self.model.model if not model else model
+        )
 
         # Set the overrides for the conversation
         self.conversation_threads[thread.id].set_overrides(

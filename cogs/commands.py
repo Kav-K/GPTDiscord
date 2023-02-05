@@ -310,6 +310,9 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
+        name="private", description="Will only be visible to you", required=False
+    )
+    @discord.option(
         name="temperature",
         description="Higher values means the model will take more risks",
         required=False,
@@ -342,13 +345,20 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        private: bool,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
     ):
         await self.converser_cog.ask_command(
-            ctx, prompt, temperature, top_p, frequency_penalty, presence_penalty
+            ctx,
+            prompt,
+            private,
+            temperature,
+            top_p,
+            frequency_penalty,
+            presence_penalty,
         )
 
     @add_to_group("gpt")
@@ -367,6 +377,9 @@ class Commands(discord.Cog, name="Commands"):
         description="The text you want to edit, can be empty",
         required=False,
         default="",
+    )
+    @discord.option(
+        name="private", description="Will only be visible to you", required=False
     )
     @discord.option(
         name="temperature",
@@ -393,12 +406,13 @@ class Commands(discord.Cog, name="Commands"):
         ctx: discord.ApplicationContext,
         instruction: str,
         text: str,
+        private: bool,
         temperature: float,
         top_p: float,
         codex: bool,
     ):
         await self.converser_cog.edit_command(
-            ctx, instruction, text, temperature, top_p, codex
+            ctx, instruction, text, private, temperature, top_p, codex
         )
 
     @add_to_group("gpt")
@@ -429,6 +443,13 @@ class Commands(discord.Cog, name="Commands"):
         description="Use minimal starter text, saves tokens and has a more open personality",
         required=False,
         default=False,
+    )
+    @discord.option(
+        name="model",
+        description="Which model to use with the bot",
+        required=False,
+        default=False,
+        autocomplete=Settings_autocompleter.get_models,
     )
     @discord.option(
         name="temperature",
@@ -470,6 +491,7 @@ class Commands(discord.Cog, name="Commands"):
         opener_file: str,
         private: bool,
         minimal: bool,
+        model: str,
         temperature: float,
         top_p: float,
         frequency_penalty: float,
@@ -481,6 +503,7 @@ class Commands(discord.Cog, name="Commands"):
             opener_file,
             private,
             minimal,
+            model,
             temperature,
             top_p,
             frequency_penalty,
