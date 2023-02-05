@@ -167,7 +167,6 @@ class File_autocompleter:
         except Exception:
             return ["No user indexes found, add an index"]
 
-            
     async def get_server_indexes(ctx: discord.AutocompleteContext):
         """get all files in the indexes folder"""
         try:

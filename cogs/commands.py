@@ -543,7 +543,9 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         autocomplete=File_autocompleter.get_server_indexes,
     )
-    async def load_index(self, ctx: discord.ApplicationContext, user_index: str, server_index: str):
+    async def load_index(
+        self, ctx: discord.ApplicationContext, user_index: str, server_index: str
+    ):
         await self.index_cog.load_index_command(ctx, user_index, server_index)
 
     @add_to_group("index")
@@ -617,7 +619,7 @@ class Commands(discord.Cog, name="Commands"):
         name="discord_backup",
         description="Save an index made from the whole server",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_admin_roles(), Check.check_index_roles()]
+        checks=[Check.check_admin_roles(), Check.check_index_roles()],
     )
     @discord.guild_only()
     async def discord_backup(self, ctx: discord.ApplicationContext):
@@ -647,7 +649,11 @@ class Commands(discord.Cog, name="Commands"):
         choices=["default", "compact", "tree_summarize"],
     )
     async def query(
-        self, ctx: discord.ApplicationContext, query: str, nodes:int, response_mode: str
+        self,
+        ctx: discord.ApplicationContext,
+        query: str,
+        nodes: int,
+        response_mode: str,
     ):
         await self.index_cog.query_command(ctx, query, nodes, response_mode)
 

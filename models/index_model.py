@@ -44,9 +44,22 @@ def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predi
     ].get_index_or_throw()
     prompthelper = PromptHelper(4096, 500, 20)
     if isinstance(index, GPTTreeIndex):
-        response = index.query(query, verbose=True, child_branch_factor=2, llm_predictor=llm_predictor, prompt_helper=prompthelper)
+        response = index.query(
+            query,
+            verbose=True,
+            child_branch_factor=2,
+            llm_predictor=llm_predictor,
+            prompt_helper=prompthelper,
+        )
     else:
-        response = index.query(query, response_mode=response_mode, verbose=True, llm_predictor=llm_predictor, similarity_top_k=nodes, prompt_helper=prompthelper)
+        response = index.query(
+            query,
+            response_mode=response_mode,
+            verbose=True,
+            llm_predictor=llm_predictor,
+            similarity_top_k=nodes,
+            prompt_helper=prompthelper,
+        )
     return response
 
 
@@ -273,7 +286,9 @@ class Index_handler:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
 
-    async def load_index(self, ctx: discord.ApplicationContext, index, server, user_api_key):
+    async def load_index(
+        self, ctx: discord.ApplicationContext, index, server, user_api_key
+    ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
@@ -281,9 +296,13 @@ class Index_handler:
 
         try:
             if server:
-                index_file = EnvService.find_shared_file(f"indexes/{ctx.guild.id}/{index}")
+                index_file = EnvService.find_shared_file(
+                    f"indexes/{ctx.guild.id}/{index}"
+                )
             else:
-                index_file = EnvService.find_shared_file(f"indexes/{ctx.user.id}/{index}")
+                index_file = EnvService.find_shared_file(
+                    f"indexes/{ctx.user.id}/{index}"
+                )
             index = await self.loop.run_in_executor(
                 None, partial(self.index_load_file, index_file)
             )
@@ -361,7 +380,9 @@ class Index_handler:
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document)
             )
-            Path(app_root_path() / "indexes" / str(ctx.guild.id)).mkdir(parents=True, exist_ok=True)
+            Path(app_root_path() / "indexes" / str(ctx.guild.id)).mkdir(
+                parents=True, exist_ok=True
+            )
             index.save_to_disk(
                 app_root_path()
                 / "indexes"
@@ -375,7 +396,12 @@ class Index_handler:
             traceback.print_exc()
 
     async def query(
-        self, ctx: discord.ApplicationContext, query: str, response_mode, nodes, user_api_key
+        self,
+        ctx: discord.ApplicationContext,
+        query: str,
+        response_mode,
+        nodes,
+        user_api_key,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -387,7 +413,13 @@ class Index_handler:
             response = await self.loop.run_in_executor(
                 None,
                 partial(
-                    get_and_query, ctx.user.id, self.index_storage, query, response_mode, nodes, llm_predictor
+                    get_and_query,
+                    ctx.user.id,
+                    self.index_storage,
+                    query,
+                    response_mode,
+                    nodes,
+                    llm_predictor,
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
