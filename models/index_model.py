@@ -27,7 +27,7 @@ from gpt_index import (
     LLMPredictor,
     QueryConfig,
     PromptHelper,
-    IndexStructType,
+    IndexStructType, OpenAIEmbedding,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -38,7 +38,7 @@ from services.environment_service import EnvService, app_root_path
 SHORT_TO_LONG_CACHE = {}
 
 
-def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predictor):
+def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predictor, embed_model):
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
     ].get_index_or_throw()
@@ -49,6 +49,7 @@ def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predi
             verbose=True,
             child_branch_factor=2,
             llm_predictor=llm_predictor,
+            embed_model=embed_model,
             prompt_helper=prompthelper,
         )
     else:
@@ -57,6 +58,7 @@ def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predi
             response_mode=response_mode,
             verbose=True,
             llm_predictor=llm_predictor,
+            embed_model=embed_model,
             similarity_top_k=nodes,
             prompt_helper=prompthelper,
         )
@@ -331,9 +333,9 @@ class Index_handler:
                     if isinstance(_index.docstore.get_document(doc_id), Document)
                 ]
             llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
-            tree_index = GPTTreeIndex(documents=documents, llm_predictor=llm_predictor)
-            print("The last token usage was ", llm_predictor.last_token_usage)
-            await self.usage_service.update_usage(llm_predictor.last_token_usage)
+            embedding_model = OpenAIEmbedding()
+            tree_index = GPTTreeIndex(documents=documents, llm_predictor=llm_predictor, embed_model=embedding_model)
+            await self.usage_service.update_usage(llm_predictor.last_token_usage+embedding_model.last_token_usage)
 
             # Now we have a list of tree indexes, we can compose them
             if not name:
@@ -354,8 +356,10 @@ class Index_handler:
                     if isinstance(_index.docstore.get_document(doc_id), Document)
                 ]
 
+            embedding_model = OpenAIEmbedding()
             # Add everything into a simple vector index
-            simple_index = GPTSimpleVectorIndex(documents=documents)
+            simple_index = GPTSimpleVectorIndex(documents=documents, embed_model=embedding_model)
+            await self.usage_service.update_usage(embedding_model.last_token_usage)
 
             if not name:
                 name = f"composed_index_{date.today().month}_{date.today().day}.json"
@@ -410,6 +414,7 @@ class Index_handler:
 
         try:
             llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+            embedding_model = OpenAIEmbedding()
             response = await self.loop.run_in_executor(
                 None,
                 partial(
@@ -420,6 +425,7 @@ class Index_handler:
                     response_mode,
                     nodes,
                     llm_predictor,
+                    embedding_model
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)

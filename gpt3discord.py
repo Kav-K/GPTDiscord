@@ -171,7 +171,7 @@ async def main():
         EnvService.get_google_search_api_key()
         and EnvService.get_google_search_engine_id()
     ):
-        bot.add_cog(SearchService(bot, model))
+        bot.add_cog(SearchService(bot, model, usage_service))
         print("The Search service is enabled.")
 
     bot.add_cog(

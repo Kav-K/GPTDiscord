@@ -11,17 +11,19 @@ from gpt_index import (
     QuestionAnswerPrompt,
     GPTSimpleVectorIndex,
     BeautifulSoupWebReader,
-    Document,
+    Document, PromptHelper, LLMPredictor, OpenAIEmbedding,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
+from langchain import OpenAI
 
 from services.environment_service import EnvService
 from services.usage_service import UsageService
 
 
 class Search:
-    def __init__(self, gpt_model):
+    def __init__(self, gpt_model, usage_service):
         self.model = gpt_model
+        self.usage_service = usage_service
         self.google_search_api_key = EnvService.get_google_search_api_key()
         self.google_search_engine_id = EnvService.get_google_search_engine_id()
         self.loop = asyncio.get_running_loop()
@@ -55,7 +57,8 @@ class Search:
                 else:
                     return "An error occurred while searching."
 
-    async def search(self, query, user_api_key, search_scope):
+    async def search(self, query, user_api_key, search_scope, nodes):
+        DEFAULT_SEARCH_NODES = 2
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
@@ -86,9 +89,14 @@ class Search:
             except Exception as e:
                 traceback.print_exc()
 
+        prompthelper = PromptHelper(4096, 1024, 20)
+
         index = GPTSimpleVectorIndex(documents)
 
+        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+        embedding_model = OpenAIEmbedding()
         # Now we can search the index for a query:
-        response = index.query(query, text_qa_template=self.qaprompt)
+        response = index.query(query,embed_model=embedding_model,llm_predictor=llm_predictor,prompt_helper=prompthelper, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt)
+        await self.usage_service.update_usage(llm_predictor.last_token_usage, embedding_model.last_token_usage)
 
         return response

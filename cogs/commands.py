@@ -840,6 +840,14 @@ class Commands(discord.Cog, name="Commands"):
         max_value=8,
         min_value=1,
     )
+    @discord.option(
+        name="nodes",
+        description="The higher the number, the more accurate the results, but more expensive",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+        max_value=10,
+        min_value=1,
+    )
     @discord.guild_only()
-    async def search(self, ctx: discord.ApplicationContext, query: str, scope: int):
-        await self.search_cog.search_command(ctx, query, scope)
+    async def search(self, ctx: discord.ApplicationContext, query: str, scope: int, nodes:int):
+        await self.search_cog.search_command(ctx, query, scope, nodes)

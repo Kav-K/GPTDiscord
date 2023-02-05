@@ -20,13 +20,15 @@ class SearchService(discord.Cog, name="SearchService"):
         self,
         bot,
         gpt_model,
+        usage_service,
     ):
         super().__init__()
         self.bot = bot
-        self.model = Search(gpt_model)
+        self.usage_service = usage_service
+        self.model = Search(gpt_model, usage_service)
         # Make a mapping of all the country codes and their full country names:
 
-    async def search_command(self, ctx, query, search_scope):
+    async def search_command(self, ctx, query, search_scope, nodes):
         """Command handler for the translation command"""
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -45,7 +47,7 @@ class SearchService(discord.Cog, name="SearchService"):
 
         await ctx.defer()
 
-        response = await self.model.search(query, user_api_key, search_scope)
+        response = await self.model.search(query, user_api_key, search_scope,nodes)
 
         await ctx.respond(
             f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}"
