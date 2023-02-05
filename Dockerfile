@@ -8,14 +8,23 @@ ARG TARGETPLATFORM
 
 COPY . .
 
+#Install rust
+RUN apt-get update
+RUN apt-get install -y \
+    build-essential \
+    curl
+RUN apt-get update
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 RUN mkdir /install /src
 WORKDIR /install
 RUN pip install --target="/install" --upgrade pip setuptools wheel
 RUN pip install --target="/install" --upgrade setuptools_rust
 # if empty run as usual, if amd64 do the same, if arm64 load an arm version of torch
-RUN if [ -z "{$TARGETPLATFORM}" ]; then pip install --target="/install" --upgrade torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi
-RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then pip install --target="/install" --upgrade torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi
-RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then pip install --target="/install" --upgrade torch==1.9.0 torchvision==0.10.0 -f https://torch.kmtea.eu/whl/stable.html -f https://ext.kmtea.eu/whl/stable.html ; fi
+RUN if [ -z "{$TARGETPLATFORM}" ]; then pip install --target="/install" --upgrade torch==1.9.0+cpu torchvision==0.10.0+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi
+RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then pip install --target="/install" --upgrade torch==1.9.0+cpu torchvision==0.10.0+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi
+RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then pip install --target="/install" --upgrade torch==1.9.0+cpu torchvision==0.10.0+cpu -f https://torch.kmtea.eu/whl/stable.html -f https://ext.kmtea.eu/whl/stable.html ; fi
 RUN pip install --target="/install" --upgrade git+https://github.com/openai/whisper.git
 COPY requirements.txt /install
 RUN pip install --target="/install" -r requirements.txt
