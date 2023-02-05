@@ -61,7 +61,7 @@ class Search:
                     return "An error occurred while searching."
 
     async def search(self, query, user_api_key, search_scope, nodes):
-        DEFAULT_SEARCH_NODES = 2
+        DEFAULT_SEARCH_NODES = 1
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:

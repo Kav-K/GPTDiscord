@@ -31,6 +31,9 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 </p>
 
 - **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query!
+<p align="center"/>
+<img src="https://i.imgur.com/YsyB61C.png"/>
+</p>
 
 
 # Features
@@ -39,6 +42,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
 
 - **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT3 questions!
+
+- **AI-Assisted Google Search** - Speaks for itself!
 
 - **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
@@ -120,6 +125,9 @@ This bot supports per-user custom indexes. This means that users can upload file
 
 `/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index. Needs both an admin and a index role
 
+### AI-Assisted Search
+
+`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt3 should think>` - Search the web with GPT3. This command will search the web for you, and then ask GPT3 to answer your question based on the results. You can also set it to query over more nodes, further refining the output over each one.
 
 ### System and Settings
 
@@ -202,6 +210,18 @@ Index Compositions:
 Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.
 
 You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose. **Deep compositions are useless for very short documents!**
+
+# AI-Assisted Google Search
+This bot supports searching google for answers to your questions with assistance from GPT3! To get started, you need to get a Google Custom Search API key, and a Google Custom Search Engine ID. You can then define these as follows in your `.env` file:
+```env
+GOOGLE_SEARCH_API_KEY="...."
+GOOGLE_SEARCH_ENGINE_ID="...."
+```
+
+You first need to create a programmable search engine and get the search engine ID: https://developers.google.com/custom-search/docs/tutorial/creatingcse
+
+Then you can get the API key, click the "Get a key" button on this page: https://developers.google.com/custom-search/v1/introduction
+
 # Translations with DeepL
 This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
 
