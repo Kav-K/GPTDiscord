@@ -196,7 +196,7 @@ Supported filetypes:
 Index Compositions:
 Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.
 
-You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose.
+You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose. **Deep compositions are useless for very short documents!**
 # Translations with DeepL
 This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
 
