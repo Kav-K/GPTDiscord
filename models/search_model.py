@@ -68,6 +68,16 @@ class Search:
         # Concatenate all the text for a given website into one string and save it into an array:
         documents = []
         for link in links:
+            # First, attempt a connection with a timeout of 3 seconds to the link, if the timeout occurs, don't
+            # continue to the document loading.
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link, timeout=3) as response:
+                        pass # Only catch timeout errors, allow for redirects for now..
+            except:
+                traceback.print_exc()
+                continue
+
             try:
                 document = await self.loop.run_in_executor(
                     None, partial(self.index_webpage, link)
@@ -75,7 +85,6 @@ class Search:
                 [documents.append(doc) for doc in document]
             except Exception as e:
                 traceback.print_exc()
-
 
         index = GPTSimpleVectorIndex(documents)
 

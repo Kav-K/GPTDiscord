@@ -1070,7 +1070,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         """Message command. Return the message"""
         prompt = await self.mention_to_username(ctx, message.content)
         await self.ask_command(
-            ctx, prompt, None, None, None, None, from_ask_action=prompt
+            ctx, prompt,private=False,temperature= None,top_p= None,frequency_penalty= None,presence_penalty= None, from_ask_action=prompt
         )
 
     async def paraphrase_action(self, ctx, message: discord.Message):
@@ -1092,7 +1092,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         await self.ask_command(
-            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+            ctx, prompt, private=False, temperature= None, top_p=None, frequency_penalty=None, presence_penalty=None, from_other_action=from_other_action
         )
 
     async def elaborate_action(self, ctx, message: discord.Message):
@@ -1104,6 +1104,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Construct the paraphrase prompt
         prompt = f"Elaborate with more information about the subject of the following message. Be objective and detailed and respond with elaborations only about the subject(s) of the message: {prompt} \n\nElaboration:"
 
+
         tokens = self.model.usage_service.count_tokens(prompt)
         if tokens > self.model.max_tokens - 500:
             await ctx.respond(
@@ -1114,7 +1115,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         await self.ask_command(
-            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+            ctx, prompt=prompt, private=False, temperature=None,top_p=None, frequency_penalty=None, presence_penalty=None, from_other_action=from_other_action
         )
 
     async def summarize_action(self, ctx, message: discord.Message):
@@ -1138,5 +1139,5 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         await self.ask_command(
-            ctx, prompt, None, None, None, None, from_other_action=from_other_action
+            ctx, prompt,private=False, temperature=None, top_p=None, frequency_penalty=None, presence_penalty=None, from_other_action=from_other_action
         )
