@@ -47,7 +47,7 @@ class Search:
         ).load_data(urls=[url])
         return documents
 
-    async def get_links(self, query, search_scope=2):
+    async def get_links(self, query, search_scope=3):
         """Search the web for a query"""
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -56,7 +56,7 @@ class Search:
                 if response.status == 200:
                     data = await response.json()
                     # Return a list of the top 5 links
-                    return [item["link"] for item in data["items"][:search_scope]]
+                    return [item["link"] for item in data["items"][:search_scope]], [item["link"] for item in data["items"]]
                 else:
                     return "An error occurred while searching."
 
@@ -68,7 +68,7 @@ class Search:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         # Get the links for the query
-        links = await self.get_links(query, search_scope=search_scope)
+        links, all_links = await self.get_links(query, search_scope=search_scope)
 
         # For each link, crawl the page and get all the text that's not HTML garbage.
         # Concatenate all the text for a given website into one string and save it into an array:
@@ -78,10 +78,35 @@ class Search:
             # continue to the document loading.
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(link, timeout=3) as response:
-                        pass  # Only catch timeout errors, allow for redirects for now..
+                    async with session.get(link, timeout=2) as response:
+                        # Add another entry to links from all_links if the link is not already in it to compensate for the failed request
+                        if response.status not in [200, 203, 202, 204]:
+                            for link2 in all_links:
+                                if link2 not in links:
+                                    print("Found a replacement link")
+                                    links.append(link2)
+                                    break
+                            continue
+                        # Follow redirects
+                        elif response.status in [301, 302, 303, 307, 308]:
+                            try:
+                                print("Adding redirect")
+                                links.append(response.url)
+                            except:
+                                pass
+
             except:
                 traceback.print_exc()
+                try:
+                    # Try to add a link from all_links, this is kind of messy.
+                    for link2 in all_links:
+                        if link2 not in links:
+                            print("Found a replacement link")
+                            links.append(link2)
+                            break
+                except:
+                    pass
+
                 continue
 
             try:
@@ -96,7 +121,7 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
         index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
-        await self.usage_service.update_usage(embedding_model.last_token_usage)
+        await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         # Now we can search the index for a query:
