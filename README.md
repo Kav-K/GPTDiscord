@@ -18,12 +18,13 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
 <img src="https://i.imgur.com/cY4895V.png"/>
+<img src="https://i.imgur.com/9leCixJ.png"/>
 
 </p>
 
 # Recent Notable Updates
 
-- **CUSTOM INDEXES** - This is a huge update. You can now upload files to your server and use them as custom context when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below.
+- **CUSTOM INDEXES** - This is a huge update. You can now upload files to your discord server and use them as a source of knowledge when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below.
 <p align="center"/>
 <img src="https://i.imgur.com/rlJxXRX.png"/>
 </p>
