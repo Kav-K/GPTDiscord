@@ -849,5 +849,7 @@ class Commands(discord.Cog, name="Commands"):
         min_value=1,
     )
     @discord.guild_only()
-    async def search(self, ctx: discord.ApplicationContext, query: str, scope: int, nodes:int):
+    async def search(
+        self, ctx: discord.ApplicationContext, query: str, scope: int, nodes: int
+    ):
         await self.search_cog.search_command(ctx, query, scope, nodes)

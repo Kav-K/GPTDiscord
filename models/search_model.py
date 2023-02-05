@@ -11,7 +11,10 @@ from gpt_index import (
     QuestionAnswerPrompt,
     GPTSimpleVectorIndex,
     BeautifulSoupWebReader,
-    Document, PromptHelper, LLMPredictor, OpenAIEmbedding,
+    Document,
+    PromptHelper,
+    LLMPredictor,
+    OpenAIEmbedding,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
@@ -96,7 +99,16 @@ class Search:
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         embedding_model = OpenAIEmbedding()
         # Now we can search the index for a query:
-        response = index.query(query,embed_model=embedding_model,llm_predictor=llm_predictor,prompt_helper=prompthelper, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt)
-        await self.usage_service.update_usage(llm_predictor.last_token_usage, embedding_model.last_token_usage)
+        response = index.query(
+            query,
+            embed_model=embedding_model,
+            llm_predictor=llm_predictor,
+            prompt_helper=prompthelper,
+            similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+            text_qa_template=self.qaprompt,
+        )
+        await self.usage_service.update_usage(
+            llm_predictor.last_token_usage, embedding_model.last_token_usage
+        )
 
         return response
