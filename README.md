@@ -105,9 +105,9 @@ This bot supports per-user custom indexes. This means that users can upload file
 
 `/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes. If you provide a youtube link, the transcript of the video will be used. If you provide a web url, the contents of the webpage will be used, if you provide an image, the image text will be extracted and used!
 
-`/index query query:<prompt>` - Query your current index for a given prompt. GPT will answer based on your current document/indedx
+`/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index. You can also set it to query over more nodes, further refining the output over each one. A description of the modes can be found <a href="https://gpt-index.readthedocs.io/en/latest/guides/usage_pattern.html#setting-response-mode">here</a>. They do not work for deep composed indexes
 
-`/index load index:<index>` - Load a previously created index to query
+`/index load user_index:<index> or server_index:<index>` - Load a previously created index you own yourself, or an index for the whole server.
 
 `/index compose` - Combine multiple saved indexes into one, or upgrade existing indexes into Deep Compositions.
 
@@ -115,7 +115,7 @@ This bot supports per-user custom indexes. This means that users can upload file
 
 `/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel
 
-`/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index
+`/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index. Needs both an admin and a index role
 
 
 ### System and Settings

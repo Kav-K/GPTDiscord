@@ -13,6 +13,7 @@ from langchain import OpenAI
 
 from gpt_index.readers import YoutubeTranscriptReader
 from gpt_index.readers.schema.base import Document
+
 from gpt_index import (
     GPTSimpleVectorIndex,
     SimpleDirectoryReader,
@@ -25,6 +26,7 @@ from gpt_index import (
     MockLLMPredictor,
     LLMPredictor,
     QueryConfig,
+    PromptHelper,
     IndexStructType,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
@@ -36,14 +38,15 @@ from services.environment_service import EnvService, app_root_path
 SHORT_TO_LONG_CACHE = {}
 
 
-def get_and_query(user_id, index_storage, query, response_mode, llm_predictor):
+def get_and_query(user_id, index_storage, query, response_mode, nodes, llm_predictor):
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
     ].get_index_or_throw()
+    prompthelper = PromptHelper(4096, 500, 20)
     if isinstance(index, GPTTreeIndex):
-        response = index.query(query, verbose=True, child_branch_factor=2, llm_predictor=llm_predictor)
+        response = index.query(query, verbose=True, child_branch_factor=2, llm_predictor=llm_predictor, prompt_helper=prompthelper)
     else:
-        response = index.query(query, response_mode=response_mode, verbose=True, llm_predictor=llm_predictor)
+        response = index.query(query, response_mode=response_mode, verbose=True, llm_predictor=llm_predictor, similarity_top_k=nodes, prompt_helper=prompthelper)
     return response
 
 
@@ -308,7 +311,10 @@ class Index_handler:
                     for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
                     if isinstance(_index.docstore.get_document(doc_id), Document)
                 ]
-            tree_index = GPTTreeIndex(documents=documents)
+            llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+            tree_index = GPTTreeIndex(documents=documents, llm_predictor=llm_predictor)
+            print("The last token usage was ", llm_predictor.last_token_usage)
+            await self.usage_service.update_usage(llm_predictor.last_token_usage)
 
             # Now we have a list of tree indexes, we can compose them
             if not name:
@@ -369,7 +375,7 @@ class Index_handler:
             traceback.print_exc()
 
     async def query(
-        self, ctx: discord.ApplicationContext, query: str, response_mode, user_api_key
+        self, ctx: discord.ApplicationContext, query: str, response_mode, nodes, user_api_key
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -381,7 +387,7 @@ class Index_handler:
             response = await self.loop.run_in_executor(
                 None,
                 partial(
-                    get_and_query, ctx.user.id, self.index_storage, query, response_mode, llm_predictor
+                    get_and_query, ctx.user.id, self.index_storage, query, response_mode, nodes, llm_predictor
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)

@@ -126,7 +126,7 @@ class IndexService(discord.Cog, name="IndexService"):
         await ctx.defer(ephemeral=True)
         await self.index_handler.load_index(ctx, index, server, user_api_key)
 
-    async def query_command(self, ctx, query, response_mode):
+    async def query_command(self, ctx, query, nodes, response_mode):
         """Command handler to query your index"""
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -137,7 +137,7 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await ctx.defer()
-        await self.index_handler.query(ctx, query, response_mode, user_api_key)
+        await self.index_handler.query(ctx, query, response_mode, nodes, user_api_key)
 
     async def compose_command(self, ctx, name):
         """Command handler to compose from your index"""
