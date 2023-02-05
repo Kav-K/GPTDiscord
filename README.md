@@ -9,7 +9,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 # Overview
-A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
+A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
 
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)
 # Screenshots
@@ -18,30 +18,24 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
 <img src="https://i.imgur.com/cY4895V.png"/>
-<img src="https://i.imgur.com/HqFSFcc.png"/>
+<img src="https://i.imgur.com/9leCixJ.png"/>
 
 </p>
 
 # Recent Notable Updates
-- **Translations with DeepL** - DeepL integration for translations. `/translate`
 
-
-- **Context menu commands** - Allow people to prompt GPT and DALL-E directly by right clicking a message:
-<center>
-<img src="https://i.imgur.com/fkfnJQ0.png"/></center>
-
-
-- **AI-BASED SERVER MODERATION** - GPT3Discord now has a built-in AI-based moderation system that can automatically detect and remove toxic messages from your server. This is a great way to keep your server safe and clean, and it's completely automatic and **free**! Check out the commands section to learn how to enable it!
-
-
-- **Permanent memory with embeddings and <a href="https://www.pinecone.io/">Pinecone</a> finished!** - An initial alpha version of permanent memory is now done! This allows you to chat with GPT3 infinitely and accurately, and save tokens, by using embeddings. *Please read the Permanent Memory section for more information!*
-
+- **CUSTOM INDEXES** - This is a huge update. You can now upload files to your discord server and use them as a source of knowledge when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below.
+<p align="center"/>
+<img src="https://i.imgur.com/rlJxXRX.png"/>
+</p>
 
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
 
 - **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!
+
+- **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT3 questions!
 
 - **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.
 
@@ -104,6 +98,25 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 `/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
 
 `/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+
+### Custom Indexes Commands
+
+This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files.
+
+`/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes. If you provide a youtube link, the transcript of the video will be used. If you provide a web url, the contents of the webpage will be used, if you provide an image, the image text will be extracted and used!
+
+`/index query query:<prompt>` - Query your current index for a given prompt. GPT will answer based on your current document/indedx
+
+`/index load index:<index>` - Load a previously created index to query
+
+`/index compose` - Combine multiple saved indexes into one, or upgrade existing indexes into Deep Compositions.
+
+`/index reset` - Reset and delete all of your saved indexes
+
+`/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel
+
+`/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index
+
 
 ### System and Settings
 
@@ -171,18 +184,21 @@ Then, name the index `conversation-embeddings`, set the dimensions to `1536`, an
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
-### Permanent overrides in threads
-This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
-```json
-{
-  "text": "your prompt", 
-  "temp":0, 
-  "top_p":0,
-  "frequency_penalty":0,
-  "presence_penalty":0
-}
-```
+# Custom Indexes / Knowledgebase
+This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files. We also support using URLs for indexes.
 
+**This feature uses a large amount of tokens and money, and you should restrict it to trusted users.**
+
+Supported filetypes:
+- All text and data based files (PDF, TXT, DOCX, PPTX, CSV etc)
+- Images (JPG, PNG, etc) (Note: The bot will do OCR on the images to extract the text, this requires a lot of processing power sometimes)
+- Videos/Audio (MP4, MP3, etc) (Note: The bot will use OpenAI on the audio to extract the text, this requires a lot of processing power sometimes)
+- **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!
+
+Index Compositions:
+Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.
+
+You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose. **Deep compositions are useless for very short documents!**
 # Translations with DeepL
 This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
 
@@ -240,6 +256,15 @@ For example, if I wanted to change the number of images generated by DALL-E by d
 
 
 # Requirements
+**For OCR, and document functionalities**:
+`pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html`
+or
+`python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html`
+
+**For audio extraction for indexing from .mp3 and .mp4 files**:
+`python3.9 -m pip install git+https://github.com/openai/whisper.git`
+
+**All other dependencies**:
 `python3.9 -m pip install -r requirements.txt`
 
 **I recommend using python 3.9!**
@@ -321,6 +346,7 @@ python3.9 get-pip.py
 
 # Install project dependencies
 python3.9 -m pip install --ignore-installed PyYAML
+python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 
@@ -371,12 +397,24 @@ git pull
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 ```
+### Permanent overrides in threads
+This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
+```json
+{
+  "text": "your prompt", 
+  "temp":0, 
+  "top_p":0,
+  "frequency_penalty":0,
+  "presence_penalty":0
+}
+```
 
 # Non-Server, Non-Docker usage
 
 With python3.9 installed and the requirements installed, you can run this bot anywhere. 
 
 Install the dependencies with:
+`pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html`
 `python3.9 -m pip install -r requirements.txt`
 
 Then, run the bot with:

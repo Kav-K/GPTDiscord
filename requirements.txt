@@ -10,3 +10,10 @@ sqlitedict==2.1.0
 backoff==2.2.1
 flask==2.2.2
 beautifulsoup4==4.11.1
+gpt-index==0.3.4
+PyPDF2==3.0.1
+youtube_transcript_api==0.5.0
+sentencepiece==0.1.97
+sentence-transformers==2.2.2
+protobuf==3.20.0
+python-pptx==0.6.21

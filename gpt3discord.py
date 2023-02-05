@@ -18,6 +18,7 @@ from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
 from cogs.translation_service_cog import TranslationService
+from cogs.index_service_cog import IndexService
 from models.deepl_model import TranslationModel
 from services.health_service import HealthService
 
@@ -30,7 +31,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "9.1"
+__version__ = "10.0.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -68,7 +69,7 @@ if PINECONE_TOKEN:
         and EnvService.get_google_search_engine_id()
     ):
         if PINECONE_INDEX_SEARCH not in pinecone.list_indexes():
-            print("Creating pinecone index for seraches. Please wait...")
+            print("Creating pinecone index for searches. Please wait...")
             pinecone.create_index(
                 PINECONE_INDEX_SEARCH,
                 dimension=1536,
@@ -169,6 +170,13 @@ async def main():
         )
     )
 
+    bot.add_cog(
+        IndexService(
+            bot,
+            usage_service,
+        )
+    )
+
     if EnvService.get_deepl_token():
         bot.add_cog(TranslationService(bot, TranslationModel()))
         print("The translation service is enabled.")
@@ -191,6 +199,7 @@ async def main():
             bot.get_cog("DrawDallEService"),
             bot.get_cog("ImgPromptOptimizer"),
             bot.get_cog("ModerationsService"),
+            bot.get_cog("IndexService"),
             bot.get_cog("TranslationService"),
             bot.get_cog("SearchService"),
         )

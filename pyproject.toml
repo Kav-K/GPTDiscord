@@ -31,7 +31,15 @@ dependencies = [
   "flask",
   "flask",
   "beautifulsoup4",
+  "gpt-index",
+  "PyPDF2",
+  "youtube_transcript_api",
+  "sentence-transformers",
+  "sentencepiece",
+  "protobuf",
+  "python-pptx",
 ]
+
 dynamic = ["version"]
 [project.scripts]
 gpt3discord = "gpt3discord:init"
