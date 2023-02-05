@@ -2,6 +2,7 @@ import asyncio
 import os
 import random
 import re
+import traceback
 from functools import partial
 
 from bs4 import BeautifulSoup
@@ -67,10 +68,14 @@ class Search:
         # Concatenate all the text for a given website into one string and save it into an array:
         documents = []
         for link in links:
-            document = await self.loop.run_in_executor(
-                None, partial(self.index_webpage, link)
-            )
-            [documents.append(doc) for doc in document]
+            try:
+                document = await self.loop.run_in_executor(
+                    None, partial(self.index_webpage, link)
+                )
+                [documents.append(doc) for doc in document]
+            except Exception as e:
+                traceback.print_exc()
+
 
         index = GPTSimpleVectorIndex(documents)
 
