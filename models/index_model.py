@@ -10,9 +10,10 @@ from typing import List, Optional
 from pathlib import Path
 from datetime import date, datetime
 
+from gpt_index.readers import YoutubeTranscriptReader
 from gpt_index.readers.schema.base import Document
 from gpt_index import GPTSimpleVectorIndex, SimpleDirectoryReader, QuestionAnswerPrompt, BeautifulSoupWebReader, \
-    GPTFaissIndex, GPTListIndex, QueryMode, GPTTreeIndex
+    GPTFaissIndex, GPTListIndex, QueryMode, GPTTreeIndex, GoogleDocsReader
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from gpt_index.composability import ComposableGraph
@@ -78,9 +79,21 @@ class Index_handler:
         document = SimpleDirectoryReader(file_path).load_data()
         index = GPTSimpleVectorIndex(document)
         return index
+
+    def index_gdoc(self, doc_id):
+        document = GoogleDocsReader().load_data(doc_id)
+        index = GPTSimpleVectorIndex(document)
+        return index
+
+    def index_youtube_transcript(self, link):
+        documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        index = GPTSimpleVectorIndex(documents)
+        return index
+
     def index_load_file(self, file_path):
         index = GPTSimpleVectorIndex.load_from_disk(file_path)
         return index
+
     def index_discord(self, document):
         index = GPTSimpleVectorIndex(document)
         return index
@@ -128,8 +141,11 @@ class Index_handler:
 
         # TODO Link validation
         try:
-
-            index = await self.loop.run_in_executor(None, partial(self.index_webpage, link))
+            # Check if the link contains youtube in it
+            if "youtube" in link:
+                index = await self.loop.run_in_executor(None, partial(self.index_youtube_transcript, link))
+            else:
+                index = await self.loop.run_in_executor(None, partial(self.index_webpage, link))
 
             # Make the url look nice, remove https, useless stuff, random characters
             file_name = link.replace("https://", "").replace("http://", "").replace("www.", "").replace("/", "_").replace("?", "_").replace("&", "_").replace("=", "_").replace("-", "_").replace(".", "_")

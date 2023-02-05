@@ -33,6 +33,7 @@ dependencies = [
   "beautifulsoup4",
   "gpt-index",
   "PyPDF2",
+  "youtube_transcript_api",
 ]
 dynamic = ["version"]
 [project.scripts]
