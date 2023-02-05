@@ -14,9 +14,12 @@ class UsageService:
                 f.close()
         self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
-    async def update_usage(self, tokens_used):
+    async def update_usage(self, tokens_used, embeddings=False):
         tokens_used = int(tokens_used)
-        price = (tokens_used / 1000) * 0.02
+        if not embeddings:
+            price = (tokens_used / 1000) * 0.02 # Just use the highest rate instead of model-based... I am overestimating on purpose.
+        else:
+            price = (tokens_used / 1000) * 0.0004
         usage = await self.get_usage()
         print(
             f"Cost -> Old: {str(usage)} | New: {str(usage + float(price))}, used {str(float(price))} credits"
