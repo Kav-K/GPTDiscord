@@ -73,7 +73,7 @@ class Search:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(link, timeout=3) as response:
-                        pass # Only catch timeout errors, allow for redirects for now..
+                        pass  # Only catch timeout errors, allow for redirects for now..
             except:
                 traceback.print_exc()
                 continue
