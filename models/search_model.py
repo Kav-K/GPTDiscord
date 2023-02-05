@@ -76,7 +76,6 @@ class Search:
             except Exception as e:
                 traceback.print_exc()
 
-
         index = GPTSimpleVectorIndex(documents)
 
         # Now we can search the index for a query:
