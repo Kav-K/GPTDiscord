@@ -56,7 +56,9 @@ class Search:
                 if response.status == 200:
                     data = await response.json()
                     # Return a list of the top 5 links
-                    return [item["link"] for item in data["items"][:search_scope]], [item["link"] for item in data["items"]]
+                    return [item["link"] for item in data["items"][:search_scope]], [
+                        item["link"] for item in data["items"]
+                    ]
                 else:
                     return "An error occurred while searching."
 
@@ -121,7 +123,9 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
         index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
-        await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
+        await self.usage_service.update_usage(
+            embedding_model.last_token_usage, embeddings=True
+        )
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         # Now we can search the index for a query:
