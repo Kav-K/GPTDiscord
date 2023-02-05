@@ -109,7 +109,7 @@ class Search:
             text_qa_template=self.qaprompt,
         )
         await self.usage_service.update_usage(
-            llm_predictor.last_token_usage, embedding_model.last_token_usage
+            llm_predictor.last_token_usage + embedding_model.last_token_usage
         )
 
         return response
