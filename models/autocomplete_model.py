@@ -147,7 +147,7 @@ class File_autocompleter:
         try:
             return [
                 file
-                for file in os.listdir(EnvService.find_shared_file("indexes"))
+                for file in os.listdir(EnvService.find_shared_file(f"indexes/{str(ctx.interaction.user.id)}/"))
                 if file.startswith(ctx.value.lower())
             ][
                 :25
