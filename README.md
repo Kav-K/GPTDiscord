@@ -109,6 +109,8 @@ This bot supports per-user custom indexes. This means that users can upload file
 
 `/index load index:<index>` - Load a previously created index to query
 
+`/index compose` - Combine multiple saved indexes into one, or upgrade existing indexes into Deep Compositions.
+
 `/index reset` - Reset and delete all of your saved indexes
 
 `/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel
