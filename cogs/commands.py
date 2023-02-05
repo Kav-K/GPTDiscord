@@ -810,7 +810,14 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(name="query", description="The query to search", required=True)
-    @discord.option(name="scope", description="How many top links to use for context", required=False, input_type=discord.SlashCommandOptionType.integer, max_value=8, min_value=1)
+    @discord.option(
+        name="scope",
+        description="How many top links to use for context",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+        max_value=8,
+        min_value=1,
+    )
     @discord.guild_only()
     async def search(self, ctx: discord.ApplicationContext, query: str, scope: int):
         await self.search_cog.search_command(ctx, query, scope)

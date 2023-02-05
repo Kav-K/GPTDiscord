@@ -12,6 +12,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 
+
 class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
 
@@ -36,7 +37,10 @@ class SearchService(discord.Cog, name="SearchService"):
             if not user_api_key:
                 return
 
-        if not EnvService.get_google_search_api_key() or not EnvService.get_google_search_engine_id():
+        if (
+            not EnvService.get_google_search_api_key()
+            or not EnvService.get_google_search_engine_id()
+        ):
             await ctx.send("The search service is not enabled.")
             return
 
