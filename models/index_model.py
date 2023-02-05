@@ -130,8 +130,11 @@ class Index_handler:
             # Catch all audio files and suffix with "mp3"
             elif file.content_type.startswith("audio/"):
                 suffix = ".mp3"
+            # Catch video files
+            elif file.content_type.startswith("video/"):
+                pass # No suffix change
             else:
-                await ctx.respond("Only accepts txt or pdf files")
+                await ctx.respond("Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files.")
                 return
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
                 async with aiofiles.tempfile.NamedTemporaryFile(suffix=suffix, dir=temp_path, delete=False) as temp_file:

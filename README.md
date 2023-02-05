@@ -97,6 +97,8 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 ### Custom Indexes Commands
 
+This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files.
+
 `/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes. If you provide a youtube link, the transcript of the video will be used. If you provide a web url, the contents of the webpage will be used, if you provide an image, the image text will be extracted and used!
 
 `/index query query:<prompt>` - Query your current index for a given prompt. GPT will answer based on your current document/indedx
@@ -125,10 +127,6 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 `/system local-size` - Get the size of the local dalleimages folder
 
 `/system clear-local` - Clear all the local dalleimages.
-
-### Custom Indexes
-
-TODO
 
 ### Automatic AI Moderation
 
@@ -180,17 +178,14 @@ Then, name the index `conversation-embeddings`, set the dimensions to `1536`, an
 
 Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
 
-### Permanent overrides in threads
-This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
-```json
-{
-  "text": "your prompt", 
-  "temp":0, 
-  "top_p":0,
-  "frequency_penalty":0,
-  "presence_penalty":0
-}
-```
+# Custom Indexes / Knowledgebase
+This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files. We also support using URLs for indexes.
+
+Supported filetypes:
+- All text and data based files (PDF, TXT, DOCX, PPTX, CSV etc)
+- Images (JPG, PNG, etc) (Note: The bot will do OCR on the images to extract the text, this requires a lot of processing power sometimes)
+- Videos/Audio (MP4, MP3, etc) (Note: The bot will use OpenAI on the audio to extract the text, this requires a lot of processing power sometimes)
+- **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!
 
 # Translations with DeepL
 This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
@@ -389,6 +384,17 @@ git pull
 #Install the latest modules so the bot keeps working.
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
+```
+### Permanent overrides in threads
+This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
+```json
+{
+  "text": "your prompt", 
+  "temp":0, 
+  "top_p":0,
+  "frequency_penalty":0,
+  "presence_penalty":0
+}
 ```
 
 # Non-Server, Non-Docker usage
