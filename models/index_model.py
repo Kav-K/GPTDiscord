@@ -28,15 +28,6 @@ def get_and_query(user_id, index_storage, query, llm_predictor):
     if isinstance(index, GPTSimpleVectorIndex):
         response = index.query(query,verbose=True)
     else:
-        query_configs = [
-            QueryConfig(
-                index_struct_type=IndexStructType.TREE,
-                query_mode=QueryMode.RECURSIVE,
-                query_kwargs={
-                    "child_branch_factor": 4
-                }
-            )
-        ]
         response = index.query(query, verbose=True, query_configs=[])
 
     return response
@@ -54,6 +45,12 @@ class IndexData:
     def queryable(self):
         return self.queryable_index is not None
 
+    def has_indexes(self, user_id):
+        try:
+            return len(os.listdir(f"{app_root_path()}/indexes/{user_id}")) > 1
+        except:
+            return False
+
     def add_index(self, index, user_id, file_name):
         self.individual_indexes.append(index)
         self.queryable_index = index
@@ -61,7 +58,7 @@ class IndexData:
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
         Path(f"{app_root_path()}/indexes/{user_id}").mkdir(parents=True, exist_ok=True)
         # Save the index to file under the user id
-        index.save_to_disk(app_root_path() / "indexes" / f"{str(user_id)}"/f"{file_name}_{date.today()}-H{datetime.now().hour}.json")
+        index.save_to_disk(app_root_path() / "indexes" / f"{str(user_id)}"/f"{file_name}_{date.today()}.json")
 
     def reset_indexes(self, user_id):
         self.individual_indexes = []
@@ -227,7 +224,7 @@ class Index_handler:
         except Exception as e:
             await ctx.respond(e)
 
-    async def compose_indexes(self, user_id, indexes, name):
+    async def compose_indexes(self, user_id, indexes, name, deep_compose):
         # Load all the indexes first
         index_objects = []
         for _index in indexes:
@@ -236,30 +233,46 @@ class Index_handler:
             index_objects.append(index)
 
         # For each index object, add its documents to a GPTTreeIndex
-        tree_indexes = []
-        for _index in index_objects:
-            # Get all the document objects out of _index.docstore.docs
-            document_ids = [docmeta for docmeta in _index.docstore.docs.keys()]
-            documents = list([_index.docstore.get_document(doc_id) for doc_id in document_ids if isinstance(_index.docstore.get_document(doc_id), Document)])
-            tree_index = GPTTreeIndex(documents=documents)
+        if deep_compose:
+            tree_indexes = []
+            for _index in index_objects:
+                # Get all the document objects out of _index.docstore.docs
+                document_ids = [docmeta for docmeta in _index.docstore.docs.keys()]
+                documents = list([_index.docstore.get_document(doc_id) for doc_id in document_ids if isinstance(_index.docstore.get_document(doc_id), Document)])
+                tree_index = GPTTreeIndex(documents=documents)
 
-            summary = tree_index.query(
-                "What is a summary of this document?", mode="summarize"
-            )
-            tree_index.set_text(str(summary))
-            tree_indexes.append(tree_index)
+                summary = tree_index.query(
+                    "What is a summary of this document?", mode="summarize"
+                )
 
-        # Now we have a list of tree indexes, we can compose them
-        list_index = GPTListIndex(tree_indexes)
-        graph = ComposableGraph.build_from_index(list_index)
+                tree_index.set_text(str(summary))
+                tree_indexes.append(tree_index)
 
-        if not name:
-            name = f"composed_index_{date.today()}-H{datetime.now().hour}.json"
+            # Now we have a list of tree indexes, we can compose them
+            list_index = GPTListIndex(tree_indexes)
+            graph = ComposableGraph.build_from_index(list_index)
 
-        # Save the composed index
-        graph.save_to_disk(f"indexes/{user_id}/{name}.json")
+            if not name:
+                name = f"composed_deep_index_{date.today()}.json"
 
-        self.index_storage[user_id].queryable_index = graph
+            # Save the composed index
+            graph.save_to_disk(f"indexes/{user_id}/{name}.json")
+
+            self.index_storage[user_id].queryable_index = graph
+        else:
+            documents = []
+            for _index in index_objects:
+                [documents.append(_index.docstore.get_document(doc_id)) for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()] if isinstance(_index.docstore.get_document(doc_id), Document)]
+
+            # Add everything into a simple vector index
+            simple_index = GPTSimpleVectorIndex(documents=documents)
+
+            if not name:
+                name = f"composed_index_{date.today()}.json"
+
+            # Save the composed index
+            simple_index.save_to_disk(f"indexes/{user_id}/{name}.json")
+            self.index_storage[user_id].queryable_index = simple_index
 
 
     async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key):
@@ -275,7 +288,7 @@ class Index_handler:
             document = await self.load_data(channel_ids=channel_ids, limit=3000, oldest_first=False)
             index = await self.loop.run_in_executor(None, partial(self.index_discord, document))
             Path(app_root_path() / "indexes").mkdir(parents = True, exist_ok=True)
-            index.save_to_disk(app_root_path() / "indexes" / f"{ctx.guild.name.replace(' ', '-')}_{date.today()}-H{datetime.now().hour}.json")
+            index.save_to_disk(app_root_path() / "indexes" / f"{ctx.guild.name.replace(' ', '-')}_{date.today()}.json")
 
             await ctx.respond("Backup saved")
         except Exception:
@@ -381,19 +394,20 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        if not self.index_storage[ctx.user.id].queryable():
+        if not self.index_storage[ctx.user.id].has_indexes(ctx.user.id):
             await ctx.respond("You must load at least two indexes before composing")
             return
 
-        await ctx.respond("Select the indexes to compose.", view=ComposeModal(self, ctx.user.id, name))
+        await ctx.respond("Select the indexes to compose.", view=ComposeModal(self, ctx.user.id, name), ephemeral=True)
 
 
 class ComposeModal(discord.ui.View):
-    def __init__(self, index_cog, user_id, name=None) -> None:
+    def __init__(self, index_cog, user_id, name=None, deep=None) -> None:
         super().__init__()
         # Get the argument named "user_key_db" and save it as USER_KEY_DB
         self.index_cog = index_cog
         self.user_id = user_id
+        self.deep = deep
 
         # Get all the indexes for the user
         self.indexes = [
@@ -404,19 +418,50 @@ class ComposeModal(discord.ui.View):
         # A text entry field for the name of the composed index
         self.name = name
 
-        # A discord UI select menu with all the indexes
+        # A discord UI select menu with all the indexes. Limited to 25 entries
         self.index_select = discord.ui.Select(
-            placeholder="Select an index",
+            placeholder="Select multiple indexes to query",
             options=[
                 discord.SelectOption(label=index, value=index)
                 for index in self.indexes
-            ],
-            max_values=len(self.indexes),
+            ][0:25],
+            max_values=len(self.indexes) if len(self.indexes) < 25 else 25,
             min_values=1,
 
         )
         # Add the select menu to the modal
         self.add_item(self.index_select)
+
+        # If we have more than 25 entries, add more Select fields as neccessary
+        self.extra_index_selects = []
+        if len(self.indexes) > 25:
+            for i in range(25, len(self.indexes), 25):
+                self.extra_index_selects.append(discord.ui.Select(
+                    placeholder="Select multiple indexes to query",
+                    options=[
+                        discord.SelectOption(label=index, value=index)
+                        for index in self.indexes
+                    ][i:i+25],
+                    max_values=len(self.indexes[i:i+25]),
+                    min_values=1,
+                ))
+                self.add_item(self.extra_index_selects[-1])
+
+
+
+
+        # Add an input field for "Deep", a "yes" or "no" option, default no
+        self.deep_select = discord.ui.Select(
+            placeholder="Deep Compose",
+            options=[
+                discord.SelectOption(label="Yes", value="yes"),
+                discord.SelectOption(label="No", value="no")
+            ],
+            max_values=1,
+            min_values=1
+        )
+        self.add_item(self.deep_select)
+
 
         # Add a button to the modal called "Compose"
         self.add_item(discord.ui.Button(label="Compose", style=discord.ButtonStyle.green, custom_id="compose"))
@@ -426,12 +471,16 @@ class ComposeModal(discord.ui.View):
         # Check that the interaction was for custom_id "compose"
         if interaction.data["custom_id"] == "compose":
             # Check that the user selected at least one index
-            if len(self.index_select.values) < 2:
-                await interaction.response.send_message("You must select at least two indexes")
+
+            # The total list of indexes is the union of the values of all the select menus
+            indexes = self.index_select.values + [select.values[0] for select in self.extra_index_selects]
+
+            if len(indexes) < 1:
+                await interaction.response.send_message("You must select at least 1 index", ephemeral=True)
             else:
                 composing_message = await interaction.response.send_message("Composing indexes, this may take a long time...", ephemeral=True, delete_after=120)
                 # Compose the indexes
-                await self.index_cog.compose_indexes(self.user_id,self.index_select.values,self.name)
+                await self.index_cog.compose_indexes(self.user_id,indexes,self.name, False if not self.deep_select.values or self.deep_select.values[0] == "no" else True)
                 await interaction.followup.send("Composed indexes", ephemeral=True, delete_after=10)
 
                 try:
@@ -439,4 +488,4 @@ class ComposeModal(discord.ui.View):
                 except:
                     pass
         else:
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)

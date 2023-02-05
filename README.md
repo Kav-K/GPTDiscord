@@ -9,7 +9,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 # Overview
-A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
+A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
 
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)
 # Screenshots
@@ -25,6 +25,10 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 # Recent Notable Updates
 
 - **CUSTOM INDEXES** - This is a huge update. You can now upload files to your server and use them as custom context when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below.
+<p align="center"/>
+<img src="https://i.imgur.com/rlJxXRX.png"/>
+</p>
+
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
@@ -181,12 +185,18 @@ Permanent memory using pinecone is still in alpha, I will be working on cleaning
 # Custom Indexes / Knowledgebase
 This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files. We also support using URLs for indexes.
 
+**This feature uses a large amount of tokens and money, and you should restrict it to trusted users.**
+
 Supported filetypes:
 - All text and data based files (PDF, TXT, DOCX, PPTX, CSV etc)
 - Images (JPG, PNG, etc) (Note: The bot will do OCR on the images to extract the text, this requires a lot of processing power sometimes)
 - Videos/Audio (MP4, MP3, etc) (Note: The bot will use OpenAI on the audio to extract the text, this requires a lot of processing power sometimes)
 - **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!
 
+Index Compositions:
+Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.
+
+You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose.
 # Translations with DeepL
 This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
 
