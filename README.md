@@ -18,7 +18,6 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 <img src="https://i.imgur.com/KeLpDgj.png"/>
 <img  src="https://i.imgur.com/jLp1T0h.png"/>
 <img src="https://i.imgur.com/cY4895V.png"/>
-<img src="https://i.imgur.com/HqFSFcc.png"/>
 
 </p>
 
