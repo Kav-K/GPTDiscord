@@ -150,8 +150,8 @@ class File_autocompleter:
         except Exception:
             return ["No 'openers' folder"]
 
-    async def get_indexes(ctx: discord.AutocompleteContext):
-        """get all files in the openers folder"""
+    async def get_user_indexes(ctx: discord.AutocompleteContext):
+        """get all files in the indexes folder"""
         try:
             return [
                 file
@@ -165,4 +165,22 @@ class File_autocompleter:
                 :25
             ]  # returns the 25 first files from your current input
         except Exception:
-            return ["No 'indexes' folder"]
+            return ["No user indexes found, add an index"]
+
+            
+    async def get_server_indexes(ctx: discord.AutocompleteContext):
+        """get all files in the indexes folder"""
+        try:
+            return [
+                file
+                for file in os.listdir(
+                    EnvService.find_shared_file(
+                        f"indexes/{str(ctx.interaction.guild.id)}/"
+                    )
+                )
+                if file.startswith(ctx.value.lower())
+            ][
+                :25
+            ]  # returns the 25 first files from your current input
+        except Exception:
+            return ["No server indexes found, add an index"]
