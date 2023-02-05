@@ -63,22 +63,8 @@ if PINECONE_TOKEN:
             metric="dotproduct",
             pod_type="s1",
         )
-    PINECONE_INDEX_SEARCH = "search-embeddings"
-    if (
-        EnvService.get_google_search_api_key()
-        and EnvService.get_google_search_engine_id()
-    ):
-        if PINECONE_INDEX_SEARCH not in pinecone.list_indexes():
-            print("Creating pinecone index for searches. Please wait...")
-            pinecone.create_index(
-                PINECONE_INDEX_SEARCH,
-                dimension=1536,
-                metric="dotproduct",
-                pod_type="s1",
-            )
 
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
-    pinecone_search_service = PineconeService(pinecone.Index(PINECONE_INDEX_SEARCH))
     print("Got the pinecone service")
 
 #
@@ -185,7 +171,7 @@ async def main():
         EnvService.get_google_search_api_key()
         and EnvService.get_google_search_engine_id()
     ):
-        bot.add_cog(SearchService(bot, model, pinecone_search_service))
+        bot.add_cog(SearchService(bot, model))
         print("The Search service is enabled.")
 
     bot.add_cog(

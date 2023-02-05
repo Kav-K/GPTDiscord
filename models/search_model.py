@@ -14,9 +14,8 @@ from services.usage_service import UsageService
 
 
 class Search:
-    def __init__(self, gpt_model, pinecone_service):
+    def __init__(self, gpt_model):
         self.model = gpt_model
-        self.pinecone_service = pinecone_service
         self.google_search_api_key = EnvService.get_google_search_api_key()
         self.google_search_engine_id = EnvService.get_google_search_engine_id()
         self.loop = asyncio.get_running_loop()

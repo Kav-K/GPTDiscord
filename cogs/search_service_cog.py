@@ -19,11 +19,10 @@ class SearchService(discord.Cog, name="SearchService"):
         self,
         bot,
         gpt_model,
-        pinecone_service,
     ):
         super().__init__()
         self.bot = bot
-        self.model = Search(gpt_model, pinecone_service)
+        self.model = Search(gpt_model)
         # Make a mapping of all the country codes and their full country names:
 
     async def search_command(self, ctx, query, search_scope):
