@@ -185,7 +185,6 @@ class Index_handler:
         index = GPTSimpleVectorIndex(document, embed_model=embed_model)
         return index
 
-
     def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
         index = GPTSimpleVectorIndex(document, embed_model=embed_model)
@@ -304,9 +303,6 @@ class Index_handler:
                 await ctx.respond("Failed to get link", ephemeral=True)
                 return
 
-
-
-
             # Check if the link contains youtube in it
             if "youtube" in link:
                 index = await self.loop.run_in_executor(
@@ -415,11 +411,19 @@ class Index_handler:
                     for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
                     if isinstance(_index.docstore.get_document(doc_id), Document)
                 ]
-            llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003", max_tokens=-1))
+            llm_predictor = LLMPredictor(
+                llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
+            )
             embedding_model = OpenAIEmbedding()
 
             tree_index = await self.loop.run_in_executor(
-                None, partial(GPTTreeIndex, documents=documents, llm_predictor=llm_predictor, embed_model=embedding_model)
+                None,
+                partial(
+                    GPTTreeIndex,
+                    documents=documents,
+                    llm_predictor=llm_predictor,
+                    embed_model=embedding_model,
+                ),
             )
 
             await self.usage_service.update_usage(llm_predictor.last_token_usage)
@@ -449,7 +453,12 @@ class Index_handler:
             embedding_model = OpenAIEmbedding()
 
             simple_index = await self.loop.run_in_executor(
-                None, partial(GPTSimpleVectorIndex, documents=documents, embed_model=embedding_model)
+                None,
+                partial(
+                    GPTSimpleVectorIndex,
+                    documents=documents,
+                    embed_model=embedding_model,
+                ),
             )
 
             await self.usage_service.update_usage(
@@ -533,8 +542,10 @@ class Index_handler:
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
-            query_response_message=f"**Query:**\n\n`{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}"
-            query_response_message = query_response_message.replace("<|endofstatement|>", "")
+            query_response_message = f"**Query:**\n\n`{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}"
+            query_response_message = query_response_message.replace(
+                "<|endofstatement|>", ""
+            )
             embed_pages = await self.paginate_embed(query_response_message)
             paginator = pages.Paginator(
                 pages=embed_pages,
@@ -762,7 +773,6 @@ class ComposeModal(discord.ui.View):
                     )
                 except discord.Forbidden:
                     pass
-
 
                 try:
                     await composing_message.delete()

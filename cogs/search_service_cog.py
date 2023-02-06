@@ -57,7 +57,9 @@ class SearchService(discord.Cog, name="SearchService"):
 
         return pages
 
-    async def search_command(self, ctx: discord.ApplicationContext, query, search_scope, nodes):
+    async def search_command(
+        self, ctx: discord.ApplicationContext, query, search_scope, nodes
+    ):
         """Command handler for the translation command"""
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -79,10 +81,15 @@ class SearchService(discord.Cog, name="SearchService"):
         try:
             response = await self.model.search(query, user_api_key, search_scope, nodes)
         except ValueError:
-            await ctx.respond("The Google Search API returned an error. Check the console for more details.", ephemeral=True)
+            await ctx.respond(
+                "The Google Search API returned an error. Check the console for more details.",
+                ephemeral=True,
+            )
             return
         except Exception:
-            await ctx.respond("An error occurred. Check the console for more details.", ephemeral=True)
+            await ctx.respond(
+                "An error occurred. Check the console for more details.", ephemeral=True
+            )
             traceback.print_exc()
             return
 
@@ -95,7 +102,9 @@ class SearchService(discord.Cog, name="SearchService"):
         urls = "\n".join(f"<{url}>" for url in urls)
 
         query_response_message = f"**Query:**`\n\n{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
-        query_response_message = query_response_message.replace("<|endofstatement|>", "")
+        query_response_message = query_response_message.replace(
+            "<|endofstatement|>", ""
+        )
 
         # If the response is too long, lets paginate using the discord pagination
         # helper
@@ -107,4 +116,3 @@ class SearchService(discord.Cog, name="SearchService"):
         )
 
         await paginator.respond(ctx.interaction)
-

@@ -16,7 +16,8 @@ from gpt_index import (
     Document,
     PromptHelper,
     LLMPredictor,
-    OpenAIEmbedding, SimpleDirectoryReader,
+    OpenAIEmbedding,
+    SimpleDirectoryReader,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
@@ -50,7 +51,6 @@ class Search:
         ).load_data(urls=[url])
         return documents
 
-
     async def index_pdf(self, url) -> list[Document]:
         # Download the PDF at the url and save it to a tempfile
         async with aiohttp.ClientSession() as session:
@@ -79,11 +79,15 @@ class Search:
                 if response.status == 200:
                     data = await response.json()
                     # Return a list of the top 2 links
-                    return ([item["link"] for item in data["items"][:search_scope]], [
-                        item["link"] for item in data["items"]
-                    ])
+                    return (
+                        [item["link"] for item in data["items"][:search_scope]],
+                        [item["link"] for item in data["items"]],
+                    )
                 else:
-                    print("The Google Search API returned an error: " + str(response.status))
+                    print(
+                        "The Google Search API returned an error: "
+                        + str(response.status)
+                    )
                     return ["An error occurred while searching.", None]
 
     async def search(self, query, user_api_key, search_scope, nodes):
@@ -157,17 +161,32 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        index = await self.loop.run_in_executor(None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model))
+        index = await self.loop.run_in_executor(
+            None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model)
+        )
 
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
 
-        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003", max_tokens=-1))
+        llm_predictor = LLMPredictor(
+            llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
+        )
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
 
-        response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, embed_model=embedding_model, llm_predictor=llm_predictor, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt))
+        response = await self.loop.run_in_executor(
+            None,
+            partial(
+                index.query,
+                query,
+                verbose=True,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor,
+                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                text_qa_template=self.qaprompt,
+            ),
+        )
 
         await self.usage_service.update_usage(llm_predictor.last_token_usage)
         await self.usage_service.update_usage(
