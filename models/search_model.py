@@ -99,10 +99,18 @@ class Search:
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
-            llm_predictor_presearch = OpenAI(max_tokens=30, temperature=0, model_name="text-davinci-003")
+            llm_predictor_presearch = OpenAI(
+                max_tokens=30, temperature=0, model_name="text-davinci-003"
+            )
 
             # Refine a query to send to google custom search API
-            query_refined = llm_predictor_presearch.generate(prompts=["You are refining a query to send to the Google Custom Search API. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist us in answering the original query. Respond with only the refined query for the original query. The original query is: " + query +"\nRefined Query:"])
+            query_refined = llm_predictor_presearch.generate(
+                prompts=[
+                    "You are refining a query to send to the Google Custom Search API. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist us in answering the original query. Respond with only the refined query for the original query. The original query is: "
+                    + query
+                    + "\nRefined Query:"
+                ]
+            )
             query_refined_text = query_refined.generations[0][0].text
         except Exception as e:
             traceback.print_exc()
@@ -171,7 +179,6 @@ class Search:
                 traceback.print_exc()
 
         embedding_model = OpenAIEmbedding()
-
 
         index = await self.loop.run_in_executor(
             None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model)
