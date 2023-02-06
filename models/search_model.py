@@ -70,7 +70,7 @@ class Search:
         # Delete the temporary file
         return documents
 
-    async def get_links(self, query, search_scope=3):
+    async def get_links(self, query, search_scope=2):
         """Search the web for a query"""
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -78,7 +78,7 @@ class Search:
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    # Return a list of the top 5 links
+                    # Return a list of the top 2 links
                     return ([item["link"] for item in data["items"][:search_scope]], [
                         item["link"] for item in data["items"]
                     ])
@@ -156,7 +156,9 @@ class Search:
                 traceback.print_exc()
 
         embedding_model = OpenAIEmbedding()
-        index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
+
+        index = await self.loop.run_in_executor(None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model))
+
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
@@ -164,14 +166,9 @@ class Search:
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003", max_tokens=-1))
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
-        response = index.query(
-            query,
-            verbose=True,
-            embed_model=embedding_model,
-            llm_predictor=llm_predictor,
-            similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
-            text_qa_template=self.qaprompt,
-        )
+
+        response = await self.loop.run_in_executor(None, partial(index.query, query, verbose=True, embed_model=embedding_model, llm_predictor=llm_predictor, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt))
+
         await self.usage_service.update_usage(llm_predictor.last_token_usage)
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True

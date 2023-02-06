@@ -417,11 +417,11 @@ class Index_handler:
                 ]
             llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003", max_tokens=-1))
             embedding_model = OpenAIEmbedding()
-            tree_index = GPTTreeIndex(
-                documents=documents,
-                llm_predictor=llm_predictor,
-                embed_model=embedding_model,
+
+            tree_index = await self.loop.run_in_executor(
+                None, partial(GPTTreeIndex, documents=documents, llm_predictor=llm_predictor, embed_model=embedding_model)
             )
+
             await self.usage_service.update_usage(llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -447,10 +447,11 @@ class Index_handler:
                 ]
 
             embedding_model = OpenAIEmbedding()
-            # Add everything into a simple vector index
-            simple_index = GPTSimpleVectorIndex(
-                documents=documents, embed_model=embedding_model
+
+            simple_index = await self.loop.run_in_executor(
+                None, partial(GPTSimpleVectorIndex, documents=documents, embed_model=embedding_model)
             )
+
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -737,7 +738,7 @@ class ComposeModal(discord.ui.View):
                 )
             else:
                 composing_message = await interaction.response.send_message(
-                    "Composing indexes, this may take a long time...",
+                    "Composing indexes, this may take a long time, you will be DMed when it's ready!",
                     ephemeral=True,
                     delete_after=120,
                 )
@@ -751,8 +752,17 @@ class ComposeModal(discord.ui.View):
                     else True,
                 )
                 await interaction.followup.send(
-                    "Composed indexes", ephemeral=True, delete_after=10
+                    "Composed indexes", ephemeral=True, delete_after=180
                 )
+
+                # Try to direct message the user that their composed index is ready
+                try:
+                    await self.index_cog.bot.get_user(self.user_id).send(
+                        f"Your composed index is ready! You can load it with /index load now in the server."
+                    )
+                except discord.Forbidden:
+                    pass
+
 
                 try:
                     await composing_message.delete()
