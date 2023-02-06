@@ -1,6 +1,7 @@
 import traceback
 
 import aiohttp
+import re
 import discord
 
 from models.deepl_model import TranslationModel
@@ -49,6 +50,10 @@ class SearchService(discord.Cog, name="SearchService"):
 
         response = await self.model.search(query, user_api_key, search_scope, nodes)
 
+        url_extract_pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"
+        urls = re.findall(url_extract_pattern, str(response.get_formatted_sources(length=200)), flags=re.IGNORECASE)
+        urls = "\n".join(f"<{url}>" for url in urls)
+
         await ctx.respond(
-            f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}"
+            f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
         )
