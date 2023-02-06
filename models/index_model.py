@@ -1,14 +1,18 @@
 import os
+import tempfile
 import traceback
 import asyncio
 from collections import defaultdict
 
+import aiohttp
 import discord
 import aiofiles
 from functools import partial
 from typing import List, Optional
 from pathlib import Path
 from datetime import date
+
+from discord.ext import pages
 from langchain import OpenAI
 
 from gpt_index.readers import YoutubeTranscriptReader
@@ -45,7 +49,6 @@ def get_and_query(
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
     ].get_index_or_throw()
-    prompthelper = PromptHelper(4096, 500, 20)
     if isinstance(index, GPTTreeIndex):
         response = index.query(
             query,
@@ -53,7 +56,6 @@ def get_and_query(
             child_branch_factor=2,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
-            prompt_helper=prompthelper,
         )
     else:
         response = index.query(
@@ -63,7 +65,6 @@ def get_and_query(
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
-            prompt_helper=prompthelper,
         )
     return response
 
@@ -134,10 +135,53 @@ class Index_handler:
             "Given the context information and not prior knowledge, "
             "answer the question: {query_str}\n"
         )
+        self.EMBED_CUTOFF = 2000
+
+    async def paginate_embed(self, response_text):
+        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
+
+        response_text = [
+            response_text[i : i + self.EMBED_CUTOFF]
+            for i in range(0, len(response_text), self.EMBED_CUTOFF)
+        ]
+        pages = []
+        first = False
+        # Send each chunk as a message
+        for count, chunk in enumerate(response_text, start=1):
+            if not first:
+                page = discord.Embed(
+                    title=f"Index Query Results",
+                    description=chunk,
+                )
+                first = True
+            else:
+                page = discord.Embed(
+                    title=f"Page {count}",
+                    description=chunk,
+                )
+            pages.append(page)
+
+        return pages
 
     # TODO We need to do predictions below for token usage.
     def index_file(self, file_path, embed_model) -> GPTSimpleVectorIndex:
         document = SimpleDirectoryReader(file_path).load_data()
+        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
+        return index
+
+    async def index_web_pdf(self, url, embed_model) -> GPTSimpleVectorIndex:
+        print("Indexing a WEB PDF")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    f = tempfile.NamedTemporaryFile(delete=False)
+                    f.write(data)
+                    f.close()
+                else:
+                    return "An error occurred while downloading the PDF."
+
+        document = SimpleDirectoryReader(input_files=[f.name]).load_data()
         index = GPTSimpleVectorIndex(document, embed_model=embed_model)
         return index
 
@@ -243,11 +287,29 @@ class Index_handler:
         # TODO Link validation
         try:
             embedding_model = OpenAIEmbedding()
+
+            # Pre-emptively connect and get the content-type of the response
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link, timeout=2) as response:
+                        print(response.status)
+                        if response.status == 200:
+                            content_type = response.headers.get("content-type")
+                        else:
+                            await ctx.respond("Failed to get link", ephemeral=True)
+                            return
+            except Exception:
+                traceback.print_exc()
+                await ctx.respond("Failed to get link", ephemeral=True)
+                return
+
             # Check if the link contains youtube in it
             if "youtube" in link:
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_youtube_transcript, link, embedding_model)
                 )
+            elif "pdf" in content_type:
+                index = await self.index_web_pdf(link, embedding_model)
             else:
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_webpage, link, embedding_model)
@@ -349,13 +411,21 @@ class Index_handler:
                     for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
                     if isinstance(_index.docstore.get_document(doc_id), Document)
                 ]
-            llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
-            embedding_model = OpenAIEmbedding()
-            tree_index = GPTTreeIndex(
-                documents=documents,
-                llm_predictor=llm_predictor,
-                embed_model=embedding_model,
+            llm_predictor = LLMPredictor(
+                llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
             )
+            embedding_model = OpenAIEmbedding()
+
+            tree_index = await self.loop.run_in_executor(
+                None,
+                partial(
+                    GPTTreeIndex,
+                    documents=documents,
+                    llm_predictor=llm_predictor,
+                    embed_model=embedding_model,
+                ),
+            )
+
             await self.usage_service.update_usage(llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -381,10 +451,16 @@ class Index_handler:
                 ]
 
             embedding_model = OpenAIEmbedding()
-            # Add everything into a simple vector index
-            simple_index = GPTSimpleVectorIndex(
-                documents=documents, embed_model=embedding_model
+
+            simple_index = await self.loop.run_in_executor(
+                None,
+                partial(
+                    GPTSimpleVectorIndex,
+                    documents=documents,
+                    embed_model=embedding_model,
+                ),
             )
+
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -466,9 +542,17 @@ class Index_handler:
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
-            await ctx.respond(
-                f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}"
+            query_response_message = f"**Query:**\n\n`{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}"
+            query_response_message = query_response_message.replace(
+                "<|endofstatement|>", ""
             )
+            embed_pages = await self.paginate_embed(query_response_message)
+            paginator = pages.Paginator(
+                pages=embed_pages,
+                timeout=None,
+                author_check=False,
+            )
+            await paginator.respond(ctx.interaction)
         except Exception:
             traceback.print_exc()
             await ctx.respond(
@@ -665,7 +749,7 @@ class ComposeModal(discord.ui.View):
                 )
             else:
                 composing_message = await interaction.response.send_message(
-                    "Composing indexes, this may take a long time...",
+                    "Composing indexes, this may take a long time, you will be DMed when it's ready!",
                     ephemeral=True,
                     delete_after=120,
                 )
@@ -679,8 +763,16 @@ class ComposeModal(discord.ui.View):
                     else True,
                 )
                 await interaction.followup.send(
-                    "Composed indexes", ephemeral=True, delete_after=10
+                    "Composed indexes", ephemeral=True, delete_after=180
                 )
+
+                # Try to direct message the user that their composed index is ready
+                try:
+                    await self.index_cog.bot.get_user(self.user_id).send(
+                        f"Your composed index is ready! You can load it with /index load now in the server."
+                    )
+                except discord.Forbidden:
+                    pass
 
                 try:
                     await composing_message.delete()
