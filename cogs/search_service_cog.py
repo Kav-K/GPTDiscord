@@ -3,6 +3,7 @@ import traceback
 import aiohttp
 import re
 import discord
+from discord.ext import pages
 
 from models.deepl_model import TranslationModel
 from models.search_model import Search
@@ -27,9 +28,36 @@ class SearchService(discord.Cog, name="SearchService"):
         self.bot = bot
         self.usage_service = usage_service
         self.model = Search(gpt_model, usage_service)
+        self.EMBED_CUTOFF = 2000
         # Make a mapping of all the country codes and their full country names:
 
-    async def search_command(self, ctx, query, search_scope, nodes):
+    async def paginate_embed(self, response_text):
+        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
+
+        response_text = [
+            response_text[i : i + self.EMBED_CUTOFF]
+            for i in range(0, len(response_text), self.EMBED_CUTOFF)
+        ]
+        pages = []
+        first = False
+        # Send each chunk as a message
+        for count, chunk in enumerate(response_text, start=1):
+            if not first:
+                page = discord.Embed(
+                    title=f"Page {count}",
+                    description=chunk,
+                )
+                first = True
+            else:
+                page = discord.Embed(
+                    title=f"Page {count}",
+                    description=chunk,
+                )
+            pages.append(page)
+
+        return pages
+
+    async def search_command(self, ctx: discord.ApplicationContext, query, search_scope, nodes):
         """Command handler for the translation command"""
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -48,7 +76,15 @@ class SearchService(discord.Cog, name="SearchService"):
 
         await ctx.defer()
 
-        response = await self.model.search(query, user_api_key, search_scope, nodes)
+        try:
+            response = await self.model.search(query, user_api_key, search_scope, nodes)
+        except ValueError:
+            await ctx.respond("The Google Search API returned an error. Check the console for more details.", ephemeral=True)
+            return
+        except Exception:
+            await ctx.respond("An error occurred. Check the console for more details.", ephemeral=True)
+            traceback.print_exc()
+            return
 
         url_extract_pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"
         urls = re.findall(
@@ -58,6 +94,17 @@ class SearchService(discord.Cog, name="SearchService"):
         )
         urls = "\n".join(f"<{url}>" for url in urls)
 
-        await ctx.respond(
-            f"**Query:**\n\n{query.strip()}\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
+        query_response_message = f"**Query:**`\n\n{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
+        query_response_message = query_response_message.replace("<|endofstatement|>", "")
+
+        # If the response is too long, lets paginate using the discord pagination
+        # helper
+        embed_pages = await self.paginate_embed(query_response_message)
+        paginator = pages.Paginator(
+            pages=embed_pages,
+            timeout=None,
+            author_check=False,
         )
+
+        await paginator.respond(ctx.interaction)
+

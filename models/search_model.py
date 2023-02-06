@@ -2,9 +2,11 @@ import asyncio
 import os
 import random
 import re
+import tempfile
 import traceback
 from functools import partial
 
+import discord
 from bs4 import BeautifulSoup
 import aiohttp
 from gpt_index import (
@@ -14,12 +16,12 @@ from gpt_index import (
     Document,
     PromptHelper,
     LLMPredictor,
-    OpenAIEmbedding,
+    OpenAIEmbedding, SimpleDirectoryReader,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
 
-from services.environment_service import EnvService
+from services.environment_service import EnvService, app_root_path
 from services.usage_service import UsageService
 
 
@@ -40,11 +42,32 @@ class Search:
             "answer the question, say that you were unable to answer the question if there is not sufficient context to formulate a decisive answer. The search query was: {query_str}\n"
         )
         self.openai_key = os.getenv("OPENAI_TOKEN")
+        self.EMBED_CUTOFF = 2000
 
     def index_webpage(self, url) -> list[Document]:
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
+        return documents
+
+
+    async def index_pdf(self, url) -> list[Document]:
+        # Download the PDF at the url and save it to a tempfile
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    f = tempfile.NamedTemporaryFile(delete=False)
+                    f.write(data)
+                    f.close()
+                else:
+                    return "An error occurred while downloading the PDF."
+        # Get the file path of this tempfile.NamedTemporaryFile
+        # Save this temp file to an actual file that we can put into something else to read it
+        documents = SimpleDirectoryReader(input_files=[f.name]).load_data()
+        print("Loaded the PDF document data")
+
+        # Delete the temporary file
         return documents
 
     async def get_links(self, query, search_scope=3):
@@ -56,11 +79,12 @@ class Search:
                 if response.status == 200:
                     data = await response.json()
                     # Return a list of the top 5 links
-                    return [item["link"] for item in data["items"][:search_scope]], [
+                    return ([item["link"] for item in data["items"][:search_scope]], [
                         item["link"] for item in data["items"]
-                    ]
+                    ])
                 else:
-                    return "An error occurred while searching."
+                    print("The Google Search API returned an error: " + str(response.status))
+                    return ["An error occurred while searching.", None]
 
     async def search(self, query, user_api_key, search_scope, nodes):
         DEFAULT_SEARCH_NODES = 1
@@ -71,6 +95,8 @@ class Search:
 
         # Get the links for the query
         links, all_links = await self.get_links(query, search_scope=search_scope)
+        if all_links is None:
+            raise ValueError("The Google Search API returned an error.")
 
         # For each link, crawl the page and get all the text that's not HTML garbage.
         # Concatenate all the text for a given website into one string and save it into an array:
@@ -78,6 +104,7 @@ class Search:
         for link in links:
             # First, attempt a connection with a timeout of 3 seconds to the link, if the timeout occurs, don't
             # continue to the document loading.
+            pdf = False
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(link, timeout=2) as response:
@@ -94,8 +121,14 @@ class Search:
                             try:
                                 print("Adding redirect")
                                 links.append(response.url)
+                                continue
                             except:
-                                pass
+                                continue
+                        else:
+                            # Detect if the link is a PDF, if it is, we load it differently
+                            if response.headers["Content-Type"] == "application/pdf":
+                                print("Found a PDF at the link " + link)
+                                pdf = True
 
             except:
                 traceback.print_exc()
@@ -112,14 +145,15 @@ class Search:
                 continue
 
             try:
-                document = await self.loop.run_in_executor(
-                    None, partial(self.index_webpage, link)
-                )
+                if not pdf:
+                    document = await self.loop.run_in_executor(
+                        None, partial(self.index_webpage, link)
+                    )
+                else:
+                    document = await self.index_pdf(link)
                 [documents.append(doc) for doc in document]
             except Exception as e:
                 traceback.print_exc()
-
-        prompthelper = PromptHelper(4096, 1024, 20)
 
         embedding_model = OpenAIEmbedding()
         index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
@@ -127,7 +161,7 @@ class Search:
             embedding_model.last_token_usage, embeddings=True
         )
 
-        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003", max_tokens=-1))
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
         response = index.query(
@@ -135,7 +169,6 @@ class Search:
             verbose=True,
             embed_model=embedding_model,
             llm_predictor=llm_predictor,
-            prompt_helper=prompthelper,
             similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
             text_qa_template=self.qaprompt,
         )
