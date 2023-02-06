@@ -67,8 +67,19 @@ class Search:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
+        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+        try:
+            llm_predictor_presearch = OpenAI(max_tokens=30, temperature=0, model_name="text-davinci-003")
+
+            # Refine a query to send to google custom search API
+            query_refined = llm_predictor_presearch.generate(prompts=["You are refining a query to send to the Google Custom Search API. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist us in answering the original query. Respond with only the refined query for the original query. The original query is: " + query +"\nRefined Query:"])
+            query_refined_text = query_refined.generations[0][0].text
+        except Exception as e:
+            traceback.print_exc()
+            query_refined_text = query
+
         # Get the links for the query
-        links, all_links = await self.get_links(query, search_scope=search_scope)
+        links, all_links = await self.get_links(query_refined_text, search_scope=search_scope)
 
         # For each link, crawl the page and get all the text that's not HTML garbage.
         # Concatenate all the text for a given website into one string and save it into an array:
@@ -123,7 +134,6 @@ class Search:
         index = GPTSimpleVectorIndex(documents, embed_model=embedding_model)
         await self.usage_service.update_usage(embedding_model.last_token_usage, embeddings=True)
 
-        llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
         response = index.query(
