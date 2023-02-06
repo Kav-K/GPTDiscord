@@ -51,7 +51,11 @@ class SearchService(discord.Cog, name="SearchService"):
         response = await self.model.search(query, user_api_key, search_scope, nodes)
 
         url_extract_pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"
-        urls = re.findall(url_extract_pattern, str(response.get_formatted_sources(length=200)), flags=re.IGNORECASE)
+        urls = re.findall(
+            url_extract_pattern,
+            str(response.get_formatted_sources(length=200)),
+            flags=re.IGNORECASE,
+        )
         urls = "\n".join(f"<{url}>" for url in urls)
 
         await ctx.respond(
