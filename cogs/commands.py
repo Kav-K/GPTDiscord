@@ -837,7 +837,7 @@ class Commands(discord.Cog, name="Commands"):
         description="How many top links to use for context",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
-        max_value=8,
+        max_value=6,
         min_value=1,
     )
     @discord.option(
@@ -845,7 +845,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The higher the number, the more accurate the results, but more expensive",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
-        max_value=10,
+        max_value=4,
         min_value=1,
     )
     @discord.guild_only()

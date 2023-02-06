@@ -57,7 +57,7 @@ class Search:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.read()
-                    f = tempfile.NamedTemporaryFile(delete=False)
+                    f = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
                     f.write(data)
                     f.close()
                 else:
