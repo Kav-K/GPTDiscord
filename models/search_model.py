@@ -118,7 +118,9 @@ class Search:
 
         # Get the links for the query
         print("The refined search is " + query_refined_text)
-        links, all_links = await self.get_links(query_refined_text, search_scope=search_scope)
+        links, all_links = await self.get_links(
+            query_refined_text, search_scope=search_scope
+        )
         if all_links is None:
             raise ValueError("The Google Search API returned an error.")
 
