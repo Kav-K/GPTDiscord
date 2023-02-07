@@ -106,7 +106,7 @@ class Search:
             # Refine a query to send to google custom search API
             query_refined = llm_predictor_presearch.generate(
                 prompts=[
-                    "You are refining a query to send to the Google Custom Search API. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist us in answering the original query. Respond with only the refined query for the original query. The original query is: "
+                    "You are refining a query to send to the Google Custom Search API. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist us in answering the original query. Respond with only the refined query for the original query. Don't use punctuation or quotation marks. The original query is: "
                     + query
                     + "\nRefined Query:"
                 ]
