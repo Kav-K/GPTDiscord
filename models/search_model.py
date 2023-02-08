@@ -56,7 +56,9 @@ class Search:
     def build_search_refined_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query: " + refined_query + "\n\nRetrieving links from google...",
+            description="Refined query: "
+            + refined_query
+            + "\n\nRetrieving links from google...",
             color=0x00FF00,
         )
         return embed
@@ -64,8 +66,10 @@ class Search:
     def build_search_links_retrieved_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query: " + refined_query + "\n\nRetrieved links from Google\n\n"
-                                                                              "Retrieving webpages...",
+            description="Refined query: "
+            + refined_query
+            + "\n\nRetrieved links from Google\n\n"
+            "Retrieving webpages...",
             color=0x00FF00,
         )
         return embed
@@ -73,9 +77,11 @@ class Search:
     def build_search_webpages_retrieved_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query: " + refined_query + "\n\nRetrieved links from Google\n\n"
-                                                                              "Retrieved webpages\n\n"
-                                                                              "Indexing...",
+            description="Refined query: "
+            + refined_query
+            + "\n\nRetrieved links from Google\n\n"
+            "Retrieved webpages\n\n"
+            "Indexing...",
             color=0x00FF00,
         )
         return embed
@@ -83,10 +89,12 @@ class Search:
     def build_search_indexed_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query: " + refined_query + "\n\nRetrieved links from Google\n\n"
-                                                                              "Retrieved webpages\n\n"
-                                                                              "Indexed\n\n"
-                                                                              "Thinking about your question...",
+            description="Refined query: "
+            + refined_query
+            + "\n\nRetrieved links from Google\n\n"
+            "Retrieved webpages\n\n"
+            "Indexed\n\n"
+            "Thinking about your question...",
             color=0x00FF00,
         )
         return embed
@@ -150,7 +158,9 @@ class Search:
             traceback.print_exc()
             pass
 
-    async def search(self,ctx: discord.ApplicationContext, query, user_api_key, search_scope, nodes):
+    async def search(
+        self, ctx: discord.ApplicationContext, query, user_api_key, search_scope, nodes
+    ):
         DEFAULT_SEARCH_NODES = 1
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -158,7 +168,9 @@ class Search:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         if ctx:
-            in_progress_message = await ctx.respond(embed=self.build_search_started_embed())
+            in_progress_message = await ctx.respond(
+                embed=self.build_search_started_embed()
+            )
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
@@ -180,8 +192,9 @@ class Search:
             query_refined_text = query
 
         if ctx:
-            await self.try_edit(in_progress_message,self.build_search_refined_embed(query_refined_text))
-
+            await self.try_edit(
+                in_progress_message, self.build_search_refined_embed(query_refined_text)
+            )
 
         # Get the links for the query
         links, all_links = await self.get_links(
@@ -189,7 +202,10 @@ class Search:
         )
 
         if ctx:
-            await self.try_edit(in_progress_message,self.build_search_links_retrieved_embed(query_refined_text))
+            await self.try_edit(
+                in_progress_message,
+                self.build_search_links_retrieved_embed(query_refined_text),
+            )
 
         if all_links is None:
             raise ValueError("The Google Search API returned an error.")
@@ -252,7 +268,10 @@ class Search:
                 traceback.print_exc()
 
         if ctx:
-            await self.try_edit(in_progress_message,self.build_search_webpages_retrieved_embed(query_refined_text))
+            await self.try_edit(
+                in_progress_message,
+                self.build_search_webpages_retrieved_embed(query_refined_text),
+            )
 
         embedding_model = OpenAIEmbedding()
 
@@ -261,7 +280,9 @@ class Search:
         )
 
         if ctx:
-            await self.try_edit(in_progress_message,self.build_search_indexed_embed(query_refined_text))
+            await self.try_edit(
+                in_progress_message, self.build_search_indexed_embed(query_refined_text)
+            )
 
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
