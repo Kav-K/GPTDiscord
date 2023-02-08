@@ -50,7 +50,7 @@ class SearchService(discord.Cog, name="SearchService"):
                 first = True
             else:
                 page = discord.Embed(
-                    title=f"Page {count}",
+                    title=f"Search Results",
                     description=chunk,
                 )
             pages.append(page)
@@ -73,13 +73,13 @@ class SearchService(discord.Cog, name="SearchService"):
             not EnvService.get_google_search_api_key()
             or not EnvService.get_google_search_engine_id()
         ):
-            await ctx.send("The search service is not enabled.")
+            await ctx.respond("The search service is not enabled.")
             return
 
         await ctx.defer()
 
         try:
-            response = await self.model.search(query, user_api_key, search_scope, nodes)
+            response = await self.model.search(ctx, query, user_api_key, search_scope, nodes)
         except ValueError:
             await ctx.respond(
                 "The Google Search API returned an error. Check the console for more details.",

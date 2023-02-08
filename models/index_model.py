@@ -169,22 +169,6 @@ class Index_handler:
         index = GPTSimpleVectorIndex(document, embed_model=embed_model)
         return index
 
-    async def index_web_pdf(self, url, embed_model) -> GPTSimpleVectorIndex:
-        print("Indexing a WEB PDF")
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.read()
-                    f = tempfile.NamedTemporaryFile(delete=False)
-                    f.write(data)
-                    f.close()
-                else:
-                    return "An error occurred while downloading the PDF."
-
-        document = SimpleDirectoryReader(input_files=[f.name]).load_data()
-        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
-        return index
-
     def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
         index = GPTSimpleVectorIndex(document, embed_model=embed_model)
@@ -212,7 +196,46 @@ class Index_handler:
         )
         return index
 
-    def index_webpage(self, url, embed_model) -> GPTSimpleVectorIndex:
+    async def index_pdf(self, url) -> list[Document]:
+        # Download the PDF at the url and save it to a tempfile
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    f = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                    f.write(data)
+                    f.close()
+                else:
+                    return "An error occurred while downloading the PDF."
+        # Get the file path of this tempfile.NamedTemporaryFile
+        # Save this temp file to an actual file that we can put into something else to read it
+        documents = SimpleDirectoryReader(input_files=[f.name]).load_data()
+        print("Loaded the PDF document data")
+
+        # Delete the temporary file
+        return documents
+
+    async def index_webpage(self, url, embed_model) -> GPTSimpleVectorIndex:
+
+        # First try to connect to the URL to see if we can even reach it.
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=5) as response:
+                    # Add another entry to links from all_links if the link is not already in it to compensate for the failed request
+                    if response.status not in [200, 203, 202, 204]:
+                        raise ValueError("Invalid URL or could not connect to the provided URL.")
+                    else:
+                        # Detect if the link is a PDF, if it is, we load it differently
+                        if response.headers["Content-Type"] == "application/pdf":
+                            documents = await self.index_pdf(url)
+                            index = GPTSimpleVectorIndex(
+                                documents,
+                                embed_model=embed_model,
+                            )
+                            return index
+        except:
+            raise ValueError("Could not load webpage")
+
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
@@ -308,12 +331,8 @@ class Index_handler:
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_youtube_transcript, link, embedding_model)
                 )
-            elif "pdf" in content_type:
-                index = await self.index_web_pdf(link, embedding_model)
             else:
-                index = await self.loop.run_in_executor(
-                    None, partial(self.index_webpage, link, embedding_model)
-                )
+                index = await self.index_webpage(link, embedding_model)
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
