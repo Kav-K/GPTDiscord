@@ -182,7 +182,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
     def __init__(
         self, converser_cog, image_service_cog, deletion_queue, custom_api_key
     ):
-        super().__init__(style=discord.ButtonStyle.green, label="Draw")
+        super().__init__(style=discord.ButtonStyle.green, label="Draw", custom_id="draw_button_optimizer")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
@@ -237,7 +237,7 @@ class RedoButton(discord.ui.Button["OptimizeView"]):
     def __init__(
         self, converser_cog, image_service_cog, deletion_queue, custom_api_key=None
     ):
-        super().__init__(style=discord.ButtonStyle.danger, label="Retry")
+        super().__init__(style=discord.ButtonStyle.danger, label="Retry", custom_id="redo_button_optimizer")
         self.converser_cog = converser_cog
         self.image_service_cog = image_service_cog
         self.deletion_queue = deletion_queue
