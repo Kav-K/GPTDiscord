@@ -79,7 +79,9 @@ class SearchService(discord.Cog, name="SearchService"):
         await ctx.defer()
 
         try:
-            response = await self.model.search(ctx, query, user_api_key, search_scope, nodes)
+            response = await self.model.search(
+                ctx, query, user_api_key, search_scope, nodes
+            )
         except ValueError:
             await ctx.respond(
                 "The Google Search API returned an error. Check the console for more details.",

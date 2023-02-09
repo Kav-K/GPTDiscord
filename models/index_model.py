@@ -216,14 +216,15 @@ class Index_handler:
         return documents
 
     async def index_webpage(self, url, embed_model) -> GPTSimpleVectorIndex:
-
         # First try to connect to the URL to see if we can even reach it.
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=5) as response:
                     # Add another entry to links from all_links if the link is not already in it to compensate for the failed request
                     if response.status not in [200, 203, 202, 204]:
-                        raise ValueError("Invalid URL or could not connect to the provided URL.")
+                        raise ValueError(
+                            "Invalid URL or could not connect to the provided URL."
+                        )
                     else:
                         # Detect if the link is a PDF, if it is, we load it differently
                         if response.headers["Content-Type"] == "application/pdf":
