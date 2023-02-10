@@ -350,7 +350,11 @@ class SaveButton(discord.ui.Button["SaveView"]):
 
 class RedoButton(discord.ui.Button["SaveView"]):
     def __init__(self, cog, converser_cog, custom_api_key):
-        super().__init__(style=discord.ButtonStyle.danger, label="Retry", custom_id="redo_button_draw_main")
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="Retry",
+            custom_id="redo_button_draw_main",
+        )
         self.cog = cog
         self.converser_cog = converser_cog
         self.custom_api_key = custom_api_key

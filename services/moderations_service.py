@@ -323,7 +323,9 @@ class ModerationAdminView(discord.ui.View):
 
 class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
-        super().__init__(style=discord.ButtonStyle.green, label="Approve", custom_id="approve_button")
+        super().__init__(
+            style=discord.ButtonStyle.green, label="Approve", custom_id="approve_button"
+        )
         self.message = message
         self.moderation_message = moderation_message
         self.current_num = current_num
@@ -336,7 +338,11 @@ class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
 
 class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
-        super().__init__(style=discord.ButtonStyle.danger, label="Delete Message", custom_id="delete_button")
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="Delete Message",
+            custom_id="delete_button",
+        )
         self.message = message
         self.moderation_message = moderation_message
         self.current_num = current_num
@@ -361,7 +367,9 @@ class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
 
 class KickUserButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(self, message, moderation_message, current_num):
-        super().__init__(style=discord.ButtonStyle.danger, label="Kick User", custom_id="kick_button")
+        super().__init__(
+            style=discord.ButtonStyle.danger, label="Kick User", custom_id="kick_button"
+        )
         self.message = message
         self.moderation_message = moderation_message
         self.current_num = current_num
@@ -400,7 +408,11 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
     def __init__(
         self, message, moderation_message, current_num, hours, nodelete, source_deleted
     ):
-        super().__init__(style=discord.ButtonStyle.danger, label=f"Timeout {hours}h", custom_id="timeout_button")
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label=f"Timeout {hours}h",
+            custom_id="timeout_button",
+        )
         self.message = message
         self.moderation_message = moderation_message
         self.hours = hours
