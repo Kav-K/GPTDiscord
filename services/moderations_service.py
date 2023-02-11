@@ -412,7 +412,7 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
         super().__init__(
             style=discord.ButtonStyle.danger,
             label=f"Timeout {hours}h",
-            custom_id="timeout_button"+str(random.randint(100000,999999)),
+            custom_id="timeout_button" + str(random.randint(100000, 999999)),
         )
         self.message = message
         self.moderation_message = moderation_message
