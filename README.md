@@ -48,6 +48,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - A low usage mode, use a command to automatically switch to a cheaper and faster model to conserve your tokens during times of peak usage. 
 - Prints debug to a channel of your choice, so you can view the raw response JSON
 - Ability to specify a limit to how long a conversation can be with the bot, to conserve your tokens.
+# 
 If you want to see other features, click below
 [**Other Features**](https://github.com/Kav-K/GPT3Discord/tree/main/recent-updates-and-implementations)
 If you want to see recent updates and to read more about implementations like 
@@ -377,6 +378,6 @@ To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Ro
 
 **The above server is NOT for support or discussions about GPT3Discord**
 
-#How to Contribute
+# How to Contribute
 Click below to go to the contributing file.
 [**Contributing**](https://github.com/Kav-K/GPT3Discord/tree/main/recent-updates-and-implementations)
