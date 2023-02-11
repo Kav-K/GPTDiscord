@@ -9,31 +9,12 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 # Overview
+<p align="center">
+<img src="https://i.imgur.com/KeLpDgj.png"/>
+</p>
 A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory, automatic request retry, fault tolerance and reliability for servers of any scale, and much more.
 
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)
-# Screenshots
-
-<p align="center">
-<img src="https://i.imgur.com/KeLpDgj.png"/>
-<img  src="https://i.imgur.com/jLp1T0h.png"/>
-<img src="https://i.imgur.com/cY4895V.png"/>
-<img src="https://i.imgur.com/9leCixJ.png"/>
-
-</p>
-
-# Recent Notable Updates
-
-- **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query!
-<p align="center"/>
-<img src="https://i.imgur.com/Y3iiRfh.png"/>
-</p>
-
-- **CUSTOM INDEXES** - This is a huge update. You can now upload files to your discord server and use them as a source of knowledge when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below.
-
-<p align="center"/>
-<img src="https://i.imgur.com/rlJxXRX.png"/>
-</p>
 
 # Features
 - **Directly prompt GPT3 with `/gpt ask <prompt>`**
@@ -67,217 +48,44 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - A low usage mode, use a command to automatically switch to a cheaper and faster model to conserve your tokens during times of peak usage. 
 - Prints debug to a channel of your choice, so you can view the raw response JSON
 - Ability to specify a limit to how long a conversation can be with the bot, to conserve your tokens.
-
-# Commands
-
-These commands are grouped, so each group has a prefix but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
-
-`/help` - Display help text for the bot
-
-### (Chat)GPT3 Commands
-
-`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
-
-`/gpt edit <instruction> <input> <temp> <top_p> <codex>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Codex uses a model trained on code. Editing is currently free
-
-`/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT
-
-- `opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
-
-- `opener_file:<opener file name>.txt|.json` - Starts a conversation with the bot, using a custom file. 
-
-  - Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
-
-  - Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
-
-  - Enables minimal
-
-  - Can use .json files in the `{"text": "your prompt", "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
-
-- `private` - Start a private conversation with the bot, like ChatGPT
-
-- `minimal` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
-
-`/gpt end` - End a conversation with the bot.
-
-### DALL-E2 Commands
-
-`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
-
-`/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
-
-### Custom Indexes Commands
-
-This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files.
-
-`/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes. If you provide a youtube link, the transcript of the video will be used. If you provide a web url, the contents of the webpage will be used, if you provide an image, the image text will be extracted and used!
-
-`/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index. You can also set it to query over more nodes, further refining the output over each one. A description of the modes can be found <a href="https://gpt-index.readthedocs.io/en/latest/guides/usage_pattern.html#setting-response-mode">here</a>. They do not work for deep composed indexes
-
-`/index load user_index:<index> or server_index:<index>` - Load a previously created index you own yourself, or an index for the whole server.
-
-`/index compose` - Combine multiple saved indexes into one, or upgrade existing indexes into Deep Compositions.
-
-`/index reset` - Reset and delete all of your saved indexes
-
-`/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel
-
-`/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index. Needs both an admin and a index role
-
-### AI-Assisted Search
-
-`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt3 should think>` - Search the web with GPT3. This command will search the web for you, and then ask GPT3 to answer your question based on the results. You can also set it to query over more nodes, further refining the output over each one.
-
-### System and Settings
-
-`/system settings` - Display settings for the model (temperature, top_p, etc)
-
-`/system settings <setting> <value>` - Change a model setting to a new value. Has autocomplete support, certain settings will have autocompleted values too.
-
-`/system usage` Estimate current usage details (based on davinci)
-
-`/system settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
-
-`/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
-
-`/system local-size` - Get the size of the local dalleimages folder
-
-`/system clear-local` - Clear all the local dalleimages.
-
-### Automatic AI Moderation
-
-`/mod set status:on` - Turn on automatic chat moderations. 
-
-`/mod set status:off` - Turn off automatic chat moderations
-
-`/mod set status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
-
-`/mod config type:<warn/delete> hate:# hate_threatening:# self_harm:# sexual:# sexual_minors:# violence:# violence_graphic:#`
-- Set the moderation thresholds of the bot for the specific type of moderation (`warn` or `delete`). You can view the thresholds by typing just `/mod config type:<warn/delete>` without any other parameters. You don't have to set all of them, you can just set one or two items if you want. For example, to set the hate threshold for warns, you can type `/mod config type:warn hate:0.2`
-- Lower values are more strict, higher values are more lenient. There are default values that I've fine tuned the service with for a general server.
-
-The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
-
-This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
-
-The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
-
-There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).
-
-If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)
-
-To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.
-
-**The above server is NOT for support or discussions about GPT3Discord**
-
-# Permanent Memory and Conversations
-Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and <a href="https://www.pinecone.io/">Pinecone</a>.
-
-Pinecone is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.
-
-**You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**
-
-To enable permanent memory with pinecone, you must define a `PINECONE_TOKEN` in your `.env` file as follows (along with the other variables too):
-```env
-PINECONE_TOKEN="87juwi58-1jk9-9182-9b3c-f84d90e8bshq"
-```
-
-To get a pinecone token, you can sign up for a free pinecone account here: https://app.pinecone.io/ and click the "API Keys" section on the left navbar to find the key. (I am not affiliated with pinecone).
-
-After signing up for a free pinecone account, you need to create an index in pinecone. To do this, go to the pinecone dashboard and click "Create Index" on the top right.
-
-<center><img src="https://i.imgur.com/L9LXVE0.png"/></center>
-
-Then, name the index `conversation-embeddings`, set the dimensions to `1536`, and set the metric to `DotProduct`:
-
-<center><img src="https://i.imgur.com/zoeLsrw.png"/></center>
-
-Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.
-
-# Custom Indexes / Knowledgebase
-This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files. We also support using URLs for indexes.
-
-**This feature uses a large amount of tokens and money, and you should restrict it to trusted users.**
-
-Supported filetypes:
-- All text and data based files (PDF, TXT, DOCX, PPTX, CSV etc)
-- Images (JPG, PNG, etc) (Note: The bot will do OCR on the images to extract the text, this requires a lot of processing power sometimes)
-- Videos/Audio (MP4, MP3, etc) (Note: The bot will use OpenAI on the audio to extract the text, this requires a lot of processing power sometimes)
-- **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!
-
-Index Compositions:
-Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.
-
-You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose. **Deep compositions are useless for very short documents!**
-
-# AI-Assisted Google Search
-This bot supports searching google for answers to your questions with assistance from GPT3! To get started, you need to get a Google Custom Search API key, and a Google Custom Search Engine ID. You can then define these as follows in your `.env` file:
-```env
-GOOGLE_SEARCH_API_KEY="...."
-GOOGLE_SEARCH_ENGINE_ID="...."
-```
-
-You first need to create a programmable search engine and get the search engine ID: https://developers.google.com/custom-search/docs/tutorial/creatingcse
-
-Then you can get the API key, click the "Get a key" button on this page: https://developers.google.com/custom-search/v1/introduction
-
-# Translations with DeepL
-This bot supports and uses DeepL for translations (optionally). If you want to enable the translations service, you can add a line in your `.env` file as follows:
-
-```
-DEEPL_TOKEN="your deepl token"
-```
-
-You can get a DeepL token by signing up at https://www.deepl.com/pro-api?cta=header-pro-api/ and clicking on the *free plan* to start. The DeepL translation service unlocks some new commands for your bot:
-
-`/translate <text> <language>` - Translate any given piece of text into the language that you provide
-
-`/languages` - See a list of all supported languages
-
-Using DeepL also adds a new app menu button (when you right click a message) to the bot which allows you to quickly translate any message in a channel into any language you want:
-
-<img src="https://i.imgur.com/MlNVWKu.png"/>
-
-
-# User-Input API Keys (Multi-key tenancy)
-This bot supports multi-user tenancy in regards to API keys. This means that, if you wanted, you could make it such that each user needs to enter their own API key in order to use commands that use GPT3 and DALLE.
-
-To enable this, add the following line to the end of your `.env` file:
-```env
-USER_INPUT_API_KEYS="True"
-```
-
-Then, restart the bot, and it will set up the system for everyone to input their own API keys. 
-
-The bot will use SQLite to store API keys for the users, each user's key will be saved with a USER_ID <> API_KEY mapping in SQLite, and will be persistent across restarts. All the data will be saved in a file called `user_key_db.sqlite` in the current working directory of the bot.
-
-With this feature enabled, any attempt to use a GPT3 or DALL-E command without a valid API key set for the user will pop up the following modal for them to enter their API key:
-
-<center><img src="https://i.imgur.com/ZDScoWk.png"/></center>
-
-Once the user enters their key, the bot will send a small test request to OpenAI to validate that the key indeed works, if not, it will tell the user to try again and tell them why it did not work.
-
-After the user's key is validated, they will be able to use GPT3 and DALLE commands.
-
-The Moderations service still uses the main API key defined in the `.env` file. Pinecone and discord-tokens are also per-host tokens, not per-user.
-
-# Step-by-Step Guides for GPT3Discord
+If you want to see other features, click below
+[**Other Features**](https://github.com/Kav-K/GPT3Discord/tree/main/recent-updates-and-implementations)
+If you want to see recent updates and to read more about implementations like 
+-AI Assisted Google Search
+-Custom Index / Knowledge base
+-Permanent Memory and Conversations
+-Translation with Deep L
+-User Input Api Keys
+click below
+[**Updates and Implementations**](https://github.com/Kav-K/GPT3Discord/tree/main/recent-updates-and-implementations)
+
+
+# How to set up GPT3Discord
+
+## Before installing
 
 [**GPT3Discord Guides**](https://github.com/Kav-K/GPT3Discord/tree/main/detailed_guides)
 
-If you follow the link above, you will now get to detailed step-by-step guides that will help you to install and set up your GPT3Discord bot quickly and easily. If you still run into problems or have suggestions for improving the guides, you can join the [**Discord-Server**](https://discord.gg/WvAHXDMS7Q) and we will try to help you. Keep in mind that the maintainers are volunteers and will try to help you on their schedule.
+Before you start, be sure to click the link above. This will give you detailed step-by-step guides on setting up:
+
+Droplet with Digital Ocean
+OpenAI API Key
+Azure App Service
+
+These will help make the process easy and done quickly.If you still run into problems or have suggestions for improving the guides, you can join the [**Discord-Server**](https://discord.gg/WvAHXDMS7Q) and we will try to help you. Keep in mind that the maintainers are volunteers and will try to help you on their schedule.
+
 
 *The number and content of the guides is constantly adapted to current requirements.*
 
 
-# Configuration
+### Configuration
 
 All the model parameters are configurable inside discord. Type `/system settings` to view all the configurable parameters, and use `/system settings <param> <value>` to set parameters. 
 
 For example, if I wanted to change the number of images generated by DALL-E by default to 4, I can type the following command in discord: `/system settings num_images 4`
 
 
-# Requirements and Usage
+### Requirements and Usage
 **For OCR, and document functionalities**:
 ```
 pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
@@ -326,7 +134,7 @@ As mentioned in the comments of the sample environment file, there are three per
 
 If for a command group you want everybody to be able to use those commands, just don't include the relevant line in the `.env` file. For example, if you want everyone to be able to use GPT3 commands, you can just omit `the GPT_ROLES="...."` line.
 
-# Installation
+## Installation
 
 ### Create the bot
 
@@ -467,29 +275,108 @@ git pull
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .
 ```
+# Commands
 
-## Other Features
-### Health Check Service
+These commands are grouped, so each group has a prefix but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
 
-The bot has the ability to launch a HTTP endpoint at `<host>:8181/` that will return a json response of the bot's status and uptime. This is especially useful if you want to run this bot on cloud application containers, like Azure App Service.
+`/help` - Display help text for the bot
 
-To enable this, add `HEALTH_SERVICE_ENABLED="True"` to your `.env` file.
+## (Chat)GPT3 Commands
 
-The health check endpoint will then be present in your bot's console when it is starting up, it will look like this, the possible HTTP urls for your health endpoint will be visible near the bottom:
+`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available
 
-<center><img src="https://i.imgur.com/RqV2xN6.png"/></center>
+`/gpt edit <instruction> <input> <temp> <top_p> <codex>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Codex uses a model trained on code. Editing is currently free
 
-### Custom Bot Name
-Add a line `CUSTOM_BOT_NAME=<NAME>` to your `.env` to give your bot a custom name in conversations.
+`/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT
 
-### Permanent overrides in threads
-This bot now supports having overrides be permanent in an entire conversation if you use an opener file which includes them. The new opener files should be .json files formatted like this. `text` corresponds to what you want the conversational opener to be and the rest map 1:1 to the appropriate model settings. An example .json file is included by the name of `english_translator.json` in the `openers` folder
-```json
-{
-  "text": "your prompt", 
-  "temp":0, 
-  "top_p":0,
-  "frequency_penalty":0,
-  "presence_penalty":0
-}
-```
+- `opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).
+
+- `opener_file:<opener file name>.txt|.json` - Starts a conversation with the bot, using a custom file. 
+
+  - Loads files from the `/openers` folder, has autocomplete support so files in the folder will show up. Added before the `opener` as both can be used at the same time
+
+  - Custom openers need to be placed as a .txt file in the `openers` directory, in the same directory as `gpt3discord.py`
+
+  - Enables minimal
+
+  - Can use .json files in the `{"text": "your prompt", "temp":0, "top_p":0,"frequency_penalty":0,"presence_penalty":0}` format to include permanent overrides
+
+- `private` - Start a private conversation with the bot, like ChatGPT
+
+- `minimal` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)
+
+`/gpt end` - End a conversation with the bot.
+
+## DALL-E2 Commands
+
+`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt
+
+`/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.
+
+## Custom Indexes Commands
+
+This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files.
+
+`/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes. If you provide a youtube link, the transcript of the video will be used. If you provide a web url, the contents of the webpage will be used, if you provide an image, the image text will be extracted and used!
+
+`/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index. You can also set it to query over more nodes, further refining the output over each one. A description of the modes can be found <a href="https://gpt-index.readthedocs.io/en/latest/guides/usage_pattern.html#setting-response-mode">here</a>. They do not work for deep composed indexes
+
+`/index load user_index:<index> or server_index:<index>` - Load a previously created index you own yourself, or an index for the whole server.
+
+`/index compose` - Combine multiple saved indexes into one, or upgrade existing indexes into Deep Compositions.
+
+`/index reset` - Reset and delete all of your saved indexes
+
+`/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel
+
+`/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index. Needs both an admin and a index role
+
+## AI-Assisted Search
+
+`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt3 should think>` - Search the web with GPT3. This command will search the web for you, and then ask GPT3 to answer your question based on the results. You can also set it to query over more nodes, further refining the output over each one.
+
+## System and Settings
+
+`/system settings` - Display settings for the model (temperature, top_p, etc)
+
+`/system settings <setting> <value>` - Change a model setting to a new value. Has autocomplete support, certain settings will have autocompleted values too.
+
+`/system usage` Estimate current usage details (based on davinci)
+
+`/system settings low_usage_mode True/False` Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the davinci-003 model.
+
+`/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
+
+`/system local-size` - Get the size of the local dalleimages folder
+
+`/system clear-local` - Clear all the local dalleimages.
+
+## Automatic AI Moderation
+
+`/mod set status:on` - Turn on automatic chat moderations. 
+
+`/mod set status:off` - Turn off automatic chat moderations
+
+`/mod set status:off alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+
+`/mod config type:<warn/delete> hate:# hate_threatening:# self_harm:# sexual:# sexual_minors:# violence:# violence_graphic:#`
+- Set the moderation thresholds of the bot for the specific type of moderation (`warn` or `delete`). You can view the thresholds by typing just `/mod config type:<warn/delete>` without any other parameters. You don't have to set all of them, you can just set one or two items if you want. For example, to set the hate threshold for warns, you can type `/mod config type:warn hate:0.2`
+- Lower values are more strict, higher values are more lenient. There are default values that I've fine tuned the service with for a general server.
+
+The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.
+
+This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability. 
+
+The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!
+
+There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).
+
+If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)
+
+To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.
+
+**The above server is NOT for support or discussions about GPT3Discord**
+
+#How to Contribute
+Click below to go to the contributing file.
+[**Contributing**](https://github.com/Kav-K/GPT3Discord/tree/main/recent-updates-and-implementations)
