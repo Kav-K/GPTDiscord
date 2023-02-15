@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  gpt3discord:
+    image: gpt3discord:latest
+    container_name: gpt3discord
+    environment:
+      OPENAI_TOKEN: "<openai_api_token>"
+      DISCORD_TOKEN: "<discord_bot_token>"
+      DEBUG_GUILD: "974519864045756446"
+      DEBUG_CHANNEL: "977697652147892304"
+      ALLOWED_GUILDS: "971268468148166697,971268468148166697"
+      ADMIN_ROLES: "Admin,Owner"
+      DALLE_ROLES: "Admin,Openai,Dalle,gpt"
+      GPT_ROLES: "openai,gpt"
+      WELCOME_MESSAGE: "Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!"
+      USER_INPUT_API_KEYS: "False"
+      MODERATIONS_ALERT_CHANNEL: "977697652147892304"
+      USER_KEY_DB_PATH: "user_key_db.sqlite"
+    volumes:
+      - /containers/gpt3discord:/data
+      - /containers/gpt3discord/share:/data/share
+    restart: always
