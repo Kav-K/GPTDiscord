@@ -87,7 +87,7 @@ class SearchService(discord.Cog, name="SearchService"):
         await ctx.defer() if not redo else None
 
         try:
-            response = await self.model.search(
+            response, refined_text = await self.model.search(
                 ctx, query, user_api_key, search_scope, nodes
             )
         except ValueError:
@@ -111,7 +111,7 @@ class SearchService(discord.Cog, name="SearchService"):
         )
         urls = "\n".join(f"<{url}>" for url in urls)
 
-        query_response_message = f"**Query:**\n\n`{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
+        query_response_message = f"**Question:**\n\n`{query.strip()}`\n\n**Google Search Query**\n\n`{refined_text.strip()}`\n\n**Final Answer:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
         query_response_message = query_response_message.replace(
             "<|endofstatement|>", ""
         )
