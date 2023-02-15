@@ -14,12 +14,14 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 
+
 class RedoSearchUser:
     def __init__(self, ctx, query, search_scope, nodes):
         self.ctx = ctx
         self.query = query
         self.search_scope = search_scope
         self.nodes = nodes
+
 
 class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
@@ -141,5 +143,13 @@ class RedoButton(discord.ui.View):
     @discord.ui.button(label="Redo", style=discord.ButtonStyle.danger)
     async def redo(self, button: discord.ui.Button, interaction: discord.Interaction):
         """Redo the translation"""
-        await interaction.response.send_message("Redoing search...", ephemeral=True, delete_after=15)
-        await self.search_cog.search_command(self.search_cog.redo_users[self.ctx.user.id].ctx, self.search_cog.redo_users[self.ctx.user.id].query, self.search_cog.redo_users[self.ctx.user.id].search_scope, self.search_cog.redo_users[self.ctx.user.id].nodes, redo=True)
+        await interaction.response.send_message(
+            "Redoing search...", ephemeral=True, delete_after=15
+        )
+        await self.search_cog.search_command(
+            self.search_cog.redo_users[self.ctx.user.id].ctx,
+            self.search_cog.redo_users[self.ctx.user.id].query,
+            self.search_cog.redo_users[self.ctx.user.id].search_scope,
+            self.search_cog.redo_users[self.ctx.user.id].nodes,
+            redo=True,
+        )

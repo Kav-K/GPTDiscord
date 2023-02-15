@@ -415,7 +415,7 @@ As a last resort, you can try to run the bot using python in a basic way, with s
 cd (the folder where the files for GPT3Discord are located/cloned)
 python3.9 gpt3discord.py
 ```
-
+<!-- 
 ### Docker Installation
 
 We now have a `Dockerfile` in the repository. This will build / install all dependencies and put a `gpt3discord` binary (main.py) into path.
@@ -435,7 +435,47 @@ To build:
   - You can also mount extra volumes and set `DATA_DIR` and `SHARE_DIR` in the env file to keep persistent data
   - `env_file` should be replaced with where you have your .env file stored on your machine
 
-This can also be run via screen/tmux or detached like a daemon.
+This can also be run via screen/tmux or detached like a daemon. -->
+
+### Docker and Docker Compose :
+To use docker you can use the following command
+```
+docker run -d --name gpt3discord -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share --env-file /path/to/.env ghcr.io/kav-k/gpt3discord:main
+```
+Make sure that the /data and /data/share are created and the `env-file` path is correct.
+
+
+#### Docker Compose 
+To use Docker Compose, you need to have Docker and Docker Compose installed on your system. You can download and install them from the following links:
+
+- Docker
+- Docker Compose
+
+[You will need to install Docker for Desktop if you are on a desktop machine such as Windows or Mac, trying to run this]
+
+
+To start the gpt3discord container with Docker Compose, follow these steps:
+
+1. Open a terminal or command prompt and navigate to the directory that contains the docker-compose.yml file.
+2. Open the docker-compose.yml file and replace the environment variable values with your actual tokens and IDs.
+3. Run the following command to start the container in detached mode:
+
+```
+Copy codedocker-compose up -d
+```
+
+This will start the container and use the settings in the docker-compose.yml file. The -d option tells Docker Compose to run the container in the background (detached mode).
+
+
+To stop the gpt3discord container, run the following command:
+
+```
+Copy codedocker-compose down
+```
+
+This will stop the container and remove the services and networks defined in the docker-compose.yml file.
+
+That's it! With these simple steps, you can start and stop the gpt3discord container using Docker Compose.
 
 
 ### Non-Server, Non-Docker installation (Windows included)
