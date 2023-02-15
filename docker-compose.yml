@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   gpt3discord:
-    image: docker pull ghcr.io/Kav-K/GPT3Discord:main
+    image: docker pull ghcr.io/kav-k/gpt3discord:main
     container_name: gpt3discord
     environment:
       OPENAI_TOKEN: "<openai_api_token>"

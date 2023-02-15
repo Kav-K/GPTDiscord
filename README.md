@@ -440,7 +440,7 @@ This can also be run via screen/tmux or detached like a daemon. -->
 ### Docker and Docker Compose :
 To use docker you can use the following command
 ```
-docker run -d --name gpt3discord -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share --env-file /path/to/.env ghcr.io/Kav-K/GPT3Discord:main
+docker run -d --name gpt3discord -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share --env-file /path/to/.env ghcr.io/kav-k/gpt3discord:main
 ```
 Make sure that the /data and /data/share are created and the `env-file` path is correct.
 
