@@ -160,7 +160,13 @@ class Search:
             pass
 
     async def search(
-        self, ctx: discord.ApplicationContext, query, user_api_key, search_scope, nodes, redo=None
+        self,
+        ctx: discord.ApplicationContext,
+        query,
+        user_api_key,
+        search_scope,
+        nodes,
+        redo=None,
     ):
         DEFAULT_SEARCH_NODES = 1
         if not user_api_key:
@@ -169,9 +175,11 @@ class Search:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         if ctx:
-            in_progress_message = await ctx.respond(
-                embed=self.build_search_started_embed()
-            ) if not redo else await ctx.channel.send(embed=self.build_search_started_embed())
+            in_progress_message = (
+                await ctx.respond(embed=self.build_search_started_embed())
+                if not redo
+                else await ctx.channel.send(embed=self.build_search_started_embed())
+            )
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
@@ -181,7 +189,8 @@ class Search:
 
             # Refine a query to send to google custom search API
             query_refined = llm_predictor_presearch.generate(
-                prompts=[f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is asking about something that is relevant to the current day, insert the current_date into the refined query. If the user is asking about something that may be relevant to the current month, insert the current year and month into the refined query, if the query is asking for something relevant to the current year, insert the current year into the refined query. There is no need to insert a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current_date is {str(datetime.now().date())}. Do not insert the current_date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
+                prompts=[
+                    f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is asking about something that is relevant to the current day, insert the current_date into the refined query. If the user is asking about something that may be relevant to the current month, insert the current year and month into the refined query, if the query is asking for something relevant to the current year, insert the current year into the refined query. There is no need to insert a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current_date is {str(datetime.now().date())}. Do not insert the current_date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
                 ]
             )
             query_refined_text = query_refined.generations[0][0].text

@@ -695,7 +695,7 @@ class ComposeModal(discord.ui.View):
         # Map everything into the short to long cache
         for index in self.indexes:
             if len(index) > 94:
-                index_name = index[:94] + "-" + str(random.randint(0000,9999))
+                index_name = index[:94] + "-" + str(random.randint(0000, 9999))
                 SHORT_TO_LONG_CACHE[index_name] = index
             else:
                 SHORT_TO_LONG_CACHE[index[:99]] = index
@@ -711,7 +711,9 @@ class ComposeModal(discord.ui.View):
         self.index_select = discord.ui.Select(
             placeholder="Select index(es) to compose",
             options=[
-                discord.SelectOption(label=LONG_TO_SHORT_CACHE[index], value=LONG_TO_SHORT_CACHE[index])
+                discord.SelectOption(
+                    label=LONG_TO_SHORT_CACHE[index], value=LONG_TO_SHORT_CACHE[index]
+                )
                 for index in self.indexes
             ][0:25],
             max_values=len(self.indexes) if len(self.indexes) < 25 else 25,
@@ -728,7 +730,10 @@ class ComposeModal(discord.ui.View):
                     discord.ui.Select(
                         placeholder="Select index(es) to compose",
                         options=[
-                            discord.SelectOption(label=LONG_TO_SHORT_CACHE[index], value=LONG_TO_SHORT_CACHE[index])
+                            discord.SelectOption(
+                                label=LONG_TO_SHORT_CACHE[index],
+                                value=LONG_TO_SHORT_CACHE[index],
+                            )
                             for index in self.indexes
                         ][i : i + 25],
                         max_values=len(self.indexes[i : i + 25]),
