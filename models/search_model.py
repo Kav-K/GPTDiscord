@@ -159,7 +159,7 @@ class Search:
             pass
 
     async def search(
-        self, ctx: discord.ApplicationContext, query, user_api_key, search_scope, nodes
+        self, ctx: discord.ApplicationContext, query, user_api_key, search_scope, nodes, redo=None
     ):
         DEFAULT_SEARCH_NODES = 1
         if not user_api_key:
@@ -170,7 +170,7 @@ class Search:
         if ctx:
             in_progress_message = await ctx.respond(
                 embed=self.build_search_started_embed()
-            )
+            ) if not redo else await ctx.channel.send(embed=self.build_search_started_embed())
 
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
