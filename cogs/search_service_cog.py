@@ -31,7 +31,7 @@ class SearchService(discord.Cog, name="SearchService"):
         self.EMBED_CUTOFF = 2000
         # Make a mapping of all the country codes and their full country names:
 
-    async def paginate_embed(self, response_text):
+    async def paginate_embed(self, response_text, user: discord.Member):
         """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
 
         response_text = [
@@ -44,15 +44,16 @@ class SearchService(discord.Cog, name="SearchService"):
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title=f"Page {count}",
+                    title=f"Search Results",
                     description=chunk,
                 )
                 first = True
             else:
                 page = discord.Embed(
-                    title=f"Search Results",
+                    title=f"Page {count}",
                     description=chunk,
                 )
+            page.set_footer(text=f"Requested by {user.name}", icon_url=user.avatar.url)
             pages.append(page)
 
         return pages
@@ -103,14 +104,14 @@ class SearchService(discord.Cog, name="SearchService"):
         )
         urls = "\n".join(f"<{url}>" for url in urls)
 
-        query_response_message = f"**Query:**`\n\n{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
+        query_response_message = f"**Query:**\n\n`{query.strip()}`\n\n**Query response:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
         query_response_message = query_response_message.replace(
             "<|endofstatement|>", ""
         )
 
         # If the response is too long, lets paginate using the discord pagination
         # helper
-        embed_pages = await self.paginate_embed(query_response_message)
+        embed_pages = await self.paginate_embed(query_response_message, ctx.user)
         paginator = pages.Paginator(
             pages=embed_pages,
             timeout=None,
