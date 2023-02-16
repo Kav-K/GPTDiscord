@@ -105,10 +105,7 @@ class IndexData:
             file = file[:93]
 
         index.save_to_disk(
-            app_root_path()
-            / "indexes"
-            / f"{str(user_id)}"
-            / f"{file}.json"
+            app_root_path() / "indexes" / f"{str(user_id)}" / f"{file}.json"
         )
 
     def reset_indexes(self, user_id):
