@@ -121,7 +121,7 @@ class Search:
         # Save this temp file to an actual file that we can put into something else to read it
         documents = SimpleDirectoryReader(input_files=[f.name]).load_data()
         for document in documents:
-            document.extra_info  = {"URL": url}
+            document.extra_info = {"URL": url}
         print("Loaded the PDF document data")
 
         # Delete the temporary file
