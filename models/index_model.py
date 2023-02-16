@@ -99,11 +99,16 @@ class IndexData:
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
         Path(f"{app_root_path()}/indexes/{user_id}").mkdir(parents=True, exist_ok=True)
         # Save the index to file under the user id
+        file = f"{file_name}_{date.today().month}_{date.today().day}"
+        # If file is > 93 in length, cut it off to 93
+        if len(file) > 93:
+            file = file[:93]
+
         index.save_to_disk(
             app_root_path()
             / "indexes"
             / f"{str(user_id)}"
-            / f"{file_name}_{date.today().month}_{date.today().day}.json"
+            / f"{file}.json"
         )
 
     def reset_indexes(self, user_id):
@@ -691,11 +696,12 @@ class ComposeModal(discord.ui.View):
                 EnvService.find_shared_file(f"indexes/{str(user_id)}/")
             )
         ]
+        print("Found the indexes, they are ", self.indexes)
 
         # Map everything into the short to long cache
         for index in self.indexes:
-            if len(index) > 94:
-                index_name = index[:94] + "-" + str(random.randint(0000, 9999))
+            if len(index) > 93:
+                index_name = index[:93] + "-" + str(random.randint(0000, 9999))
                 SHORT_TO_LONG_CACHE[index_name] = index
             else:
                 SHORT_TO_LONG_CACHE[index[:99]] = index
