@@ -594,6 +594,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             title="GPT3Bot Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
+            name="/search",
+            value="AI-Assisted google search!",
+            inline=False,
+        )
+        embed.add_field(
+            name="/index",
+            value="Indexing commands for document knowledge and querying",
+            inline=False,
+        )
+        embed.add_field(
             name="/gpt ask",
             value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
             inline=False,
@@ -612,16 +622,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
-            name="/system settings",
-            value="Print the current settings of the model",
-            inline=False,
-        )
-        embed.add_field(
-            name="/system settings <model parameter> <value>",
-            value="Change the parameter of the model named by <model parameter> to new value <value>",
-            inline=False,
-        )
-        embed.add_field(
             name="/dalle draw <image prompt>",
             value="Use DALL-E2 to draw an image based on a text prompt",
             inline=False,
@@ -632,13 +632,28 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
+            name="/system settings",
+            value="Print the current settings of the model",
+            inline=False,
+        )
+        embed.add_field(
+            name="/system settings <model parameter> <value>",
+            value="Change the parameter of the model named by <model parameter> to new value <value>",
+            inline=False,
+        )
+        embed.add_field(
             name="/mod",
             value="The automatic moderations service",
             inline=False,
         )
+        embed.add_field(
+            name="/translate",
+            value="Translate from one language to another",
+            inline=False,
+        )
 
         embed.add_field(name="/help", value="See this help text", inline=False)
-        await ctx.respond(embed=embed, ephemeral=True)
+        await ctx.respond(embed=embed, ephemeral=False)
 
     async def set_usage_command(
         self, ctx: discord.ApplicationContext, usage_amount: float
