@@ -157,5 +157,6 @@ class RedoButton(discord.ui.View):
             self.search_cog.redo_users[self.ctx.user.id].query,
             self.search_cog.redo_users[self.ctx.user.id].search_scope,
             self.search_cog.redo_users[self.ctx.user.id].nodes,
+            deep=False,
             redo=True,
         )
