@@ -33,7 +33,7 @@ from gpt_index import (
     QueryConfig,
     PromptHelper,
     IndexStructType,
-    OpenAIEmbedding,
+    OpenAIEmbedding, GithubRepositoryReader,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -53,7 +53,6 @@ def get_and_query(
     if isinstance(index, GPTTreeIndex):
         response = index.query(
             query,
-            verbose=True,
             child_branch_factor=2,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
@@ -62,7 +61,6 @@ def get_and_query(
         response = index.query(
             query,
             response_mode=response_mode,
-            verbose=True,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
@@ -179,6 +177,23 @@ class Index_handler:
 
     def index_youtube_transcript(self, link, embed_model):
         documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        index = GPTSimpleVectorIndex(
+            documents,
+            embed_model=embed_model,
+        )
+        return index
+
+    def index_github_repository(self, link, embed_model):
+        print("indexing github repo")
+        # Extract the "owner" and the "repo" name from the github link.
+        owner = link.split("/")[3]
+        repo = link.split("/")[4]
+
+        try:
+            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(branch="main")
+        except KeyError:
+            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(branch="master")
+
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
@@ -335,6 +350,10 @@ class Index_handler:
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_youtube_transcript, link, embedding_model)
                 )
+            elif "github" in link:
+                index = await self.loop.run_in_executor(
+                    None, partial(self.index_github_repository, link, embedding_model)
+                )
             else:
                 index = await self.index_webpage(link, embedding_model)
             await self.usage_service.update_usage(
@@ -359,6 +378,7 @@ class Index_handler:
         except Exception:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
+            return
 
         await ctx.respond("Index set")
 

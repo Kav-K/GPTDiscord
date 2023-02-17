@@ -20,6 +20,7 @@ from gpt_index import (
     OpenAIEmbedding,
     SimpleDirectoryReader,
 )
+from gpt_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
 
@@ -168,6 +169,7 @@ class Search:
         user_api_key,
         search_scope,
         nodes,
+        deep,
         redo=None,
     ):
         DEFAULT_SEARCH_NODES = 1
@@ -284,9 +286,30 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        index = await self.loop.run_in_executor(
-            None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model)
+        llm_predictor = LLMPredictor(
+            llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
         )
+
+        if not deep:
+            index = await self.loop.run_in_executor(
+                None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model)
+            )
+        else:
+            print("Doing a deep search")
+            llm_predictor_deep = LLMPredictor(
+                llm=OpenAI(model_name="text-davinci-002", temperature=0, max_tokens=-1)
+            )
+            index = await self.loop.run_in_executor(
+                None, partial(GPTKnowledgeGraphIndex, documents, chunk_size_limit=512, max_triplets_per_chunk=2, embed_model=embedding_model, llm_predictor=llm_predictor_deep)
+            )
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
+            await self.usage_service.update_usage(
+                llm_predictor_deep.last_token_usage, embeddings=False
+            )
+
+
 
         if ctx:
             await self.try_edit(
@@ -297,25 +320,37 @@ class Search:
             embedding_model.last_token_usage, embeddings=True
         )
 
-        llm_predictor = LLMPredictor(
-            llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
-        )
 
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
 
-        response = await self.loop.run_in_executor(
-            None,
-            partial(
-                index.query,
-                query,
-                verbose=True,
-                embed_model=embedding_model,
-                llm_predictor=llm_predictor,
-                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
-                text_qa_template=self.qaprompt,
-            ),
-        )
+        if not deep:
+            response = await self.loop.run_in_executor(
+                None,
+                partial(
+                    index.query,
+                    query,
+                    embed_model=embedding_model,
+                    llm_predictor=llm_predictor,
+                    similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                    text_qa_template=self.qaprompt,
+                ),
+            )
+        else:
+            response = await self.loop.run_in_executor(
+                None,
+                partial(
+                    index.query,
+                    query,
+                    include_text=True,
+                    response_mode="tree_summarize",
+                    embed_model=embedding_model,
+                    llm_predictor=llm_predictor,
+                    text_qa_template=self.qaprompt,
+                ),
+            )
+
+
 
         await self.usage_service.update_usage(llm_predictor.last_token_usage)
         await self.usage_service.update_usage(

@@ -848,8 +848,14 @@ class Commands(discord.Cog, name="Commands"):
         max_value=4,
         min_value=1,
     )
+    @discord.option(
+        name="deep",
+        description="Do a more intensive, long-running search",
+        required=False,
+        input_type=discord.SlashCommandOptionType.boolean,
+    )
     @discord.guild_only()
     async def search(
-        self, ctx: discord.ApplicationContext, query: str, scope: int, nodes: int
+        self, ctx: discord.ApplicationContext, query: str, scope: int, nodes: int, deep: bool
     ):
-        await self.search_cog.search_command(ctx, query, scope, nodes)
+        await self.search_cog.search_command(ctx, query, scope, nodes, deep)

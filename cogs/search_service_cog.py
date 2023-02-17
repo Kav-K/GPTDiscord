@@ -68,7 +68,7 @@ class SearchService(discord.Cog, name="SearchService"):
         return pages
 
     async def search_command(
-        self, ctx: discord.ApplicationContext, query, search_scope, nodes, redo=None
+        self, ctx: discord.ApplicationContext, query, search_scope, nodes, deep, redo=None
     ):
         """Command handler for the translation command"""
         user_api_key = None
@@ -90,7 +90,7 @@ class SearchService(discord.Cog, name="SearchService"):
 
         try:
             response, refined_text = await self.model.search(
-                ctx, query, user_api_key, search_scope, nodes
+                ctx, query, user_api_key, search_scope, nodes, deep
             )
         except ValueError:
             await ctx.respond(
