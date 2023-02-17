@@ -68,7 +68,13 @@ class SearchService(discord.Cog, name="SearchService"):
         return pages
 
     async def search_command(
-        self, ctx: discord.ApplicationContext, query, search_scope, nodes, deep, redo=None
+        self,
+        ctx: discord.ApplicationContext,
+        query,
+        search_scope,
+        nodes,
+        deep,
+        redo=None,
     ):
         """Command handler for the translation command"""
         user_api_key = None

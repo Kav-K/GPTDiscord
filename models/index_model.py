@@ -33,7 +33,8 @@ from gpt_index import (
     QueryConfig,
     PromptHelper,
     IndexStructType,
-    OpenAIEmbedding, GithubRepositoryReader,
+    OpenAIEmbedding,
+    GithubRepositoryReader,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -190,9 +191,13 @@ class Index_handler:
         repo = link.split("/")[4]
 
         try:
-            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(branch="main")
+            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(
+                branch="main"
+            )
         except KeyError:
-            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(branch="master")
+            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(
+                branch="master"
+            )
 
         index = GPTSimpleVectorIndex(
             documents,
