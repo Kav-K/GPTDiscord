@@ -188,14 +188,13 @@ class Search:
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
             llm_predictor_presearch = OpenAI(
-                max_tokens=40, temperature=0.1, model_name="text-davinci-003"
+                max_tokens=40, temperature=0, model_name="text-davinci-003"
             )
 
             # Refine a query to send to google custom search API
             query_refined = llm_predictor_presearch.generate(
                 prompts=[
-                    f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is asking about something that is relevant to the current day, insert the current_date into the refined query. If the user is asking about something that may be relevant to the current month, insert the values of the current_year and month into the refined query, if the query is asking for something relevant to the current year, insert the value of the current year into the refined query. There is no need to insert a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current_date is {str(datetime.now().date())}. Do not insert the current_date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
-                ]
+                    f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is inferring knowledge about the current day, insert the current day into the refined prompt. If the original query is inferring knowledge about the current month, insert the current month and year into the refined prompt. If the original query is inferring knowledge about the current year, insert the current year into the refined prompt. Generally, if the original query is inferring knowledge about something that happened recently, insert the current month into the refined query. Avoid inserting a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current date is {str(datetime.now().date())}. Do not insert the current date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"                ]
             )
             query_refined_text = query_refined.generations[0][0].text
         except Exception as e:
@@ -343,10 +342,8 @@ class Search:
                     index.query,
                     query,
                     include_text=True,
-                    response_mode="tree_summarize",
                     embed_model=embedding_model,
-                    llm_predictor=llm_predictor,
-                    text_qa_template=self.qaprompt,
+                    llm_predictor=llm_predictor_deep,
                 ),
             )
 
