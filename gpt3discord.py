@@ -53,7 +53,7 @@ except Exception:
 
 pinecone_service = None
 if PINECONE_TOKEN:
-    pinecone.init(api_key=PINECONE_TOKEN, environment="us-west1-gcp")
+    pinecone.init(api_key=PINECONE_TOKEN, environment=EnvService.get_pinecone_region())
     PINECONE_INDEX = "conversation-embeddings"
     if PINECONE_INDEX not in pinecone.list_indexes():
         print("Creating pinecone index. Please wait...")

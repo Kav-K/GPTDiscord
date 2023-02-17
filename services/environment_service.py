@@ -351,3 +351,11 @@ class EnvService:
             return google_search_engine_id
         except Exception:
             return None
+
+    @staticmethod
+    def get_pinecone_region():
+        try:
+            pinecone_region = os.getenv("PINECONE_REGION")
+            return pinecone_region
+        except Exception:
+            return "us-west1-gcp"
