@@ -71,7 +71,13 @@ class SearchService(discord.Cog, name="SearchService"):
         return pages
 
     async def search_command(
-        self, ctx: discord.ApplicationContext, query, search_scope, nodes, deep, redo=None
+        self,
+        ctx: discord.ApplicationContext,
+        query,
+        search_scope,
+        nodes,
+        deep,
+        redo=None,
     ):
         """Command handler for the translation command"""
         user_api_key = None
@@ -154,5 +160,6 @@ class RedoButton(discord.ui.View):
             self.search_cog.redo_users[self.ctx.user.id].query,
             self.search_cog.redo_users[self.ctx.user.id].search_scope,
             self.search_cog.redo_users[self.ctx.user.id].nodes,
+            deep=False,
             redo=True,
         )

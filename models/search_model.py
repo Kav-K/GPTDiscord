@@ -194,7 +194,8 @@ class Search:
             # Refine a query to send to google custom search API
             query_refined = llm_predictor_presearch.generate(
                 prompts=[
-                    f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is inferring knowledge about the current day, insert the current day into the refined prompt. If the original query is inferring knowledge about the current month, insert the current month and year into the refined prompt. If the original query is inferring knowledge about the current year, insert the current year into the refined prompt. Generally, if the original query is inferring knowledge about something that happened recently, insert the current month into the refined query. Avoid inserting a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current date is {str(datetime.now().date())}. Do not insert the current date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"                ]
+                    f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is inferring knowledge about the current day, insert the current day into the refined prompt. If the original query is inferring knowledge about the current month, insert the current month and year into the refined prompt. If the original query is inferring knowledge about the current year, insert the current year into the refined prompt. Generally, if the original query is inferring knowledge about something that happened recently, insert the current month into the refined query. Avoid inserting a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current date is {str(datetime.now().date())}. Do not insert the current date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
+                ]
             )
             query_refined_text = query_refined.generations[0][0].text
         except Exception as e:
@@ -291,7 +292,8 @@ class Search:
 
         if not deep:
             index = await self.loop.run_in_executor(
-                None, partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model)
+                None,
+                partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model),
             )
         else:
             print("Doing a deep search")
@@ -299,7 +301,15 @@ class Search:
                 llm=OpenAI(model_name="text-davinci-002", temperature=0, max_tokens=-1)
             )
             index = await self.loop.run_in_executor(
-                None, partial(GPTKnowledgeGraphIndex, documents, chunk_size_limit=512, max_triplets_per_chunk=2, embed_model=embedding_model, llm_predictor=llm_predictor_deep)
+                None,
+                partial(
+                    GPTKnowledgeGraphIndex,
+                    documents,
+                    chunk_size_limit=512,
+                    max_triplets_per_chunk=2,
+                    embed_model=embedding_model,
+                    llm_predictor=llm_predictor_deep,
+                ),
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -307,8 +317,6 @@ class Search:
             await self.usage_service.update_usage(
                 llm_predictor_deep.last_token_usage, embeddings=False
             )
-
-
 
         if ctx:
             await self.try_edit(
@@ -318,7 +326,6 @@ class Search:
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
-
 
         # Now we can search the index for a query:
         embedding_model.last_token_usage = 0
@@ -346,8 +353,6 @@ class Search:
                     llm_predictor=llm_predictor_deep,
                 ),
             )
-
-
 
         await self.usage_service.update_usage(llm_predictor.last_token_usage)
         await self.usage_service.update_usage(
