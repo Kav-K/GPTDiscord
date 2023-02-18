@@ -63,9 +63,13 @@ class SearchService(discord.Cog, name="SearchService"):
                     description=chunk,
                 )
             if user.avatar:
-                page.set_footer(text=f"Requested by {user.name}", icon_url=user.avatar.url)
+                page.set_footer(
+                    text=f"Requested by {user.name}", icon_url=user.avatar.url
+                )
             else:
-                page.set_footer(text=f"Requested by {user.name}", icon_url=user.default_avatar.url)
+                page.set_footer(
+                    text=f"Requested by {user.name}", icon_url=user.default_avatar.url
+                )
             pages.append(page)
 
         return pages
