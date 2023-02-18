@@ -87,7 +87,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 temp_override=0.9,
                 presence_penalty_override=0.5,
                 best_of_override=1,
-                max_tokens_override=80,
+                max_tokens_override=60,
                 custom_api_key=user_api_key,
             )
 
