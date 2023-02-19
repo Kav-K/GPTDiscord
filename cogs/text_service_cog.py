@@ -555,6 +555,21 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ):
             original_message[message.author.id] = message.id
 
+        # If the user tagged the bot, retrieve the message
+        if self.bot.user.mentioned_in(message):
+            # Remove the mention from the message
+            prompt = message.content.replace(self.bot.user.mention, "")
+            # If the message is empty, don't process it
+            if len(prompt) < 5:
+                await message.reply(
+                    "This is too short of a prompt to think about. Please be more specific."
+                )
+                return
+
+            await self.ask_command(message, prompt, False, None, None, None, None, from_message_context=True )
+
+
+
     def cleanse_response(self, response_text):
         """Cleans history tokens from response"""
         response_text = response_text.replace("GPTie:\n", "")
@@ -715,6 +730,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         presence_penalty: float,
         from_ask_action=None,
         from_other_action=None,
+        from_message_context=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -727,7 +743,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             presence_penalty (float): Sets the presence penalty override
             from_action (bool, optional): Enables ephemeral. Defaults to None.
         """
-        user = ctx.user
+        is_context = isinstance(ctx, discord.ApplicationContext)
+
+        user = ctx.user if is_context else ctx.author
         prompt = await self.mention_to_username(ctx, prompt.strip())
 
         user_api_key = None
@@ -736,7 +754,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        await ctx.defer(ephemeral=private)
+        await ctx.defer(ephemeral=private) if is_context else None
 
         overrides = Override(temperature, top_p, frequency_penalty, presence_penalty)
 
@@ -750,6 +768,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             custom_api_key=user_api_key,
             from_ask_action=from_ask_action,
             from_other_action=from_other_action,
+            from_message_context=from_message_context,
         )
 
     async def edit_command(

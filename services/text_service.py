@@ -38,6 +38,7 @@ class TextService:
         redo_request=False,
         from_ask_action=False,
         from_other_action=None,
+        from_message_context=None,
     ):
         """General service function for sending and receiving gpt generations
 
@@ -288,7 +289,9 @@ class TextService:
                 str(response["choices"][0]["text"])
             )
 
-            if from_other_action:
+            if from_message_context:
+                response_text = f"{response_text}"
+            elif from_other_action:
                 response_text = f"***{from_other_action}*** {response_text}"
             elif from_ask_command or from_ask_action:
                 response_text = f"***{prompt}***{response_text}"
