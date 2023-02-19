@@ -101,7 +101,14 @@ class IndexService(discord.Cog, name="IndexService"):
             await ctx.respond("Please provide a user or server or search index")
             return
 
-        if user_index and server_index or user_index and search_index or server_index and search_index:
+        if (
+            user_index
+            and server_index
+            or user_index
+            and search_index
+            or server_index
+            and search_index
+        ):
             await ctx.respond(
                 "Please only try to load one type of index. Either a user index, a server index or a search index."
             )
