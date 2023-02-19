@@ -79,10 +79,14 @@ To connect with ssh, run the following command in terminal:
 It will then prompt you for your password, which you should enter, and then you will be logged in.   
   
 After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:  
-``` 
+```shell
 git clone https://github.com/Kav-K/GPT3Discord.gitcd GPT3Discord/  
 # Install system packages (python)  
-sudo apt-get updatesudo apt install software-properties-commonsudo add-apt-repository ppa:deadsnakes/ppasudo apt install python3.9sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
+sudo apt-get update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.9
+sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
 # Install Pip for python3.9  
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.pypython3.9 get-pip.py  
 # Install project dependencies  
