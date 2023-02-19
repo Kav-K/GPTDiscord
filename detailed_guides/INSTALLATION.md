@@ -2,17 +2,19 @@
 **For OCR, and document functionalities**:  
 ```  
 pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
-or  
+```
+OR  
+```
 python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
 ```  
 **For audio extraction for indexing from .mp3 and .mp4 files**:  
-  
-`python3.9 -m pip install git+https://github.com/openai/whisper.git`  
-  
+```
+python3.9 -m pip install git+https://github.com/openai/whisper.git
+```
 **All other dependencies**:  
-  
-`python3.9 -m pip install -r requirements.txt`  
-  
+```  
+python3.9 -m pip install -r requirements.txt  
+```
 **We recommend using python 3.9.**  
   
 OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)  
@@ -77,7 +79,7 @@ To connect with ssh, run the following command in terminal:
 It will then prompt you for your password, which you should enter, and then you will be logged in.   
   
 After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:  
-```bash  
+``` 
 git clone https://github.com/Kav-K/GPT3Discord.gitcd GPT3Discord/  
 # Install system packages (python)  
 sudo apt-get updatesudo apt install software-properties-commonsudo add-apt-repository ppa:deadsnakes/ppasudo apt install python3.9sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
@@ -94,24 +96,27 @@ nano .env
 screen gpt3discord  
 # Hit `Ctrl+a` then `d` to detach from the running bot.  
 # The bot's screen session can be reattached:  
-screen -r```  
+screen -r
+```  
   
 If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:  
-```bash  
-{Navigate to the folder where the project files are}  
+```  
+# First, navigate to the folder where the project files are 
 screen -dmS GPTBot bash -c 'python3.9 gpt3discord.py'  
   
 # Reattach to screen session  
-screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs  
+screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs
+
 # If there are multiple IDs returned by screen -x:  
 screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to  
-  
 ```  
   
 As a last resort, you can try to run the bot using python in a basic way, with simply  
-```bash  
-cd (the folder where the files for GPT3Discord are located/cloned)  
-python3.9 gpt3discord.py```  
+```  
+cd GPT3Discord
+
+python3.9 gpt3discord.py  
+```
 <!--   
 ### Docker Installation  
   
@@ -158,7 +163,7 @@ To start the gpt3discord container with Docker Compose, follow these steps:
 3. Run the following command to start the container in detached mode:  
   
 ```  
-Copy codedocker-compose up -d  
+docker-compose up -d  
 ```  
   
 This will start the container and use the settings in the docker-compose.yml file. The -d option tells Docker Compose to run the container in the background (detached mode).  
@@ -167,7 +172,7 @@ This will start the container and use the settings in the docker-compose.yml fil
 To stop the gpt3discord container, run the following command:  
   
 ```  
-Copy codedocker-compose down  
+docker-compose down  
 ```  
   
 This will stop the container and remove the services and networks defined in the docker-compose.yml file.  
@@ -181,27 +186,31 @@ You need to install python3.9 and pip for python3.9 on your system.
   
 With python3.9 installed and the requirements installed, you can run this bot anywhere.   
   
-Install the dependencies with:  
-`pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html`  
-`python3.9 -m pip install -r requirements.txt`  
-  
-Then, run the bot with:  
-`python3.9 gpt3discord.py`  
-  
+Install the dependencies with:
+```
+pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+python3.9 -m pip install -r requirements.txt  
+```
+
+Then, run the bot with:
+```
+python3.9 gpt3discord.py
+```
+
 Here's a great video from a community member that shows an installation on Windows: https://youtu.be/xLhwS2rQg14  
   
 ## Updating   
   
-To update the bot,   
+To update the bot, run (when working in the directory of GPT3discord):  
   
-run (when working in the directory of GPT3discord):  
-  
-```bash  
-#To get the latest branch:  
+```
+# To get the latest branch:  
 git pull  
   
-#Install the latest modules so the bot keeps working.  
-python3.9 -m pip install -r requirements.txt  
+# Install the latest modules so the bot keeps working.  
+python3.9 -m pip install -r requirements.txt
+
 python3.9 -m pip install .  
 ```  
   
