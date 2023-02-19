@@ -267,12 +267,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # If at conversation limit then fetch the owner and close the thread for them
         if conversation_limit:
             try:
-                owner_id = list(self.conversation_thread_owners.keys())[
-                    list(
-                        [value for value in self.conversation_thread_owners.values()]
-                    ).index(channel_id)
-                ]
-                self.conversation_thread_owners[normalized_user_id].remove(
+                owner_id = [owner for owner, threads in self.conversation_thread_owners.items() if channel_id in threads][0]
+                self.conversation_thread_owners[owner_id].remove(
                     ctx.channel.id
                 )
                 # Attempt to close and lock the thread.
@@ -480,6 +476,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     "You have reached the maximum conversation length. You have ended the conversation with GPT3, and it has ended."
                 )
                 await self.end_conversation(message, conversation_limit=True)
+                return True
+        return False
 
     async def summarize_conversation(self, message, prompt):
         """Takes a conversation history filled prompt and summarizes it to then start a new history with it as the base"""
