@@ -561,8 +561,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         ):
             original_message[message.author.id] = message.id
 
-        # If the user tagged the bot, retrieve the message
-        if self.bot.user.mentioned_in(message):
+        # If the user tagged the bot and the tag wasn't an @here or @everyone, retrieve the message
+        if f"<@{self.bot.user.id}>" in message.content and not (
+            "@everyone" in message.content or "@here" in message.content
+        ):
+
+
             # Remove the mention from the message
             prompt = message.content.replace(self.bot.user.mention, "")
             # If the message is empty, don't process it
