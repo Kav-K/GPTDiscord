@@ -223,7 +223,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 channel_ids = self.conversation_thread_owners[normalized_user_id]
                 if ctx.channel.id not in channel_ids:
                     await ctx.reply(
-                        "This is not a conversation thread that you own!", delete_after=5
+                        "This is not a conversation thread that you own!",
+                        delete_after=5,
                     )
 
             except Exception:
@@ -267,9 +268,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if conversation_limit:
             try:
                 owner_id = list(self.conversation_thread_owners.keys())[
-                    list([value for value in self.conversation_thread_owners.values()]).index(channel_id)
+                    list(
+                        [value for value in self.conversation_thread_owners.values()]
+                    ).index(channel_id)
                 ]
-                self.conversation_thread_owners[normalized_user_id].remove(ctx.channel.id)
+                self.conversation_thread_owners[normalized_user_id].remove(
+                    ctx.channel.id
+                )
                 # Attempt to close and lock the thread.
                 try:
                     thread = await self.bot.fetch_channel(channel_id)
@@ -282,7 +287,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         else:
             if normalized_user_id in self.conversation_thread_owners:
                 thread_id = ctx.channel.id
-                self.conversation_thread_owners[normalized_user_id].remove(ctx.channel.id)
+                self.conversation_thread_owners[normalized_user_id].remove(
+                    ctx.channel.id
+                )
 
                 # Attempt to close and lock the thread.
                 try:

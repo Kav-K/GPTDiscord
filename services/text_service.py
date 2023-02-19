@@ -797,8 +797,8 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
         user_id = interaction.user.id
         if (
             user_id in self.converser_cog.conversation_thread_owners
-            and interaction.channel.id in self.converser_cog.conversation_thread_owners[user_id]
-
+            and interaction.channel.id
+            in self.converser_cog.conversation_thread_owners[user_id]
         ):
             try:
                 await self.converser_cog.end_conversation(
