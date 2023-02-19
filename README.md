@@ -15,9 +15,10 @@ A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right in
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)  
 
 # Table of Contents  
-   
-- Features, Screenshots & Commands (Scroll Down)
-- [Test](#Screenshots)
+
+- [Screenshots](#Screenshots)
+- [Features](#Features)
+- [Commands](#Commands)
 - [Installation](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/INSTALLATION.md)  
 -- [DigitalOcean Droplet Guide](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/DROPLET-GUIDE.md) 
 -- [OpenAI Token Guide](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/OPENAI-GUIDE.md)
