@@ -108,7 +108,6 @@ class SearchService(discord.Cog, name="SearchService"):
             await ctx.respond("The search service is not enabled.")
             return
 
-
         try:
             response, refined_text = await self.model.search(
                 ctx, query, user_api_key, search_scope, nodes, deep

@@ -50,7 +50,9 @@ class Search:
 
     def add_search_index(self, index, user_id, query):
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
-        Path(f"{app_root_path()}/indexes/{user_id}_search").mkdir(parents=True, exist_ok=True)
+        Path(f"{app_root_path()}/indexes/{user_id}_search").mkdir(
+            parents=True, exist_ok=True
+        )
         # Save the index to file under the user id
         file = f"{query[:20]}_{date.today().month}_{date.today().day}"
 
@@ -308,7 +310,13 @@ class Search:
             )
             # save the index to disk if not a redo
             if not redo:
-                self.add_search_index(index, ctx.user.id if isinstance(ctx, discord.ApplicationContext) else ctx.author.id, query)
+                self.add_search_index(
+                    index,
+                    ctx.user.id
+                    if isinstance(ctx, discord.ApplicationContext)
+                    else ctx.author.id,
+                    query,
+                )
         else:
             print("Doing a deep search")
             llm_predictor_deep = LLMPredictor(
