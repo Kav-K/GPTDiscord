@@ -543,10 +543,17 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         autocomplete=File_autocompleter.get_server_indexes,
     )
+    @discord.option(
+        name="search_index",
+        description="Which search index file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_user_search_indexes,
+    )
     async def load_index(
-        self, ctx: discord.ApplicationContext, user_index: str, server_index: str
+        self, ctx: discord.ApplicationContext, user_index: str, server_index: str, search_index: str
     ):
-        await self.index_cog.load_index_command(ctx, user_index, server_index)
+        await ctx.defer()
+        await self.index_cog.load_index_command(ctx, user_index, server_index, search_index)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -655,6 +662,7 @@ class Commands(discord.Cog, name="Commands"):
         nodes: int,
         response_mode: str,
     ):
+        await ctx.defer()
         await self.index_cog.query_command(ctx, query, nodes, response_mode)
 
     #

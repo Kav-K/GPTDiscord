@@ -90,7 +90,9 @@ class SearchService(discord.Cog, name="SearchService"):
         redo=None,
         from_followup=None,
     ):
-        """Command handler for the translation command"""
+        """Command handler for the search command"""
+        await ctx.defer() if not redo else None
+
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -106,7 +108,6 @@ class SearchService(discord.Cog, name="SearchService"):
             await ctx.respond("The search service is not enabled.")
             return
 
-        await ctx.defer() if not redo else None
 
         try:
             response, refined_text = await self.model.search(

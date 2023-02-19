@@ -25,6 +25,7 @@ class IndexService(discord.Cog, name="IndexService"):
     async def set_index_command(
         self, ctx, file: discord.Attachment = None, link: str = None
     ):
+        await ctx.defer()
         """Command handler to set a file as your personal index"""
         if not file and not link:
             await ctx.respond("Please provide a file or a link")
@@ -44,7 +45,6 @@ class IndexService(discord.Cog, name="IndexService"):
             if not user_api_key:
                 return
 
-        await ctx.defer(ephemeral=True)
         if file:
             await self.index_handler.set_file_index(
                 ctx, file, user_api_key=user_api_key
@@ -56,6 +56,7 @@ class IndexService(discord.Cog, name="IndexService"):
 
     async def set_discord_command(self, ctx, channel: discord.TextChannel = None):
         """Command handler to set a channel as your personal index"""
+        await ctx.defer()
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -65,13 +66,12 @@ class IndexService(discord.Cog, name="IndexService"):
             if not user_api_key:
                 return
 
-        await ctx.defer(ephemeral=True)
         await self.index_handler.set_discord_index(
             ctx, channel, user_api_key=user_api_key
         )
 
     async def reset_command(self, ctx):
-        await ctx.defer(ephemeral=True)
+        await ctx.defer()
         try:
             self.index_handler.reset_indexes(ctx.user.id)
             await ctx.respond("Your indexes have been reset")
@@ -83,6 +83,7 @@ class IndexService(discord.Cog, name="IndexService"):
 
     async def discord_backup_command(self, ctx):
         """Command handler to backup the entire server"""
+        await ctx.defer()
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -91,29 +92,32 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
-
-        await ctx.defer(ephemeral=True)
         await self.index_handler.backup_discord(ctx, user_api_key=user_api_key)
 
-    async def load_index_command(self, ctx, user_index, server_index):
-        """Command handler to backup the entire server"""
+    async def load_index_command(self, ctx, user_index, server_index, search_index):
+        """Command handler to load indexes"""
 
-        if not user_index and not server_index:
-            await ctx.respond("Please provide a user or server index")
+        if not user_index and not server_index and not search_index:
+            await ctx.respond("Please provide a user or server or search index")
             return
 
-        if user_index and server_index:
+        if user_index and server_index or user_index and search_index or server_index and search_index:
             await ctx.respond(
-                "Please provide only one user index or server index. Only one or the other."
+                "Please only try to load one type of index. Either a user index, a server index or a search index."
             )
             return
 
+        search = False
         if server_index:
             index = server_index
             server = True
-        else:
+        elif user_index:
             index = user_index
             server = False
+        else:
+            index = search_index
+            server = False
+            search = True
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -122,12 +126,11 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
-
-        await ctx.defer(ephemeral=True)
-        await self.index_handler.load_index(ctx, index, server, user_api_key)
+        await self.index_handler.load_index(ctx, index, server, search, user_api_key)
 
     async def query_command(self, ctx, query, nodes, response_mode):
         """Command handler to query your index"""
+
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -136,7 +139,6 @@ class IndexService(discord.Cog, name="IndexService"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
         await self.index_handler.query(ctx, query, response_mode, nodes, user_api_key)
 
     async def compose_command(self, ctx, name):

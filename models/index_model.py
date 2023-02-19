@@ -343,11 +343,11 @@ class Index_handler:
                         if response.status == 200:
                             content_type = response.headers.get("content-type")
                         else:
-                            await ctx.respond("Failed to get link", ephemeral=True)
+                            await ctx.respond("Failed to get link")
                             return
             except Exception:
                 traceback.print_exc()
-                await ctx.respond("Failed to get link", ephemeral=True)
+                await ctx.respond("Failed to get link")
                 return
 
             # Check if the link contains youtube in it
@@ -416,7 +416,7 @@ class Index_handler:
             traceback.print_exc()
 
     async def load_index(
-        self, ctx: discord.ApplicationContext, index, server, user_api_key
+        self, ctx: discord.ApplicationContext, index, server, search, user_api_key
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -428,6 +428,10 @@ class Index_handler:
                 index_file = EnvService.find_shared_file(
                     f"indexes/{ctx.guild.id}/{index}"
                 )
+            elif search:
+                index_file = EnvService.find_shared_file(
+                    f"indexes/{ctx.user.id}_search/{index}"
+                )
             else:
                 index_file = EnvService.find_shared_file(
                     f"indexes/{ctx.user.id}/{index}"
@@ -438,6 +442,7 @@ class Index_handler:
             self.index_storage[ctx.user.id].queryable_index = index
             await ctx.respond("Loaded index")
         except Exception as e:
+            traceback.print_exc()
             await ctx.respond(e)
 
     async def compose_indexes(self, user_id, indexes, name, deep_compose):

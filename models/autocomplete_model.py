@@ -183,3 +183,20 @@ class File_autocompleter:
             ]  # returns the 25 first files from your current input
         except Exception:
             return ["No server indexes found, add an index"]
+
+    async def get_user_search_indexes(ctx: discord.AutocompleteContext):
+        """get all files in the indexes folder"""
+        try:
+            return [
+                file
+                for file in os.listdir(
+                    EnvService.find_shared_file(
+                        f"indexes/{str(ctx.interaction.user.id)}_search/"
+                    )
+                )
+                if file.startswith(ctx.value.lower())
+            ][
+                :25
+            ]  # returns the 25 first files from your current input
+        except Exception:
+            return ["No user indexes found, add an index"]
