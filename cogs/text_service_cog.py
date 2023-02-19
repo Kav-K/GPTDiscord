@@ -572,8 +572,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if f"<@{self.bot.user.id}>" in message.content and not (
             "@everyone" in message.content or "@here" in message.content
         ):
-
-
             # Remove the mention from the message
             prompt = message.content.replace(self.bot.user.mention, "")
             # If the message is empty, don't process it
