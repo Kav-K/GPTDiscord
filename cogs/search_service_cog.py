@@ -40,7 +40,9 @@ class SearchService(discord.Cog, name="SearchService"):
         self.redo_users = {}
         # Make a mapping of all the country codes and their full country names:
 
-    async def paginate_embed(self, response_text, user: discord.Member, original_link=None):
+    async def paginate_embed(
+        self, response_text, user: discord.Member, original_link=None
+    ):
         """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
 
         response_text = [
@@ -53,7 +55,9 @@ class SearchService(discord.Cog, name="SearchService"):
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title=f"Search Results" if not original_link else f"Follow-up results",
+                    title=f"Search Results"
+                    if not original_link
+                    else f"Follow-up results",
                     description=chunk,
                     url=original_link,
                 )
@@ -130,7 +134,10 @@ class SearchService(discord.Cog, name="SearchService"):
         urls = "\n".join(f"<{url}>" for url in urls)
 
         if from_followup:
-            original_link, followup_question = from_followup.original_link, from_followup.followup_question
+            original_link, followup_question = (
+                from_followup.original_link,
+                from_followup.followup_question,
+            )
             query_response_message = f"**Question:**\n\n`{followup_question}`\n\n**Google Search Query**\n\n`{refined_text.strip()}`\n\n**Final Answer:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
         else:
             query_response_message = f"**Question:**\n\n`{query.strip()}`\n\n**Google Search Query**\n\n`{refined_text.strip()}`\n\n**Final Answer:**\n\n{response.response.strip()}\n\n**Sources:**\n{urls}"
@@ -146,7 +153,9 @@ class SearchService(discord.Cog, name="SearchService"):
 
         # If the response is too long, lets paginate using the discord pagination
         # helper
-        embed_pages = await self.paginate_embed(query_response_message, ctx.user, original_link if from_followup else None)
+        embed_pages = await self.paginate_embed(
+            query_response_message, ctx.user, original_link if from_followup else None
+        )
         paginator = pages.Paginator(
             pages=embed_pages,
             timeout=None,
@@ -173,6 +182,7 @@ class SearchView(discord.ui.View):
         self.add_item(RedoButton(self.ctx, self.search_cog))
         self.add_item(FollowupButton(self.ctx, self.search_cog, self.response_text))
 
+
 # A view for a follow-up button
 class FollowupButton(discord.ui.Button["SearchView"]):
     def __init__(self, ctx, search_cog, response_text):
@@ -183,8 +193,9 @@ class FollowupButton(discord.ui.Button["SearchView"]):
 
     async def callback(self, interaction: discord.Interaction):
         """Send the followup modal"""
-        await interaction.response.send_modal(modal=FollowupModal(self.ctx, self.search_cog, self.response_text))
-
+        await interaction.response.send_modal(
+            modal=FollowupModal(self.ctx, self.search_cog, self.response_text)
+        )
 
 
 # A view for a redo button
@@ -212,10 +223,13 @@ class RedoButton(discord.ui.Button["SearchView"]):
             redo=True,
         )
 
+
 class FollowupData:
     def __init__(self, original_link, followup_question):
         self.original_link = original_link
         self.followup_question = followup_question
+
+
 # The modal for following up
 class FollowupModal(discord.ui.Modal):
     def __init__(self, ctx, search_cog, response_text) -> None:
@@ -237,10 +251,21 @@ class FollowupModal(discord.ui.Modal):
         query = self.search_cog.redo_users[self.ctx.user.id].query
 
         # In the response text, get only the text between "**Final Answer:**" and "**Sources:**"
-        self.response_text = self.response_text.split("**Final Answer:**")[1].split("**Sources:**")[0]
+        self.response_text = self.response_text.split("**Final Answer:**")[1].split(
+            "**Sources:**"
+        )[0]
 
         # Build the context
-        context_text = "Original question: "+query+"\n"+"Answer to original: "+self.response_text+"\n"+"Follow-up question: "+self.children[0].value
+        context_text = (
+            "Original question: "
+            + query
+            + "\n"
+            + "Answer to original: "
+            + self.response_text
+            + "\n"
+            + "Follow-up question: "
+            + self.children[0].value
+        )
 
         # Get the link of the message that the user interacted on
         message_link = f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/{interaction.message.id}"
