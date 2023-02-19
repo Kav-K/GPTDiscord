@@ -566,9 +566,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
                 return
 
-            await self.ask_command(message, prompt, False, None, None, None, None, from_message_context=True )
-
-
+            await self.ask_command(
+                message,
+                prompt,
+                False,
+                None,
+                None,
+                None,
+                None,
+                from_message_context=True,
+            )
 
     def cleanse_response(self, response_text):
         """Cleans history tokens from response"""
