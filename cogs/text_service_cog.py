@@ -138,7 +138,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.TEXT_CUTOFF = 1900
         self.EMBED_CUTOFF = 3900
         self.message_queue = message_queue
-        self.conversation_thread_owners = {}
+        self.conversation_thread_owners = defaultdict(list)
 
     async def load_file(self, file, ctx):
         """Take filepath, return content or respond if not found"""
@@ -220,8 +220,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             channel_id = ctx.channel.id
         else:
             try:
-                channel_id = self.conversation_thread_owners[normalized_user_id]
+                channel_ids = self.conversation_thread_owners[normalized_user_id]
+                if ctx.channel.id not in channel_ids:
+                    await ctx.reply(
+                        "This is not a conversation thread that you own!", delete_after=5
+                    )
+
             except Exception:
+                traceback.print_exc()
                 await ctx.delete(delay=5)
                 await ctx.reply(
                     "Only the conversation starter can end this.", delete_after=5
@@ -230,7 +236,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # TODO Possible bug here, if both users have a conversation active and one user tries to end the other, it may
         # allow them to click the end button on the other person's thread and it will end their own convo.
-        self.conversation_threads.pop(channel_id)
+        self.conversation_threads.pop(ctx.channel.id)
 
         if isinstance(
             ctx, discord.ApplicationContext
@@ -261,9 +267,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if conversation_limit:
             try:
                 owner_id = list(self.conversation_thread_owners.keys())[
-                    list(self.conversation_thread_owners.values()).index(channel_id)
+                    list([value for value in self.conversation_thread_owners.values()]).index(channel_id)
                 ]
-                self.conversation_thread_owners.pop(owner_id)
+                self.conversation_thread_owners[normalized_user_id].remove(ctx.channel.id)
                 # Attempt to close and lock the thread.
                 try:
                     thread = await self.bot.fetch_channel(channel_id)
@@ -275,8 +281,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 traceback.print_exc()
         else:
             if normalized_user_id in self.conversation_thread_owners:
-                thread_id = self.conversation_thread_owners[normalized_user_id]
-                self.conversation_thread_owners.pop(normalized_user_id)
+                thread_id = ctx.channel.id
+                self.conversation_thread_owners[normalized_user_id].remove(ctx.channel.id)
 
                 # Attempt to close and lock the thread.
                 try:
@@ -879,12 +885,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         elif not private:
             await ctx.defer()
 
-        if user.id in self.conversation_thread_owners:
-            await ctx.respond(
-                "You've already created a thread, end it before creating a new one",
-                delete_after=5,
-            )
-            return
+        # if user.id in self.conversation_thread_owners:
+        #     await ctx.respond(
+        #         "You've already created a thread, end it before creating a new one",
+        #         delete_after=5,
+        #     )
+        #     return
 
         if private:
             await ctx.respond(
@@ -983,7 +989,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
-        self.conversation_thread_owners[user_id_normalized] = thread.id
+        self.conversation_thread_owners[user_id_normalized].append(thread.id)
         overrides = self.conversation_threads[thread.id].get_overrides()
 
         await thread.send(f"<@{str(ctx.user.id)}> is the thread owner.")
@@ -1042,14 +1048,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         """Command handler. Gets the user's thread and ends it"""
         await ctx.defer(ephemeral=True)
         user_id = ctx.user.id
-        try:
-            thread_id = self.conversation_thread_owners[user_id]
-        except Exception:
-            await ctx.respond(
-                "You haven't started any conversations", ephemeral=True, delete_after=10
-            )
-            return
-        if thread_id in self.conversation_threads:
+
+        if ctx.channel.id in self.conversation_threads:
             try:
                 await self.end_conversation(ctx)
             except Exception as e:
@@ -1057,7 +1057,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 traceback.print_exc()
         else:
             await ctx.respond(
-                "You're not in any conversations", ephemeral=True, delete_after=10
+                "This is not a conversation channel.", ephemeral=True, delete_after=10
             )
 
     async def setup_command(self, ctx: discord.ApplicationContext):
