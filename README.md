@@ -60,6 +60,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!
 
+- Tag your bot in chat and it'll respond!
 - Async and fault tolerant, **can handle hundreds of users at once**, if the upstream API permits!
 - Change and view model parameters such as temp, top_p, and etc directly within discord. 
 - Tracks token usage automatically
