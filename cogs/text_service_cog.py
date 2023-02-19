@@ -267,10 +267,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # If at conversation limit then fetch the owner and close the thread for them
         if conversation_limit:
             try:
-                owner_id = [owner for owner, threads in self.conversation_thread_owners.items() if channel_id in threads][0]
-                self.conversation_thread_owners[owner_id].remove(
-                    ctx.channel.id
-                )
+                owner_id = [
+                    owner
+                    for owner, threads in self.conversation_thread_owners.items()
+                    if channel_id in threads
+                ][0]
+                self.conversation_thread_owners[owner_id].remove(ctx.channel.id)
                 # Attempt to close and lock the thread.
                 try:
                     thread = await self.bot.fetch_channel(channel_id)
