@@ -127,24 +127,24 @@ python3.9 gpt3discord.py
 To use docker you can use the following command after [installing docker](https://docs.docker.com/get-docker/)
 - Make a .env file to mount to `/opt/gpt3discord/etc/environment` in docker 
 - `env_file` in the command should be replaced with where you have your .env file stored on your machine 
-The parts enclosed in [ ] is optional, read below for information
+- Add `DATA_DIR=/data` to your env file -> `usage.txt` is saved here
+- Add `SHARE_DIR=/data/share` to your env file -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from for persistence
+- Make sure the path on the left side of the colon in the paths below is a valid path on your machibne
+
 ```shell
-docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] ghcr.io/kav-k/gpt3discord:main  
+docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share ghcr.io/kav-k/gpt3discord:main  
 ```  
+
 If you wish to build your own image then do the following commands instead
+
 ```shell
 # build the image
 docker build -t gpt3discord .
 # run it
-docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] gpt3discord
+docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share gpt3discord
 ```
 
-- Optional: Make a data and share directory then mount it to docker to keep persistent data
-  - Add `-v DATA_DIR=/data` to command -> `usage.txt` is saved here
-  - Add `-v SHARE_DIR=/data/share` to command -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from  
-  - If `SHARE_DIR` is not included it'll load only from the files added during the docker image build 
-
-Make sure the `env_file` path is correct and the `DATA_DIR` and `SHARE_DIR` paths exists on your machine if used.  
+Make sure all the paths are correct.  
   
   
 #### Docker Compose   
