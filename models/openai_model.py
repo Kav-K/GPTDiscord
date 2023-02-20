@@ -205,7 +205,7 @@ class Model:
         )
 
         print("Building language detector")
-        #self.detector = LanguageDetectorBuilder.from_languages(*Language.all()).build()
+        # self.detector = LanguageDetectorBuilder.from_languages(*Language.all()).build()
         print("Language detector built")
 
     def reset_settings(self):
@@ -781,7 +781,9 @@ class Model:
 
         prompt = f"{pretext}{text}\nOutput:"
 
-        max_tokens = Models.get_max_tokens(Models.DAVINCI) - self.usage_service.count_tokens(prompt)
+        max_tokens = Models.get_max_tokens(
+            Models.DAVINCI
+        ) - self.usage_service.count_tokens(prompt)
 
         print(f"Language detection request for {text}")
 
@@ -791,11 +793,9 @@ class Model:
                 "prompt": prompt,
                 "temperature": 0,
                 "top_p": 1,
-                "max_tokens": max_tokens
+                "max_tokens": max_tokens,
             }
-            headers = {
-                "Authorization": f"Bearer {self.openai_key}"
-            }
+            headers = {"Authorization": f"Bearer {self.openai_key}"}
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:

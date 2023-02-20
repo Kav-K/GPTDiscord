@@ -139,7 +139,7 @@ class Moderation:
     @staticmethod
     async def force_english_and_respond(text, pretext, ctx):
         response = await model.send_language_detect_request(text, pretext)
-        response_text = response['choices'][0]['text']
+        response_text = response["choices"][0]["text"]
 
         if "false" in response_text.lower().strip():
             if isinstance(ctx, discord.Message):
@@ -159,7 +159,14 @@ class Moderation:
 
         response = await Moderation.simple_moderate(text)
         print(response)
-        flagged = True if Moderation.determine_moderation_result(text, response, pre_mod_set, pre_mod_set) == ModerationResult.DELETE else False
+        flagged = (
+            True
+            if Moderation.determine_moderation_result(
+                text, response, pre_mod_set, pre_mod_set
+            )
+            == ModerationResult.DELETE
+            else False
+        )
 
         if flagged:
             if isinstance(ctx, discord.Message):
