@@ -29,6 +29,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - [Translations](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/TRANSLATIONS.md)  
 - [User-Input API Keys](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/USER-INPUT-KEYS.md)  
 - [Permissions](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/PERMISSIONS.md)  
+- [Language Detection](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/LANGUAGE-DETECTION.md)
 - [Other Minor Features](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/OTHER-MINOR-FEATURES.md)  
 
 

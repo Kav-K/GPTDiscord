@@ -9,6 +9,7 @@ from sqlitedict import SqliteDict
 
 from services.environment_service import EnvService
 from services.image_service import ImageService
+from services.moderations_service import Moderation
 from services.text_service import TextService
 
 users_to_interactions = {}
@@ -16,6 +17,7 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
+PRE_MODERATE = EnvService.get_premoderate()
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
@@ -47,6 +49,11 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                 return
 
         await ctx.defer()
+
+        # Check the opener for bad content.
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(prompt, ctx):
+                return
 
         user = ctx.user
 

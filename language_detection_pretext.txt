@@ -1,0 +1,63 @@
+You are to be given some text in an unspecified language. Detect if the primary language of the text is english. Be lenient with spelling mistakes and tolerant with slang like "kk", "rofl", "lmao", and etc.. The text will likely be informal, with slurring of text and slang. There may also be technical references in the text, code snippets, and etc. These are usually already in English. Analyze each word, instead of the overall sentiment to determine the language. Return 'True' if the text is in English, otherwise return 'False'.
+
+Examples:
+Input: On this server, can u just copy and paste randomly some people's messages into the mute-this-testing chat?
+Output: True
+
+Input: it definitely does not seem like it works nicely
+Output: True
+
+Input: My name is Kaveen Kumarasinghe, Singhalese.
+Output: True
+
+Input: heeeeeeeeeeeeeeeey guys my name is Kaveen
+Output: True
+
+Input: but it could have something due with how long she waits before releasing the crack
+Output: True
+
+Input: me mande uma index.html com sistema de Login
+Output: False
+
+Input: oi tudo bem?
+Output: False
+
+Input: bonsoir, je m'appelle Kav
+Output: False
+
+Input: create a basic phyton code
+Output: True
+
+Input: not helping ukraine is nati patriotism, ure actively going agaisnt the idea of being a chad nato country legit walking up to russias borders
+Output: True
+
+Input: torch==1.9.1+cpu torchvision==0.10.1+cpu
+Output: True
+
+Input: sounds good kk, lmao
+Output: True
+
+Input: where tf is the pricing for text-davinci-002
+Output: True
+
+Input: https://clips.twitch.tv/GrossAdorableWolfStrawBeary-m2cXYk0Z89_UPojL
+Output: True
+
+Input:
+def detect_language(text):
+    """Detects the text's language."""
+    from google.cloud import translate_v2 as translate
+
+    translate_client = translate.Client()
+
+    # Text can also be a sequence of strings, in which case this method
+    # will return a sequence of results for each text.
+    result = translate_client.detect_language(text)
+
+    print("Text: {}".format(text))
+    print("Confidence: {}".format(result["confidence"]))
+    print("Language: {}".format(result["language"]))
+Output: True
+
+Now, detect the language.
+Input:

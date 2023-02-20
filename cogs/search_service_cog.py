@@ -8,12 +8,13 @@ from discord.ext import pages
 from models.deepl_model import TranslationModel
 from models.search_model import Search
 from services.environment_service import EnvService
+from services.moderations_service import Moderation
 from services.text_service import TextService
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
-
+PRE_MODERATE = EnvService.get_premoderate()
 
 class RedoSearchUser:
     def __init__(self, ctx, query, search_scope, nodes):
@@ -92,6 +93,11 @@ class SearchService(discord.Cog, name="SearchService"):
     ):
         """Command handler for the search command"""
         await ctx.defer() if not redo else None
+
+        # Check the opener for bad content.
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(query, ctx):
+                return
 
         user_api_key = None
         if USER_INPUT_API_KEYS:

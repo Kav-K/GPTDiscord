@@ -11,8 +11,10 @@ from services.deletion_service import Deletion
 from models.openai_model import Model, Override
 from models.user_model import EmbeddedConversationItem, RedoUser
 from services.environment_service import EnvService
+from services.moderations_service import Moderation
 
 BOT_NAME = EnvService.get_custom_bot_name()
+PRE_MODERATE = EnvService.get_premoderate()
 
 
 class TextService:
@@ -260,6 +262,7 @@ class TextService:
                     await ctx.reply("The conversation context limit has been reached.")
                     await converser_cog.end_conversation(ctx)
                     return
+
 
             # Send the request to the model
             if from_edit_command:
@@ -533,6 +536,12 @@ class TextService:
             return
 
         if conversing:
+            # Pre-moderation check
+            if PRE_MODERATE:
+                if await Moderation.simple_moderate_and_respond(message.content, message):
+                    await message.delete()
+                    return
+
             user_api_key = None
             if USER_INPUT_API_KEYS:
                 user_api_key = await TextService.get_user_api_key(
