@@ -16,6 +16,7 @@ USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 PRE_MODERATE = EnvService.get_premoderate()
 
+
 class RedoSearchUser:
     def __init__(self, ctx, query, search_scope, nodes):
         self.ctx = ctx

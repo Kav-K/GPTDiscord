@@ -263,7 +263,6 @@ class TextService:
                     await converser_cog.end_conversation(ctx)
                     return
 
-
             # Send the request to the model
             if from_edit_command:
                 response = await converser_cog.model.send_edit_request(
@@ -538,7 +537,9 @@ class TextService:
         if conversing:
             # Pre-moderation check
             if PRE_MODERATE:
-                if await Moderation.simple_moderate_and_respond(message.content, message):
+                if await Moderation.simple_moderate_and_respond(
+                    message.content, message
+                ):
                     await message.delete()
                     return
 

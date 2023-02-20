@@ -88,9 +88,13 @@ sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt install python3.9
 sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
 # Install Pip for python3.9  
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.pypython3.9 get-pip.py  
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.9 get-pip.py  
 # Install project dependencies  
-python3.9 -m pip install --ignore-installed PyYAMLpython3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.htmlpython3.9 -m pip install -r requirements.txtpython3.9 -m pip install .  
+python3.9 -m pip install --ignore-installed PyYAML
+python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+python3.9 -m pip install -r requirements.txt
+python3.9 -m pip install .  
 # Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
 cp sample.env .env  
 # The command below is used to edit the .env file and to put in your API keys. You can right click within the  
@@ -127,24 +131,24 @@ python3.9 gpt3discord.py
 To use docker you can use the following command after [installing docker](https://docs.docker.com/get-docker/)
 - Make a .env file to mount to `/opt/gpt3discord/etc/environment` in docker 
 - `env_file` in the command should be replaced with where you have your .env file stored on your machine 
-The parts enclosed in [ ] is optional, read below for information
+- Add `DATA_DIR=/data` to your env file -> `usage.txt` is saved here
+- Add `SHARE_DIR=/data/share` to your env file -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from for persistence
+- Make sure the path on the left side of the colon in the paths below is a valid path on your machibne
+
 ```shell
-docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] ghcr.io/kav-k/gpt3discord:main  
+docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share ghcr.io/kav-k/gpt3discord:main  
 ```  
+
 If you wish to build your own image then do the following commands instead
+
 ```shell
 # build the image
 docker build -t gpt3discord .
 # run it
-docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] gpt3discord
+docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share gpt3discord
 ```
 
-- Optional: Make a data and share directory then mount it to docker to keep persistent data
-  - Add `-v DATA_DIR=/data` to command -> `usage.txt` is saved here
-  - Add `-v SHARE_DIR=/data/share` to command -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from  
-  - If `SHARE_DIR` is not included it'll load only from the files added during the docker image build 
-
-Make sure the `env_file` path is correct and the `DATA_DIR` and `SHARE_DIR` paths exists on your machine if used.  
+Make sure all the paths are correct.  
   
   
 #### Docker Compose   

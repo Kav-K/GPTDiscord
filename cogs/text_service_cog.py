@@ -556,7 +556,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if message.author == self.bot.user:
             return
 
-
         # Moderations service is done here.
         if (
             hasattr(message, "guild")
@@ -580,7 +579,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Language check
         if FORCE_ENGLISH and len(message.content.split(" ")) > 3:
-            if not await Moderation.force_english_and_respond(message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message):
+            if not await Moderation.force_english_and_respond(
+                message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message
+            ):
                 await message.delete()
                 return
 
@@ -1025,7 +1026,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
-
             self.conversation_threads[thread.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
