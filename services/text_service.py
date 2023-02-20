@@ -552,7 +552,8 @@ class TextService:
 
             prompt = await converser_cog.mention_to_username(message, content)
 
-            await converser_cog.check_conversation_limit(message)
+            if await converser_cog.check_conversation_limit(message):
+                return
 
             # If the user is in a conversation thread
             if message.channel.id in converser_cog.conversation_threads:

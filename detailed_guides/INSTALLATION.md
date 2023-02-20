@@ -2,17 +2,19 @@
 **For OCR, and document functionalities**:  
 ```  
 pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
-or  
+```
+OR  
+```
 python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
 ```  
 **For audio extraction for indexing from .mp3 and .mp4 files**:  
-  
-`python3.9 -m pip install git+https://github.com/openai/whisper.git`  
-  
+```
+python3.9 -m pip install git+https://github.com/openai/whisper.git
+```
 **All other dependencies**:  
-  
-`python3.9 -m pip install -r requirements.txt`  
-  
+```  
+python3.9 -m pip install -r requirements.txt  
+```
 **We recommend using python 3.9.**  
   
 OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)  
@@ -77,10 +79,14 @@ To connect with ssh, run the following command in terminal:
 It will then prompt you for your password, which you should enter, and then you will be logged in.   
   
 After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:  
-```bash  
+```shell
 git clone https://github.com/Kav-K/GPT3Discord.gitcd GPT3Discord/  
 # Install system packages (python)  
-sudo apt-get updatesudo apt install software-properties-commonsudo add-apt-repository ppa:deadsnakes/ppasudo apt install python3.9sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
+sudo apt-get update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.9
+sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
 # Install Pip for python3.9  
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.pypython3.9 get-pip.py  
 # Install project dependencies  
@@ -94,52 +100,51 @@ nano .env
 screen gpt3discord  
 # Hit `Ctrl+a` then `d` to detach from the running bot.  
 # The bot's screen session can be reattached:  
-screen -r```  
+screen -r
+```  
   
 If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:  
-```bash  
-{Navigate to the folder where the project files are}  
+```  
+# First, navigate to the folder where the project files are 
 screen -dmS GPTBot bash -c 'python3.9 gpt3discord.py'  
   
 # Reattach to screen session  
-screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs  
+screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs
+
 # If there are multiple IDs returned by screen -x:  
 screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to  
-  
 ```  
   
 As a last resort, you can try to run the bot using python in a basic way, with simply  
-```bash  
-cd (the folder where the files for GPT3Discord are located/cloned)  
-python3.9 gpt3discord.py```  
-<!--   
-### Docker Installation  
-  
-We now have a `Dockerfile` in the repository. This will build / install all dependencies and put a `gpt3discord` binary (main.py) into path.  
-To build:  
-  
-- [Install docker](https://docs.docker.com/get-docker/)  
-- Clone repository and build *(hopefully eventually we'll add CI to automatically build + push to docker hub)*  
-  - `docker build -t gpt3discord .`  
-  - *From repository root or supply path to repository*  
-- Make a .env file to bind mount to `/opt/gpt3discord/etc/environment`  
-- Optional: Make a data directory + bind mount it  
-  - Add `DATA_DIR=/data` to env file -> `usage.txt` is made here  
-  - Add `SHARE_DIR=/data/share` to env file -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is loaded from  
-  - If `SHARE_DIR` is not included it'll load from the files added during the docker image build  
-- Run via docker:  
-  - `docker run [-d] --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] gpt3discord`  
-  - You can also mount extra volumes and set `DATA_DIR` and `SHARE_DIR` in the env file to keep persistent data  
-  - `env_file` should be replaced with where you have your .env file stored on your machine  
-  
-This can also be run via screen/tmux or detached like a daemon. -->  
+```  
+cd GPT3Discord
+
+python3.9 gpt3discord.py  
+```
   
 ### Docker and Docker Compose :  
-To use docker you can use the following command  
+
+To use docker you can use the following command after [installing docker](https://docs.docker.com/get-docker/)
+- Make a .env file to mount to `/opt/gpt3discord/etc/environment` in docker 
+- `env_file` in the command should be replaced with where you have your .env file stored on your machine 
+The parts enclosed in [ ] is optional, read below for information
+```shell
+docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] ghcr.io/kav-k/gpt3discord:main  
 ```  
-docker run -d --name gpt3discord -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share --env-file /path/to/.env ghcr.io/kav-k/gpt3discord:main  
-```  
-Make sure that the /data and /data/share are created and the `env-file` path is correct.  
+If you wish to build your own image then do the following commands instead
+```shell
+# build the image
+docker build -t gpt3discord .
+# run it
+docker run -d --name gpt3discord env_file:/opt/gpt3discord/etc/environment [-v /containers/gpt3discord:/data] [-v /containers/gpt3discord/share:/data/share] gpt3discord
+```
+
+- Optional: Make a data and share directory then mount it to docker to keep persistent data
+  - Add `-v DATA_DIR=/data` to command -> `usage.txt` is saved here
+  - Add `-v SHARE_DIR=/data/share` to command -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from  
+  - If `SHARE_DIR` is not included it'll load only from the files added during the docker image build 
+
+Make sure the `env_file` path is correct and the `DATA_DIR` and `SHARE_DIR` paths exists on your machine if used.  
   
   
 #### Docker Compose   
@@ -154,11 +159,12 @@ To use Docker Compose, you need to have Docker and Docker Compose installed on y
 To start the gpt3discord container with Docker Compose, follow these steps:  
   
 1. Open a terminal or command prompt and navigate to the directory that contains the docker-compose.yml file.  
-2. Open the docker-compose.yml file and replace the environment variable values with your actual tokens and IDs.  
-3. Run the following command to start the container in detached mode:  
+2. Open the docker-compose.yml file and replace the environment variable values with your actual tokens and IDs.
+3. In the docker-compose.yml replace the volumes with a path on your machine if you don't use the ones listed, the path to replace is the one on the left side of the colon.
+4. Run the following command to start the container in detached mode:  
   
 ```  
-Copy codedocker-compose up -d  
+docker-compose up -d  
 ```  
   
 This will start the container and use the settings in the docker-compose.yml file. The -d option tells Docker Compose to run the container in the background (detached mode).  
@@ -167,7 +173,7 @@ This will start the container and use the settings in the docker-compose.yml fil
 To stop the gpt3discord container, run the following command:  
   
 ```  
-Copy codedocker-compose down  
+docker-compose down  
 ```  
   
 This will stop the container and remove the services and networks defined in the docker-compose.yml file.  
@@ -181,27 +187,31 @@ You need to install python3.9 and pip for python3.9 on your system.
   
 With python3.9 installed and the requirements installed, you can run this bot anywhere.   
   
-Install the dependencies with:  
-`pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html`  
-`python3.9 -m pip install -r requirements.txt`  
-  
-Then, run the bot with:  
-`python3.9 gpt3discord.py`  
-  
+Install the dependencies with:
+```
+pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+python3.9 -m pip install -r requirements.txt  
+```
+
+Then, run the bot with:
+```
+python3.9 gpt3discord.py
+```
+
 Here's a great video from a community member that shows an installation on Windows: https://youtu.be/xLhwS2rQg14  
   
 ## Updating   
   
-To update the bot,   
+To update the bot, run (when working in the directory of GPT3discord):  
   
-run (when working in the directory of GPT3discord):  
-  
-```bash  
-#To get the latest branch:  
+```
+# To get the latest branch:  
 git pull  
   
-#Install the latest modules so the bot keeps working.  
-python3.9 -m pip install -r requirements.txt  
+# Install the latest modules so the bot keeps working.  
+python3.9 -m pip install -r requirements.txt
+
 python3.9 -m pip install .  
 ```  
   
