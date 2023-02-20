@@ -88,9 +88,13 @@ sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt install python3.9
 sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
 # Install Pip for python3.9  
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.pypython3.9 get-pip.py  
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.9 get-pip.py  
 # Install project dependencies  
-python3.9 -m pip install --ignore-installed PyYAMLpython3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.htmlpython3.9 -m pip install -r requirements.txtpython3.9 -m pip install .  
+python3.9 -m pip install --ignore-installed PyYAML
+python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+python3.9 -m pip install -r requirements.txt
+python3.9 -m pip install .  
 # Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
 cp sample.env .env  
 # The command below is used to edit the .env file and to put in your API keys. You can right click within the  
