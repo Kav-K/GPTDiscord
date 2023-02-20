@@ -10,6 +10,7 @@ import json
 
 import discord
 
+from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Override
 from services.environment_service import EnvService
@@ -34,6 +35,8 @@ else:
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
+PRE_MODERATE = EnvService.get_premoderate()
+FORCE_ENGLISH = EnvService.get_force_english()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -77,6 +80,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.bot = bot
         self.usage_service = usage_service
         self.model = model
+        self.translation_model = TranslationModel()
         self.deletion_queue = deletion_queue
 
         # Data specific to all text based GPT interactions
@@ -110,6 +114,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     f"Conversation starter text loaded from {conversation_file_path}."
                 )
             assert self.CONVERSATION_STARTER_TEXT is not None
+
+            language_detect_file_path = EnvService.find_shared_file(
+                "language_detection_pretext.txt"
+            )
+            # Attempt to read a conversation starter text string from the file.
+            with language_detect_file_path.open("r") as f:
+                self.LANGUAGE_DETECT_STARTER_TEXT = f.read()
+                print(
+                    f"Language detection starter text loaded from {language_detect_file_path}."
+                )
+            assert self.LANGUAGE_DETECT_STARTER_TEXT is not None
 
             conversation_file_path_minimal = EnvService.find_shared_file(
                 "conversation_starter_pretext_minimal.txt"
@@ -560,7 +575,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ).timestamp()
                 await Moderation.moderation_queues[message.guild.id].put(
                     Moderation(message, timestamp)
-                )  # TODO Don't proceed to conversation processing if the message is deleted by moderations.
+                )
+
+        # Language check
+        if FORCE_ENGLISH and len(message.content.split(" ")) > 3:
+            if not await Moderation.force_english_and_respond(
+                message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message
+            ):
+                await message.delete()
+                return
 
         # Process the message if the user is in a conversation
         if await TextService.process_conversation_message(
@@ -778,6 +801,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer(ephemeral=private) if is_context else None
 
+        # If premoderation is enabled, check
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(prompt, ctx):
+                return
+
         overrides = Override(temperature, top_p, frequency_penalty, presence_penalty)
 
         await TextService.encapsulated_send(
@@ -825,6 +853,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 return
 
         await ctx.defer(ephemeral=private)
+
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(instruction + text, ctx):
+                return
 
         overrides = Override(temperature, top_p, 0, 0)
 
@@ -893,6 +925,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.defer(ephemeral=True)
         elif not private:
             await ctx.defer()
+
+        # Check the opener for bad content.
+        if PRE_MODERATE and opener is not None:
+            if await Moderation.simple_moderate_and_respond(opener, ctx):
+                return
 
         # if user.id in self.conversation_thread_owners:
         #     await ctx.respond(

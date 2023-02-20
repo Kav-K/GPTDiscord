@@ -3,11 +3,13 @@ import traceback
 import discord
 
 from services.environment_service import EnvService
+from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.index_model import Index_handler
 
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
+PRE_MODERATE = EnvService.get_premoderate()
 
 
 class IndexService(discord.Cog, name="IndexService"):
@@ -144,6 +146,11 @@ class IndexService(discord.Cog, name="IndexService"):
                 ctx.user.id, ctx, USER_KEY_DB
             )
             if not user_api_key:
+                return
+
+        # Check the opener for bad content.
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(query, ctx):
                 return
 
         await self.index_handler.query(ctx, query, response_mode, nodes, user_api_key)

@@ -107,6 +107,76 @@ class Moderation:
         return embed
 
     @staticmethod
+    def build_safety_blocked_message():
+        # Create a discord embed to send to the user when their message gets moderated
+        embed = discord.Embed(
+            title="Your request was blocked by the safety system",
+            description="Our automatic moderation systems detected that your request was inappropriate and it has not been sent. Please review the usage guidelines.",
+            colour=discord.Colour.red(),
+        )
+        # Set the embed thumbnail
+        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png")
+        embed.set_footer(
+            text="If you think this was a mistake, please contact the server admins."
+        )
+        return embed
+
+    @staticmethod
+    def build_non_english_message():
+        # Create a discord embed to send to the user when their message gets moderated
+        embed = discord.Embed(
+            title="Your message was moderated",
+            description="Our automatic moderation systems detected that your message was not in English and has been deleted. Please review the rules.",
+            colour=discord.Colour.red(),
+        )
+        # Set the embed thumbnail
+        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png")
+        embed.set_footer(
+            text="If you think this was a mistake, please contact the server admins."
+        )
+        return embed
+
+    @staticmethod
+    async def force_english_and_respond(text, pretext, ctx):
+        response = await model.send_language_detect_request(text, pretext)
+        response_text = response["choices"][0]["text"]
+
+        if "false" in response_text.lower().strip():
+            if isinstance(ctx, discord.Message):
+                await ctx.reply(embed=Moderation.build_non_english_message())
+            else:
+                await ctx.respond(embed=Moderation.build_non_english_message())
+            return False
+        return True
+
+    @staticmethod
+    async def simple_moderate(text):
+        return await model.send_moderations_request(text)
+
+    @staticmethod
+    async def simple_moderate_and_respond(text, ctx):
+        pre_mod_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.95, 0.4)
+
+        response = await Moderation.simple_moderate(text)
+        print(response)
+        flagged = (
+            True
+            if Moderation.determine_moderation_result(
+                text, response, pre_mod_set, pre_mod_set
+            )
+            == ModerationResult.DELETE
+            else False
+        )
+
+        if flagged:
+            if isinstance(ctx, discord.Message):
+                await ctx.reply(embed=Moderation.build_safety_blocked_message())
+            else:
+                await ctx.respond(embed=Moderation.build_safety_blocked_message())
+            return True
+        return False
+
+    @staticmethod
     def build_admin_warning_message(
         moderated_message, deleted_message=None, timed_out=None
     ):

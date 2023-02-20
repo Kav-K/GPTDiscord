@@ -8,12 +8,14 @@ from models.openai_model import Override
 from services.environment_service import EnvService
 from models.user_model import RedoUser
 from services.image_service import ImageService
+from services.moderations_service import Moderation
 
 from services.text_service import TextService
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
+PRE_MODERATE = EnvService.get_premoderate()
 
 
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
@@ -75,6 +77,11 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
         # If the prompt doesn't end in a period, terminate it.
         if not final_prompt.endswith("."):
             final_prompt += "."
+
+        # Check the opener for bad content.
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(prompt, ctx):
+                return
 
         # Get the token amount for the prompt
         # tokens = self.usage_service.count_tokens(final_prompt)

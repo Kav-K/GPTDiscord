@@ -204,6 +204,10 @@ class Model:
             else 5
         )
 
+        print("Building language detector")
+        # self.detector = LanguageDetectorBuilder.from_languages(*Language.all()).build()
+        print("Language detector built")
+
     def reset_settings(self):
         keys = [
             "temp",
@@ -747,6 +751,58 @@ class Model:
                 await self.valid_text_request(response)
 
                 # print(response["choices"][0]["text"])
+
+                return response
+
+    # async def send_language_detect_request_local(self, text):
+    #     detected = await asyncio.get_running_loop().run_in_executor(
+    #         None, self.detector.compute_language_confidence, text, Language.ENGLISH
+    #     )
+    #     if detected < 0.03:
+    #         return False
+    #     return True
+
+    @backoff.on_exception(
+        backoff.expo,
+        ValueError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_request,
+    )
+    async def send_language_detect_request(
+        self,
+        text,
+        pretext,
+    ) -> (
+        Tuple[dict, bool]
+    ):  # The response, and a boolean indicating whether or not the context limit was reached.
+        # Validate that  all the parameters are in a good state before we send the request
+
+        prompt = f"{pretext}{text}\nOutput:"
+
+        max_tokens = Models.get_max_tokens(
+            Models.DAVINCI
+        ) - self.usage_service.count_tokens(prompt)
+
+        print(f"Language detection request for {text}")
+
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
+            payload = {
+                "model": Models.DAVINCI,
+                "prompt": prompt,
+                "temperature": 0,
+                "top_p": 1,
+                "max_tokens": max_tokens,
+            }
+            headers = {"Authorization": f"Bearer {self.openai_key}"}
+            async with session.post(
+                "https://api.openai.com/v1/completions", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+
+                await self.valid_text_request(response)
+                print(f"Response -> {response}")
 
                 return response
 
