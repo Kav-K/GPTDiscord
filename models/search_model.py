@@ -201,7 +201,10 @@ class Search:
         llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
         try:
             llm_predictor_presearch = OpenAI(
-                max_tokens=50, temperature=0.25, presence_penalty=0.65, model_name="text-davinci-003"
+                max_tokens=50,
+                temperature=0.25,
+                presence_penalty=0.65,
+                model_name="text-davinci-003",
             )
 
             # Refine a query to send to google custom search API
