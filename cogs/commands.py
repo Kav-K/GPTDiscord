@@ -851,7 +851,7 @@ class Commands(discord.Cog, name="Commands"):
         description="How many top links to use for context",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
-        max_value=10,
+        max_value=16,
         min_value=1,
     )
     @discord.option(
