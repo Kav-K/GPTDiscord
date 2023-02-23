@@ -14,7 +14,7 @@ gpt-index==0.4.7
 PyPDF2==3.0.1
 youtube_transcript_api==0.5.0
 sentencepiece==0.1.97
-protobuf==3.20.1
+protobuf==3.20.2
 python-pptx==0.6.21
 sentence-transformers==2.2.2
 openai-whisper
