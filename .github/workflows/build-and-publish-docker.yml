@@ -29,7 +29,7 @@ jobs:
     steps:
       #Add swap for building arm64 image
       - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
+        uses: pierotofy/set-swap-space@v1.0
         with:
           swap-size-gb: 10
 
@@ -115,7 +115,7 @@ jobs:
 
     steps:
       - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
+        uses: pierotofy/set-swap-space@v1.0
         with:
           swap-size-gb: 10
 
