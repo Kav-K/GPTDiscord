@@ -1,3 +1,4 @@
+import functools
 import os
 import random
 import tempfile
@@ -55,9 +56,10 @@ def get_and_query(
     if isinstance(index, GPTTreeIndex):
         response = index.query(
             query,
-            child_branch_factor=2,
+            child_branch_factor=1,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
+            use_async=True,
         )
     else:
         response = index.query(
@@ -66,6 +68,7 @@ def get_and_query(
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
+            use_async=True,
         )
     return response
 
@@ -166,15 +169,14 @@ class Index_handler:
 
         return pages
 
-    # TODO We need to do predictions below for token usage.
     def index_file(self, file_path, embed_model) -> GPTSimpleVectorIndex:
         document = SimpleDirectoryReader(file_path).load_data()
-        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
+        index = GPTSimpleVectorIndex(document, embed_model=embed_model, use_async=True)
         return index
 
     def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
-        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
+        index = GPTSimpleVectorIndex(document, embed_model=embed_model, use_async=True)
         return index
 
     def index_youtube_transcript(self, link, embed_model):
@@ -182,6 +184,7 @@ class Index_handler:
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -203,6 +206,7 @@ class Index_handler:
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -217,6 +221,7 @@ class Index_handler:
         index = GPTSimpleVectorIndex(
             document,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -253,10 +258,16 @@ class Index_handler:
                         # Detect if the link is a PDF, if it is, we load it differently
                         if response.headers["Content-Type"] == "application/pdf":
                             documents = await self.index_pdf(url)
-                            index = GPTSimpleVectorIndex(
-                                documents,
-                                embed_model=embed_model,
+                            index = await self.loop.run_in_executor(
+                                None,
+                                functools.partial(
+                                    GPTSimpleVectorIndex,
+                                    documents=documents,
+                                    embed_model=embed_model,
+                                    use_async=True,
+                                ),
                             )
+
                             return index
         except:
             raise ValueError("Could not load webpage")
@@ -264,7 +275,16 @@ class Index_handler:
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
-        index = GPTSimpleVectorIndex(documents, embed_model=embed_model)
+        # index = GPTSimpleVectorIndex(documents, embed_model=embed_model, use_async=True)
+        index = await self.loop.run_in_executor(
+            None,
+            functools.partial(
+                GPTSimpleVectorIndex,
+                documents=documents,
+                embed_model=embed_model,
+                use_async=True,
+            ),
+        )
         return index
 
     def reset_indexes(self, user_id):
@@ -446,13 +466,16 @@ class Index_handler:
             traceback.print_exc()
             await ctx.respond(e)
 
-
-    async def index_to_docs(self, old_index, chunk_size:int = 4000, chunk_overlap:int = 200) -> List[Document]:
+    async def index_to_docs(
+        self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
+    ) -> List[Document]:
         documents = []
         for doc_id in old_index.docstore.docs.keys():
             text = ""
             if isinstance(old_index, GPTSimpleVectorIndex):
-                nodes = old_index.docstore.get_document(doc_id).get_nodes(old_index.docstore.docs[doc_id].id_map)
+                nodes = old_index.docstore.get_document(doc_id).get_nodes(
+                    old_index.docstore.docs[doc_id].id_map
+                )
                 for node in nodes:
                     extra_info = node.extra_info
                     text += f"{node.text} "
@@ -461,14 +484,15 @@ class Index_handler:
                 for node in nodes:
                     extra_info = node[1].extra_info
                     text += f"{node[1].text} "
-            text_splitter = TokenTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            text_splitter = TokenTextSplitter(
+                separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            )
             text_chunks = text_splitter.split_text(text)
             for text in text_chunks:
                 document = Document(text, extra_info=extra_info)
                 documents.append(document)
         return documents
 
-    
     async def compose_indexes(self, user_id, indexes, name, deep_compose):
         # Load all the indexes first
         index_objects = []
@@ -496,6 +520,7 @@ class Index_handler:
                     documents=documents,
                     llm_predictor=llm_predictor,
                     embed_model=embedding_model,
+                    use_async=True,
                 ),
             )
 
@@ -527,6 +552,7 @@ class Index_handler:
                     GPTSimpleVectorIndex,
                     documents=documents,
                     embed_model=embedding_model,
+                    use_async=True,
                 ),
             )
 
