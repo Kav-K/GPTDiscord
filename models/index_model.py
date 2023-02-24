@@ -18,6 +18,7 @@ from langchain import OpenAI
 
 from gpt_index.readers import YoutubeTranscriptReader
 from gpt_index.readers.schema.base import Document
+from gpt_index.langchain_helpers.text_splitter import TokenTextSplitter
 
 from gpt_index import (
     GPTSimpleVectorIndex,
@@ -445,6 +446,24 @@ class Index_handler:
             traceback.print_exc()
             await ctx.respond(e)
 
+
+    async def index_to_docs(self, old_index) -> List[Document]:
+        documents = []
+        for doc_id in old_index.docstore.docs.keys():
+            extra_info = ""
+            text = ""
+            nodes = old_index.docstore.get_document(doc_id).get_nodes(old_index.docstore.docs[doc_id].id_map)
+            for node in nodes:
+                extra_info = node.extra_info
+                text += f"{node.text} "
+            text_splitter = TokenTextSplitter(separator=" ", chunk_size=2048, chunk_overlap=20)
+            text_chunks = text_splitter.split_text(text)
+            for text in text_chunks:
+                document = Document(text, extra_info=extra_info)
+                documents.append(document)
+        return documents
+
+    
     async def compose_indexes(self, user_id, indexes, name, deep_compose):
         # Load all the indexes first
         index_objects = []
@@ -459,11 +478,7 @@ class Index_handler:
         if deep_compose:
             documents = []
             for _index in index_objects:
-                [
-                    documents.append(_index.docstore.get_document(doc_id))
-                    for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
-                    if isinstance(_index.docstore.get_document(doc_id), Document)
-                ]
+                documents.extend(await self.index_to_docs(_index))
             llm_predictor = LLMPredictor(
                 llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
             )
@@ -497,11 +512,7 @@ class Index_handler:
         else:
             documents = []
             for _index in index_objects:
-                [
-                    documents.append(_index.docstore.get_document(doc_id))
-                    for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
-                    if isinstance(_index.docstore.get_document(doc_id), Document)
-                ]
+                documents.extend(await self.index_to_docs(_index))
 
             embedding_model = OpenAIEmbedding()
 
