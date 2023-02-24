@@ -180,7 +180,11 @@ class Index_handler:
         return index
 
     def index_youtube_transcript(self, link, embed_model):
-        documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        try:
+            documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        except Exception as e:
+            raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
+
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
@@ -352,7 +356,6 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        # TODO Link validation
         try:
             embedding_model = OpenAIEmbedding()
 
@@ -400,6 +403,11 @@ class Index_handler:
             )
 
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
+
+        except ValueError as e:
+            await ctx.respond(str(e))
+            traceback.print_exc()
+            return
 
         except Exception:
             await ctx.respond("Failed to set index")
