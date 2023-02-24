@@ -650,7 +650,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         default=1,
         min_value=1,
-        max_value=3,
+        max_value=5,
         input_type=discord.SlashCommandOptionType.integer,
     )
     @discord.option(
@@ -859,7 +859,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The higher the number, the more accurate the results, but more expensive",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
-        max_value=5,
+        max_value=8,
         min_value=1,
     )
     @discord.option(
