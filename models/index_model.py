@@ -447,16 +447,21 @@ class Index_handler:
             await ctx.respond(e)
 
 
-    async def index_to_docs(self, old_index) -> List[Document]:
+    async def index_to_docs(self, old_index, chunk_size:int = 4000, chunk_overlap:int = 200) -> List[Document]:
         documents = []
         for doc_id in old_index.docstore.docs.keys():
-            extra_info = ""
             text = ""
-            nodes = old_index.docstore.get_document(doc_id).get_nodes(old_index.docstore.docs[doc_id].id_map)
-            for node in nodes:
-                extra_info = node.extra_info
-                text += f"{node.text} "
-            text_splitter = TokenTextSplitter(separator=" ", chunk_size=2048, chunk_overlap=20)
+            if isinstance(old_index, GPTSimpleVectorIndex):
+                nodes = old_index.docstore.get_document(doc_id).get_nodes(old_index.docstore.docs[doc_id].id_map)
+                for node in nodes:
+                    extra_info = node.extra_info
+                    text += f"{node.text} "
+            if isinstance(old_index, GPTTreeIndex):
+                nodes = old_index.docstore.get_document(doc_id).all_nodes.items()
+                for node in nodes:
+                    extra_info = node[1].extra_info
+                    text += f"{node[1].text} "
+            text_splitter = TokenTextSplitter(separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap)
             text_chunks = text_splitter.split_text(text)
             for text in text_chunks:
                 document = Document(text, extra_info=extra_info)
@@ -478,7 +483,7 @@ class Index_handler:
         if deep_compose:
             documents = []
             for _index in index_objects:
-                documents.extend(await self.index_to_docs(_index))
+                documents.extend(await self.index_to_docs(_index, 256, 20))
             llm_predictor = LLMPredictor(
                 llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
             )
