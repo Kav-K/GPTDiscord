@@ -66,6 +66,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
+          flavor: |
+            latest=auto
+            suffix=-base,onlatest=true
+          tags: |
+            type=semver,pattern={{raw}}
+            type=ref,event=branch
           images: |
             kaveenk/gpt3discord
             ghcr.io/${{ github.repository }}
@@ -154,6 +160,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
+          flavor: |
+            latest=auto
+            suffix=-full,onlatest=true
+          tags: |
+            type=semver,pattern={{raw}}
+            type=ref,event=branch
           images: |
             kaveenk/gpt3discord
             ghcr.io/${{ github.repository }}
