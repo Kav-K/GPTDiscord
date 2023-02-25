@@ -32,7 +32,11 @@ class IndexService(discord.Cog, name="IndexService"):
             await ctx.respond("Please provide a new name for this index")
             return
 
-        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.user.id}/{user_index}", f"indexes/{ctx.user.id}/{new_name}"):
+        if await self.index_handler.rename_index(
+            ctx,
+            f"indexes/{ctx.user.id}/{user_index}",
+            f"indexes/{ctx.user.id}/{new_name}",
+        ):
             await ctx.respond(f"Your index has been renamed to `{new_name}`")
         else:
             await ctx.respond("Something went wrong while renaming your index")
@@ -44,18 +48,25 @@ class IndexService(discord.Cog, name="IndexService"):
             await ctx.respond("Please provide a new name for this index")
             return
 
-        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.guild.id}/{server_index}", f"indexes/{ctx.guild.id}/{new_name}"):
+        if await self.index_handler.rename_index(
+            ctx,
+            f"indexes/{ctx.guild.id}/{server_index}",
+            f"indexes/{ctx.guild.id}/{new_name}",
+        ):
             await ctx.respond(f"Your index has been renamed to `{new_name}`")
         else:
             await ctx.respond("Something went wrong while renaming your index")
 
     async def rename_search_index_command(self, ctx, search_index, new_name):
-
         if not new_name:
             await ctx.respond("Please provide a new name for this index")
             return
 
-        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.user.id}_search/{search_index}", f"indexes/{ctx.user.id}_search/{new_name}"):
+        if await self.index_handler.rename_index(
+            ctx,
+            f"indexes/{ctx.user.id}_search/{search_index}",
+            f"indexes/{ctx.user.id}_search/{new_name}",
+        ):
             await ctx.respond(f"Your index has been renamed to `{new_name}`")
         else:
             await ctx.respond("Something went wrong while renaming your index")
@@ -92,7 +103,9 @@ class IndexService(discord.Cog, name="IndexService"):
                 ctx, link, user_api_key=user_api_key
             )
 
-    async def set_discord_command(self, ctx, channel: discord.TextChannel = None, message_limit: int = 2500):
+    async def set_discord_command(
+        self, ctx, channel: discord.TextChannel = None, message_limit: int = 2500
+    ):
         """Command handler to set a channel as your personal index"""
         await ctx.defer()
 
@@ -130,7 +143,9 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
-        await self.index_handler.backup_discord(ctx, user_api_key=user_api_key, message_limit=message_limit)
+        await self.index_handler.backup_discord(
+            ctx, user_api_key=user_api_key, message_limit=message_limit
+        )
 
     async def load_index_command(self, ctx, user_index, server_index, search_index):
         """Command handler to load indexes"""
@@ -173,7 +188,9 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
         await self.index_handler.load_index(ctx, index, server, search, user_api_key)
 
-    async def query_command(self, ctx, query, nodes, response_mode, child_branch_factor):
+    async def query_command(
+        self, ctx, query, nodes, response_mode, child_branch_factor
+    ):
         """Command handler to query your index"""
 
         user_api_key = None
@@ -189,7 +206,9 @@ class IndexService(discord.Cog, name="IndexService"):
             if await Moderation.simple_moderate_and_respond(query, ctx):
                 return
 
-        await self.index_handler.query(ctx, query, response_mode, nodes, user_api_key, child_branch_factor)
+        await self.index_handler.query(
+            ctx, query, response_mode, nodes, user_api_key, child_branch_factor
+        )
 
     async def compose_command(self, ctx, name):
         """Command handler to compose from your index"""

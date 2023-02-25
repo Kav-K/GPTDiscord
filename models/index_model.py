@@ -48,7 +48,14 @@ SHORT_TO_LONG_CACHE = {}
 
 
 def get_and_query(
-    user_id, index_storage, query, response_mode, nodes, llm_predictor, embed_model, child_branch_factor
+    user_id,
+    index_storage,
+    query,
+    response_mode,
+    nodes,
+    llm_predictor,
+    embed_model,
+    child_branch_factor,
 ):
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
@@ -147,9 +154,7 @@ class Index_handler:
     async def rename_index(self, ctx, original_path, rename_path):
         """Command handler to rename a user index"""
 
-        index_file = EnvService.find_shared_file(
-            original_path
-        )
+        index_file = EnvService.find_shared_file(original_path)
         if not index_file:
             return False
 
@@ -595,7 +600,9 @@ class Index_handler:
             simple_index.save_to_disk(f"indexes/{user_id}/{name}.json")
             self.index_storage[user_id].queryable_index = simple_index
 
-    async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key, message_limit):
+    async def backup_discord(
+        self, ctx: discord.ApplicationContext, user_api_key, message_limit
+    ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
@@ -659,7 +666,7 @@ class Index_handler:
                     nodes,
                     llm_predictor,
                     embedding_model,
-                    child_branch_factor
+                    child_branch_factor,
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)

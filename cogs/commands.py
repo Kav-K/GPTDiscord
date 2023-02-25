@@ -549,9 +549,7 @@ class Commands(discord.Cog, name="Commands"):
         new_name: str,
     ):
         await ctx.defer()
-        await self.index_cog.rename_user_index_command(
-            ctx, user_index, new_name
-        )
+        await self.index_cog.rename_user_index_command(ctx, user_index, new_name)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -579,9 +577,7 @@ class Commands(discord.Cog, name="Commands"):
         new_name: str,
     ):
         await ctx.defer()
-        await self.index_cog.rename_server_index_command(
-            ctx, server_index, new_name
-        )
+        await self.index_cog.rename_server_index_command(ctx, server_index, new_name)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -609,9 +605,7 @@ class Commands(discord.Cog, name="Commands"):
         new_name: str,
     ):
         await ctx.defer()
-        await self.index_cog.rename_search_index_command(
-            ctx, search_index, new_name
-        )
+        await self.index_cog.rename_search_index_command(ctx, search_index, new_name)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -718,9 +712,14 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
     )
     async def set_discord(
-        self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message_limit: int
+        self,
+        ctx: discord.ApplicationContext,
+        channel: discord.TextChannel,
+        message_limit: int,
     ):
-        await self.index_cog.set_discord_command(ctx, channel, message_limit=message_limit)
+        await self.index_cog.set_discord_command(
+            ctx, channel, message_limit=message_limit
+        )
 
     @add_to_group("index")
     @discord.slash_command(
@@ -780,7 +779,9 @@ class Commands(discord.Cog, name="Commands"):
         child_branch_factor: int,
     ):
         await ctx.defer()
-        await self.index_cog.query_command(ctx, query, nodes, response_mode, child_branch_factor)
+        await self.index_cog.query_command(
+            ctx, query, nodes, response_mode, child_branch_factor
+        )
 
     #
     # DALLE commands
