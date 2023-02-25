@@ -648,7 +648,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     async def discord_backup(self, ctx: discord.ApplicationContext, message_limit: int):
-        await self.index_cog.discord_backup_command(ctx)
+        await self.index_cog.discord_backup_command(ctx, message_limit=message_limit)
 
     @add_to_group("index")
     @discord.slash_command(
