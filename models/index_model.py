@@ -243,8 +243,8 @@ class Index_handler:
         with open(file_path, "r", encoding="utf8") as f:
             file_contents = f.read()
             index_dict = json.loads(file_contents)
-            doc_id = index_dict['index_struct_id']
-            doc_type = index_dict['docstore']['docs'][doc_id]['__type__']
+            doc_id = index_dict["index_struct_id"]
+            doc_type = index_dict["docstore"]["docs"][doc_id]["__type__"]
             f.close()
         if doc_type == "tree":
             index = GPTTreeIndex.load_from_disk(file_path)
