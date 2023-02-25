@@ -998,4 +998,6 @@ class Commands(discord.Cog, name="Commands"):
         deep: bool,
         response_mode: str,
     ):
-        await self.search_cog.search_command(ctx, query, scope, nodes, deep, response_mode)
+        await self.search_cog.search_command(
+            ctx, query, scope, nodes, deep, response_mode
+        )
