@@ -268,7 +268,6 @@ class Search:
                                 pdf = True
 
             except:
-                traceback.print_exc()
                 try:
                     # Try to add a link from all_links, this is kind of messy.
                     for link2 in all_links:
@@ -360,8 +359,11 @@ class Search:
                 embed_model_mock.last_token_usage, True
             )
             if total_usage_price > MAX_SEARCH_PRICE:
+                await self.try_delete(in_progress_message)
                 raise ValueError(
-                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
+                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
+                        total_usage_price
+                    )
                 )
 
             index = await self.loop.run_in_executor(
