@@ -8,3 +8,5 @@ GOOGLE_SEARCH_ENGINE_ID="...."
 You first need to create a programmable search engine and get the search engine ID: https://developers.google.com/custom-search/docs/tutorial/creatingcse  
   
 Then you can get the API key, click the "Get a key" button on this page: https://developers.google.com/custom-search/v1/introduction  
+
+You can limit the max price that is charged for a single search request by setting `MAX_SEARCH_PRICE` in your `.env` file.

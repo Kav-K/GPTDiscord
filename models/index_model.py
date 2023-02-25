@@ -596,7 +596,7 @@ class Index_handler:
                 )
 
             # Save the composed index
-            tree_index.save_to_disk(f"indexes/{user_id}/{name}.json")
+            tree_index.save_to_disk(f"indexes/{user_id}/{name}")
 
             self.index_storage[user_id].queryable_index = tree_index
         else:
@@ -624,7 +624,7 @@ class Index_handler:
                 name = f"composed_index_{date.today().month}_{date.today().day}.json"
 
             # Save the composed index
-            simple_index.save_to_disk(f"indexes/{user_id}/{name}.json")
+            simple_index.save_to_disk(f"indexes/{user_id}/{name}")
             self.index_storage[user_id].queryable_index = simple_index
 
     async def backup_discord(

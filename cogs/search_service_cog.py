@@ -140,6 +140,9 @@ class SearchService(discord.Cog, name="SearchService"):
         )
         urls = "\n".join(f"<{url}>" for url in urls)
 
+        # Deduplicate the urls
+        urls = "\n".join(dict.fromkeys(urls.split("\n")))
+
         if from_followup:
             original_link, followup_question = (
                 from_followup.original_link,
