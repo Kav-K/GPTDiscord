@@ -18,11 +18,12 @@ PRE_MODERATE = EnvService.get_premoderate()
 
 
 class RedoSearchUser:
-    def __init__(self, ctx, query, search_scope, nodes):
+    def __init__(self, ctx, query, search_scope, nodes, response_mode):
         self.ctx = ctx
         self.query = query
         self.search_scope = search_scope
         self.nodes = nodes
+        self.response_mode = response_mode
 
 
 class SearchService(discord.Cog, name="SearchService"):
@@ -174,7 +175,7 @@ class SearchService(discord.Cog, name="SearchService"):
             custom_view=SearchView(ctx, self, query_response_message),
         )
 
-        self.redo_users[ctx.user.id] = RedoSearchUser(ctx, query, search_scope, nodes)
+        self.redo_users[ctx.user.id] = RedoSearchUser(ctx, query, search_scope, nodes, response_mode)
 
         await paginator.respond(ctx.interaction)
 
@@ -232,6 +233,7 @@ class RedoButton(discord.ui.Button["SearchView"]):
             self.search_cog.redo_users[self.ctx.user.id].nodes,
             deep=False,
             redo=True,
+            response_mode=self.search_cog.redo_users[self.ctx.user.id].response_mode,
         )
 
 
@@ -289,4 +291,5 @@ class FollowupModal(discord.ui.Modal):
             deep=False,
             redo=True,
             from_followup=FollowupData(message_link, self.children[0].value),
+            response_mode=self.search_cog.redo_users[self.ctx.user.id].response_mode,
         )

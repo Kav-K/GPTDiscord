@@ -17,3 +17,4 @@ sentencepiece==0.1.97
 protobuf==3.20.2
 python-pptx==0.6.21
 langchain==0.0.93
+unidecode==1.3.6
