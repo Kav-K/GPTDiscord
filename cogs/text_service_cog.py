@@ -793,6 +793,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         user = ctx.user if is_context else ctx.author
         prompt = await self.mention_to_username(ctx, prompt.strip())
 
+        if len(prompt) < self.model.prompt_min_length:
+            alias = ctx.respond if is_context else ctx.send
+            await alias(
+                f"Prompt must be greater than {self.model.prompt_min_length} characters, it is currently: {len(prompt)} characters"
+            )
+            return
+
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(user.id, ctx, USER_KEY_DB)
@@ -845,6 +852,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         text = await self.mention_to_username(ctx, text.strip())
         instruction = await self.mention_to_username(ctx, instruction.strip())
+
+        # Validate that  all the parameters are in a good state before we send the request
+        if len(instruction) < self.model.prompt_min_length:
+            await ctx.respond(
+                f"Instruction must be at least {self.model.prompt_min_length} characters long"
+            )
+            return
 
         user_api_key = None
         if USER_INPUT_API_KEYS:

@@ -523,6 +523,89 @@ class Commands(discord.Cog, name="Commands"):
     #
     # Index commands
     #
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-user",
+        description="Select one of your saved indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="user_index",
+        description="Which user index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_user_index(
+        self,
+        ctx: discord.ApplicationContext,
+        user_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_user_index_command(ctx, user_index, new_name)
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-server",
+        description="Select one of your saved server indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="server_index",
+        description="Which server index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_server_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_server_index(
+        self,
+        ctx: discord.ApplicationContext,
+        server_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_server_index_command(ctx, server_index, new_name)
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-search",
+        description="Select one of your saved search indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="search_index",
+        description="Which search index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_user_search_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_search_index(
+        self,
+        ctx: discord.ApplicationContext,
+        search_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_search_index_command(ctx, search_index, new_name)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -622,10 +705,21 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=discord.SlashCommandOptionType.channel,
     )
+    @discord.option(
+        name="message_limit",
+        description="The number of messages to index",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     async def set_discord(
-        self, ctx: discord.ApplicationContext, channel: discord.TextChannel
+        self,
+        ctx: discord.ApplicationContext,
+        channel: discord.TextChannel,
+        message_limit: int,
     ):
-        await self.index_cog.set_discord_command(ctx, channel)
+        await self.index_cog.set_discord_command(
+            ctx, channel, message_limit=message_limit
+        )
 
     @add_to_group("index")
     @discord.slash_command(
@@ -634,9 +728,15 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_admin_roles(), Check.check_index_roles()],
     )
+    @discord.option(
+        name="message_limit",
+        description="The number of messages to index per channel",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     @discord.guild_only()
-    async def discord_backup(self, ctx: discord.ApplicationContext):
-        await self.index_cog.discord_backup_command(ctx)
+    async def discord_backup(self, ctx: discord.ApplicationContext, message_limit: int):
+        await self.index_cog.discord_backup_command(ctx, message_limit=message_limit)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -650,7 +750,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         default=1,
         min_value=1,
-        max_value=3,
+        max_value=5,
         input_type=discord.SlashCommandOptionType.integer,
     )
     @discord.option(
@@ -661,15 +761,27 @@ class Commands(discord.Cog, name="Commands"):
         default="default",
         choices=["default", "compact", "tree_summarize"],
     )
+    @discord.option(
+        name="child_branch_factor",
+        description="Only for deep indexes, how deep to go, higher is expensive.",
+        required=False,
+        default=1,
+        min_value=1,
+        max_value=3,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     async def query(
         self,
         ctx: discord.ApplicationContext,
         query: str,
         nodes: int,
         response_mode: str,
+        child_branch_factor: int,
     ):
         await ctx.defer()
-        await self.index_cog.query_command(ctx, query, nodes, response_mode)
+        await self.index_cog.query_command(
+            ctx, query, nodes, response_mode, child_branch_factor
+        )
 
     #
     # DALLE commands
@@ -859,7 +971,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The higher the number, the more accurate the results, but more expensive",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
-        max_value=5,
+        max_value=8,
         min_value=1,
     )
     @discord.option(

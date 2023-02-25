@@ -1,3 +1,4 @@
+import functools
 import os
 import random
 import tempfile
@@ -18,6 +19,7 @@ from langchain import OpenAI
 
 from gpt_index.readers import YoutubeTranscriptReader
 from gpt_index.readers.schema.base import Document
+from gpt_index.langchain_helpers.text_splitter import TokenTextSplitter
 
 from gpt_index import (
     GPTSimpleVectorIndex,
@@ -46,7 +48,14 @@ SHORT_TO_LONG_CACHE = {}
 
 
 def get_and_query(
-    user_id, index_storage, query, response_mode, nodes, llm_predictor, embed_model
+    user_id,
+    index_storage,
+    query,
+    response_mode,
+    nodes,
+    llm_predictor,
+    embed_model,
+    child_branch_factor,
 ):
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
@@ -54,9 +63,10 @@ def get_and_query(
     if isinstance(index, GPTTreeIndex):
         response = index.query(
             query,
-            child_branch_factor=2,
+            child_branch_factor=child_branch_factor,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
+            use_async=True,
         )
     else:
         response = index.query(
@@ -65,6 +75,7 @@ def get_and_query(
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
+            use_async=True,
         )
     return response
 
@@ -116,7 +127,8 @@ class IndexData:
             # First, clear all the files inside it
             for file in os.listdir(f"{app_root_path()}/indexes/{user_id}"):
                 os.remove(f"{app_root_path()}/indexes/{user_id}/{file}")
-
+            for file in os.listdir(f"{app_root_path()}/indexes/{user_id}_search"):
+                os.remove(f"{app_root_path()}/indexes/{user_id}_search/{file}")
         except Exception:
             traceback.print_exc()
 
@@ -138,6 +150,22 @@ class Index_handler:
             "answer the question: {query_str}\n"
         )
         self.EMBED_CUTOFF = 2000
+
+    async def rename_index(self, ctx, original_path, rename_path):
+        """Command handler to rename a user index"""
+
+        index_file = EnvService.find_shared_file(original_path)
+        if not index_file:
+            return False
+
+        # Rename the file at f"indexes/{ctx.user.id}/{user_index}" to f"indexes/{ctx.user.id}/{new_name}" using Pathlib
+        try:
+            if not rename_path.endswith(".json"):
+                rename_path = rename_path + ".json"
+            Path(original_path).rename(rename_path)
+            return True
+        except Exception as e:
+            return False
 
     async def paginate_embed(self, response_text):
         """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
@@ -165,22 +193,26 @@ class Index_handler:
 
         return pages
 
-    # TODO We need to do predictions below for token usage.
     def index_file(self, file_path, embed_model) -> GPTSimpleVectorIndex:
         document = SimpleDirectoryReader(file_path).load_data()
-        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
+        index = GPTSimpleVectorIndex(document, embed_model=embed_model, use_async=True)
         return index
 
     def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
-        index = GPTSimpleVectorIndex(document, embed_model=embed_model)
+        index = GPTSimpleVectorIndex(document, embed_model=embed_model, use_async=True)
         return index
 
     def index_youtube_transcript(self, link, embed_model):
-        documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        try:
+            documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+        except Exception as e:
+            raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
+
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -202,6 +234,7 @@ class Index_handler:
         index = GPTSimpleVectorIndex(
             documents,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -216,6 +249,7 @@ class Index_handler:
         index = GPTSimpleVectorIndex(
             document,
             embed_model=embed_model,
+            use_async=True,
         )
         return index
 
@@ -252,10 +286,16 @@ class Index_handler:
                         # Detect if the link is a PDF, if it is, we load it differently
                         if response.headers["Content-Type"] == "application/pdf":
                             documents = await self.index_pdf(url)
-                            index = GPTSimpleVectorIndex(
-                                documents,
-                                embed_model=embed_model,
+                            index = await self.loop.run_in_executor(
+                                None,
+                                functools.partial(
+                                    GPTSimpleVectorIndex,
+                                    documents=documents,
+                                    embed_model=embed_model,
+                                    use_async=True,
+                                ),
                             )
+
                             return index
         except:
             raise ValueError("Could not load webpage")
@@ -263,7 +303,16 @@ class Index_handler:
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
-        index = GPTSimpleVectorIndex(documents, embed_model=embed_model)
+        # index = GPTSimpleVectorIndex(documents, embed_model=embed_model, use_async=True)
+        index = await self.loop.run_in_executor(
+            None,
+            functools.partial(
+                GPTSimpleVectorIndex,
+                documents=documents,
+                embed_model=embed_model,
+                use_async=True,
+            ),
+        )
         return index
 
     def reset_indexes(self, user_id):
@@ -331,7 +380,6 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        # TODO Link validation
         try:
             embedding_model = OpenAIEmbedding()
 
@@ -380,6 +428,11 @@ class Index_handler:
 
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
 
+        except ValueError as e:
+            await ctx.respond(str(e))
+            traceback.print_exc()
+            return
+
         except Exception:
             await ctx.respond("Failed to set index")
             traceback.print_exc()
@@ -392,6 +445,7 @@ class Index_handler:
         ctx: discord.ApplicationContext,
         channel: discord.TextChannel,
         user_api_key,
+        message_limit: int = 2500,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -400,7 +454,7 @@ class Index_handler:
 
         try:
             document = await self.load_data(
-                channel_ids=[channel.id], limit=1000, oldest_first=False
+                channel_ids=[channel.id], limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
             index = await self.loop.run_in_executor(
@@ -445,6 +499,33 @@ class Index_handler:
             traceback.print_exc()
             await ctx.respond(e)
 
+    async def index_to_docs(
+        self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
+    ) -> List[Document]:
+        documents = []
+        for doc_id in old_index.docstore.docs.keys():
+            text = ""
+            if isinstance(old_index, GPTSimpleVectorIndex):
+                nodes = old_index.docstore.get_document(doc_id).get_nodes(
+                    old_index.docstore.docs[doc_id].id_map
+                )
+                for node in nodes:
+                    extra_info = node.extra_info
+                    text += f"{node.text} "
+            if isinstance(old_index, GPTTreeIndex):
+                nodes = old_index.docstore.get_document(doc_id).all_nodes.items()
+                for node in nodes:
+                    extra_info = node[1].extra_info
+                    text += f"{node[1].text} "
+            text_splitter = TokenTextSplitter(
+                separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            )
+            text_chunks = text_splitter.split_text(text)
+            for text in text_chunks:
+                document = Document(text, extra_info=extra_info)
+                documents.append(document)
+        return documents
+
     async def compose_indexes(self, user_id, indexes, name, deep_compose):
         # Load all the indexes first
         index_objects = []
@@ -459,11 +540,7 @@ class Index_handler:
         if deep_compose:
             documents = []
             for _index in index_objects:
-                [
-                    documents.append(_index.docstore.get_document(doc_id))
-                    for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
-                    if isinstance(_index.docstore.get_document(doc_id), Document)
-                ]
+                documents.extend(await self.index_to_docs(_index, 256, 20))
             llm_predictor = LLMPredictor(
                 llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
             )
@@ -476,6 +553,7 @@ class Index_handler:
                     documents=documents,
                     llm_predictor=llm_predictor,
                     embed_model=embedding_model,
+                    use_async=True,
                 ),
             )
 
@@ -497,11 +575,7 @@ class Index_handler:
         else:
             documents = []
             for _index in index_objects:
-                [
-                    documents.append(_index.docstore.get_document(doc_id))
-                    for doc_id in [docmeta for docmeta in _index.docstore.docs.keys()]
-                    if isinstance(_index.docstore.get_document(doc_id), Document)
-                ]
+                documents.extend(await self.index_to_docs(_index))
 
             embedding_model = OpenAIEmbedding()
 
@@ -511,6 +585,7 @@ class Index_handler:
                     GPTSimpleVectorIndex,
                     documents=documents,
                     embed_model=embedding_model,
+                    use_async=True,
                 ),
             )
 
@@ -525,7 +600,9 @@ class Index_handler:
             simple_index.save_to_disk(f"indexes/{user_id}/{name}.json")
             self.index_storage[user_id].queryable_index = simple_index
 
-    async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key):
+    async def backup_discord(
+        self, ctx: discord.ApplicationContext, user_api_key, message_limit
+    ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
@@ -536,7 +613,7 @@ class Index_handler:
             for c in ctx.guild.text_channels:
                 channel_ids.append(c.id)
             document = await self.load_data(
-                channel_ids=channel_ids, limit=3000, oldest_first=False
+                channel_ids=channel_ids, limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
             index = await self.loop.run_in_executor(
@@ -567,6 +644,7 @@ class Index_handler:
         response_mode,
         nodes,
         user_api_key,
+        child_branch_factor,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -588,6 +666,7 @@ class Index_handler:
                     nodes,
                     llm_predictor,
                     embedding_model,
+                    child_branch_factor,
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
