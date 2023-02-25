@@ -622,10 +622,16 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=discord.SlashCommandOptionType.channel,
     )
+    @discord.option(
+        name="message_limit",
+        description="The number of messages to index",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     async def set_discord(
-        self, ctx: discord.ApplicationContext, channel: discord.TextChannel
+        self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message_limit: int
     ):
-        await self.index_cog.set_discord_command(ctx, channel)
+        await self.index_cog.set_discord_command(ctx, channel, message_limit=message_limit)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -634,8 +640,14 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_admin_roles(), Check.check_index_roles()],
     )
+    @discord.option(
+        name="message_limit",
+        description="The number of messages to index per channel",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     @discord.guild_only()
-    async def discord_backup(self, ctx: discord.ApplicationContext):
+    async def discord_backup(self, ctx: discord.ApplicationContext, message_limit: int):
         await self.index_cog.discord_backup_command(ctx)
 
     @add_to_group("index")
@@ -661,15 +673,25 @@ class Commands(discord.Cog, name="Commands"):
         default="default",
         choices=["default", "compact", "tree_summarize"],
     )
+    @discord.option(
+        name="child_branch_factor",
+        description="Only for deep indexes, how deep to go, higher is expensive.",
+        required=False,
+        default=1,
+        min_value=1,
+        max_value=3,
+        input_type=discord.SlashCommandOptionType.integer,
+    )
     async def query(
         self,
         ctx: discord.ApplicationContext,
         query: str,
         nodes: int,
         response_mode: str,
+        child_branch_factor: int,
     ):
         await ctx.defer()
-        await self.index_cog.query_command(ctx, query, nodes, response_mode)
+        await self.index_cog.query_command(ctx, query, nodes, response_mode, child_branch_factor)
 
     #
     # DALLE commands

@@ -14,4 +14,6 @@ Indexes can be combined with other indexes through a composition. To combine ind
   
 You can also compose a singular index with itself with "Deep Compose", this will give you a more detailed version of the index, but will be costly and will sometimes take multiple minutes to compose. **Deep compositions are useless for very short documents!**  
 
+Doing a deep composition will also allow you to use the `child_branch_factor` parameter for `/index query`, increasing this past 1 will take a much longer time to query and will be much more expensive for large documents, so be wary.
+
 **When doing Deep Compositions, it's highly reccomended to keep the document size small, or only do deep compositions on single documents.** This is because a deep composition reorganizes the simple index into a tree structure and uses GPT3 to summarize different nodes of the tree, which will lead to high costs. For example, a deep composition of a 300 page lab manual and the contents of my personal website at https://kaveenk.com cost me $2 USD roughly.

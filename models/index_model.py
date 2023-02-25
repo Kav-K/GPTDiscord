@@ -48,7 +48,7 @@ SHORT_TO_LONG_CACHE = {}
 
 
 def get_and_query(
-    user_id, index_storage, query, response_mode, nodes, llm_predictor, embed_model
+    user_id, index_storage, query, response_mode, nodes, llm_predictor, embed_model, child_branch_factor
 ):
     index: [GPTSimpleVectorIndex, ComposableGraph] = index_storage[
         user_id
@@ -56,7 +56,7 @@ def get_and_query(
     if isinstance(index, GPTTreeIndex):
         response = index.query(
             query,
-            child_branch_factor=1,
+            child_branch_factor=child_branch_factor,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             use_async=True,
@@ -421,6 +421,7 @@ class Index_handler:
         ctx: discord.ApplicationContext,
         channel: discord.TextChannel,
         user_api_key,
+        message_limit: int = 2500,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -429,7 +430,7 @@ class Index_handler:
 
         try:
             document = await self.load_data(
-                channel_ids=[channel.id], limit=1000, oldest_first=False
+                channel_ids=[channel.id], limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
             index = await self.loop.run_in_executor(
@@ -575,7 +576,7 @@ class Index_handler:
             simple_index.save_to_disk(f"indexes/{user_id}/{name}.json")
             self.index_storage[user_id].queryable_index = simple_index
 
-    async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key):
+    async def backup_discord(self, ctx: discord.ApplicationContext, user_api_key, message_limit):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
@@ -586,7 +587,7 @@ class Index_handler:
             for c in ctx.guild.text_channels:
                 channel_ids.append(c.id)
             document = await self.load_data(
-                channel_ids=channel_ids, limit=3000, oldest_first=False
+                channel_ids=channel_ids, limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
             index = await self.loop.run_in_executor(
@@ -617,6 +618,7 @@ class Index_handler:
         response_mode,
         nodes,
         user_api_key,
+        child_branch_factor,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
@@ -638,6 +640,7 @@ class Index_handler:
                     nodes,
                     llm_predictor,
                     embedding_model,
+                    child_branch_factor
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
