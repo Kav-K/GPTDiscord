@@ -980,6 +980,14 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=discord.SlashCommandOptionType.boolean,
     )
+    @discord.option(
+        name="response_mode",
+        description="Response mode, doesn't work on deep searches",
+        guild_ids=ALLOWED_GUILDS,
+        required=False,
+        default="default",
+        choices=["default", "compact", "tree_summarize"],
+    )
     @discord.guild_only()
     async def search(
         self,
@@ -988,5 +996,6 @@ class Commands(discord.Cog, name="Commands"):
         scope: int,
         nodes: int,
         deep: bool,
+        response_mode: str,
     ):
-        await self.search_cog.search_command(ctx, query, scope, nodes, deep)
+        await self.search_cog.search_command(ctx, query, scope, nodes, deep, response_mode)

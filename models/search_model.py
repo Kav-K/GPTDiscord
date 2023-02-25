@@ -183,6 +183,7 @@ class Search:
         search_scope,
         nodes,
         deep,
+        response_mode,
         redo=None,
     ):
         DEFAULT_SEARCH_NODES = 1
@@ -414,7 +415,7 @@ class Search:
                     similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
                     text_qa_template=self.qaprompt,
                     use_async=True,
-                    response_mode="tree_summarize",
+                    response_mode=response_mode,
                 ),
             )
         else:
