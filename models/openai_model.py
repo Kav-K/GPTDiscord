@@ -649,13 +649,6 @@ class Model:
         codex=False,
         custom_api_key=None,
     ):
-        # Validate that  all the parameters are in a good state before we send the request
-        if len(instruction) < self.prompt_min_length:
-            raise ValueError(
-                "Instruction must be greater than 8 characters, it is currently "
-                + str(len(instruction))
-            )
-
         print(
             f"The text about to be edited is [{text}] with instructions [{instruction}] codex [{codex}]"
         )
@@ -831,10 +824,6 @@ class Model:
         Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
-        if len(prompt) < self.prompt_min_length:
-            raise ValueError(
-                f"Prompt must be greater than {self.prompt_min_length} characters, it is currently: {len(prompt)} characters"
-            )
 
         if not max_tokens_override:
             if model:
