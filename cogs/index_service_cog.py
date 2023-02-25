@@ -1,4 +1,5 @@
 import traceback
+from pathlib import Path
 
 import discord
 
@@ -23,6 +24,41 @@ class IndexService(discord.Cog, name="IndexService"):
         super().__init__()
         self.bot = bot
         self.index_handler = Index_handler(bot, usage_service)
+
+    async def rename_user_index_command(self, ctx, user_index, new_name):
+        """Command handler to rename a user index"""
+
+        if not new_name:
+            await ctx.respond("Please provide a new name for this index")
+            return
+
+        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.user.id}/{user_index}", f"indexes/{ctx.user.id}/{new_name}"):
+            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+        else:
+            await ctx.respond("Something went wrong while renaming your index")
+
+    async def rename_server_index_command(self, ctx, server_index, new_name):
+        """Command handler to rename a user index"""
+
+        if not new_name:
+            await ctx.respond("Please provide a new name for this index")
+            return
+
+        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.guild.id}/{server_index}", f"indexes/{ctx.guild.id}/{new_name}"):
+            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+        else:
+            await ctx.respond("Something went wrong while renaming your index")
+
+    async def rename_search_index_command(self, ctx, search_index, new_name):
+
+        if not new_name:
+            await ctx.respond("Please provide a new name for this index")
+            return
+
+        if await self.index_handler.rename_index(ctx, f"indexes/{ctx.user.id}_search/{search_index}", f"indexes/{ctx.user.id}_search/{new_name}"):
+            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+        else:
+            await ctx.respond("Something went wrong while renaming your index")
 
     async def set_index_command(
         self, ctx, file: discord.Attachment = None, link: str = None

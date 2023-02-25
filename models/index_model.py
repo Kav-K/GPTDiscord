@@ -120,7 +120,8 @@ class IndexData:
             # First, clear all the files inside it
             for file in os.listdir(f"{app_root_path()}/indexes/{user_id}"):
                 os.remove(f"{app_root_path()}/indexes/{user_id}/{file}")
-
+            for file in os.listdir(f"{app_root_path()}/indexes/{user_id}_search"):
+                os.remove(f"{app_root_path()}/indexes/{user_id}_search/{file}")
         except Exception:
             traceback.print_exc()
 
@@ -142,6 +143,24 @@ class Index_handler:
             "answer the question: {query_str}\n"
         )
         self.EMBED_CUTOFF = 2000
+
+    async def rename_index(self, ctx, original_path, rename_path):
+        """Command handler to rename a user index"""
+
+        index_file = EnvService.find_shared_file(
+            original_path
+        )
+        if not index_file:
+            return False
+
+        # Rename the file at f"indexes/{ctx.user.id}/{user_index}" to f"indexes/{ctx.user.id}/{new_name}" using Pathlib
+        try:
+            if not rename_path.endswith(".json"):
+                rename_path = rename_path + ".json"
+            Path(original_path).rename(rename_path)
+            return True
+        except Exception as e:
+            return False
 
     async def paginate_embed(self, response_text):
         """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""

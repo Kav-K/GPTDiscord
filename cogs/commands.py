@@ -523,6 +523,95 @@ class Commands(discord.Cog, name="Commands"):
     #
     # Index commands
     #
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-user",
+        description="Select one of your saved indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="user_index",
+        description="Which user index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_user_index(
+        self,
+        ctx: discord.ApplicationContext,
+        user_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_user_index_command(
+            ctx, user_index, new_name
+        )
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-server",
+        description="Select one of your saved server indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="server_index",
+        description="Which server index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_server_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_server_index(
+        self,
+        ctx: discord.ApplicationContext,
+        server_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_server_index_command(
+            ctx, server_index, new_name
+        )
+
+    @add_to_group("index")
+    @discord.slash_command(
+        name="rename-search",
+        description="Select one of your saved search indexes to rename",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="search_index",
+        description="Which search index to rename",
+        required=False,
+        autocomplete=File_autocompleter.get_user_search_indexes,
+    )
+    @discord.option(
+        name="new_name",
+        description="The new name",
+        required=False,
+        type=discord.SlashCommandOptionType.string,
+    )
+    async def rename_search_index(
+        self,
+        ctx: discord.ApplicationContext,
+        search_index: str,
+        new_name: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.rename_search_index_command(
+            ctx, search_index, new_name
+        )
 
     @add_to_group("index")
     @discord.slash_command(
