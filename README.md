@@ -1,5 +1,5 @@
 
-![Docker](https://github.com/Kav-K/GPT3Discord/actions/workflows/docker_upload.yml/badge.svg)  
+![Docker](https://github.com/Kav-K/GPT3Discord/actions/workflows/build-and-publish-docker.yml/badge.svg)  
 ![PyPi](https://github.com/Kav-K/GPT3Discord/actions/workflows/pypi_upload.yml/badge.svg)  
 ![Build](https://github.com/Kav-K/GPT3Discord/actions/workflows/build.yml/badge.svg)  
   
