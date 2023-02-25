@@ -4,6 +4,7 @@ import random
 import tempfile
 import traceback
 import asyncio
+import json
 from collections import defaultdict
 
 import aiohttp
@@ -239,7 +240,13 @@ class Index_handler:
         return index
 
     def index_load_file(self, file_path) -> [GPTSimpleVectorIndex, ComposableGraph]:
-        if "composed_deep" in str(file_path):
+        with open(file_path, "r", encoding="utf8") as f:
+            file_contents = f.read()
+            index_dict = json.loads(file_contents)
+            doc_id = index_dict['index_struct_id']
+            doc_type = index_dict['docstore']['docs'][doc_id]['__type__']
+            f.close()
+        if doc_type == "tree":
             index = GPTTreeIndex.load_from_disk(file_path)
         else:
             index = GPTSimpleVectorIndex.load_from_disk(file_path)
