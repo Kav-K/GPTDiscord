@@ -594,8 +594,6 @@ class Index_handler:
                 name = (
                     f"composed_deep_index_{date.today().month}_{date.today().day}.json"
                 )
-            else:
-                name = name+"_deep"
 
             # Save the composed index
             tree_index.save_to_disk(f"indexes/{user_id}/{name}.json")
