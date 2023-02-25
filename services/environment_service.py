@@ -379,3 +379,19 @@ class EnvService:
             return pinecone_region
         except Exception:
             return "us-west1-gcp"
+
+    @staticmethod
+    def get_max_search_price():
+        try:
+            search_price = float(os.getenv("MAX_SEARCH_PRICE"))
+            return search_price
+        except Exception:
+            return 1.00
+
+    @staticmethod
+    def get_max_deep_compose_price():
+        try:
+            deep_compose_price = float(os.getenv("MAX_DEEP_COMPOSE_PRICE"))
+            return deep_compose_price
+        except Exception:
+            return 3.00

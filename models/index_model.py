@@ -37,7 +37,7 @@ from gpt_index import (
     PromptHelper,
     IndexStructType,
     OpenAIEmbedding,
-    GithubRepositoryReader,
+    GithubRepositoryReader, MockEmbedding,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -46,6 +46,7 @@ from gpt_index.composability import ComposableGraph
 from services.environment_service import EnvService, app_root_path
 
 SHORT_TO_LONG_CACHE = {}
+MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
 
 
 def get_and_query(
@@ -218,7 +219,7 @@ class Index_handler:
         return index
 
     def index_github_repository(self, link, embed_model):
-        print("indexing github repo")
+
         # Extract the "owner" and the "repo" name from the github link.
         owner = link.split("/")[3]
         repo = link.split("/")[4]
@@ -274,7 +275,6 @@ class Index_handler:
         # Get the file path of this tempfile.NamedTemporaryFile
         # Save this temp file to an actual file that we can put into something else to read it
         documents = SimpleDirectoryReader(input_files=[f.name]).load_data()
-        print("Loaded the PDF document data")
 
         # Delete the temporary file
         return documents
@@ -310,6 +310,7 @@ class Index_handler:
         documents = BeautifulSoupWebReader(
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
+
         # index = GPTSimpleVectorIndex(documents, embed_model=embed_model, use_async=True)
         index = await self.loop.run_in_executor(
             None,
@@ -553,6 +554,25 @@ class Index_handler:
             )
             embedding_model = OpenAIEmbedding()
 
+            llm_predictor_mock = MockLLMPredictor(4096)
+            embedding_model_mock = MockEmbedding(1536)
+
+            # Run the mock call first
+            await self.loop.run_in_executor(
+                None,
+                partial(
+                    GPTTreeIndex,
+                    documents=documents,
+                    llm_predictor=llm_predictor_mock,
+                    embed_model=embedding_model_mock,
+                ),
+            )
+            total_usage_price = await self.usage_service.get_price(llm_predictor_mock.last_token_usage) + await self.usage_service.get_price(embedding_model_mock.last_token_usage, True)
+            print("The total composition price is: ", total_usage_price)
+            if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
+                raise ValueError("Doing this deep search would be prohibitively expensive. Please try a narrower search scope.")
+
+
             tree_index = await self.loop.run_in_executor(
                 None,
                 partial(
@@ -574,6 +594,8 @@ class Index_handler:
                 name = (
                     f"composed_deep_index_{date.today().month}_{date.today().day}.json"
                 )
+            else:
+                name = name+"_deep"
 
             # Save the composed index
             tree_index.save_to_disk(f"indexes/{user_id}/{name}.json")
@@ -905,14 +927,29 @@ class ComposeModal(discord.ui.View):
                     delete_after=120,
                 )
                 # Compose the indexes
-                await self.index_cog.compose_indexes(
-                    self.user_id,
-                    indexes,
-                    self.name,
-                    False
-                    if not self.deep_select.values or self.deep_select.values[0] == "no"
-                    else True,
-                )
+                try:
+                    await self.index_cog.compose_indexes(
+                        self.user_id,
+                        indexes,
+                        self.name,
+                        False
+                        if not self.deep_select.values or self.deep_select.values[0] == "no"
+                        else True,
+                    )
+                except ValueError as e:
+                    await interaction.followup.send(
+                        str(e), ephemeral=True, delete_after=180
+                    )
+                    return False
+                except Exception as e:
+                    await interaction.followup.send(
+                    "An error occurred while composing the indexes: " + str(e),
+                    ephemeral=True,
+                    delete_after=180,)
+                    return False
+
+
+
                 await interaction.followup.send(
                     "Composed indexes", ephemeral=True, delete_after=180
                 )

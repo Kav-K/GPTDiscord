@@ -119,9 +119,9 @@ class SearchService(discord.Cog, name="SearchService"):
             response, refined_text = await self.model.search(
                 ctx, query, user_api_key, search_scope, nodes, deep
             )
-        except ValueError:
+        except ValueError as e:
             await ctx.respond(
-                "The Google Search API returned an error. Check the console for more details.",
+                str(e),
                 ephemeral=True,
             )
             return
