@@ -80,7 +80,8 @@ It will then prompt you for your password, which you should enter, and then you 
   
 After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:  
 ```shell
-git clone https://github.com/Kav-K/GPT3Discord.gitcd GPT3Discord/  
+git clone https://github.com/Kav-K/GPT3Discord.git
+cd GPT3Discord/  
 # Install system packages (python)  
 sudo apt-get update
 sudo apt install software-properties-common
