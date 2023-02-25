@@ -100,7 +100,7 @@ class TextService:
                 conversation_id = ctx.channel.id
 
                 # Create an embedding and timestamp for the prompt
-                #new_prompt = prompt.encode("ascii", "ignore").decode()
+                # new_prompt = prompt.encode("ascii", "ignore").decode()
                 new_prompt = unidecode.unidecode(new_prompt)
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
@@ -109,7 +109,7 @@ class TextService:
                 )
 
                 new_prompt = f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
-                #new_prompt = new_prompt.encode("ascii", "ignore").decode()
+                # new_prompt = new_prompt.encode("ascii", "ignore").decode()
                 new_prompt = unidecode.unidecode(new_prompt)
 
                 timestamp = int(
@@ -342,7 +342,7 @@ class TextService:
                     "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
 
-                #response_text = response_text.encode("ascii", "ignore").decode()
+                # response_text = response_text.encode("ascii", "ignore").decode()
                 response_text = unidecode.unidecode(response_text)
 
                 # Print the current timestamp

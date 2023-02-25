@@ -175,7 +175,9 @@ class SearchService(discord.Cog, name="SearchService"):
             custom_view=SearchView(ctx, self, query_response_message),
         )
 
-        self.redo_users[ctx.user.id] = RedoSearchUser(ctx, query, search_scope, nodes, response_mode)
+        self.redo_users[ctx.user.id] = RedoSearchUser(
+            ctx, query, search_scope, nodes, response_mode
+        )
 
         await paginator.respond(ctx.interaction)
 
