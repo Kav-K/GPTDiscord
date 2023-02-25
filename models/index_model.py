@@ -37,7 +37,8 @@ from gpt_index import (
     PromptHelper,
     IndexStructType,
     OpenAIEmbedding,
-    GithubRepositoryReader, MockEmbedding,
+    GithubRepositoryReader,
+    MockEmbedding,
 )
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -219,7 +220,6 @@ class Index_handler:
         return index
 
     def index_github_repository(self, link, embed_model):
-
         # Extract the "owner" and the "repo" name from the github link.
         owner = link.split("/")[3]
         repo = link.split("/")[4]
@@ -567,11 +567,16 @@ class Index_handler:
                     embed_model=embedding_model_mock,
                 ),
             )
-            total_usage_price = await self.usage_service.get_price(llm_predictor_mock.last_token_usage) + await self.usage_service.get_price(embedding_model_mock.last_token_usage, True)
+            total_usage_price = await self.usage_service.get_price(
+                llm_predictor_mock.last_token_usage
+            ) + await self.usage_service.get_price(
+                embedding_model_mock.last_token_usage, True
+            )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
-                raise ValueError("Doing this deep search would be prohibitively expensive. Please try a narrower search scope.")
-
+                raise ValueError(
+                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
+                )
 
             tree_index = await self.loop.run_in_executor(
                 None,
@@ -931,7 +936,8 @@ class ComposeModal(discord.ui.View):
                         indexes,
                         self.name,
                         False
-                        if not self.deep_select.values or self.deep_select.values[0] == "no"
+                        if not self.deep_select.values
+                        or self.deep_select.values[0] == "no"
                         else True,
                     )
                 except ValueError as e:
@@ -941,12 +947,11 @@ class ComposeModal(discord.ui.View):
                     return False
                 except Exception as e:
                     await interaction.followup.send(
-                    "An error occurred while composing the indexes: " + str(e),
-                    ephemeral=True,
-                    delete_after=180,)
+                        "An error occurred while composing the indexes: " + str(e),
+                        ephemeral=True,
+                        delete_after=180,
+                    )
                     return False
-
-
 
                 await interaction.followup.send(
                     "Composed indexes", ephemeral=True, delete_after=180

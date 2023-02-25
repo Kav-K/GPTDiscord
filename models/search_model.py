@@ -19,7 +19,10 @@ from gpt_index import (
     PromptHelper,
     LLMPredictor,
     OpenAIEmbedding,
-    SimpleDirectoryReader, GPTTreeIndex, MockLLMPredictor, MockEmbedding,
+    SimpleDirectoryReader,
+    GPTTreeIndex,
+    MockLLMPredictor,
+    MockEmbedding,
 )
 from gpt_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
@@ -29,6 +32,7 @@ from services.environment_service import EnvService, app_root_path
 from services.usage_service import UsageService
 
 MAX_SEARCH_PRICE = EnvService.get_max_search_price()
+
 
 class Search:
     def __init__(self, gpt_model, usage_service):
@@ -304,13 +308,22 @@ class Search:
                 None,
                 partial(GPTSimpleVectorIndex, documents, embed_model=embed_model_mock),
             )
-            total_usage_price = await self.usage_service.get_price(embed_model_mock.last_token_usage, True)
+            total_usage_price = await self.usage_service.get_price(
+                embed_model_mock.last_token_usage, True
+            )
             if total_usage_price > 1.00:
-                raise ValueError("Doing this search would be prohibitively expensive. Please try a narrower search scope.")
+                raise ValueError(
+                    "Doing this search would be prohibitively expensive. Please try a narrower search scope."
+                )
 
             index = await self.loop.run_in_executor(
                 None,
-                partial(GPTSimpleVectorIndex, documents, embed_model=embedding_model, use_async=True),
+                partial(
+                    GPTSimpleVectorIndex,
+                    documents,
+                    embed_model=embedding_model,
+                    use_async=True,
+                ),
             )
             # save the index to disk if not a redo
             if not redo:
@@ -340,9 +353,15 @@ class Search:
                     llm_predictor=llm_predictor_mock,
                 ),
             )
-            total_usage_price = await self.usage_service.get_price(llm_predictor_mock.last_token_usage) + await self.usage_service.get_price(embed_model_mock.last_token_usage, True)
+            total_usage_price = await self.usage_service.get_price(
+                llm_predictor_mock.last_token_usage
+            ) + await self.usage_service.get_price(
+                embed_model_mock.last_token_usage, True
+            )
             if total_usage_price > MAX_SEARCH_PRICE:
-                raise ValueError("Doing this deep search would be prohibitively expensive. Please try a narrower search scope.")
+                raise ValueError(
+                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
+                )
 
             index = await self.loop.run_in_executor(
                 None,
