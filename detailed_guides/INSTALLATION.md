@@ -55,9 +55,9 @@ https://discordpy.readthedocs.io/en/stable/discord.html
   - Applications -> New Application  
 - Generate Token for the app (discord_bot_token)  
   - Select App (Bot) -> Bot -> Reset Token  
-- Toogle PRESENCE INTENT:  
+- Toggle PRESENCE INTENT:  
   - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)  
-- Add Bot the the server.  
+- Add Bot the server.  
   - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot, application.commands  
   - Bot Permissions will appear, select the desired permissions  
   - Copy the link generated below and paste it on the browser  
@@ -121,7 +121,7 @@ screen -x # will reattach if this is the only screen session, if there are multi
 # If there are multiple IDs returned by screen -x:  
 screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to  
 ```  
-  
+
 As a last resort, you can try to run the bot using python in a basic way, with simply  
 ```  
 cd GPT3Discord
