@@ -287,6 +287,16 @@ class EnvService:
             return False
 
     @staticmethod
+    def get_bot_is_taggable():
+        try:
+            user_input_api_keys = os.getenv("BOT_TAGGABLE")
+            if user_input_api_keys.lower().strip() == "true":
+                return True
+            return False
+        except Exception:
+            return False
+
+    @staticmethod
     def get_user_key_db_path() -> Union[Path, None]:
         try:
             user_key_db_path = os.getenv("USER_KEY_DB_PATH")

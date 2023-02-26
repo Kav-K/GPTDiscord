@@ -37,6 +37,7 @@ USER_KEY_DB = EnvService.get_api_db()
 CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
 PRE_MODERATE = EnvService.get_premoderate()
 FORCE_ENGLISH = EnvService.get_force_english()
+BOT_TAGGABLE = EnvService.get_bot_is_taggable()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -595,6 +596,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if f"<@{self.bot.user.id}>" in message.content and not (
             "@everyone" in message.content or "@here" in message.content
         ):
+            if not BOT_TAGGABLE:
+                return
+
             # Remove the mention from the message
             prompt = message.content.replace(self.bot.user.mention, "")
             # If the message is empty, don't process it

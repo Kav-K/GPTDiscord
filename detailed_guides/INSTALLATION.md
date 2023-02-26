@@ -20,7 +20,7 @@ python3.9 -m pip install -r requirements.txt
 OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)  
   
 Discord Bot Token (https://discord.com/developers/applications)  
-  
+
 The bot uses an environment file named `.env` to configure it. This file must be named exactly `.env` and placed in the same directory as `gpt3discord.py`. Within this file, you need to fill in your `OPENAI_TOKEN`, `DISCORD_TOKEN`, `DEBUG_SERVER`, and `DEBUG_CHANNEL`, and `ALLOWED_GUILDS` to get the bot to work. There are also many other configurable options, an example `.env` file is shown below.  
 ```shell  
 OPENAI_TOKEN = "<openai_api_token>"  
@@ -40,7 +40,9 @@ USER_INPUT_API_KEYS="False" # If True, users must use their own API keys for Ope
 # Moderations Service alert channel, this is where moderation alerts will be sent as a default if enabled  
 MODERATIONS_ALERT_CHANNEL = "977697652147892304"  
 # User API key db path configuration. This is where the user API keys will be stored.  
-USER_KEY_DB_PATH = "user_key_db.sqlite"  
+USER_KEY_DB_PATH = "user_key_db.sqlite"
+# Determines if the bot responds to messages that start with a mention of it
+BOT_TAGGABLE = "true"
 ```  
   
 # Installation  
