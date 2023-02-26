@@ -131,7 +131,7 @@ class Model:
     def set_initial_state(self, usage_service):
         self.mode = Mode.TEMPERATURE
         self.temp = (
-            SETTINGS_DB["temp"] if "temp" in SETTINGS_DB else 0.8
+            SETTINGS_DB["temp"] if "temp" in SETTINGS_DB else 0.85
         )  # Higher value means more random, lower value means more likely to be a coherent sentence
         self.top_p = (
             SETTINGS_DB["top_p"] if "top_p" in SETTINGS_DB else 1
@@ -142,7 +142,7 @@ class Model:
         self.presence_penalty = (
             SETTINGS_DB["presence_penalty"]
             if "presence_penalty" in SETTINGS_DB
-            else 0.0
+            else 0.1
         )  # The presence penalty is a number between -2 and 2 that determines how much the model should avoid repeating the same text
         # Penalize new tokens based on their existing frequency in the text so far. (Higher frequency = lower probability of being chosen.)
         self.frequency_penalty = (
