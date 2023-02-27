@@ -3,6 +3,7 @@ from pathlib import Path
 
 import discord
 
+from models.embed_statics_model import EmbedStatics
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
@@ -29,7 +30,7 @@ class IndexService(discord.Cog, name="IndexService"):
         """Command handler to rename a user index"""
 
         if not new_name:
-            await ctx.respond("Please provide a new name for this index")
+            await ctx.respond(await EmbedStatics.get_index_rename_failure_embed(user_index.split("/")[-1], "None", "Please provide a new name for this index"))
             return
 
         if await self.index_handler.rename_index(
@@ -37,15 +38,15 @@ class IndexService(discord.Cog, name="IndexService"):
             f"indexes/{ctx.user.id}/{user_index}",
             f"indexes/{ctx.user.id}/{new_name}",
         ):
-            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_success_embed(user_index.split("/")[-1], new_name))
         else:
-            await ctx.respond("Something went wrong while renaming your index")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_failure_embed(user_index.split("/")[-1], new_name, "Please check the server console for more details."))
 
     async def rename_server_index_command(self, ctx, server_index, new_name):
         """Command handler to rename a user index"""
 
         if not new_name:
-            await ctx.respond("Please provide a new name for this index")
+            await ctx.respond(await EmbedStatics.get_index_rename_failure_embed(server_index.split("/")[-1], "None", "Please provide a new name for this index"))
             return
 
         if await self.index_handler.rename_index(
@@ -53,13 +54,13 @@ class IndexService(discord.Cog, name="IndexService"):
             f"indexes/{ctx.guild.id}/{server_index}",
             f"indexes/{ctx.guild.id}/{new_name}",
         ):
-            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_success_embed(server_index.split("/")[-1], new_name))
         else:
-            await ctx.respond("Something went wrong while renaming your index")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_failure_embed(server_index.split("/")[-1], new_name, "Please check the server console for more details."))
 
     async def rename_search_index_command(self, ctx, search_index, new_name):
         if not new_name:
-            await ctx.respond("Please provide a new name for this index")
+            await ctx.respond(await EmbedStatics.get_index_rename_failure_embed(search_index.split("/")[-1], "None", "Please provide a new name for this index"))
             return
 
         if await self.index_handler.rename_index(
@@ -67,9 +68,9 @@ class IndexService(discord.Cog, name="IndexService"):
             f"indexes/{ctx.user.id}_search/{search_index}",
             f"indexes/{ctx.user.id}_search/{new_name}",
         ):
-            await ctx.respond(f"Your index has been renamed to `{new_name}`")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_success_embed(search_index.split("/")[-1], new_name))
         else:
-            await ctx.respond("Something went wrong while renaming your index")
+            await ctx.respond(embed=EmbedStatics.get_index_rename_failure_embed(search_index.split("/")[-1], new_name, "Please check the server console for more details."))
 
     async def set_index_command(
         self, ctx, file: discord.Attachment = None, link: str = None

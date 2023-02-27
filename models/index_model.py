@@ -44,6 +44,7 @@ from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from gpt_index.composability import ComposableGraph
 
+from models.embed_statics_model import EmbedStatics
 from services.environment_service import EnvService, app_root_path
 
 SHORT_TO_LONG_CACHE = {}
@@ -168,6 +169,7 @@ class Index_handler:
             Path(original_path).rename(rename_path)
             return True
         except Exception as e:
+            traceback.print_exc()
             return False
 
     async def paginate_embed(self, response_text):
@@ -357,7 +359,7 @@ class Index_handler:
                 pass  # No suffix change
             else:
                 await ctx.respond(
-                    "Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files."
+                    embed=EmbedStatics.get_index_set_failure_embed("Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files.")
                 )
                 return
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
@@ -375,9 +377,9 @@ class Index_handler:
 
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
-            await ctx.respond("Index added to your indexes.")
-        except Exception:
-            await ctx.respond("Failed to set index")
+            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
+        except Exception as e:
+            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
             traceback.print_exc()
 
     async def set_link_index(
@@ -399,11 +401,12 @@ class Index_handler:
                         if response.status == 200:
                             content_type = response.headers.get("content-type")
                         else:
-                            await ctx.respond("Failed to get link")
+                            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed("Invalid URL or could not connect to the provided URL."))
                             return
-            except Exception:
+            except Exception as e:
                 traceback.print_exc()
-                await ctx.respond("Failed to get link")
+                await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(
+                    "Invalid URL or could not connect to the provided URL. "+str(e)))
                 return
 
             # Check if the link contains youtube in it
@@ -437,16 +440,16 @@ class Index_handler:
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
 
         except ValueError as e:
-            await ctx.respond(str(e))
+            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
             traceback.print_exc()
             return
 
-        except Exception:
-            await ctx.respond("Failed to set index")
+        except Exception as e:
+            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
             traceback.print_exc()
             return
 
-        await ctx.respond("Index set")
+        await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
 
     async def set_discord_index(
         self,
@@ -472,9 +475,9 @@ class Index_handler:
                 embedding_model.last_token_usage, embeddings=True
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
-            await ctx.respond("Index set")
-        except Exception:
-            await ctx.respond("Failed to set index")
+            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
+        except Exception as e:
+            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
             traceback.print_exc()
 
     async def load_index(
@@ -502,10 +505,10 @@ class Index_handler:
                 None, partial(self.index_load_file, index_file)
             )
             self.index_storage[ctx.user.id].queryable_index = index
-            await ctx.respond("Loaded index")
+            await ctx.respond(embed=EmbedStatics.get_index_load_success_embed())
         except Exception as e:
             traceback.print_exc()
-            await ctx.respond(e)
+            await ctx.respond(embed=EmbedStatics.get_index_load_failure_embed(str(e)))
 
     async def index_to_docs(
         self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
@@ -664,9 +667,9 @@ class Index_handler:
                 / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}.json"
             )
 
-            await ctx.respond("Backup saved")
-        except Exception:
-            await ctx.respond("Failed to save backup")
+            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
+        except Exception as e:
+            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed((str(e))))
             traceback.print_exc()
 
     async def query(
@@ -720,7 +723,7 @@ class Index_handler:
         except Exception:
             traceback.print_exc()
             await ctx.respond(
-                "Failed to send query. You may not have an index set, load an index with /index load",
+                embed=EmbedStatics.get_index_query_failure_embed("Failed to send query. You may not have an index set, load an index with /index load"),
                 delete_after=10,
             )
 
@@ -809,7 +812,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         if not self.index_storage[ctx.user.id].has_indexes(ctx.user.id):
-            await ctx.respond("You must load at least one indexes before composing")
+            await ctx.respond(embed=EmbedStatics.get_index_compose_failure_embed("You must have at least one index to compose."))
             return
 
         await ctx.respond(
@@ -947,14 +950,14 @@ class ComposeModal(discord.ui.View):
                     return False
                 except Exception as e:
                     await interaction.followup.send(
-                        "An error occurred while composing the indexes: " + str(e),
+                        embed=EmbedStatics.get_index_compose_failure_embed("An error occurred while composing the indexes: " + str(e)),
                         ephemeral=True,
                         delete_after=180,
                     )
                     return False
 
                 await interaction.followup.send(
-                    "Composed indexes", ephemeral=True, delete_after=180
+                    embed=EmbedStatics.get_index_compose_success_embed(), ephemeral=True, delete_after=180
                 )
 
                 # Try to direct message the user that their composed index is ready

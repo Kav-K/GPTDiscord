@@ -533,13 +533,13 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="user_index",
         description="Which user index to rename",
-        required=False,
+        required=True,
         autocomplete=File_autocompleter.get_user_indexes,
     )
     @discord.option(
         name="new_name",
         description="The new name",
-        required=False,
+        required=True,
         type=discord.SlashCommandOptionType.string,
     )
     async def rename_user_index(
@@ -561,13 +561,13 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="server_index",
         description="Which server index to rename",
-        required=False,
+        required=True,
         autocomplete=File_autocompleter.get_server_indexes,
     )
     @discord.option(
         name="new_name",
         description="The new name",
-        required=False,
+        required=True,
         type=discord.SlashCommandOptionType.string,
     )
     async def rename_server_index(
@@ -589,13 +589,13 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="search_index",
         description="Which search index to rename",
-        required=False,
+        required=True,
         autocomplete=File_autocompleter.get_user_search_indexes,
     )
     @discord.option(
         name="new_name",
         description="The new name",
-        required=False,
+        required=True,
         type=discord.SlashCommandOptionType.string,
     )
     async def rename_search_index(

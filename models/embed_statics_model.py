@@ -82,3 +82,130 @@ class EmbedStatics:
             color=0x808080,
         )
         return embed
+
+    @staticmethod
+    def get_index_set_success_embed():
+        embed = discord.Embed(
+            title="Index Added",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/7JF0oGD.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_set_failure_embed(message):
+        embed = discord.Embed(
+            title="Index Add",
+            description=f"Index add failed. {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_load_success_embed(name=None):
+        embed = discord.Embed(
+            title="Index Loaded" if not name else f"Index {name} loaded",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/7JF0oGD.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_load_failure_embed(message):
+        embed = discord.Embed(
+            title="Index load",
+            description=f"Index load failed. {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_query_failure_embed(message):
+        embed = discord.Embed(
+            title="Index query",
+            description=f"Index query failed. {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_compose_success_embed():
+        embed = discord.Embed(
+            title="Indexes Composed",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/7JF0oGD.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_compose_failure_embed(message):
+        embed = discord.Embed(
+            title="Index Compose",
+            description=f"Index compose failed. {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_compose_progress_embed():
+        embed = discord.Embed(
+            title="Index Compose",
+            description=f"Your index composition is running, this may take a while.",
+            color=discord.Color.blurple(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/txHhNzL.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_rename_success_embed(original, renamed):
+        embed = discord.Embed(
+            title=f"Index Rename",
+            description=f"Index {original} renamed to {renamed}",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/7JF0oGD.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_index_rename_failure_embed(original, renamed, message):
+        embed = discord.Embed(
+            title="Index Rename",
+            description=f"Index rename from {original} to {renamed} failed. {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
