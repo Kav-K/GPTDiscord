@@ -956,6 +956,7 @@ class Commands(discord.Cog, name="Commands"):
         name="search",
         description="Search google alongside GPT3 for something",
         guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_search_roles()],
     )
     @discord.option(name="query", description="The query to search", required=True)
     @discord.option(

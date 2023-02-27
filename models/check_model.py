@@ -8,6 +8,7 @@ DALLE_ROLES = EnvService.get_dalle_roles()
 GPT_ROLES = EnvService.get_gpt_roles()
 INDEX_ROLES = EnvService.get_index_roles()
 TRANSLATOR_ROLES = EnvService.get_translator_roles()
+SEARCH_ROLES = EnvService.get_search_roles()
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
@@ -92,6 +93,25 @@ class Check:
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
                     f"You don't have permission, list of roles is {TRANSLATOR_ROLES}",
+                    ephemeral=True,
+                    delete_after=10,
+                )
+                return False
+            return True
+
+        return inner
+
+    @staticmethod
+    def check_search_roles() -> Callable:
+        async def inner(ctx: discord.ApplicationContext):
+            if SEARCH_ROLES == [None]:
+                return True
+            if not any(
+                role.name.lower() in SEARCH_ROLES for role in ctx.user.roles
+            ):
+                await ctx.defer(ephemeral=True)
+                await ctx.respond(
+                    f"You don't have permission, list of roles is {SEARCH_ROLES}",
                     ephemeral=True,
                     delete_after=10,
                 )
