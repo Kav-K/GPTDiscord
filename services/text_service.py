@@ -90,7 +90,6 @@ class TextService:
                 converser_cog.pinecone_service
                 and ctx.channel.id in converser_cog.conversation_threads
             ):
-                # Delete "GPTie:  <|endofstatement|>" from the user's conversation history if it exists
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
                     if item.text.strip() == BOT_NAME + "<|endofstatement|>":
                         converser_cog.conversation_threads[
@@ -584,42 +583,55 @@ class TextService:
                 # Since this is async, we don't want to allow the user to send another prompt while a conversation
                 # prompt is processing, that'll mess up the conversation history!
                 if message.author.id in converser_cog.awaiting_responses:
-                    message = await message.reply(
+                    resp_message = await message.reply(
                         embed=discord.Embed(
                             title=f"You are already waiting for a response, please wait and speak afterwards.",
                             color=0x808080,
                         )
                     )
+                    try:
+                        await resp_message.channel.trigger_typing()
+                    except:
+                        pass
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
                     deletion_time = datetime.datetime.now() + datetime.timedelta(
-                        seconds=10
+                        seconds=5
                     )
                     deletion_time = deletion_time.timestamp()
 
-                    deletion_message = Deletion(message, deletion_time)
+                    deletion_message = Deletion(resp_message, deletion_time)
+                    deletion_original_message = Deletion(message, deletion_time)
                     await converser_cog.deletion_queue.put(deletion_message)
+                    await converser_cog.deletion_queue.put(deletion_original_message)
 
                     return
 
                 if message.channel.id in converser_cog.awaiting_thread_responses:
-                    message = await message.reply(
+                    resp_message = await message.reply(
                         embed=discord.Embed(
                             title=f"This thread is already waiting for a response, please wait and speak afterwards.",
                             color=0x808080,
                         )
                     )
+                    try:
+                        await resp_message.channel.trigger_typing()
+                    except:
+                        pass
+
 
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
                     deletion_time = datetime.datetime.now() + datetime.timedelta(
-                        seconds=10
+                        seconds=5
                     )
                     deletion_time = deletion_time.timestamp()
 
-                    deletion_message = Deletion(message, deletion_time)
+                    deletion_message = Deletion(resp_message, deletion_time)
+                    deletion_original_message = Deletion(message, deletion_time)
                     await converser_cog.deletion_queue.put(deletion_message)
+                    await converser_cog.deletion_queue.put(deletion_original_message)
 
                     return
 
@@ -672,9 +684,17 @@ class TextService:
                 title=f"🤖💬 Thinking...",
                 color=0x808080,
             )
+
             thinking_embed.set_footer(text="This may take a few seconds.")
             thinking_message = await message.reply(embed=thinking_embed)
+            try:
+                await message.channel.trigger_typing()
+            except Exception:
+                pass
             converser_cog.full_conversation_history[message.channel.id].append(prompt)
+
+            if not converser_cog.pinecone_service:
+                primary_prompt += BOT_NAME
 
             await TextService.encapsulated_send(
                 converser_cog,
