@@ -209,3 +209,38 @@ class EmbedStatics:
             url="https://i.imgur.com/VLJ32x7.png"
         )
         return embed
+
+    @staticmethod
+    def get_edit_command_output_embed(response_text):
+        embed = discord.Embed(
+            title="GPT3 Edits",
+            description=f"{response_text}",
+            color=discord.Color.light_grey(),
+        )
+        return embed
+
+    @staticmethod
+    def get_search_failure_embed(message):
+        embed = discord.Embed(
+            title="AI-Assisted Search",
+            description=f"An error occured while performing search: {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_search_redo_progress_embed():
+        embed = discord.Embed(
+            title="AI-Assisted Search",
+            description=f"Your original search request is being redone. This may take a while.",
+            color=discord.Color.blurple(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/txHhNzL.png"
+        )
+        return embed

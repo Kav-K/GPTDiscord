@@ -6,6 +6,7 @@ import discord
 from discord.ext import pages
 
 from models.deepl_model import TranslationModel
+from models.embed_statics_model import EmbedStatics
 from models.search_model import Search
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
@@ -114,7 +115,7 @@ class SearchService(discord.Cog, name="SearchService"):
             not EnvService.get_google_search_api_key()
             or not EnvService.get_google_search_engine_id()
         ):
-            await ctx.respond("The search service is not enabled.")
+            await ctx.respond(embed=EmbedStatics.get_search_failure_embed(str("The search service is not enabled on this server.")),)
             return
 
         try:
@@ -123,13 +124,13 @@ class SearchService(discord.Cog, name="SearchService"):
             )
         except ValueError as e:
             await ctx.respond(
-                str(e),
+                embed=EmbedStatics.get_search_failure_embed(str(e)),
                 ephemeral=True,
             )
             return
-        except Exception:
+        except Exception as e:
             await ctx.respond(
-                "An error occurred. Check the console for more details.", ephemeral=True
+                 embed=EmbedStatics.get_search_failure_embed(str(e)), ephemeral=True
             )
             traceback.print_exc()
             return
@@ -189,7 +190,7 @@ class SearchView(discord.ui.View):
         search_cog,
         response_text,
     ):
-        super().__init__(timeout=3600)  # 1 hour interval to redo.
+        super().__init__(timeout=None)  # No timeout
         self.search_cog = search_cog
         self.ctx = ctx
         self.response_text = response_text
@@ -226,7 +227,7 @@ class RedoButton(discord.ui.Button["SearchView"]):
     async def callback(self, interaction: discord.Interaction):
         """Redo the search"""
         await interaction.response.send_message(
-            "Redoing search...", ephemeral=True, delete_after=15
+            embed=EmbedStatics.get_search_redo_progress_embed(), ephemeral=True, delete_after=15
         )
         await self.search_cog.search_command(
             self.search_cog.redo_users[self.ctx.user.id].ctx,

@@ -303,10 +303,10 @@ class TextService:
             elif from_edit_command:
                 if codex:
                     response_text = response_text.strip()
-                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n```\n{response_text}\n```"
+                    response_text = f"***Prompt:\n `{prompt}`***\n***Instruction:\n `{instruction}`***\n\n```\n{response_text}\n```"
                 else:
                     response_text = response_text.strip()
-                    response_text = f"***Prompt: {prompt}***\n***Instruction: {instruction}***\n\n{response_text}\n"
+                    response_text = f"***Prompt:\n `{prompt}`***\n***Instruction:\n `{instruction}`***\n\n{response_text}\n"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await converser_cog.mention_to_username(ctx, response_text)
@@ -411,7 +411,7 @@ class TextService:
                         )
                     elif from_edit_command:
                         response_message = await ctx.respond(
-                            response_text,
+                            embed=EmbedStatics.get_edit_command_output_embed(response_text),
                             view=ConversationView(
                                 ctx,
                                 converser_cog,
@@ -469,7 +469,12 @@ class TextService:
                             "Over 2000 characters", delete_after=5
                         )
                 else:
-                    await response_message.edit(content=response_text)
+                    if not from_edit_command:
+                        await response_message.edit(content=response_text)
+                    else:
+                        await response_message.edit(
+                            embed=EmbedStatics.get_edit_command_output_embed(response_text)
+                        )
 
             await converser_cog.send_debug_message(
                 converser_cog.generate_debug_message(prompt, response),

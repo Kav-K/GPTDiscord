@@ -15,6 +15,7 @@ from typing import List, Optional
 from pathlib import Path
 from datetime import date
 
+from discord import InteractionResponse, Interaction
 from discord.ext import pages
 from langchain import OpenAI
 
@@ -924,13 +925,12 @@ class ComposeModal(discord.ui.View):
 
             if len(indexes) < 1:
                 await interaction.response.send_message(
-                    "You must select at least 1 index", ephemeral=True
+                    embed=EmbedStatics.get_index_compose_failure_embed("You must select at least 1 index"), ephemeral=True
                 )
             else:
                 composing_message = await interaction.response.send_message(
-                    "Composing indexes, this may take a long time, you will be DMed when it's ready!",
+                    embed=EmbedStatics.get_index_compose_progress_embed(),
                     ephemeral=True,
-                    delete_after=120,
                 )
                 # Compose the indexes
                 try:
@@ -969,8 +969,10 @@ class ComposeModal(discord.ui.View):
                     pass
 
                 try:
-                    await composing_message.delete()
+                    composing_message : Interaction
+                    await composing_message.delete_original_response()
+
                 except:
-                    pass
+                    traceback.print_exc()
         else:
             await interaction.response.defer(ephemeral=True)
