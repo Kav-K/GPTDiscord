@@ -22,7 +22,7 @@ from gpt_index import (
     SimpleDirectoryReader,
     GPTTreeIndex,
     MockLLMPredictor,
-    MockEmbedding
+    MockEmbedding,
 )
 from gpt_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
 from gpt_index.prompts.prompt_type import PromptType
@@ -89,8 +89,7 @@ class Search:
     def build_search_links_retrieved_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query:\n"
-                        + f"`{refined_query}`"
+            description="Refined query:\n" + f"`{refined_query}`"
             "\nRetrieving webpages...",
             color=discord.Color.blurple(),
         )
@@ -101,9 +100,7 @@ class Search:
     def build_search_webpages_retrieved_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query:\n"
-            + f"`{refined_query}`"
-            "\nIndexing...",
+            description="Refined query:\n" + f"`{refined_query}`" "\nIndexing...",
             color=discord.Color.blurple(),
         )
         embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
@@ -113,8 +110,7 @@ class Search:
     def build_search_indexed_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query:\n"
-            + f"`{refined_query}`"
+            description="Refined query:\n" + f"`{refined_query}`"
             "\nThinking about your question...",
             color=discord.Color.blurple(),
         )
@@ -122,12 +118,11 @@ class Search:
 
         return embed
 
-    def build_search_final_embed(self, refined_query,price):
+    def build_search_final_embed(self, refined_query, price):
         embed = discord.Embed(
             title="Searching the web...",
-            description="Refined query:\n"
-            + f"`{refined_query}`"
-            "\nDone!\n||The total price was $"+price+"||",
+            description="Refined query:\n" + f"`{refined_query}`"
+            "\nDone!\n||The total price was $" + price + "||",
             color=discord.Color.blurple(),
         )
         embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
@@ -222,9 +217,8 @@ class Search:
                 max_tokens=50,
                 temperature=0.25,
                 presence_penalty=0.65,
-                model_name="text-davinci-003"
+                model_name="text-davinci-003",
             )
-
 
             # Refine a query to send to google custom search API
             prompt = f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is inferring knowledge about the current day, insert the current day into the refined prompt. If the original query is inferring knowledge about the current month, insert the current month and year into the refined prompt. If the original query is inferring knowledge about the current year, insert the current year into the refined prompt. Generally, if the original query is inferring knowledge about something that happened recently, insert the current month into the refined query. Avoid inserting a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current date is {str(datetime.now().date())}. Do not insert the current date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
@@ -233,7 +227,9 @@ class Search:
             )
             query_refined_text = query_refined.generations[0][0].text
 
-            price += await self.usage_service.get_price(query_refined.llm_output.get("token_usage").get("total_tokens"))
+            price += await self.usage_service.get_price(
+                query_refined.llm_output.get("token_usage").get("total_tokens")
+            )
 
         except Exception as e:
             traceback.print_exc()
@@ -470,11 +466,14 @@ class Search:
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
-        price += await self.usage_service.get_price(llm_predictor.last_token_usage) + await self.usage_service.get_price(
-            embedding_model.last_token_usage, True
-        )
+        price += await self.usage_service.get_price(
+            llm_predictor.last_token_usage
+        ) + await self.usage_service.get_price(embedding_model.last_token_usage, True)
 
         if ctx:
-            await self.try_edit(in_progress_message, self.build_search_final_embed(query_refined_text, str(price)))
+            await self.try_edit(
+                in_progress_message,
+                self.build_search_final_embed(query_refined_text, str(price)),
+            )
 
         return response, query_refined_text

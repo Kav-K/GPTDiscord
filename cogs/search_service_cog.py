@@ -115,7 +115,11 @@ class SearchService(discord.Cog, name="SearchService"):
             not EnvService.get_google_search_api_key()
             or not EnvService.get_google_search_engine_id()
         ):
-            await ctx.respond(embed=EmbedStatics.get_search_failure_embed(str("The search service is not enabled on this server.")),)
+            await ctx.respond(
+                embed=EmbedStatics.get_search_failure_embed(
+                    str("The search service is not enabled on this server.")
+                ),
+            )
             return
 
         try:
@@ -130,7 +134,7 @@ class SearchService(discord.Cog, name="SearchService"):
             return
         except Exception as e:
             await ctx.respond(
-                 embed=EmbedStatics.get_search_failure_embed(str(e)), ephemeral=True
+                embed=EmbedStatics.get_search_failure_embed(str(e)), ephemeral=True
             )
             traceback.print_exc()
             return
@@ -227,7 +231,9 @@ class RedoButton(discord.ui.Button["SearchView"]):
     async def callback(self, interaction: discord.Interaction):
         """Redo the search"""
         await interaction.response.send_message(
-            embed=EmbedStatics.get_search_redo_progress_embed(), ephemeral=True, delete_after=15
+            embed=EmbedStatics.get_search_redo_progress_embed(),
+            ephemeral=True,
+            delete_after=15,
         )
         await self.search_cog.search_command(
             self.search_cog.redo_users[self.ctx.user.id].ctx,
