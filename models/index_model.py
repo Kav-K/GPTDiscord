@@ -582,7 +582,9 @@ class Index_handler:
             try:
                 index_file = EnvService.find_shared_file(f"indexes/{user_id}/{_index}")
             except ValueError:
-                    index_file = EnvService.find_shared_file(f"indexes/{user_id}_search/{_index}")
+                index_file = EnvService.find_shared_file(
+                    f"indexes/{user_id}_search/{_index}"
+                )
 
             index = await self.loop.run_in_executor(
                 None, partial(self.index_load_file, index_file)
@@ -680,7 +682,9 @@ class Index_handler:
             self.index_storage[user_id].queryable_index = simple_index
 
             try:
-                price = await self.usage_service.get_price(embedding_model.last_token_usage, embeddings=True)
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
             except:
                 price = "Unknown"
 
@@ -914,7 +918,14 @@ class ComposeModal(discord.ui.View):
             )
         ]
 
-        self.indexes.extend([file for file in os.listdir(EnvService.find_shared_file(f"indexes/{str(user_id)}_search/"))])
+        self.indexes.extend(
+            [
+                file
+                for file in os.listdir(
+                    EnvService.find_shared_file(f"indexes/{str(user_id)}_search/")
+                )
+            ]
+        )
         print("Found the indexes, they are ", self.indexes)
 
         # Map everything into the short to long cache
