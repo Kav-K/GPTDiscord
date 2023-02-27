@@ -106,9 +106,7 @@ class Check:
         async def inner(ctx: discord.ApplicationContext):
             if SEARCH_ROLES == [None]:
                 return True
-            if not any(
-                role.name.lower() in SEARCH_ROLES for role in ctx.user.roles
-            ):
+            if not any(role.name.lower() in SEARCH_ROLES for role in ctx.user.roles):
                 await ctx.defer(ephemeral=True)
                 await ctx.respond(
                     f"You don't have permission, list of roles is {SEARCH_ROLES}",
