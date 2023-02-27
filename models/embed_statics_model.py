@@ -84,9 +84,10 @@ class EmbedStatics:
         return embed
 
     @staticmethod
-    def get_index_set_success_embed():
+    def get_index_set_success_embed(price="Unknown"):
         embed = discord.Embed(
             title="Index Added",
+            description=f"This index can now be queried and loaded with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6)}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
@@ -241,4 +242,35 @@ class EmbedStatics:
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
         embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        return embed
+
+    @staticmethod
+    def build_index_progress_embed():
+        embed = discord.Embed(
+            title="Index Service",
+            description="Indexing...",
+            color=discord.Color.blurple(),
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
+        return embed
+
+    @staticmethod
+    def build_index_query_progress_embed(query):
+        embed = discord.Embed(
+            title="Index Service",
+            description=f"Query:\n`{query}`\nQuerying...",
+            color=discord.Color.blurple(),
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
+        return embed
+
+    @staticmethod
+    def build_index_query_success_embed(query, price="Unknown"):
+        embed = discord.Embed(
+            title="Index Service",
+            description=f"Query:\n`{query}`\nThe index query was successful.\n\n||Total cost: {round(float(price), 6)}||",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
