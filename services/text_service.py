@@ -620,7 +620,6 @@ class TextService:
                     except:
                         pass
 
-
                     # get the current date, add 10 seconds to it, and then turn it into a timestamp.
                     # we need to use our deletion service because this isn't an interaction, it's a regular message.
                     deletion_time = datetime.datetime.now() + datetime.timedelta(
