@@ -579,7 +579,11 @@ class Index_handler:
         # Load all the indexes first
         index_objects = []
         for _index in indexes:
-            index_file = EnvService.find_shared_file(f"indexes/{user_id}/{_index}")
+            try:
+                index_file = EnvService.find_shared_file(f"indexes/{user_id}/{_index}")
+            except ValueError:
+                    index_file = EnvService.find_shared_file(f"indexes/{user_id}_search/{_index}")
+
             index = await self.loop.run_in_executor(
                 None, partial(self.index_load_file, index_file)
             )
@@ -645,6 +649,8 @@ class Index_handler:
             tree_index.save_to_disk(f"indexes/{user_id}/{name}")
 
             self.index_storage[user_id].queryable_index = tree_index
+
+            return total_usage_price
         else:
             documents = []
             for _index in index_objects:
@@ -672,6 +678,13 @@ class Index_handler:
             # Save the composed index
             simple_index.save_to_disk(f"indexes/{user_id}/{name}")
             self.index_storage[user_id].queryable_index = simple_index
+
+            try:
+                price = await self.usage_service.get_price(embedding_model.last_token_usage, embeddings=True)
+            except:
+                price = "Unknown"
+
+            return price
 
     async def backup_discord(
         self, ctx: discord.ApplicationContext, user_api_key, message_limit
@@ -900,6 +913,8 @@ class ComposeModal(discord.ui.View):
                 EnvService.find_shared_file(f"indexes/{str(user_id)}/")
             )
         ]
+
+        self.indexes.extend([file for file in os.listdir(EnvService.find_shared_file(f"indexes/{str(user_id)}_search/"))])
         print("Found the indexes, they are ", self.indexes)
 
         # Map everything into the short to long cache
@@ -999,7 +1014,7 @@ class ComposeModal(discord.ui.View):
                 )
                 # Compose the indexes
                 try:
-                    await self.index_cog.compose_indexes(
+                    price = await self.index_cog.compose_indexes(
                         self.user_id,
                         indexes,
                         self.name,
@@ -1024,7 +1039,7 @@ class ComposeModal(discord.ui.View):
                     return False
 
                 await interaction.followup.send(
-                    embed=EmbedStatics.get_index_compose_success_embed(),
+                    embed=EmbedStatics.get_index_compose_success_embed(price),
                     ephemeral=True,
                     delete_after=180,
                 )

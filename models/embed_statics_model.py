@@ -138,9 +138,10 @@ class EmbedStatics:
         return embed
 
     @staticmethod
-    def get_index_compose_success_embed():
+    def get_index_compose_success_embed(price="Unknown"):
         embed = discord.Embed(
             title="Indexes Composed",
+            description=f"Indexes composed successfully, you can query and load this index with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6)}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
