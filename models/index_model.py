@@ -367,7 +367,9 @@ class Index_handler:
                 return
 
             # Send indexing message
-            response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
+            response = await ctx.respond(
+                embed=EmbedStatics.build_index_progress_embed()
+            )
 
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
                 async with aiofiles.tempfile.NamedTemporaryFile(
@@ -383,16 +385,22 @@ class Index_handler:
                     )
 
             try:
-                price = await self.usage_service.get_price(embedding_model.last_token_usage, embeddings=True)
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
             except:
                 traceback.print_exc()
                 price = "Unknown"
 
             file_name = file.filename
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
-            await response.edit(embed=EmbedStatics.get_index_set_success_embed(str(price)))
+            await response.edit(
+                embed=EmbedStatics.get_index_set_success_embed(str(price))
+            )
         except Exception as e:
-            await ctx.channel.send(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
+            await ctx.channel.send(
+                embed=EmbedStatics.get_index_set_failure_embed(str(e))
+            )
             traceback.print_exc()
 
     async def set_link_index(
@@ -405,7 +413,6 @@ class Index_handler:
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
-
             embedding_model = OpenAIEmbedding()
 
             # Pre-emptively connect and get the content-type of the response
@@ -448,7 +455,9 @@ class Index_handler:
             )
 
             try:
-                price = await self.usage_service.get_price(embedding_model.last_token_usage, embeddings=True)
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
             except:
                 traceback.print_exc()
                 price = "Unknown"
@@ -715,7 +724,9 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        ctx_response = await ctx.respond(embed=EmbedStatics.build_index_query_progress_embed(query))
+        ctx_response = await ctx.respond(
+            embed=EmbedStatics.build_index_query_progress_embed(query)
+        )
 
         try:
             llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
@@ -742,7 +753,13 @@ class Index_handler:
             )
 
             try:
-                total_price = round(await self.usage_service.get_price(llm_predictor.last_token_usage) + await self.usage_service.get_price(embedding_model.last_token_usage, True), 6)
+                total_price = round(
+                    await self.usage_service.get_price(llm_predictor.last_token_usage)
+                    + await self.usage_service.get_price(
+                        embedding_model.last_token_usage, True
+                    ),
+                    6,
+                )
             except:
                 total_price = "Unknown"
 
@@ -756,7 +773,9 @@ class Index_handler:
                 timeout=None,
                 author_check=False,
             )
-            await ctx_response.edit(embed=EmbedStatics.build_index_query_success_embed(query,total_price))
+            await ctx_response.edit(
+                embed=EmbedStatics.build_index_query_success_embed(query, total_price)
+            )
             await paginator.respond(ctx.interaction)
         except Exception:
             traceback.print_exc()
