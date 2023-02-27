@@ -18,6 +18,7 @@ from services.moderations_service import Moderation
 BOT_NAME = EnvService.get_custom_bot_name()
 PRE_MODERATE = EnvService.get_premoderate()
 
+
 class TextService:
     def __init__(self):
         pass
@@ -67,7 +68,7 @@ class TextService:
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
         new_prompt, _new_prompt_clean = (
-            prompt #+ "\n" + BOT_NAME
+            prompt  # + "\n" + BOT_NAME
             if not from_ask_command and not from_edit_command and not redo_request
             else prompt
         ), prompt
@@ -233,7 +234,6 @@ class TextService:
                         "give me one moment!"
                     )
 
-
                     await converser_cog.summarize_conversation(ctx, new_prompt)
 
                     # Check again if the prompt is about to go past the token limit
@@ -341,15 +341,12 @@ class TextService:
                 conversation_id = ctx.channel.id
 
                 # A cleaner version for the convo history
-                response_text_clean = (
-                    str(response_text)
-                )
+                response_text_clean = str(response_text)
 
                 # Create an embedding and timestamp for the prompt
                 response_text = (
                     "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
-
 
                 # response_text = response_text.encode("ascii", "ignore").decode()
                 response_text = unidecode.unidecode(response_text)

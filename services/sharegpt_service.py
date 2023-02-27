@@ -7,7 +7,9 @@ class ShareGPTService:
     def __init__(self):
         self.API_URL = "https://sharegpt.com/api/conversations"
 
-    def format_conversation(self, conversation_history, avatar_url="https://i.imgur.com/SpuAF0v.png"):
+    def format_conversation(
+        self, conversation_history, avatar_url="https://i.imgur.com/SpuAF0v.png"
+    ):
         # The format is { 'avatarUrl' : <url>, 'items': [ { 'from': 'human', 'text': <text> }, { 'from': 'bot', 'text': <text> } ] } "
         # The conversation history is not in this format, its just in simple alternating human and bot conversation snippets
         conversation = {"avatarUrl": avatar_url, "items": []}
@@ -32,12 +34,13 @@ class ShareGPTService:
         headers = {"Content-Type": "application/json"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(self.API_URL, data=conversation, headers=headers) as response:
+            async with session.post(
+                self.API_URL, data=conversation, headers=headers
+            ) as response:
                 if response.status == 200:
                     response_json = await response.json()
-                    return response_json['id']
+                    return response_json["id"]
                 else:
-                    raise ValueError(f"ShareGPT returned an invalid response: {await response.text()}")
-
-
-
+                    raise ValueError(
+                        f"ShareGPT returned an invalid response: {await response.text()}"
+                    )

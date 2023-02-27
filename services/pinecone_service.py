@@ -69,8 +69,7 @@ class PineconeService:
 
     def get_all_conversation_items(self, conversation_id: int):
         response = self.index.query(
-            vector=[0] * 1536,
-            top_k=1000, filter={"conversation_id": conversation_id}
+            vector=[0] * 1536, top_k=1000, filter={"conversation_id": conversation_id}
         )
         phrases = [match["id"] for match in response["matches"]]
 

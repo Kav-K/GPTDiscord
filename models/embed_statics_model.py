@@ -229,20 +229,16 @@ class EmbedStatics:
             color=discord.Color.blurple(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/8OIZc1A.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/8OIZc1A.png")
         return embed
 
     @staticmethod
     def get_conversation_share_failed_embed(message):
         embed = discord.Embed(
             title="Conversation Sharing",
-            description=f"Conversation sharing failed: "+message,
+            description=f"Conversation sharing failed: " + message,
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
