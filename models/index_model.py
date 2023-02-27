@@ -360,7 +360,9 @@ class Index_handler:
                 pass  # No suffix change
             else:
                 await ctx.respond(
-                    embed=EmbedStatics.get_index_set_failure_embed("Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files.")
+                    embed=EmbedStatics.get_index_set_failure_embed(
+                        "Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files."
+                    )
                 )
                 return
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
@@ -402,12 +404,20 @@ class Index_handler:
                         if response.status == 200:
                             content_type = response.headers.get("content-type")
                         else:
-                            await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed("Invalid URL or could not connect to the provided URL."))
+                            await ctx.respond(
+                                embed=EmbedStatics.get_index_set_failure_embed(
+                                    "Invalid URL or could not connect to the provided URL."
+                                )
+                            )
                             return
             except Exception as e:
                 traceback.print_exc()
-                await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(
-                    "Invalid URL or could not connect to the provided URL. "+str(e)))
+                await ctx.respond(
+                    embed=EmbedStatics.get_index_set_failure_embed(
+                        "Invalid URL or could not connect to the provided URL. "
+                        + str(e)
+                    )
+                )
                 return
 
             # Check if the link contains youtube in it
@@ -724,7 +734,9 @@ class Index_handler:
         except Exception:
             traceback.print_exc()
             await ctx.respond(
-                embed=EmbedStatics.get_index_query_failure_embed("Failed to send query. You may not have an index set, load an index with /index load"),
+                embed=EmbedStatics.get_index_query_failure_embed(
+                    "Failed to send query. You may not have an index set, load an index with /index load"
+                ),
                 delete_after=10,
             )
 
@@ -813,7 +825,11 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         if not self.index_storage[ctx.user.id].has_indexes(ctx.user.id):
-            await ctx.respond(embed=EmbedStatics.get_index_compose_failure_embed("You must have at least one index to compose."))
+            await ctx.respond(
+                embed=EmbedStatics.get_index_compose_failure_embed(
+                    "You must have at least one index to compose."
+                )
+            )
             return
 
         await ctx.respond(
@@ -925,7 +941,10 @@ class ComposeModal(discord.ui.View):
 
             if len(indexes) < 1:
                 await interaction.response.send_message(
-                    embed=EmbedStatics.get_index_compose_failure_embed("You must select at least 1 index"), ephemeral=True
+                    embed=EmbedStatics.get_index_compose_failure_embed(
+                        "You must select at least 1 index"
+                    ),
+                    ephemeral=True,
                 )
             else:
                 composing_message = await interaction.response.send_message(
@@ -950,14 +969,18 @@ class ComposeModal(discord.ui.View):
                     return False
                 except Exception as e:
                     await interaction.followup.send(
-                        embed=EmbedStatics.get_index_compose_failure_embed("An error occurred while composing the indexes: " + str(e)),
+                        embed=EmbedStatics.get_index_compose_failure_embed(
+                            "An error occurred while composing the indexes: " + str(e)
+                        ),
                         ephemeral=True,
                         delete_after=180,
                     )
                     return False
 
                 await interaction.followup.send(
-                    embed=EmbedStatics.get_index_compose_success_embed(), ephemeral=True, delete_after=180
+                    embed=EmbedStatics.get_index_compose_success_embed(),
+                    ephemeral=True,
+                    delete_after=180,
                 )
 
                 # Try to direct message the user that their composed index is ready
@@ -969,7 +992,7 @@ class ComposeModal(discord.ui.View):
                     pass
 
                 try:
-                    composing_message : Interaction
+                    composing_message: Interaction
                     await composing_message.delete_original_response()
 
                 except:

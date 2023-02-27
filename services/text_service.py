@@ -424,7 +424,9 @@ class TextService:
                         )
                     elif from_edit_command:
                         response_message = await ctx.respond(
-                            embed=EmbedStatics.get_edit_command_output_embed(response_text),
+                            embed=EmbedStatics.get_edit_command_output_embed(
+                                response_text
+                            ),
                             view=ConversationView(
                                 ctx,
                                 converser_cog,
@@ -486,7 +488,9 @@ class TextService:
                         await response_message.edit(content=response_text)
                     else:
                         await response_message.edit(
-                            embed=EmbedStatics.get_edit_command_output_embed(response_text)
+                            embed=EmbedStatics.get_edit_command_output_embed(
+                                response_text
+                            )
                         )
 
             await converser_cog.send_debug_message(

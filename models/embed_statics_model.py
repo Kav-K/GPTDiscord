@@ -90,9 +90,7 @@ class EmbedStatics:
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/7JF0oGD.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
 
     @staticmethod
@@ -103,9 +101,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -115,9 +111,7 @@ class EmbedStatics:
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/7JF0oGD.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
 
     @staticmethod
@@ -128,9 +122,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -141,9 +133,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -153,9 +143,7 @@ class EmbedStatics:
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/7JF0oGD.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
 
     @staticmethod
@@ -166,9 +154,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -179,9 +165,7 @@ class EmbedStatics:
             color=discord.Color.blurple(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/txHhNzL.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
         return embed
 
     @staticmethod
@@ -192,9 +176,7 @@ class EmbedStatics:
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/7JF0oGD.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
 
     @staticmethod
@@ -205,9 +187,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -227,9 +207,7 @@ class EmbedStatics:
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/VLJ32x7.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
         return embed
 
     @staticmethod
@@ -240,9 +218,7 @@ class EmbedStatics:
             color=discord.Color.blurple(),
         )
         # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(
-            url="https://i.imgur.com/txHhNzL.png"
-        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
         return embed
 
     @staticmethod
