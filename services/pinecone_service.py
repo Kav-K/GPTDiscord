@@ -66,3 +66,14 @@ class PineconeService:
         # Sort the relevant phrases based on the timestamp
         relevant_phrases.sort(key=lambda x: x[1])
         return relevant_phrases
+
+    def get_all_conversation_items(self, conversation_id: int):
+        response = self.index.query(
+            vector=[0] * 1536,
+            top_k=1000, filter={"conversation_id": conversation_id}
+        )
+        phrases = [match["id"] for match in response["matches"]]
+
+        # Sort on timestamp
+        phrases.sort(key=lambda x: x[1])
+        return phrases

@@ -9,6 +9,7 @@ import aiofiles
 import json
 
 import discord
+from discord import ClientUser
 
 from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
@@ -20,6 +21,7 @@ from models.user_model import Thread, EmbeddedConversationItem
 from collections import defaultdict
 from sqlitedict import SqliteDict
 
+from services.sharegpt_service import ShareGPTService
 from services.text_service import SetupModal, TextService
 
 original_message = {}
@@ -99,10 +101,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.awaiting_responses = []
         self.awaiting_thread_responses = []
         self.conversation_threads = {}
+        self.full_conversation_history = defaultdict(list)
         self.summarize = self.model.summarize_conversations
 
         # Pinecone data
         self.pinecone_service = pinecone_service
+
+        # Sharing service
+        self.sharegpt_service = ShareGPTService()
 
         try:
             conversation_file_path = EnvService.find_shared_file(
@@ -242,6 +248,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         "This is not a conversation thread that you own!",
                         delete_after=5,
                     )
+                    return
+
+                if normalized_user_id in self.awaiting_responses:
+                    await ctx.reply(embed=discord.Embed(
+                                title=f"Please wait for a response before ending the conversation.",
+                                color=0x808080,
+                            ))
+                    return
 
             except Exception:
                 traceback.print_exc()
@@ -277,7 +291,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 delete_after=10,
             )
 
-        await ctx.channel.send(embed=EmbedStatics.generate_end_embed())
+        await ctx.channel.send(embed=EmbedStatics.generate_end_embed(), view=ShareView(self, ctx.channel.id))
 
         # Close all conversation threads for the user
         # If at conversation limit then fetch the owner and close the thread for them
@@ -621,7 +635,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     def cleanse_response(self, response_text):
         """Cleans history tokens from response"""
-        response_text = response_text.replace("GPTie:\n", "")
+        response_text = response_text.replace("<yourname>:", "")
+        response_text = response_text.replace("You:", "")
         response_text = response_text.replace(BOT_NAME.replace(" ", ""), "")
         response_text = response_text.replace(BOT_NAME, "")
         response_text = response_text.replace("<|endofstatement|>", "")
@@ -1273,3 +1288,46 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             presence_penalty=None,
             from_other_action=from_other_action,
         )
+
+class ShareView(discord.ui.View):
+    def __init__(
+        self,
+        converser_cog,
+        conversation_id,
+    ):
+        super().__init__(timeout=3600)  # 1 hour interval to share the conversation.
+        self.converser_cog = converser_cog
+        self.conversation_id = conversation_id
+        self.add_item(ShareButton(converser_cog, conversation_id))
+
+
+    async def on_timeout(self):
+        # Remove the button from the view/message
+        self.clear_items()
+
+
+class ShareButton(discord.ui.Button["ShareView"]):
+    def __init__(self, converser_cog, conversation_id):
+        super().__init__(
+            style=discord.ButtonStyle.green,
+            label="Share Conversation",
+            custom_id="share_conversation",
+        )
+        self.converser_cog = converser_cog
+        self.conversation_id = conversation_id
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get the user
+        try:
+            id = await self.converser_cog.sharegpt_service.format_and_share(self.converser_cog.full_conversation_history[self.conversation_id], self.converser_cog.bot.user.default_avatar.url if not self.converser_cog.bot.user.avatar else self.converser_cog.bot.user.avatar.url)
+            url = f"https://shareg.pt/{id}"
+            await interaction.response.send_message(embed=EmbedStatics.get_conversation_shared_embed(url))
+        except ValueError as e:
+            traceback.print_exc()
+            await interaction.response.send_message(embed=EmbedStatics.get_conversation_share_failed_embed("The ShareGPT API returned an error: "+str(e)), ephemeral=True, delete_after=15)
+            return
+        except Exception as e:
+            traceback.print_exc()
+            await interaction.response.send_message(embed=EmbedStatics.get_conversation_share_failed_embed(str(e)), ephemeral=True,
+                                                    delete_after=15)
+            return

@@ -1,6 +1,7 @@
 import datetime
 import re
 import traceback
+from collections import defaultdict
 
 import aiohttp
 import discord
@@ -16,7 +17,6 @@ from services.moderations_service import Moderation
 
 BOT_NAME = EnvService.get_custom_bot_name()
 PRE_MODERATE = EnvService.get_premoderate()
-
 
 class TextService:
     def __init__(self):
@@ -66,11 +66,11 @@ class TextService:
             redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
-        new_prompt = (
-            prompt + "\n" + BOT_NAME
+        new_prompt, _new_prompt_clean = (
+            prompt #+ "\n" + BOT_NAME
             if not from_ask_command and not from_edit_command and not redo_request
             else prompt
-        )
+        ), prompt
 
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
@@ -109,6 +109,7 @@ class TextService:
                 )
 
                 new_prompt = f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
+
                 # new_prompt = new_prompt.encode("ascii", "ignore").decode()
                 new_prompt = unidecode.unidecode(new_prompt)
 
@@ -142,6 +143,7 @@ class TextService:
                         timestamp,
                         custom_api_key=custom_api_key,
                     )
+                    # Print all phrases
 
                     embedding_prompt_less_author = await converser_cog.model.send_embedding_request(
                         prompt_less_author, custom_api_key=custom_api_key
@@ -230,6 +232,7 @@ class TextService:
                         "I'm currently summarizing our current conversation so we can keep chatting, "
                         "give me one moment!"
                     )
+
 
                     await converser_cog.summarize_conversation(ctx, new_prompt)
 
@@ -337,10 +340,16 @@ class TextService:
             ):
                 conversation_id = ctx.channel.id
 
+                # A cleaner version for the convo history
+                response_text_clean = (
+                    str(response_text)
+                )
+
                 # Create an embedding and timestamp for the prompt
                 response_text = (
                     "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
+
 
                 # response_text = response_text.encode("ascii", "ignore").decode()
                 response_text = unidecode.unidecode(response_text)
@@ -366,6 +375,10 @@ class TextService:
 
             # Cleanse again
             response_text = converser_cog.cleanse_response(response_text)
+
+            converser_cog.full_conversation_history[ctx.channel.id].append(
+                response_text
+            )
 
             # escape any other mentions like @here or @everyone
             response_text = discord.utils.escape_mentions(response_text)
@@ -660,6 +673,7 @@ class TextService:
             )
             thinking_embed.set_footer(text="This may take a few seconds.")
             thinking_message = await message.reply(embed=thinking_embed)
+            converser_cog.full_conversation_history[message.channel.id].append(prompt)
 
             await TextService.encapsulated_send(
                 converser_cog,

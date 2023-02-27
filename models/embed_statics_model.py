@@ -244,3 +244,29 @@ class EmbedStatics:
             url="https://i.imgur.com/txHhNzL.png"
         )
         return embed
+
+    @staticmethod
+    def get_conversation_shared_embed(url):
+        embed = discord.Embed(
+            title="Conversation Shared",
+            description=f"You can access your shared conversation at: {url}",
+            color=discord.Color.blurple(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/8OIZc1A.png"
+        )
+        return embed
+
+    @staticmethod
+    def get_conversation_share_failed_embed(message):
+        embed = discord.Embed(
+            title="Conversation Sharing",
+            description=f"Conversation sharing failed: "+message,
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        embed.set_thumbnail(
+            url="https://i.imgur.com/VLJ32x7.png"
+        )
+        return embed
