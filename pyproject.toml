@@ -28,7 +28,7 @@ dependencies = [
 "pinecone-client==2.1.0",
 "sqlitedict==2.1.0",
 "backoff==2.2.1",
-"flask==2.2.2",
+"flask==2.2.3",
 "beautifulsoup4==4.11.1",
 "gpt-index==0.4.14",
 "PyPDF2==3.0.1",
