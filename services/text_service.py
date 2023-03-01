@@ -113,7 +113,6 @@ class TextService:
                 new_prompt = unidecode.unidecode(new_prompt)
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
-
                 new_prompt = f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
 
                 # new_prompt = new_prompt.encode("ascii", "ignore").decode()
@@ -275,7 +274,9 @@ class TextService:
                     return
 
             if not converser_cog.pinecone_service:
-                _prompt_with_history = converser_cog.conversation_threads[ctx.channel.id].history
+                _prompt_with_history = converser_cog.conversation_threads[
+                    ctx.channel.id
+                ].history
             print("The prompt with history is ", _prompt_with_history)
 
             # Send the request to the model
@@ -291,7 +292,6 @@ class TextService:
                     presence_penalty_override=overrides.presence_penalty,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
-
                 )
 
             elif from_edit_command:
@@ -317,9 +317,13 @@ class TextService:
                 )
 
             # Clean the request response
-            response_text = converser_cog.cleanse_response(
-                str(response["choices"][0]["text"])
-            ) if not chatgpt else converser_cog.cleanse_response(str(response["choices"][0]["message"]["content"]))
+            response_text = (
+                converser_cog.cleanse_response(str(response["choices"][0]["text"]))
+                if not chatgpt
+                else converser_cog.cleanse_response(
+                    str(response["choices"][0]["message"]["content"])
+                )
+            )
 
             if from_message_context:
                 response_text = f"{response_text}"
