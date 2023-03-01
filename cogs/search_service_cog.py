@@ -172,7 +172,9 @@ class SearchService(discord.Cog, name="SearchService"):
         # If the response is too long, lets paginate using the discord pagination
         # helper
         embed_pages = await self.paginate_embed(
-            query_response_message, ctx.user if not followup_user else followup_user, original_link if from_followup else None
+            query_response_message,
+            ctx.user if not followup_user else followup_user,
+            original_link if from_followup else None,
         )
         paginator = pages.Paginator(
             pages=embed_pages,
