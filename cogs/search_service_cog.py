@@ -94,6 +94,7 @@ class SearchService(discord.Cog, name="SearchService"):
         response_mode,
         redo=None,
         from_followup=None,
+        followup_user=None,
     ):
         """Command handler for the search command"""
         await ctx.defer() if not redo else None
@@ -171,7 +172,7 @@ class SearchService(discord.Cog, name="SearchService"):
         # If the response is too long, lets paginate using the discord pagination
         # helper
         embed_pages = await self.paginate_embed(
-            query_response_message, ctx.user, original_link if from_followup else None
+            query_response_message, ctx.user if not followup_user else followup_user, original_link if from_followup else None
         )
         paginator = pages.Paginator(
             pages=embed_pages,
@@ -301,4 +302,5 @@ class FollowupModal(discord.ui.Modal):
             redo=True,
             from_followup=FollowupData(message_link, self.children[0].value),
             response_mode=self.search_cog.redo_users[self.ctx.user.id].response_mode,
+            followup_user=interaction.user,
         )
