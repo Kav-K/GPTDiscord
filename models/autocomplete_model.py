@@ -90,9 +90,11 @@ class Settings_autocompleter:
         ctx: discord.AutocompleteContext,
     ):
         """Gets all models"""
-        return [
+        models = [
             value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
         ]
+        models.append("chatgpt")
+        return models
 
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,

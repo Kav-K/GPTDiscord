@@ -2,6 +2,7 @@ import asyncio
 import functools
 import math
 import os
+import re
 import tempfile
 import traceback
 import uuid
@@ -799,6 +800,100 @@ class Model:
 
                 return response
 
+    def cleanse_username(self, text):
+        text = text.strip()
+        text = text.replace(":", "_")
+        text = text.replace(" ", "")
+        # Replace any character that's not a letter or number with an underscore
+        text = re.sub(r"[^a-zA-Z0-9]", "_", text)
+        return text
+
+
+    @backoff.on_exception(
+        backoff.expo,
+        ValueError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_request,
+    )
+    async def send_chatgpt_request(
+        self,
+        prompt_history,
+        bot_name,
+        user_displayname,
+        temp_override=None,
+        top_p_override=None,
+        best_of_override=None,
+        frequency_penalty_override=None,
+        presence_penalty_override=None,
+        max_tokens_override=None,
+        stop=None,
+        custom_api_key=None,
+
+    ) -> (
+        Tuple[dict, bool]
+    ):  # The response, and a boolean indicating whether or not the context limit was reached.
+        # Validate that  all the parameters are in a good state before we send the request
+
+        print(f"The prompt about to be sent is {prompt_history}")
+        print(
+            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
+        )
+
+        # Clean up the user display name
+        user_displayname_clean = self.cleanse_username(user_displayname)
+
+        # Clean up the bot name
+        bot_name_clean = self.cleanse_username(bot_name)
+
+        # Format the request body into the messages format that the API is expecting
+        #   "messages": [{"role": "user", "content": "Hello!"}]
+        messages = []
+        for number,message in enumerate(prompt_history):
+            if number == 0:
+                # If this is the first message, it is the context prompt.
+                messages.append({"role": "user", "name":"System_Instructor", "content": message.text})
+                continue
+
+            if user_displayname in message.text:
+                text = message.text.replace(user_displayname+":", "")
+                text = text.replace("<|endofstatement|>", "")
+                messages.append({"role": "user", "name":user_displayname_clean, "content": text})
+            else:
+                text = message.text.replace(bot_name, "")
+                text = text.replace("<|endofstatement|>", "")
+                messages.append({"role": "assistant", "name":bot_name_clean, "content": text})
+
+        print(f"Messages -> {messages}")
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
+            payload = {
+                "model": "gpt-3.5-turbo-0301",
+                "messages": messages,
+                "stop": "" if stop is None else stop,
+                "temperature": self.temp if temp_override is None else temp_override,
+                "top_p": self.top_p if top_p_override is None else top_p_override,
+                "presence_penalty": self.presence_penalty
+                if presence_penalty_override is None
+                else presence_penalty_override,
+                "frequency_penalty": self.frequency_penalty
+                if frequency_penalty_override is None
+                else frequency_penalty_override,
+            }
+            headers = {
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
+            }
+            async with session.post(
+                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+            ) as resp:
+                response = await resp.json()
+                # print(f"Payload -> {payload}")
+                # Parse the total tokens used for this request and response pair from the response
+                await self.valid_text_request(response)
+                print(f"Response -> {response}")
+
+                return response
+
     @backoff.on_exception(
         backoff.expo,
         ValueError,
@@ -829,10 +924,10 @@ class Model:
             if model:
                 max_tokens_override = Models.get_max_tokens(model) - tokens
 
-        print(f"The prompt about to be sent is {prompt}")
-        print(
-            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
-        )
+        # print(f"The prompt about to be sent is {prompt}")
+        # print(
+        #     f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
+        # )
 
         async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {

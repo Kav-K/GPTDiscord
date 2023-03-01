@@ -73,6 +73,11 @@ class TextService:
             else prompt
         ), prompt
 
+        # Determine if we're sending a ChatGPT model request
+        chatgpt = False
+        if model and "chatgpt" in model.lower():
+            chatgpt = True
+
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
         from_context = isinstance(ctx, discord.ApplicationContext)
@@ -85,6 +90,10 @@ class TextService:
             ) + converser_cog.usage_service.count_tokens(instruction)
 
         try:
+            user_displayname = (
+                ctx.author.display_name if not user else user.display_name
+            )
+
             # Pinecone is enabled, we will create embeddings for this conversation.
             if (
                 converser_cog.pinecone_service
@@ -104,9 +113,6 @@ class TextService:
                 new_prompt = unidecode.unidecode(new_prompt)
                 prompt_less_author = f"{new_prompt} <|endofstatement|>\n"
 
-                user_displayname = (
-                    ctx.author.display_name if not user else user.display_name
-                )
 
                 new_prompt = f"\n{user_displayname}: {new_prompt} <|endofstatement|>\n"
 
@@ -158,12 +164,12 @@ class TextService:
 
                     # When we are in embeddings mode, only the pre-text is contained in converser_cog.conversation_threads[message.channel.id].history, so we
                     # can use that as a base to build our new prompt
-                    prompt_with_history = [
+                    _prompt_with_history = [
                         converser_cog.conversation_threads[ctx.channel.id].history[0]
                     ]
 
                     # Append the similar prompts to the prompt with history
-                    prompt_with_history += [
+                    _prompt_with_history += [
                         EmbeddedConversationItem(prompt, timestamp)
                         for prompt, timestamp in similar_prompts
                     ]
@@ -180,37 +186,37 @@ class TextService:
                             converser_cog.model.num_static_conversation_items,
                         ),
                     ):
-                        prompt_with_history.append(
+                        _prompt_with_history.append(
                             converser_cog.conversation_threads[ctx.channel.id].history[
                                 -i
                             ]
                         )
 
                     # remove duplicates from prompt_with_history and set the conversation history
-                    prompt_with_history = list(dict.fromkeys(prompt_with_history))
+                    _prompt_with_history = list(dict.fromkeys(_prompt_with_history))
 
                     # Sort the prompt_with_history by increasing timestamp if pinecone is enabled
                     if converser_cog.pinecone_service:
-                        prompt_with_history.sort(key=lambda x: x.timestamp)
+                        _prompt_with_history.sort(key=lambda x: x.timestamp)
 
                     # Remove the last two entries after sort, this is from the end of the list as prompt(redo), answer, prompt(original), leaving only prompt(original) and further history
                     if redo_request:
-                        prompt_with_history = prompt_with_history[:-2]
+                        _prompt_with_history = _prompt_with_history[:-2]
 
                     converser_cog.conversation_threads[
                         ctx.channel.id
-                    ].history = prompt_with_history
+                    ].history = _prompt_with_history
 
                     # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
-                    if prompt_with_history[-1].text != new_prompt_item.text:
+                    if _prompt_with_history[-1].text != new_prompt_item.text:
                         try:
-                            prompt_with_history.remove(new_prompt_item)
+                            _prompt_with_history.remove(new_prompt_item)
                         except ValueError:
                             pass
-                        prompt_with_history.append(new_prompt_item)
+                        _prompt_with_history.append(new_prompt_item)
 
                     prompt_with_history = "".join(
-                        [item.text for item in prompt_with_history]
+                        [item.text for item in _prompt_with_history]
                     )
 
                     new_prompt = prompt_with_history + "\n" + BOT_NAME
@@ -268,8 +274,27 @@ class TextService:
                     await converser_cog.end_conversation(ctx)
                     return
 
+            if not converser_cog.pinecone_service:
+                _prompt_with_history = converser_cog.conversation_threads[ctx.channel.id].history
+            print("The prompt with history is ", _prompt_with_history)
+
             # Send the request to the model
-            if from_edit_command:
+
+            if chatgpt:
+                response = await converser_cog.model.send_chatgpt_request(
+                    _prompt_with_history,
+                    bot_name=BOT_NAME,
+                    user_displayname=user_displayname,
+                    temp_override=overrides.temperature,
+                    top_p_override=overrides.top_p,
+                    frequency_penalty_override=overrides.frequency_penalty,
+                    presence_penalty_override=overrides.presence_penalty,
+                    stop=stop if not from_ask_command else None,
+                    custom_api_key=custom_api_key,
+
+                )
+
+            elif from_edit_command:
                 response = await converser_cog.model.send_edit_request(
                     text=new_prompt,
                     instruction=instruction,
@@ -294,7 +319,7 @@ class TextService:
             # Clean the request response
             response_text = converser_cog.cleanse_response(
                 str(response["choices"][0]["text"])
-            )
+            ) if not chatgpt else converser_cog.cleanse_response(str(response["choices"][0]["message"]["content"]))
 
             if from_message_context:
                 response_text = f"{response_text}"
