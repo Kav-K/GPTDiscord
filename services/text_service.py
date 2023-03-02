@@ -277,12 +277,28 @@ class TextService:
                     return
 
             # Send the request to the model
-            is_chatgpt_conversation = ctx.channel.id in converser_cog.conversation_threads and not from_ask_command and not from_edit_command and ((model is not None and (model in Models.CHATGPT_MODELS or model == "chatgpt")) or (model is None and converser_cog.model.model in Models.CHATGPT_MODELS))
+            is_chatgpt_conversation = (
+                ctx.channel.id in converser_cog.conversation_threads
+                and not from_ask_command
+                and not from_edit_command
+                and (
+                    (
+                        model is not None
+                        and (model in Models.CHATGPT_MODELS or model == "chatgpt")
+                    )
+                    or (
+                        model is None
+                        and converser_cog.model.model in Models.CHATGPT_MODELS
+                    )
+                )
+            )
             delegator = model or converser_cog.model.model
             is_chatgpt_request = delegator in Models.CHATGPT_MODELS
 
             if is_chatgpt_conversation:
-                _prompt_with_history = converser_cog.conversation_threads[ctx.channel.id].history
+                _prompt_with_history = converser_cog.conversation_threads[
+                    ctx.channel.id
+                ].history
                 response = await converser_cog.model.send_chatgpt_chat_request(
                     _prompt_with_history,
                     bot_name=BOT_NAME,
@@ -320,10 +336,13 @@ class TextService:
 
             # Clean the request response
 
-            response_text = converser_cog.cleanse_response(
-                str(response["choices"][0]["text"])
-            ) if not is_chatgpt_request and not is_chatgpt_conversation else converser_cog.cleanse_response(str(response["choices"][0]["message"]["content"]))
-
+            response_text = (
+                converser_cog.cleanse_response(str(response["choices"][0]["text"]))
+                if not is_chatgpt_request and not is_chatgpt_conversation
+                else converser_cog.cleanse_response(
+                    str(response["choices"][0]["message"]["content"])
+                )
+            )
 
             if from_message_context:
                 response_text = f"{response_text}"
