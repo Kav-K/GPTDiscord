@@ -400,15 +400,18 @@ class Search:
             )
 
             total_usage_price = await self.usage_service.get_price(
-                llm_predictor_deep.last_token_usage, chatgpt=True,
+                llm_predictor_deep.last_token_usage,
+                chatgpt=True,
             ) + await self.usage_service.get_price(
-                embedding_model.last_token_usage, embeddings=True)
+                embedding_model.last_token_usage, embeddings=True
+            )
 
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
             await self.usage_service.update_usage(
-                llm_predictor_deep.last_token_usage, chatgpt=True,
+                llm_predictor_deep.last_token_usage,
+                chatgpt=True,
             )
             price += total_usage_price
 
@@ -451,7 +454,7 @@ class Search:
                 partial(
                     index.query,
                     query,
-                    embedding_mode='hybrid',
+                    embedding_mode="hybrid",
                     llm_predictor=llm_predictor,
                     include_text=True,
                     embed_model=embedding_model,
@@ -461,7 +464,9 @@ class Search:
                 ),
             )
 
-        await self.usage_service.update_usage(llm_predictor.last_token_usage, chatgpt=True)
+        await self.usage_service.update_usage(
+            llm_predictor.last_token_usage, chatgpt=True
+        )
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
