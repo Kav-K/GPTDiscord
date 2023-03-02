@@ -310,7 +310,10 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
-        name="model", description="The model to use for the request", required=False, autocomplete=Settings_autocompleter.get_models
+        name="model",
+        description="The model to use for the request",
+        required=False,
+        autocomplete=Settings_autocompleter.get_models,
     )
     @discord.option(
         name="private", description="Will only be visible to you", required=False

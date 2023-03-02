@@ -65,7 +65,16 @@ class Models:
     TURBO_DEV = "gpt-3.5-turbo-0301"
 
     # Model collections
-    TEXT_MODELS = [DAVINCI, CURIE, BABBAGE, ADA, CODE_DAVINCI, CODE_CUSHMAN, TURBO, TURBO_DEV]
+    TEXT_MODELS = [
+        DAVINCI,
+        CURIE,
+        BABBAGE,
+        ADA,
+        CODE_DAVINCI,
+        CODE_CUSHMAN,
+        TURBO,
+        TURBO_DEV,
+    ]
     CHATGPT_MODELS = [TURBO, TURBO_DEV]
     EDIT_MODELS = [EDIT, CODE_EDIT]
 
@@ -841,7 +850,6 @@ class Model:
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
 
-
         # Clean up the user display name
         user_displayname_clean = self.cleanse_username(user_displayname)
 
@@ -950,7 +958,9 @@ class Model:
                     "model": self.model if model is None else model,
                     "prompt": prompt,
                     "stop": "" if stop is None else stop,
-                    "temperature": self.temp if temp_override is None else temp_override,
+                    "temperature": self.temp
+                    if temp_override is None
+                    else temp_override,
                     "top_p": self.top_p if top_p_override is None else top_p_override,
                     "max_tokens": self.max_tokens - tokens
                     if max_tokens_override is None
@@ -961,13 +971,17 @@ class Model:
                     "frequency_penalty": self.frequency_penalty
                     if frequency_penalty_override is None
                     else frequency_penalty_override,
-                    "best_of": self.best_of if not best_of_override else best_of_override,
+                    "best_of": self.best_of
+                    if not best_of_override
+                    else best_of_override,
                 }
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }
                 async with session.post(
-                    "https://api.openai.com/v1/completions", json=payload, headers=headers
+                    "https://api.openai.com/v1/completions",
+                    json=payload,
+                    headers=headers,
                 ) as resp:
                     response = await resp.json()
                     # print(f"Payload -> {payload}")
@@ -976,13 +990,15 @@ class Model:
                     print(f"Response -> {response}")
 
                     return response
-        else: # ChatGPT Simple completion
+        else:  # ChatGPT Simple completion
             async with aiohttp.ClientSession(raise_for_status=False) as session:
                 payload = {
                     "model": self.model if not model else model,
                     "messages": [{"role": "user", "content": prompt}],
                     "stop": "" if stop is None else stop,
-                    "temperature": self.temp if temp_override is None else temp_override,
+                    "temperature": self.temp
+                    if temp_override is None
+                    else temp_override,
                     "top_p": self.top_p if top_p_override is None else top_p_override,
                     "presence_penalty": self.presence_penalty
                     if presence_penalty_override is None
@@ -995,7 +1011,9 @@ class Model:
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }
                 async with session.post(
-                        "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                    "https://api.openai.com/v1/chat/completions",
+                    json=payload,
+                    headers=headers,
                 ) as resp:
                     response = await resp.json()
                     # print(f"Payload -> {payload}")
