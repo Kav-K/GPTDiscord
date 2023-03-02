@@ -615,7 +615,8 @@ class Index_handler:
                 ),
             )
             total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage, chatgpt=False, # TODO Enable again when tree indexes are fixed
+                llm_predictor_mock.last_token_usage,
+                chatgpt=False,  # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
                 embedding_model_mock.last_token_usage, embeddings=True
             )
@@ -625,7 +626,9 @@ class Index_handler:
                     "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
                 )
 
-            llm_predictor_temp_non_cgpt = LLMPredictor(llm=OpenAI(model_name="text-davinci-003")) # TODO Get rid of this
+            llm_predictor_temp_non_cgpt = LLMPredictor(
+                llm=OpenAI(model_name="text-davinci-003")
+            )  # TODO Get rid of this
 
             tree_index = await self.loop.run_in_executor(
                 None,
@@ -638,7 +641,9 @@ class Index_handler:
                 ),
             )
 
-            await self.usage_service.update_usage(llm_predictor_temp_non_cgpt.last_token_usage, chatgpt=False) # Todo set to false
+            await self.usage_service.update_usage(
+                llm_predictor_temp_non_cgpt.last_token_usage, chatgpt=False
+            )  # Todo set to false
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -748,7 +753,6 @@ class Index_handler:
         )
 
         try:
-
             embedding_model = OpenAIEmbedding()
             embedding_model.last_token_usage = 0
             response = await self.loop.run_in_executor(
@@ -766,7 +770,9 @@ class Index_handler:
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
-            await self.usage_service.update_usage(llm_predictor.last_token_usage, chatgpt=True)
+            await self.usage_service.update_usage(
+                llm_predictor.last_token_usage, chatgpt=True
+            )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
