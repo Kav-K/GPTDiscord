@@ -684,7 +684,9 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="recurse-link", description="Recursively index a link", guild_ids=ALLOWED_GUILDS
+        name="recurse-link",
+        description="Recursively index a link",
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     @discord.option(

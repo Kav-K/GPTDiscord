@@ -40,7 +40,8 @@ from llama_index import (
     IndexStructType,
     OpenAIEmbedding,
     GithubRepositoryReader,
-    MockEmbedding, download_loader,
+    MockEmbedding,
+    download_loader,
 )
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -399,7 +400,9 @@ class Index_handler:
                         suffix = value
                         break
                 if not suffix:
-                    await ctx.send("Could not determine the file type of the attachment, attempting a dirty index..")
+                    await ctx.send(
+                        "Could not determine the file type of the attachment, attempting a dirty index.."
+                    )
                     return
 
             # Send indexing message
@@ -412,11 +415,16 @@ class Index_handler:
                 async with aiofiles.tempfile.NamedTemporaryFile(
                     suffix=suffix, dir=temp_path, delete=False
                 ) as temp_file:
-
                     await file.save(temp_file.name)
                     embedding_model = OpenAIEmbedding()
                     index = await self.loop.run_in_executor(
-                        None, partial(self.index_file, Path(temp_file.name), embedding_model, suffix)
+                        None,
+                        partial(
+                            self.index_file,
+                            Path(temp_file.name),
+                            embedding_model,
+                            suffix,
+                        ),
                     )
                     await self.usage_service.update_usage(
                         embedding_model.last_token_usage, embeddings=True
@@ -479,7 +487,9 @@ class Index_handler:
 
             # Check if the link contains youtube in it
             loader = RemoteDepthReader(depth=depth)
-            documents = await self.loop.run_in_executor(None, partial(loader.load_data, [link]))
+            documents = await self.loop.run_in_executor(
+                None, partial(loader.load_data, [link])
+            )
             index = await self.loop.run_in_executor(
                 None,
                 functools.partial(
