@@ -923,14 +923,16 @@ class Model:
         max_tries=4,
         on_backoff=backoff_handler_request,
     )
-    async def send_transcription_request(self, file: discord.Attachment, temperature_override=None, custom_api_key=None, ):
+    async def send_transcription_request(self, file: [discord.Attachment, discord.File], temperature_override=None, custom_api_key=None, ):
 
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             data = aiohttp.FormData()
             data.add_field("model", "whisper-1")
+            print("audio."+file.filename.split(".")[-1])
             data.add_field(
-                "file", await file.read(), filename="audio."+file.filename.split(".")[-1], content_type=file.content_type
+                "file", await file.read() if isinstance(file, discord.Attachment) else await file.fp.read(), filename="audio."+file.filename.split(".")[-1] if isinstance(file, discord.Attachment) else "audio.mp4", content_type=file.content_type if isinstance(file, discord.Attachment) else "video/mp4"
             )
+
             if temperature_override:
                 data.add_field("temperature", temperature_override)
 

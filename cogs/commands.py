@@ -1044,3 +1044,27 @@ class Commands(discord.Cog, name="Commands"):
             self, ctx: discord.ApplicationContext, file: discord.Attachment, temperature: float
     ):
         await self.transcribe_cog.transcribe_file_command(ctx, file, temperature)
+
+    @add_to_group("transcribe")
+    @discord.slash_command(
+        name="link", description="Transcribe a file link or youtube link", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="link",
+        description="A link to transcribe",
+        required=True,
+        input_type=discord.SlashCommandOptionType.string,
+    )
+    @discord.option(
+        name="temperature",
+        description="The higher the value, the riskier the model will be",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+    )
+    async def transcribe_link(
+            self, ctx: discord.ApplicationContext, link: str, temperature: float
+    ):
+        await self.transcribe_cog.transcribe_link_command(ctx, link, temperature)
