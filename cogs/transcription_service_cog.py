@@ -33,7 +33,10 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
         self.usage_service = usage_service
         # Make the "audiotemp" folder if it doesn't exist, using pathlib
         Path("audiotemp").mkdir(parents=True, exist_ok=True)
-    async def transcribe_link_command(self, ctx: discord.ApplicationContext, link:str, temperature: float):
+
+    async def transcribe_link_command(
+        self, ctx: discord.ApplicationContext, link: str, temperature: float
+    ):
         # Check if this discord file is an instance of mp3, mp4, mpeg, mpga, m4a, wav, or webm.
         await ctx.defer()
 
@@ -54,33 +57,53 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).unlink()
             print("before call")
             try:
-                file_path = await asyncio.get_running_loop().run_in_executor(None, partial(yt.streams.filter().first().download, output_path="audiotemp", filename="{}temp".format(str(ctx.user.id))))
+                file_path = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    partial(
+                        yt.streams.filter().first().download,
+                        output_path="audiotemp",
+                        filename="{}temp".format(str(ctx.user.id)),
+                    ),
+                )
             except Exception as e:
                 traceback.print_exc()
-                await ctx.respond("Failed to download youtube video. Please try again later. "+str(e))
+                await ctx.respond(
+                    "Failed to download youtube video. Please try again later. "
+                    + str(e)
+                )
                 return
 
             print("after call the file path was" + file_path)
         else:
-            await ctx.respond("Please upload a valid youtube link. Other links are not implemented yet")
+            await ctx.respond(
+                "Please upload a valid youtube link. Other links are not implemented yet"
+            )
             return
 
         # Load the file object from the file_path
         file = discord.File(file_path)
 
-        response_message = await ctx.respond(embed=EmbedStatics.build_transcribe_progress_embed())
+        response_message = await ctx.respond(
+            embed=EmbedStatics.build_transcribe_progress_embed()
+        )
 
         try:
-
-            response = await self.model.send_transcription_request(file, temperature, user_api_key)
+            response = await self.model.send_transcription_request(
+                file, temperature, user_api_key
+            )
             print(response)
 
             if len(response) > 4080:
                 # Chunk the response into 2048 character chunks, each an embed page
-                chunks = [response[i:i+2048] for i in range(0, len(response), 2048)]
+                chunks = [response[i : i + 2048] for i in range(0, len(response), 2048)]
                 embed_pages = []
                 for chunk in chunks:
-                    embed_pages.append(discord.Embed(title="Transcription Page {}".format(len(embed_pages) + 1), description=chunk))
+                    embed_pages.append(
+                        discord.Embed(
+                            title="Transcription Page {}".format(len(embed_pages) + 1),
+                            description=chunk,
+                        )
+                    )
 
                 paginator = pages.Paginator(
                     pages=embed_pages,
@@ -140,8 +163,12 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 chunks = [response[i : i + 2048] for i in range(0, len(response), 2048)]
                 embed_pages = []
                 for chunk in chunks:
-                    embed_pages.append(discord.Embed(title="Transcription Page {}".format(len(embed_pages) + 1), description=chunk))
-
+                    embed_pages.append(
+                        discord.Embed(
+                            title="Transcription Page {}".format(len(embed_pages) + 1),
+                            description=chunk,
+                        )
+                    )
 
                 paginator = pages.Paginator(
                     pages=embed_pages,

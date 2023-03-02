@@ -1051,7 +1051,9 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("transcribe")
     @discord.slash_command(
-        name="link", description="Transcribe a file link or youtube link", guild_ids=ALLOWED_GUILDS
+        name="link",
+        description="Transcribe a file link or youtube link",
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     @discord.option(
@@ -1069,6 +1071,6 @@ class Commands(discord.Cog, name="Commands"):
         min_value=0,
     )
     async def transcribe_link(
-            self, ctx: discord.ApplicationContext, link: str, temperature: float
+        self, ctx: discord.ApplicationContext, link: str, temperature: float
     ):
         await self.transcribe_cog.transcribe_link_command(ctx, link, temperature)
