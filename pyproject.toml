@@ -18,7 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
 ]
 dependencies = [
-"Pillow==9.3.0",
+"Pillow==9.4.0",
 "openai==0.27.0",
 "pytube==12.1.2",
 "beautifulsoup4==4.11.2",
