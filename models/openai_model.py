@@ -937,14 +937,14 @@ class Model:
                 data.add_field("temperature", temperature_override)
 
             async with session.post(
-                    "https://api.openai.com/v1/audio/transcriptions",
-                    headers={
-                        "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-                    },
-                    data=data,
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={
+                    "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                },
+                data=data,
             ) as resp:
                 response = await resp.json()
-                return response['text']
+                return response["text"]
 
     @backoff.on_exception(
         backoff.expo,
