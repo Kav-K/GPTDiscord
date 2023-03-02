@@ -89,12 +89,12 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 )
 
                 await paginator.respond(ctx.interaction)
-                await response_message.delete_original_response()
+                await response_message.delete()
                 return
 
-            await response_message.edit_original_response(embed=EmbedStatics.build_transcribe_success_embed(response))
+            await response_message.edit(embed=EmbedStatics.build_transcribe_success_embed(response))
         except Exception as e:
-            await response_message.edit_original_response(embed=EmbedStatics.build_transcribe_failed_embed(str(e)))
+            await response_message.edit(embed=EmbedStatics.build_transcribe_failed_embed(str(e)))
 
 
     async def transcribe_file_command(
@@ -129,6 +129,7 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             embed=EmbedStatics.build_transcribe_progress_embed()
         )
 
+
         try:
             response = await self.model.send_transcription_request(
                 file, temperature, user_api_key
@@ -149,13 +150,12 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 )
 
                 await paginator.respond(ctx.interaction)
-                await response_message.delete_original_response()
-                return
 
-            await response_message.edit_original_response(
+            await response_message.edit(
                 embed=EmbedStatics.build_transcribe_success_embed(response)
             )
         except Exception as e:
-            await response_message.edit_original_response(
+            traceback.print_exc()
+            await response_message.edit(
                 embed=EmbedStatics.build_transcribe_failed_embed(str(e))
             )
