@@ -98,6 +98,17 @@ class Search:
 
         return embed
 
+    def build_search_determining_price_embed(self, refined_query):
+        embed = discord.Embed(
+            title="Searching the web...",
+            description="Refined query:\n" + f"`{refined_query}`"
+            "\nPre-determining index price...",
+            color=discord.Color.blurple(),
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
+
+        return embed
+
     def build_search_webpages_retrieved_embed(self, refined_query):
         embed = discord.Embed(
             title="Searching the web...",
@@ -357,10 +368,15 @@ class Search:
         else:
             llm_predictor_deep = ChatGPTLLMPredictor()
 
-            # # Try a mock call first
-            # llm_predictor_mock = MockLLMPredictor(4096)
-            # embed_model_mock = MockEmbedding(embed_dim=1536)
+            # Try a mock call first
+            llm_predictor_mock = MockLLMPredictor(4096)
+            embed_model_mock = MockEmbedding(embed_dim=1536)
 
+            # if ctx:
+            #     await self.try_edit(
+            #         in_progress_message, self.build_search_determining_price_embed(query_refined_text)
+            #     )
+            #
             # await self.loop.run_in_executor(
             #     None,
             #     partial(
@@ -385,7 +401,7 @@ class Search:
             #             total_usage_price
             #         )
             #     )
-            # TODO Add back the mock when fixed!
+            # # TODO Add back the mock when fixed!
 
             index = await self.loop.run_in_executor(
                 None,

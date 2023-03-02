@@ -629,7 +629,7 @@ class Index_handler:
             )
             total_usage_price = await self.usage_service.get_price(
                 llm_predictor_mock.last_token_usage,
-                chatgpt=False,  # TODO Enable again when tree indexes are fixed
+                chatgpt=True,  # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
                 embedding_model_mock.last_token_usage, embeddings=True
             )
@@ -639,24 +639,20 @@ class Index_handler:
                     "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
                 )
 
-            llm_predictor_temp_non_cgpt = LLMPredictor(
-                llm=OpenAI(model_name="text-davinci-003")
-            )  # TODO Get rid of this
-
             tree_index = await self.loop.run_in_executor(
                 None,
                 partial(
                     GPTTreeIndex,
                     documents=documents,
-                    llm_predictor=llm_predictor_temp_non_cgpt,
+                    llm_predictor=llm_predictor,
                     embed_model=embedding_model,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                llm_predictor_temp_non_cgpt.last_token_usage, chatgpt=False
-            )  # Todo set to false
+                llm_predictor.last_token_usage, chatgpt=True
+            )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
