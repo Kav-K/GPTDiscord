@@ -11,7 +11,7 @@ from pathlib import Path
 import discord
 from bs4 import BeautifulSoup
 import aiohttp
-from gpt_index import (
+from llama_index import (
     QuestionAnswerPrompt,
     GPTSimpleVectorIndex,
     BeautifulSoupWebReader,
@@ -24,10 +24,10 @@ from gpt_index import (
     MockLLMPredictor,
     MockEmbedding,
 )
-from gpt_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
-from gpt_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
-from gpt_index.prompts.prompt_type import PromptType
-from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
+from llama_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
+from llama_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
+from llama_index.prompts.prompt_type import PromptType
+from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
 
 from services.environment_service import EnvService, app_root_path

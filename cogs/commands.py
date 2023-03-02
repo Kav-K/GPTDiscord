@@ -684,6 +684,30 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
+        name="recurse-link", description="Recursively index a link", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="link",
+        description="A link to create the index from",
+        required=True,
+        input_type=discord.SlashCommandOptionType.string,
+    )
+    @discord.option(
+        name="depth",
+        description="How deep to recurse",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+        min_value=1,
+        max_value=5,
+    )
+    async def set_recurse_link(
+        self, ctx: discord.ApplicationContext, link: str, depth: int
+    ):
+        await self.index_cog.set_index_link_recurse_command(ctx, link, depth)
+
+    @add_to_group("index")
+    @discord.slash_command(
         name="reset",
         description="Reset (delete) all of your saved indexes",
         guild_ids=ALLOWED_GUILDS,

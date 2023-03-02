@@ -120,6 +120,28 @@ class IndexService(discord.Cog, name="IndexService"):
                 )
             )
 
+    async def set_index_link_recurse_command(
+            self, ctx, link: str = None, depth:int = 1
+    ):
+        await ctx.defer()
+        """Command handler to set a file as your personal index"""
+        if not link:
+            await ctx.respond("Please provide a link")
+            return
+
+
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(
+                ctx.user.id, ctx, USER_KEY_DB
+            )
+            if not user_api_key:
+                return
+
+        await self.index_handler.set_link_index_recurse(
+            ctx, link, depth, user_api_key=user_api_key
+        )
+
     async def set_index_command(
         self, ctx, file: discord.Attachment = None, link: str = None
     ):

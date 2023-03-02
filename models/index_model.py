@@ -17,14 +17,14 @@ from datetime import date
 
 from discord import InteractionResponse, Interaction
 from discord.ext import pages
-from gpt_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
+from llama_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
 from langchain import OpenAI
 
-from gpt_index.readers import YoutubeTranscriptReader
-from gpt_index.readers.schema.base import Document
-from gpt_index.langchain_helpers.text_splitter import TokenTextSplitter
+from llama_index.readers import YoutubeTranscriptReader
+from llama_index.readers.schema.base import Document
+from llama_index.langchain_helpers.text_splitter import TokenTextSplitter
 
-from gpt_index import (
+from llama_index import (
     GPTSimpleVectorIndex,
     SimpleDirectoryReader,
     QuestionAnswerPrompt,
@@ -40,11 +40,11 @@ from gpt_index import (
     IndexStructType,
     OpenAIEmbedding,
     GithubRepositoryReader,
-    MockEmbedding,
+    MockEmbedding, download_loader,
 )
-from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
+from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
-from gpt_index.composability import ComposableGraph
+from llama_index.composability import ComposableGraph
 
 from models.embed_statics_model import EmbedStatics
 from services.environment_service import EnvService, app_root_path
@@ -52,6 +52,10 @@ from services.environment_service import EnvService, app_root_path
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
 llm_predictor = ChatGPTLLMPredictor()
+EpubReader = download_loader("EpubReader")
+MarkdownReader = download_loader("MarkdownReader")
+RemoteReader = download_loader("RemoteReader")
+RemoteDepthReader = download_loader("RemoteDepthReader")
 
 
 def get_and_query(
@@ -207,8 +211,18 @@ class Index_handler:
 
         return pages
 
-    def index_file(self, file_path, embed_model) -> GPTSimpleVectorIndex:
-        document = SimpleDirectoryReader(file_path).load_data()
+    def index_file(self, file_path, embed_model, suffix=None) -> GPTSimpleVectorIndex:
+        if suffix and suffix == ".md":
+            print("Loading a markdown file")
+            loader = MarkdownReader()
+            document = loader.load_data(file_path)
+        elif suffix and suffix == ".epub":
+            print("Loading an epub")
+            epub_loader = EpubReader()
+            print("The file path is ", file_path)
+            document = epub_loader.load_data(file_path)
+        else:
+            document = SimpleDirectoryReader(input_files=[file_path]).load_data()
         index = GPTSimpleVectorIndex(document, embed_model=embed_model, use_async=True)
         return index
 
@@ -345,48 +359,64 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
+        type_to_suffix_mappings = {
+            "text/plain": ".txt",
+            "text/csv": ".csv",
+            "application/pdf": ".pdf",
+            "application/json": ".json",
+            "image/png": ".png",
+            "image/": ".jpg",
+            "vnd.": ".pptx",
+            "audio/": ".mp3",
+            "video/": ".mp4",
+            "epub": ".epub",
+            "markdown": ".md",
+            "html": ".html",
+        }
+
+        # For when content type doesnt get picked up by discord.
+        secondary_mappings = {
+            ".epub": ".epub",
+        }
+
         try:
-            print(file.content_type)
-            if file.content_type.startswith("text/plain"):
-                suffix = ".txt"
-            elif file.content_type.startswith("application/pdf"):
-                suffix = ".pdf"
-            # Allow for images too
-            elif file.content_type.startswith("image/png"):
-                suffix = ".png"
-            elif file.content_type.startswith("image/"):
-                suffix = ".jpg"
-            elif "csv" in file.content_type:
-                suffix = ".csv"
-            elif "vnd." in file.content_type:
-                suffix = ".pptx"
-            # Catch all audio files and suffix with "mp3"
-            elif file.content_type.startswith("audio/"):
-                suffix = ".mp3"
-            # Catch video files
-            elif file.content_type.startswith("video/"):
-                pass  # No suffix change
+            # First, initially set the suffix to the suffix of the attachment
+            suffix = None
+            if file.content_type:
+                # Apply the suffix mappings to the file
+                for key, value in type_to_suffix_mappings.items():
+                    if key in file.content_type:
+                        suffix = value
+                        break
+
+                if not suffix:
+                    await ctx.send("This file type is not supported.")
+                    return
+
             else:
-                await ctx.respond(
-                    embed=EmbedStatics.get_index_set_failure_embed(
-                        "Only accepts text, pdf, images, spreadheets, powerpoint, and audio/video files."
-                    )
-                )
-                return
+                for key, value in secondary_mappings.items():
+                    if key in file.filename:
+                        suffix = value
+                        break
+                if not suffix:
+                    await ctx.send("Could not determine the file type of the attachment, attempting a dirty index..")
+                    return
 
             # Send indexing message
             response = await ctx.respond(
                 embed=EmbedStatics.build_index_progress_embed()
             )
+            print("The suffix is " + suffix)
 
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
                 async with aiofiles.tempfile.NamedTemporaryFile(
                     suffix=suffix, dir=temp_path, delete=False
                 ) as temp_file:
+
                     await file.save(temp_file.name)
                     embedding_model = OpenAIEmbedding()
                     index = await self.loop.run_in_executor(
-                        None, partial(self.index_file, temp_path, embedding_model)
+                        None, partial(self.index_file, Path(temp_file.name), embedding_model, suffix)
                     )
                     await self.usage_service.update_usage(
                         embedding_model.last_token_usage, embeddings=True
@@ -410,6 +440,94 @@ class Index_handler:
                 embed=EmbedStatics.get_index_set_failure_embed(str(e))
             )
             traceback.print_exc()
+
+    async def set_link_index_recurse(
+        self, ctx: discord.ApplicationContext, link: str, depth, user_api_key
+    ):
+        if not user_api_key:
+            os.environ["OPENAI_API_KEY"] = self.openai_key
+        else:
+            os.environ["OPENAI_API_KEY"] = user_api_key
+
+        response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
+        try:
+            embedding_model = OpenAIEmbedding()
+
+            # Pre-emptively connect and get the content-type of the response
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link, timeout=2) as _response:
+                        print(_response.status)
+                        if _response.status == 200:
+                            content_type = _response.headers.get("content-type")
+                        else:
+                            await response.edit(
+                                embed=EmbedStatics.get_index_set_failure_embed(
+                                    "Invalid URL or could not connect to the provided URL."
+                                )
+                            )
+                            return
+            except Exception as e:
+                traceback.print_exc()
+                await response.edit(
+                    embed=EmbedStatics.get_index_set_failure_embed(
+                        "Invalid URL or could not connect to the provided URL. "
+                        + str(e)
+                    )
+                )
+                return
+
+            # Check if the link contains youtube in it
+            loader = RemoteDepthReader(depth=depth)
+            documents = await self.loop.run_in_executor(None, partial(loader.load_data, [link]))
+            index = await self.loop.run_in_executor(
+                None,
+                functools.partial(
+                    GPTSimpleVectorIndex,
+                    documents=documents,
+                    embed_model=embedding_model,
+                    use_async=True,
+                ),
+            )
+
+            await self.usage_service.update_usage(
+                embedding_model.last_token_usage, embeddings=True
+            )
+
+            try:
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
+            except:
+                traceback.print_exc()
+                price = "Unknown"
+
+            # Make the url look nice, remove https, useless stuff, random characters
+            file_name = (
+                link.replace("https://", "")
+                .replace("http://", "")
+                .replace("www.", "")
+                .replace("/", "_")
+                .replace("?", "_")
+                .replace("&", "_")
+                .replace("=", "_")
+                .replace("-", "_")
+                .replace(".", "_")
+            )
+
+            self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
+
+        except ValueError as e:
+            await response.edit(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
+            traceback.print_exc()
+            return
+
+        except Exception as e:
+            await response.edit(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
+            traceback.print_exc()
+            return
+
+        await response.edit(embed=EmbedStatics.get_index_set_success_embed(price))
 
     async def set_link_index(
         self, ctx: discord.ApplicationContext, link: str, user_api_key
