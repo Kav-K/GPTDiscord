@@ -45,7 +45,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
   
 # Recent Notable Updates  
 
-- **ChatGPT API Integration** - The ChatGPT API has been released and our bot is now fully integrated with it! Change to model to one of the ChatGPT turbo models with `/system settings`, or include the model as a param in your `/gpt converse`, `/gpt ask`, etc requests! The two currently available ChatGPT models are `gpt-3.5-turbo` and `gpt-3.5-turbo-0301`
+- **ChatGPT API Integration** - The ChatGPT API has been released and our bot is now fully integrated with it! Change to model to one of the ChatGPT turbo models with `/system settings`, or include the model as a param in your `/gpt converse`, `/gpt ask`, etc requests! The two currently available ChatGPT models are `gpt-3.5-turbo` and `gpt-3.5-turbo-0301`. This change is very experimental, so we're looking for your feedback and input on what you think of the new model's performance, especially for search and indexing functionality. 
   
 - **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
 <p align="center"/>  
