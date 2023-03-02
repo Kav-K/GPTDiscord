@@ -850,9 +850,6 @@ class Model:
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
 
-        # Clean up the user display name
-        user_displayname_clean = self.cleanse_username(user_displayname)
-
         # Clean up the bot name
         bot_name_clean = self.cleanse_username(bot_name)
 
@@ -871,17 +868,19 @@ class Model:
                 )
                 continue
 
-            if user_displayname in message.text:
-                text = message.text.replace(user_displayname + ":", "")
-                text = text.replace("<|endofstatement|>", "")
-                messages.append(
-                    {"role": "user", "name": user_displayname_clean, "content": text}
-                )
-            else:
+            if message.text.startswith(f"\n{bot_name}"):
                 text = message.text.replace(bot_name, "")
                 text = text.replace("<|endofstatement|>", "")
                 messages.append(
                     {"role": "assistant", "name": bot_name_clean, "content": text}
+                )
+            else:
+                username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
+                username_clean = self.cleanse_username(username)
+                text = message.text.replace(f"{username}:", "")
+                text = text.replace("<|endofstatement|>", "")
+                messages.append(
+                    {"role": "user", "name": username_clean, "content": text}
                 )
 
         print(f"Messages -> {messages}")
