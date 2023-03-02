@@ -81,7 +81,7 @@ class Commands(discord.Cog, name="Commands"):
         name="transcribe",
         description="Transcription services using OpenAI Whisper",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_index_roles()], # TODO new role checker for transcribe
+        checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
     )
 
     #
@@ -1019,11 +1019,12 @@ class Commands(discord.Cog, name="Commands"):
             ctx, query, scope, nodes, deep, response_mode
         )
 
-
     # Transcribe commands
     @add_to_group("transcribe")
     @discord.slash_command(
-        name="file", description="Transcribe an audio or video file", guild_ids=ALLOWED_GUILDS
+        name="file",
+        description="Transcribe an audio or video file",
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     @discord.option(
@@ -1041,6 +1042,9 @@ class Commands(discord.Cog, name="Commands"):
         min_value=0,
     )
     async def transcribe_file(
-            self, ctx: discord.ApplicationContext, file: discord.Attachment, temperature: float
+        self,
+        ctx: discord.ApplicationContext,
+        file: discord.Attachment,
+        temperature: float,
     ):
         await self.transcribe_cog.transcribe_file_command(ctx, file, temperature)

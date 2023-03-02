@@ -276,7 +276,6 @@ class EmbedStatics:
         embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
 
-
     @staticmethod
     def build_transcribe_progress_embed():
         embed = discord.Embed(
