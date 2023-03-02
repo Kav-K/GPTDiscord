@@ -17,6 +17,7 @@ from datetime import date
 
 from discord import InteractionResponse, Interaction
 from discord.ext import pages
+from gpt_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
 from langchain import OpenAI
 
 from gpt_index.readers import YoutubeTranscriptReader
@@ -50,6 +51,7 @@ from services.environment_service import EnvService, app_root_path
 
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
+llm_predictor = ChatGPTLLMPredictor()
 
 
 def get_and_query(
@@ -596,9 +598,7 @@ class Index_handler:
             documents = []
             for _index in index_objects:
                 documents.extend(await self.index_to_docs(_index, 256, 20))
-            llm_predictor = LLMPredictor(
-                llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
-            )
+
             embedding_model = OpenAIEmbedding()
 
             llm_predictor_mock = MockLLMPredictor(4096)
@@ -615,9 +615,9 @@ class Index_handler:
                 ),
             )
             total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage
+                llm_predictor_mock.last_token_usage, chatgpt=False, # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
-                embedding_model_mock.last_token_usage, True
+                embedding_model_mock.last_token_usage, embeddings=True
             )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
@@ -625,18 +625,20 @@ class Index_handler:
                     "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
                 )
 
+            llm_predictor_temp_non_cgpt = LLMPredictor(llm=OpenAI(model_name="text-davinci-003")) # TODO Get rid of this
+
             tree_index = await self.loop.run_in_executor(
                 None,
                 partial(
                     GPTTreeIndex,
                     documents=documents,
-                    llm_predictor=llm_predictor,
+                    llm_predictor=llm_predictor_temp_non_cgpt,
                     embed_model=embedding_model,
                     use_async=True,
                 ),
             )
 
-            await self.usage_service.update_usage(llm_predictor.last_token_usage)
+            await self.usage_service.update_usage(llm_predictor_temp_non_cgpt.last_token_usage, chatgpt=False) # Todo set to false
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -746,7 +748,7 @@ class Index_handler:
         )
 
         try:
-            llm_predictor = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
+
             embedding_model = OpenAIEmbedding()
             embedding_model.last_token_usage = 0
             response = await self.loop.run_in_executor(
@@ -764,7 +766,7 @@ class Index_handler:
                 ),
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
-            await self.usage_service.update_usage(llm_predictor.last_token_usage)
+            await self.usage_service.update_usage(llm_predictor.last_token_usage, chatgpt=True)
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )

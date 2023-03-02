@@ -128,6 +128,7 @@ class SearchService(discord.Cog, name="SearchService"):
                 ctx, query, user_api_key, search_scope, nodes, deep, response_mode
             )
         except ValueError as e:
+            traceback.print_exc()
             await ctx.respond(
                 embed=EmbedStatics.get_search_failure_embed(str(e)),
                 ephemeral=True,

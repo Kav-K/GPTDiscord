@@ -19,6 +19,7 @@ classifiers = [
 ]
 dependencies = [
 "Pillow==9.3.0",
+"openai==0.27.0",
 "py-cord==2.3.2",
 "python-dotenv==0.21.0",
 "requests==2.28.1",
@@ -30,7 +31,7 @@ dependencies = [
 "backoff==2.2.1",
 "flask==2.2.3",
 "beautifulsoup4==4.11.1",
-"gpt-index==0.4.14",
+"gpt-index==0.4.17",
 "PyPDF2==3.0.1",
 "youtube_transcript_api==0.5.0",
 "sentencepiece==0.1.97",

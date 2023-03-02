@@ -25,6 +25,7 @@ from gpt_index import (
     MockEmbedding,
 )
 from gpt_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
+from gpt_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
 from gpt_index.prompts.prompt_type import PromptType
 from gpt_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
@@ -49,7 +50,7 @@ class Search:
             "\n---------------------\n"
             "Never say '<|endofstatement|>'\n"
             "Given the context information and not prior knowledge, "
-            "answer the question, say that you were unable to answer the question if there is not sufficient context to formulate a decisive answer. The search query was: {query_str}\n"
+            "answer the question, say that you were unable to answer the question if there is not sufficient context to formulate a decisive answer. If the prior knowledge/context was sufficient, simply repeat it. The search query was: {query_str}\n"
         )
         self.openai_key = os.getenv("OPENAI_TOKEN")
         self.EMBED_CUTOFF = 2000
@@ -215,7 +216,7 @@ class Search:
         try:
             llm_predictor_presearch = OpenAI(
                 max_tokens=50,
-                temperature=0.25,
+                temperature=0.4,
                 presence_penalty=0.65,
                 model_name="text-davinci-003",
             )
@@ -314,9 +315,7 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        llm_predictor = LLMPredictor(
-            llm=OpenAI(model_name="text-davinci-003", max_tokens=-1)
-        )
+        llm_predictor = ChatGPTLLMPredictor()
 
         if not deep:
             embed_model_mock = MockEmbedding(embed_dim=1536)
@@ -325,7 +324,7 @@ class Search:
                 partial(GPTSimpleVectorIndex, documents, embed_model=embed_model_mock),
             )
             total_usage_price = await self.usage_service.get_price(
-                embed_model_mock.last_token_usage, True
+                embed_model_mock.last_token_usage, embeddings=True
             )
             if total_usage_price > 1.00:
                 raise ValueError(
@@ -356,63 +355,60 @@ class Search:
             )
             price += total_usage_price
         else:
-            llm_predictor_deep = LLMPredictor(llm=OpenAI(model_name="text-davinci-003"))
-            # Try a mock call first
-            llm_predictor_mock = MockLLMPredictor(4096)
-            embed_model_mock = MockEmbedding(embed_dim=1536)
+            llm_predictor_deep = ChatGPTLLMPredictor()
 
-            await self.loop.run_in_executor(
-                None,
-                partial(
-                    GPTTreeIndex,
-                    documents,
-                    embed_model=embed_model_mock,
-                    llm_predictor=llm_predictor_mock,
-                ),
-            )
-            total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage
-            ) + await self.usage_service.get_price(
-                embed_model_mock.last_token_usage, True
-            )
-            if total_usage_price > MAX_SEARCH_PRICE:
-                await self.try_delete(in_progress_message)
-                raise ValueError(
-                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
-                        total_usage_price
-                    )
-                )
+            # # Try a mock call first
+            # llm_predictor_mock = MockLLMPredictor(4096)
+            # embed_model_mock = MockEmbedding(embed_dim=1536)
 
-            index = await self.loop.run_in_executor(
-                None,
-                partial(
-                    GPTTreeIndex,
-                    documents,
-                    embed_model=embedding_model,
-                    llm_predictor=llm_predictor_deep,
-                    use_async=True,
-                ),
-            )
-
-            # llm_predictor_deep = LLMPredictor(
-            #     llm=OpenAI(model_name="text-davinci-002", temperature=0, max_tokens=-1)
-            # )
-            # index = await self.loop.run_in_executor(
+            # await self.loop.run_in_executor(
             #     None,
             #     partial(
             #         GPTKnowledgeGraphIndex,
             #         documents,
             #         chunk_size_limit=512,
             #         max_triplets_per_chunk=2,
-            #         embed_model=embedding_model,
-            #         llm_predictor=llm_predictor_deep,
+            #         embed_model=embed_model_mock,
+            #         llm_predictor=llm_predictor_mock,
             #     ),
             # )
+            # total_usage_price = await self.usage_service.get_price(
+            #     llm_predictor_mock.last_token_usage, chatgpt=True,
+            # ) + await self.usage_service.get_price(
+            #     embed_model_mock.last_token_usage, embeddings=True
+            # )
+            # print(f"Total usage price: {total_usage_price}")
+            # if total_usage_price > MAX_SEARCH_PRICE:
+            #     await self.try_delete(in_progress_message)
+            #     raise ValueError(
+            #         "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
+            #             total_usage_price
+            #         )
+            #     )
+            # TODO Add back the mock when fixed!
+
+            index = await self.loop.run_in_executor(
+                None,
+                partial(
+                    GPTKnowledgeGraphIndex,
+                    documents,
+                    chunk_size_limit=512,
+                    max_triplets_per_chunk=2,
+                    embed_model=embedding_model,
+                    llm_predictor=llm_predictor_deep,
+                ),
+            )
+
+            total_usage_price = await self.usage_service.get_price(
+                llm_predictor_deep.last_token_usage, chatgpt=True,
+            ) + await self.usage_service.get_price(
+                embedding_model.last_token_usage, embeddings=True)
+
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
             await self.usage_service.update_usage(
-                llm_predictor_deep.last_token_usage, embeddings=False
+                llm_predictor_deep.last_token_usage, chatgpt=True,
             )
             price += total_usage_price
 
@@ -455,14 +451,17 @@ class Search:
                 partial(
                     index.query,
                     query,
-                    child_branch_factor=2,
+                    embedding_mode='hybrid',
                     llm_predictor=llm_predictor,
+                    include_text=True,
                     embed_model=embedding_model,
                     use_async=True,
+                    similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                    response_mode=response_mode,
                 ),
             )
 
-        await self.usage_service.update_usage(llm_predictor.last_token_usage)
+        await self.usage_service.update_usage(llm_predictor.last_token_usage, chatgpt=True)
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
