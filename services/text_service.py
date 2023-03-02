@@ -10,7 +10,7 @@ import unidecode
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
-from models.openai_model import Model, Override
+from models.openai_model import Model, Override, Models
 from models.user_model import EmbeddedConversationItem, RedoUser
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
@@ -73,10 +73,13 @@ class TextService:
             else prompt
         ), prompt
 
-        # Determine if we're sending a ChatGPT model request
-        chatgpt = False
-        if model and "chatgpt" in model.lower():
-            chatgpt = True
+        # Determine if we're sending a ChatGPT model request. If chatgpt is in the model name or the default model is a ChatGPT model.
+        # chatgpt_conversation = False
+        # chatgpt = False
+        # if (model and "chatgpt" in model.lower()) or (not model and converser_cog.model.model.lower() in Models.CHATGPT_MODELS):
+        #     chatgpt = True
+        #     if ctx.channel.id in converser_cog.conversation_threads:
+        #         chatgpt_conversation = True
 
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
@@ -274,14 +277,14 @@ class TextService:
                     await converser_cog.end_conversation(ctx)
                     return
 
-            if not converser_cog.pinecone_service:
-                _prompt_with_history = converser_cog.conversation_threads[ctx.channel.id].history
-            print("The prompt with history is ", _prompt_with_history)
-
             # Send the request to the model
+            is_chatgpt_conversation = ctx.channel.id in converser_cog.conversation_threads and not from_ask_command and not from_edit_command and ((model is not None and (model in Models.CHATGPT_MODELS or model == "chatgpt")) or (model is None and converser_cog.model.model in Models.CHATGPT_MODELS))
+            delegator = model or converser_cog.model.model
+            is_chatgpt_request = delegator in Models.CHATGPT_MODELS
 
-            if chatgpt:
-                response = await converser_cog.model.send_chatgpt_request(
+            if is_chatgpt_conversation:
+                _prompt_with_history = converser_cog.conversation_threads[ctx.channel.id].history
+                response = await converser_cog.model.send_chatgpt_chat_request(
                     _prompt_with_history,
                     bot_name=BOT_NAME,
                     user_displayname=user_displayname,
@@ -314,12 +317,13 @@ class TextService:
                     model=model,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
+                    is_chatgpt_request=is_chatgpt_request,
                 )
 
             # Clean the request response
             response_text = converser_cog.cleanse_response(
                 str(response["choices"][0]["text"])
-            ) if not chatgpt else converser_cog.cleanse_response(str(response["choices"][0]["message"]["content"]))
+            ) if not is_chatgpt_request and not is_chatgpt_conversation else converser_cog.cleanse_response(str(response["choices"][0]["message"]["content"]))
 
             if from_message_context:
                 response_text = f"{response_text}"

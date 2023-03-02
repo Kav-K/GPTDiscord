@@ -310,6 +310,9 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to GPT3", required=True
     )
     @discord.option(
+        name="model", description="The model to use for the request", required=False, autocomplete=Settings_autocompleter.get_models
+    )
+    @discord.option(
         name="private", description="Will only be visible to you", required=False
     )
     @discord.option(
@@ -345,6 +348,7 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        model: str,
         private: bool,
         temperature: float,
         top_p: float,
@@ -359,6 +363,7 @@ class Commands(discord.Cog, name="Commands"):
             top_p,
             frequency_penalty,
             presence_penalty,
+            model=model,
         )
 
     @add_to_group("gpt")
@@ -449,7 +454,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Which model to use with the bot",
         required=False,
         default=False,
-        autocomplete=Settings_autocompleter.get_models,
+        autocomplete=Settings_autocompleter.get_converse_models,
     )
     @discord.option(
         name="temperature",

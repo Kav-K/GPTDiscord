@@ -93,7 +93,24 @@ class Settings_autocompleter:
         models = [
             value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
         ]
+        return models
+
+    async def get_converse_models(
+        ctx: discord.AutocompleteContext,
+    ):
+        """Gets all models"""
+        models = [
+            value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
+        ]
         models.append("chatgpt")
+
+        # We won't let the user directly use these models but we will decide which one to use based on the status.
+        attempt_removes = ["gpt-3.5-turbo", "gpt-3.5-turbo-0301"]
+
+        for attempt_remove in attempt_removes:
+            if attempt_remove in models:
+                models.remove(attempt_remove)
+
         return models
 
     async def get_value_moderations(

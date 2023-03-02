@@ -4,7 +4,7 @@ import traceback
 import discord
 from sqlitedict import SqliteDict
 
-from models.openai_model import Override
+from models.openai_model import Override, Models
 from services.environment_service import EnvService
 from models.user_model import RedoUser
 from services.image_service import ImageService
@@ -102,7 +102,8 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             # twice because of the best_of_override=2 parameter. This is to ensure that the model does a lot of analysis, but is
             # also relatively cost-effective
 
-            response_text = response["choices"][0]["text"]
+            response_text = str(response["choices"][0]["text"]) if not self.model.model in Models.CHATGPT_MODELS else response["choices"][0]["message"]["content"]
+
             # escape any mentions
             response_text = discord.utils.escape_mentions(response_text)
 

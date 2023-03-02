@@ -800,6 +800,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         from_ask_action=None,
         from_other_action=None,
         from_message_context=None,
+        model=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -850,6 +851,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             from_ask_action=from_ask_action,
             from_other_action=from_other_action,
             from_message_context=from_message_context,
+            model=model,
         )
 
     async def edit_command(
