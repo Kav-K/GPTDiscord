@@ -792,7 +792,7 @@ class Index_handler:
                 )
 
             # Save the composed index
-            tree_index.save_to_disk(f"indexes/{user_id}/{name}")
+            tree_index.save_to_disk(app_root_path()/"indexes"/user_id/name)
 
             self.index_storage[user_id].queryable_index = tree_index
 
@@ -822,7 +822,7 @@ class Index_handler:
                 name = f"composed_index_{date.today().month}_{date.today().day}.json"
 
             # Save the composed index
-            simple_index.save_to_disk(f"indexes/{user_id}/{name}")
+            simple_index.save_to_disk(app_root_path()/"indexes"/user_id/name)
             self.index_storage[user_id].queryable_index = simple_index
 
             try:
