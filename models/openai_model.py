@@ -815,7 +815,6 @@ class Model:
         text = re.sub(r"[^a-zA-Z0-9]", "_", text)
         return text
 
-
     @backoff.on_exception(
         backoff.expo,
         ValueError,
@@ -852,20 +851,30 @@ class Model:
         # Format the request body into the messages format that the API is expecting
         #   "messages": [{"role": "user", "content": "Hello!"}]
         messages = []
-        for number,message in enumerate(prompt_history):
+        for number, message in enumerate(prompt_history):
             if number == 0:
                 # If this is the first message, it is the context prompt.
-                messages.append({"role": "user", "name":"System_Instructor", "content": message.text})
+                messages.append(
+                    {
+                        "role": "user",
+                        "name": "System_Instructor",
+                        "content": message.text,
+                    }
+                )
                 continue
 
             if user_displayname in message.text:
-                text = message.text.replace(user_displayname+":", "")
+                text = message.text.replace(user_displayname + ":", "")
                 text = text.replace("<|endofstatement|>", "")
-                messages.append({"role": "user", "name":user_displayname_clean, "content": text})
+                messages.append(
+                    {"role": "user", "name": user_displayname_clean, "content": text}
+                )
             else:
                 text = message.text.replace(bot_name, "")
                 text = text.replace("<|endofstatement|>", "")
-                messages.append({"role": "assistant", "name":bot_name_clean, "content": text})
+                messages.append(
+                    {"role": "assistant", "name": bot_name_clean, "content": text}
+                )
 
         print(f"Messages -> {messages}")
         async with aiohttp.ClientSession(raise_for_status=False) as session:
@@ -886,7 +895,9 @@ class Model:
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
             }
             async with session.post(
-                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
                 # print(f"Payload -> {payload}")
