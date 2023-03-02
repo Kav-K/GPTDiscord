@@ -108,7 +108,7 @@ class IndexData:
             return len(os.listdir(f"{app_root_path()}/indexes/{user_id}")) > 0
         except Exception:
             return False
-        
+
     def has_search_indexes(self, user_id):
         try:
             return len(os.listdir(f"{app_root_path()}/indexes/{user_id}_search")) > 0
