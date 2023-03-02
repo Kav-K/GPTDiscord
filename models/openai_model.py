@@ -923,6 +923,35 @@ class Model:
         max_tries=4,
         on_backoff=backoff_handler_request,
     )
+    async def send_transcription_request(self, file: discord.Attachment, temperature_override=None, custom_api_key=None, ):
+
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
+            data = aiohttp.FormData()
+            data.add_field("model", "whisper-1")
+            data.add_field(
+                "file", await file.read(), filename="audio."+file.filename.split(".")[-1], content_type=file.content_type
+            )
+            if temperature_override:
+                data.add_field("temperature", temperature_override)
+
+            async with session.post(
+                    "https://api.openai.com/v1/audio/transcriptions",
+                    headers={
+                        "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                    },
+                    data=data,
+            ) as resp:
+                response = await resp.json()
+                return response['text']
+
+    @backoff.on_exception(
+        backoff.expo,
+        ValueError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_request,
+    )
     async def send_request(
         self,
         prompt,

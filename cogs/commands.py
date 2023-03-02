@@ -29,6 +29,7 @@ class Commands(discord.Cog, name="Commands"):
         index_cog,
         translations_cog=None,
         search_cog=None,
+        transcribe_cog=None,
     ):
         super().__init__()
         self.bot = bot
@@ -43,6 +44,7 @@ class Commands(discord.Cog, name="Commands"):
         self.index_cog = index_cog
         self.translations_cog = translations_cog
         self.search_cog = search_cog
+        self.transcribe_cog = transcribe_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
@@ -74,6 +76,12 @@ class Commands(discord.Cog, name="Commands"):
         description="Custom index commands for the bot",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_index_roles()],
+    )
+    transcribe = discord.SlashCommandGroup(
+        name="transcribe",
+        description="Transcription services using OpenAI Whisper",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_index_roles()], # TODO new role checker for transcribe
     )
 
     #
@@ -1010,3 +1018,29 @@ class Commands(discord.Cog, name="Commands"):
         await self.search_cog.search_command(
             ctx, query, scope, nodes, deep, response_mode
         )
+
+
+    # Transcribe commands
+    @add_to_group("transcribe")
+    @discord.slash_command(
+        name="file", description="Transcribe an audio or video file", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="file",
+        description="A file to transcribe",
+        required=True,
+        input_type=discord.SlashCommandOptionType.attachment,
+    )
+    @discord.option(
+        name="temperature",
+        description="The higher the value, the riskier the model will be",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+    )
+    async def transcribe_file(
+            self, ctx: discord.ApplicationContext, file: discord.Attachment, temperature: float
+    ):
+        await self.transcribe_cog.transcribe_file_command(ctx, file, temperature)

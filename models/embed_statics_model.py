@@ -275,3 +275,35 @@ class EmbedStatics:
         # thumbnail of https://i.imgur.com/7JF0oGD.png
         embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
         return embed
+
+
+    @staticmethod
+    def build_transcribe_progress_embed():
+        embed = discord.Embed(
+            title="Transcriber",
+            description=f"Your transcription request has been sent, this may take a while.",
+            color=discord.Color.blurple(),
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
+        return embed
+
+    @staticmethod
+    def build_transcribe_success_embed(transcribed_text):
+        embed = discord.Embed(
+            title="Transcriber",
+            description=f"Transcribed successfully:\n`{transcribed_text}`",
+            color=discord.Color.green(),
+        )
+        # thumbnail of https://i.imgur.com/7JF0oGD.png
+        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        return embed
+
+    @staticmethod
+    def build_transcribe_failed_embed(message):
+        embed = discord.Embed(
+            title="Transcriber",
+            description=f"Transcription failed: " + message,
+            color=discord.Color.red(),
+        )
+        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        return embed

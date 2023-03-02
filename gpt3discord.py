@@ -17,6 +17,7 @@ from cogs.image_service_cog import DrawDallEService
 from cogs.prompt_optimizer_cog import ImgPromptOptimizer
 from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
+from cogs.transcription_service_cog import TranscribeService
 from cogs.translation_service_cog import TranslationService
 from cogs.index_service_cog import IndexService
 from models.deepl_model import TranslationModel
@@ -31,7 +32,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "10.9.0"
+__version__ = "10.9.1"
 
 
 PID_FILE = Path("bot.pid")
@@ -175,6 +176,14 @@ async def main():
         print("The Search service is enabled.")
 
     bot.add_cog(
+        TranscribeService(
+            bot,
+            model,
+            usage_service,
+        )
+    )
+
+    bot.add_cog(
         Commands(
             bot,
             usage_service,
@@ -188,6 +197,7 @@ async def main():
             bot.get_cog("IndexService"),
             bot.get_cog("TranslationService"),
             bot.get_cog("SearchService"),
+            bot.get_cog("TranscribeService"),
         )
     )
 
