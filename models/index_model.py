@@ -517,11 +517,18 @@ class Index_handler:
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document, embedding_model)
             )
+            try:
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
+            except Exception:
+                traceback.print_exc()
+                price = "Unknown"
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
-            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
+            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
         except Exception as e:
             await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
             traceback.print_exc()
@@ -725,6 +732,13 @@ class Index_handler:
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
             )
+            try:
+                price = await self.usage_service.get_price(
+                    embedding_model.last_token_usage, embeddings=True
+                )
+            except Exception:
+                traceback.print_exc()
+                price = "Unknown"
             Path(app_root_path() / "indexes" / str(ctx.guild.id)).mkdir(
                 parents=True, exist_ok=True
             )
@@ -735,7 +749,7 @@ class Index_handler:
                 / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}.json"
             )
 
-            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed())
+            await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
         except Exception as e:
             await ctx.respond(embed=EmbedStatics.get_index_set_failure_embed((str(e))))
             traceback.print_exc()

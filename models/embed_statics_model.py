@@ -87,7 +87,7 @@ class EmbedStatics:
     def get_index_set_success_embed(price="Unknown"):
         embed = discord.Embed(
             title="Index Added",
-            description=f"This index can now be queried and loaded with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6)}||",
+            description=f"This index can now be queried and loaded with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
@@ -141,7 +141,7 @@ class EmbedStatics:
     def get_index_compose_success_embed(price="Unknown"):
         embed = discord.Embed(
             title="Indexes Composed",
-            description=f"Indexes composed successfully, you can query and load this index with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6)}||",
+            description=f"Indexes composed successfully, you can query and load this index with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
@@ -269,7 +269,7 @@ class EmbedStatics:
     def build_index_query_success_embed(query, price="Unknown"):
         embed = discord.Embed(
             title="Index Service",
-            description=f"Query:\n`{query}`\nThe index query was successful.\n\n||Total cost: {round(float(price), 6)}||",
+            description=f"Query:\n`{query}`\nThe index query was successful.\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/7JF0oGD.png
