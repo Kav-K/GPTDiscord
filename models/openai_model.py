@@ -14,13 +14,14 @@ import discord
 
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
+from services.environment_service import EnvService
 from PIL import Image
 from discord import File
 from sqlitedict import SqliteDict
 
 try:
     print("Attempting to retrieve the settings DB")
-    SETTINGS_DB = SqliteDict("main_db.sqlite", tablename="settings", autocommit=True)
+    SETTINGS_DB = SqliteDict(f"{EnvService.save_path()}/main_db.sqlite", tablename="settings", autocommit=True)
     print("Retrieved the settings DB")
 except Exception as e:
     print("Failed to retrieve the settings DB. The bot is terminating.")

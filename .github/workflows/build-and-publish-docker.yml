@@ -91,7 +91,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}-base
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -187,7 +187,7 @@ jobs:
           build-args: FULL=true
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}-full
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -238,7 +238,7 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}-base
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -251,7 +251,7 @@ jobs:
           build-args: FULL=true
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}-full
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

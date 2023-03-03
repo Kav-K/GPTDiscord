@@ -42,6 +42,13 @@ class EnvService:
                 return app_relative
 
         return Path.cwd()
+    
+    @staticmethod
+    def save_path():
+        share_dir = os.getenv("SHARE_DIR")
+        if share_dir is not None:
+            return Path(share_dir)
+        return app_root_path()
 
     @staticmethod
     def find_shared_file(file_name):

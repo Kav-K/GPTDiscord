@@ -6,7 +6,9 @@ services:
     volumes:
       #replace left side with the path to your .env if different, this uses the env in the folder the docker-compose.yml is in
       - ./.env:/opt/gpt3discord/etc/environment
-      # Replace the left side with a path on your hard drive where you want to store the data for both of these
+      # Replace the left side with a path on your hard drive where you want to store the data for both of these to keep persistence
+      # .env add DATA_DIR=/data
       - /containers/gpt3discord:/data
+      # .env add SHARE_DIR=/data/share
       - /containers/gpt3discord/share:/data/share
     restart: always
