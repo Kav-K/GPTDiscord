@@ -48,7 +48,7 @@ from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from llama_index.composability import ComposableGraph
 
 from models.embed_statics_model import EmbedStatics
-from services.environment_service import EnvService, app_root_path
+from services.environment_service import EnvService
 
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
@@ -110,13 +110,20 @@ class IndexData:
 
     def has_indexes(self, user_id):
         try:
-            return len(os.listdir(f"{app_root_path()}/indexes/{user_id}")) > 0
+            return (
+                len(os.listdir(EnvService.find_shared_file(f"indexes/{user_id}"))) > 0
+            )
         except Exception:
             return False
 
     def has_search_indexes(self, user_id):
         try:
-            return len(os.listdir(f"{app_root_path()}/indexes/{user_id}_search")) > 0
+            return (
+                len(
+                    os.listdir(EnvService.find_shared_file(f"indexes/{user_id}_search"))
+                )
+                > 0
+            )
         except Exception:
             return False
 
@@ -125,7 +132,9 @@ class IndexData:
         self.queryable_index = index
 
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
-        Path(f"{app_root_path()}/indexes/{user_id}").mkdir(parents=True, exist_ok=True)
+        Path(f"{EnvService.save_path()}/indexes/{user_id}").mkdir(
+            parents=True, exist_ok=True
+        )
         # Save the index to file under the user id
         file = f"{file_name}_{date.today().month}_{date.today().day}"
         # If file is > 93 in length, cut it off to 93
@@ -133,7 +142,7 @@ class IndexData:
             file = file[:93]
 
         index.save_to_disk(
-            app_root_path() / "indexes" / f"{str(user_id)}" / f"{file}.json"
+            EnvService.save_path() / "indexes" / f"{str(user_id)}" / f"{file}.json"
         )
 
     def reset_indexes(self, user_id):
@@ -143,10 +152,14 @@ class IndexData:
         # Delete the user indexes
         try:
             # First, clear all the files inside it
-            for file in os.listdir(f"{app_root_path()}/indexes/{user_id}"):
-                os.remove(f"{app_root_path()}/indexes/{user_id}/{file}")
-            for file in os.listdir(f"{app_root_path()}/indexes/{user_id}_search"):
-                os.remove(f"{app_root_path()}/indexes/{user_id}_search/{file}")
+            for file in os.listdir(EnvService.find_shared_file(f"indexes/{user_id}")):
+                os.remove(EnvService.find_shared_file(f"indexes/{user_id}/{file}"))
+            for file in os.listdir(
+                EnvService.find_shared_file(f"indexes/{user_id}_search")
+            ):
+                os.remove(
+                    EnvService.find_shared_file(f"indexes/{user_id}_search/{file}")
+                )
         except Exception:
             traceback.print_exc()
 
@@ -792,7 +805,9 @@ class Index_handler:
                 )
 
             # Save the composed index
-            tree_index.save_to_disk(app_root_path() / "indexes" / str(user_id) / name)
+            tree_index.save_to_disk(
+                EnvService.save_path() / "indexes" / str(user_id) / name
+            )
 
             self.index_storage[user_id].queryable_index = tree_index
 
@@ -822,7 +837,9 @@ class Index_handler:
                 name = f"composed_index_{date.today().month}_{date.today().day}.json"
 
             # Save the composed index
-            simple_index.save_to_disk(app_root_path() / "indexes" / str(user_id) / name)
+            simple_index.save_to_disk(
+                EnvService.save_path() / "indexes" / str(user_id) / name
+            )
             self.index_storage[user_id].queryable_index = simple_index
 
             try:
@@ -863,11 +880,11 @@ class Index_handler:
             except Exception:
                 traceback.print_exc()
                 price = "Unknown"
-            Path(app_root_path() / "indexes" / str(ctx.guild.id)).mkdir(
+            Path(EnvService.save_path() / "indexes" / str(ctx.guild.id)).mkdir(
                 parents=True, exist_ok=True
             )
             index.save_to_disk(
-                app_root_path()
+                EnvService.save_path()
                 / "indexes"
                 / str(ctx.guild.id)
                 / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}.json"

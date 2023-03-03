@@ -30,7 +30,7 @@ from llama_index.prompts.prompt_type import PromptType
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
 
-from services.environment_service import EnvService, app_root_path
+from services.environment_service import EnvService
 from services.usage_service import UsageService
 
 MAX_SEARCH_PRICE = EnvService.get_max_search_price()
@@ -57,14 +57,17 @@ class Search:
 
     def add_search_index(self, index, user_id, query):
         # Create a folder called "indexes/{USER_ID}" if it doesn't exist already
-        Path(f"{app_root_path()}/indexes/{user_id}_search").mkdir(
+        Path(f"{EnvService.save_path()}/indexes/{user_id}_search").mkdir(
             parents=True, exist_ok=True
         )
         # Save the index to file under the user id
         file = f"{query[:20]}_{date.today().month}_{date.today().day}"
 
         index.save_to_disk(
-            app_root_path() / "indexes" / f"{str(user_id)}_search" / f"{file}.json"
+            EnvService.save_path()
+            / "indexes"
+            / f"{str(user_id)}_search"
+            / f"{file}.json"
         )
 
     def build_search_started_embed(self):
