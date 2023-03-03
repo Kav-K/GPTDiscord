@@ -64,7 +64,10 @@ class Search:
         file = f"{query[:20]}_{date.today().month}_{date.today().day}"
 
         index.save_to_disk(
-            EnvService.save_path() / "indexes" / f"{str(user_id)}_search" / f"{file}.json"
+            EnvService.save_path()
+            / "indexes"
+            / f"{str(user_id)}_search"
+            / f"{file}.json"
         )
 
     def build_search_started_embed(self):

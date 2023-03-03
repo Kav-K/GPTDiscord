@@ -42,7 +42,7 @@ class EnvService:
                 return app_relative
 
         return Path.cwd()
-    
+
     @staticmethod
     def save_path():
         share_dir = os.getenv("SHARE_DIR")
