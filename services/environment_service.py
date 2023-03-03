@@ -347,7 +347,7 @@ class EnvService:
                 print(
                     "No user key database path was provided. Defaulting to user_key_db.sqlite"
                 )
-                user_key_db_path = "user_key_db.sqlite"
+                user_key_db_path = EnvService.find_shared_file("user_key_db.sqlite")
             else:
                 # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
                 if not user_key_db_path.match("*.sqlite"):

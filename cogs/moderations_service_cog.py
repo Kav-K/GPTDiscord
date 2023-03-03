@@ -9,7 +9,11 @@ from services.moderations_service import Moderation, ThresholdSet
 MOD_DB = None
 try:
     print("Attempting to retrieve the General and Moderations DB")
-    MOD_DB = SqliteDict("main_db.sqlite", tablename="moderations", autocommit=True)
+    MOD_DB = SqliteDict(
+        EnvService.find_shared_file("main_db.sqlite"),
+        tablename="moderations",
+        autocommit=True,
+    )
 except Exception as e:
     print("Failed to retrieve the General and Moderations DB")
     raise e

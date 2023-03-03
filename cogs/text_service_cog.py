@@ -49,8 +49,16 @@ MOD_DB = None
 GENERAL_DB = None
 try:
     print("Attempting to retrieve the General and Moderations DB")
-    MOD_DB = SqliteDict("main_db.sqlite", tablename="moderations", autocommit=True)
-    GENERAL_DB = SqliteDict("main_db.sqlite", tablename="general", autocommit=True)
+    MOD_DB = SqliteDict(
+        EnvService.find_shared_file("main_db.sqlite"),
+        tablename="moderations",
+        autocommit=True,
+    )
+    GENERAL_DB = SqliteDict(
+        EnvService.find_shared_file("main_db.sqlite"),
+        tablename="general",
+        autocommit=True,
+    )
     print("Retrieved the General and Moderations DB")
 except Exception as e:
     print("Failed to retrieve the General and Moderations DB. The bot is terminating.")
