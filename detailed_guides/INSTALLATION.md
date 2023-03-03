@@ -80,74 +80,74 @@ To connect with ssh, run the following command in terminal:
   
 It will then prompt you for your password, which you should enter, and then you will be logged in.   
   
-# After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:  
+## After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:
+
+#### Clone the project files
 ```shell
-git clone https://github.com/Kav-K/GPT3Discord.git```
+git clone https://github.com/Kav-K/GPT3Discord.git
+cd GPT3Discord/
+````
 
-```cd GPT3Discord/```
+#### Install system packages (python)  
+```shell
+sudo apt-get update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.9
+sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
+```
 
-# Install system packages (python) 
-```sudo apt-get updat```
+#### Install Pip for python3.9  
+```shell
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.9 get-pip.py  
+```
 
-```sudo apt install software-properties-common```
+#### Install project dependencies  
+```
+python3.9 -m pip install --ignore-installed PyYAML
+python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+python3.9 -m pip install -r requirements.txt
+python3.9 -m pip install .  
+```
 
-```sudo add-apt-repository ppa:deadsnakes/ppa```
+#### Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
+```shell 
+cp sample.env .env  
+```
 
-```sudo apt install python3.9```
+#### The command below is used to edit the .env file and to put in your API keys. You can right click within the editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.  
+```shell
+nano .env
+```
 
-```sudo apt install python3.9-distutils``` 
-# If this doesn't work, try sudo apt install python3-distutils  
+#### Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:  
+```shell
+screen gpt3discord  
+```
 
+#### Hit `Ctrl+a` then `d` to detach from the running bot. The bot's screen session can be reattached: `screen -r`
 
-# Install Pip for python3.9  
-```curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py``` 
-
-```python3.9 get-pip.py```  
-
-# Install project dependencies  
-
-```python3.9 -m pip install --ignore-installed PyYAML```
-
-```python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html```
-
-```python3.9 -m pip install -r requirements.txt```
-
-```python3.9 -m pip install .```  
-
-# Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
-```cp sample.env .env```
-
-# The command below is used to edit the .env file and to put in your API keys. You can right click within the  
-# editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.  
-```nano .env```
-
-# Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:  
-```screen gpt3discord```
-
-# Hit `Ctrl+a` then `d` to detach from the running bot.  
-
-# The bot's screen session can be reattached:  
-```screen -r```  
   
-#If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:  
-  
+If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:  
+
+```  shell
 # First, navigate to the folder where the project files are 
-```screen -dmS GPTBot bash -c```
-
-```python3.9 gpt3discord.py```
+screen -dmS GPTBot bash -c 'python3.9 gpt3discord.py'  
   
 # Reattach to screen session  
-```screen -x``` 
-# will reattach if this is the only screen session, if there are multiple, it will show IDs
+screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs
 
 # If there are multiple IDs returned by screen -x:  
-```screen -d -r {ID}``` 
-# replace {ID} with the ID of the screen session you want to reattach to 
+screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to  
+```  
 
-#As a last resort, you can try to run the bot using python in a basic way, with simply  
-```cd GPT3Discord```
+As a last resort, you can try to run the bot using python in a basic way, with simply  
+```shell
+cd GPT3Discord
 
-```python3.9 gpt3discord.py  ```
+python3.9 gpt3discord.py  
+```
   
 ### Docker and Docker Compose :  
 
