@@ -375,36 +375,35 @@ class Search:
             llm_predictor_mock = MockLLMPredictor(4096)
             embed_model_mock = MockEmbedding(embed_dim=1536)
 
-            # if ctx:
-            #     await self.try_edit(
-            #         in_progress_message, self.build_search_determining_price_embed(query_refined_text)
-            #     )
-            #
-            # await self.loop.run_in_executor(
-            #     None,
-            #     partial(
-            #         GPTKnowledgeGraphIndex,
-            #         documents,
-            #         chunk_size_limit=512,
-            #         max_triplets_per_chunk=2,
-            #         embed_model=embed_model_mock,
-            #         llm_predictor=llm_predictor_mock,
-            #     ),
-            # )
-            # total_usage_price = await self.usage_service.get_price(
-            #     llm_predictor_mock.last_token_usage, chatgpt=True,
-            # ) + await self.usage_service.get_price(
-            #     embed_model_mock.last_token_usage, embeddings=True
-            # )
-            # print(f"Total usage price: {total_usage_price}")
-            # if total_usage_price > MAX_SEARCH_PRICE:
-            #     await self.try_delete(in_progress_message)
-            #     raise ValueError(
-            #         "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
-            #             total_usage_price
-            #         )
-            #     )
-            # # TODO Add back the mock when fixed!
+            if ctx:
+                await self.try_edit(
+                    in_progress_message, self.build_search_determining_price_embed(query_refined_text)
+                )
+
+            await self.loop.run_in_executor(
+                None,
+                partial(
+                    GPTKnowledgeGraphIndex,
+                    documents,
+                    chunk_size_limit=512,
+                    max_triplets_per_chunk=2,
+                    embed_model=embed_model_mock,
+                    llm_predictor=llm_predictor_mock,
+                ),
+            )
+            total_usage_price = await self.usage_service.get_price(
+                llm_predictor_mock.last_token_usage, chatgpt=True,
+            ) + await self.usage_service.get_price(
+                embed_model_mock.last_token_usage, embeddings=True
+            )
+            print(f"Total usage price: {total_usage_price}")
+            if total_usage_price > MAX_SEARCH_PRICE:
+                await self.try_delete(in_progress_message)
+                raise ValueError(
+                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
+                        total_usage_price
+                    )
+                )
 
             index = await self.loop.run_in_executor(
                 None,
