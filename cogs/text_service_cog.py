@@ -65,6 +65,7 @@ except Exception as e:
     raise e
 
 BOT_NAME = EnvService.get_custom_bot_name()
+BOT_TAGGABLE_ROLES = EnvService.get_gpt_roles()
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -624,6 +625,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             "@everyone" in message.content or "@here" in message.content
         ):
             if not BOT_TAGGABLE:
+                return
+
+            # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
+            if BOT_TAGGABLE_ROLES != [None] and not any(
+                role.name.lower() in BOT_TAGGABLE_ROLES
+                for role in message.author.roles
+            ):
                 return
 
             # Remove the mention from the message
