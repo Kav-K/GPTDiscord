@@ -426,9 +426,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 first = True
             else:
                 if from_context:
-                    await ctx.send_followup(chunk)
+                    response_message = await ctx.send_followup(chunk)
                 else:
-                    await ctx.channel.send(chunk)
+                    response_message = await ctx.channel.send(chunk)
+        return response_message
 
     async def paginate_embed(self, response_text, codex, prompt=None, instruction=None):
         """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
