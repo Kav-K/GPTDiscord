@@ -432,7 +432,9 @@ class TextService:
                 if len(response_text) > converser_cog.TEXT_CUTOFF:
                     if not from_context:
                         paginator = None
-                        response_message = await converser_cog.paginate_and_send(response_text, ctx)
+                        response_message = await converser_cog.paginate_and_send(
+                            response_text, ctx
+                        )
                     else:
                         embed_pages = await converser_cog.paginate_embed(
                             response_text, codex, prompt, instruction
