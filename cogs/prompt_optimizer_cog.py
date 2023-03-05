@@ -96,7 +96,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 best_of_override=1,
                 max_tokens_override=60,
                 custom_api_key=user_api_key,
-                is_chatgpt_request=True,
+                is_chatgpt_request="turbo" in str(self.model.model),
             )
 
             # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
