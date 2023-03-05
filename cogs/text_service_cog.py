@@ -629,8 +629,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
             if BOT_TAGGABLE_ROLES != [None] and not any(
-                role.name.lower() in BOT_TAGGABLE_ROLES
-                for role in message.author.roles
+                role.name.lower() in BOT_TAGGABLE_ROLES for role in message.author.roles
             ):
                 return
 

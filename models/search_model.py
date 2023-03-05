@@ -377,7 +377,8 @@ class Search:
 
             if ctx:
                 await self.try_edit(
-                    in_progress_message, self.build_search_determining_price_embed(query_refined_text)
+                    in_progress_message,
+                    self.build_search_determining_price_embed(query_refined_text),
                 )
 
             await self.loop.run_in_executor(
@@ -392,7 +393,8 @@ class Search:
                 ),
             )
             total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage, chatgpt=True,
+                llm_predictor_mock.last_token_usage,
+                chatgpt=True,
             ) + await self.usage_service.get_price(
                 embed_model_mock.last_token_usage, embeddings=True
             )
