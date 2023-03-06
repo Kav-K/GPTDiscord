@@ -116,7 +116,7 @@ class ModelLimits:
     MAX_TOKENS = 4096
 
     MIN_CONVERSATION_LENGTH = 1
-    MAX_CONVERSATION_LENGTH = 500
+    MAX_CONVERSATION_LENGTH = 100000
 
     MIN_SUMMARIZE_THRESHOLD = 800
     MAX_SUMMARIZE_THRESHOLD = 3500
@@ -183,7 +183,7 @@ class Model:
         self.max_conversation_length = (
             SETTINGS_DB["max_conversation_length"]
             if "max_conversation_length" in SETTINGS_DB
-            else 100
+            else 100000
         )  # The maximum number of conversation items to keep in memory
         self.model = (
             SETTINGS_DB["model"] if "model" in SETTINGS_DB else Models.DEFAULT
