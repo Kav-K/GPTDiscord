@@ -191,7 +191,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             try:
                 welcome_message_response = await self.model.send_request(
-                    query, tokens=self.usage_service.count_tokens(query), is_chatgpt_request=True if "turbo" in str(self.model.model) else False
+                    query,
+                    tokens=self.usage_service.count_tokens(query),
+                    is_chatgpt_request=True
+                    if "turbo" in str(self.model.model)
+                    else False,
                 )
                 welcome_message = str(welcome_message_response["choices"][0]["text"])
             except Exception:
