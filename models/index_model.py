@@ -940,9 +940,9 @@ class Index_handler:
 
             try:
                 total_price = round(
-                    await self.usage_service.get_price(llm_predictor.last_token_usage)
+                    await self.usage_service.get_price(llm_predictor.last_token_usage, chatgpt=True)
                     + await self.usage_service.get_price(
-                        embedding_model.last_token_usage, True
+                        embedding_model.last_token_usage, embeddings=True
                     ),
                     6,
                 )
