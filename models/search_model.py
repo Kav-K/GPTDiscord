@@ -492,7 +492,9 @@ class Search:
         )
         price += await self.usage_service.get_price(
             llm_predictor.last_token_usage, chatgpt=True
-        ) + await self.usage_service.get_price(embedding_model.last_token_usage, embeddings=True)
+        ) + await self.usage_service.get_price(
+            embedding_model.last_token_usage, embeddings=True
+        )
 
         if ctx:
             await self.try_edit(
