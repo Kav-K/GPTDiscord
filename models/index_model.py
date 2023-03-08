@@ -17,8 +17,10 @@ from datetime import date
 
 from discord import InteractionResponse, Interaction
 from discord.ext import pages
+from langchain.llms import OpenAIChat
 from llama_index.langchain_helpers.chatgpt import ChatGPTLLMPredictor
 from langchain import OpenAI
+from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 
 from llama_index.readers import YoutubeTranscriptReader
 from llama_index.readers.schema.base import Document
@@ -29,19 +31,13 @@ from llama_index import (
     SimpleDirectoryReader,
     QuestionAnswerPrompt,
     BeautifulSoupWebReader,
-    GPTListIndex,
-    QueryMode,
     GPTTreeIndex,
     GoogleDocsReader,
     MockLLMPredictor,
-    LLMPredictor,
-    QueryConfig,
-    PromptHelper,
-    IndexStructType,
     OpenAIEmbedding,
     GithubRepositoryReader,
     MockEmbedding,
-    download_loader,
+    download_loader, LLMPredictor,
 )
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -52,7 +48,6 @@ from services.environment_service import EnvService
 
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
-llm_predictor = ChatGPTLLMPredictor()
 EpubReader = download_loader("EpubReader")
 MarkdownReader = download_loader("MarkdownReader")
 RemoteReader = download_loader("RemoteReader")
@@ -77,6 +72,7 @@ def get_and_query(
             query,
             child_branch_factor=child_branch_factor,
             llm_predictor=llm_predictor,
+            refine_template=CHAT_REFINE_PROMPT,
             embed_model=embed_model,
             use_async=True,
         )
@@ -87,6 +83,7 @@ def get_and_query(
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
+            refine_template=CHAT_REFINE_PROMPT,
             use_async=True,
         )
     return response
@@ -168,6 +165,7 @@ class Index_handler:
     def __init__(self, bot, usage_service):
         self.bot = bot
         self.openai_key = os.getenv("OPENAI_TOKEN")
+        self.llm_predictor = LLMPredictor(llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo", openai_api_key=self.openai_key))
         self.index_storage = defaultdict(IndexData)
         self.loop = asyncio.get_running_loop()
         self.usage_service = usage_service
@@ -785,14 +783,14 @@ class Index_handler:
                 partial(
                     GPTTreeIndex,
                     documents=documents,
-                    llm_predictor=llm_predictor,
+                    llm_predictor=self.llm_predictor,
                     embed_model=embedding_model,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage, chatgpt=True
+                self.llm_predictor.last_token_usage, chatgpt=True
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -925,14 +923,14 @@ class Index_handler:
                     query,
                     response_mode,
                     nodes,
-                    llm_predictor,
+                    self.llm_predictor,
                     embedding_model,
                     child_branch_factor,
                 ),
             )
-            print("The last token usage was ", llm_predictor.last_token_usage)
+            print("The last token usage was ", self.llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage, chatgpt=True
+                self.llm_predictor.last_token_usage, chatgpt=True
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -941,7 +939,7 @@ class Index_handler:
             try:
                 total_price = round(
                     await self.usage_service.get_price(
-                        llm_predictor.last_token_usage, chatgpt=True
+                        self.llm_predictor.last_token_usage, chatgpt=True
                     )
                     + await self.usage_service.get_price(
                         embedding_model.last_token_usage, embeddings=True
