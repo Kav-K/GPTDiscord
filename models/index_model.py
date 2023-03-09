@@ -37,7 +37,8 @@ from llama_index import (
     OpenAIEmbedding,
     GithubRepositoryReader,
     MockEmbedding,
-    download_loader, LLMPredictor,
+    download_loader,
+    LLMPredictor,
 )
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -165,7 +166,13 @@ class Index_handler:
     def __init__(self, bot, usage_service):
         self.bot = bot
         self.openai_key = os.getenv("OPENAI_TOKEN")
-        self.llm_predictor = LLMPredictor(llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo", openai_api_key=self.openai_key))
+        self.llm_predictor = LLMPredictor(
+            llm=OpenAIChat(
+                temperature=0,
+                model_name="gpt-3.5-turbo",
+                openai_api_key=self.openai_key,
+            )
+        )
         self.index_storage = defaultdict(IndexData)
         self.loop = asyncio.get_running_loop()
         self.usage_service = usage_service

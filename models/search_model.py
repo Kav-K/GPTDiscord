@@ -331,7 +331,9 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        llm_predictor = LLMPredictor(llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo"))
+        llm_predictor = LLMPredictor(
+            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+        )
 
         if not deep:
             embed_model_mock = MockEmbedding(embed_dim=1536)
@@ -371,7 +373,9 @@ class Search:
             )
             price += total_usage_price
         else:
-            llm_predictor_deep = LLMPredictor(llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo"))
+            llm_predictor_deep = LLMPredictor(
+                llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+            )
 
             # Try a mock call first
             llm_predictor_mock = MockLLMPredictor(4096)
