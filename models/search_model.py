@@ -186,7 +186,12 @@ class Search:
                         [item["link"] for item in data["items"]],
                     )
                 else:
-                    raise ValueError("Error while retrieving links, the response returned " + str(response.status) + " with the message "+ str(await response.text()) )
+                    raise ValueError(
+                        "Error while retrieving links, the response returned "
+                        + str(response.status)
+                        + " with the message "
+                        + str(await response.text())
+                    )
 
     async def try_edit(self, message, embed):
         try:
