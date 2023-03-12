@@ -56,7 +56,7 @@ RemoteReader = download_loader("RemoteReader")
 RemoteDepthReader = download_loader("RemoteDepthReader")
 
 
-async def get_and_query(
+def get_and_query(
     user_id,
     index_storage,
     query,
@@ -70,22 +70,24 @@ async def get_and_query(
         user_id
     ].get_index_or_throw()
     if isinstance(index, GPTTreeIndex):
-        response = await index.aquery(
+        response = index.query(
             query,
             child_branch_factor=child_branch_factor,
             llm_predictor=llm_predictor,
             refine_template=CHAT_REFINE_PROMPT,
             embed_model=embed_model,
+            use_async=True,
             # optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
         )
     else:
-        response = await index.aquery(
+        response = index.query(
             query,
             response_mode=response_mode,
             llm_predictor=llm_predictor,
             embed_model=embed_model,
             similarity_top_k=nodes,
             refine_template=CHAT_REFINE_PROMPT,
+            use_async=True,
             # optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
         )
     return response
@@ -922,15 +924,29 @@ class Index_handler:
         try:
             embedding_model = OpenAIEmbedding()
             embedding_model.last_token_usage = 0
-            response = await get_and_query(
-                ctx.user.id,
-                self.index_storage,
-                query,
-                response_mode,
-                nodes,
-                self.llm_predictor,
-                embedding_model,
-                child_branch_factor,
+            # response = await get_and_query(
+            #     ctx.user.id,
+            #     self.index_storage,
+            #     query,
+            #     response_mode,
+            #     nodes,
+            #     self.llm_predictor,
+            #     embedding_model,
+            #     child_branch_factor,
+            # )
+            response = await self.loop.run_in_executor(
+                None,
+                partial(
+                    get_and_query,
+                    ctx.user.id,
+                    self.index_storage,
+                    query,
+                    response_mode,
+                    nodes,
+                    self.llm_predictor,
+                    embedding_model,
+                    child_branch_factor,
+                ),
             )
             print("The last token usage was ", self.llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
