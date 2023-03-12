@@ -823,7 +823,7 @@ class Model:
 
     def cleanse_username(self, text):
         text = text.strip()
-        text = text.replace(":", "_")
+        text = text.replace(":", "")
         text = text.replace(" ", "")
         # Replace any character that's not a letter or number with an underscore
         text = re.sub(r"[^a-zA-Z0-9]", "_", text)

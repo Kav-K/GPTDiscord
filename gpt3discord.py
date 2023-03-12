@@ -22,6 +22,7 @@ from cogs.translation_service_cog import TranslationService
 from cogs.index_service_cog import IndexService
 from models.deepl_model import TranslationModel
 from services.health_service import HealthService
+from services.pickle_service import Pickler
 
 from services.pinecone_service import PineconeService
 from services.deletion_service import Deletion
@@ -32,7 +33,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "10.9.17"
+__version__ = "11.0.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -75,6 +76,15 @@ message_queue = asyncio.Queue()
 deletion_queue = asyncio.Queue()
 asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
 asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
+
+# Pickling service for conversation persistence
+try:
+    Path(EnvService.save_path()/"pickles").mkdir(exist_ok=True)
+except Exception:
+    traceback.print_exc()
+    print("Could not start pickle service. Conversation history will not be persistent across restarts.")
+pickle_queue = asyncio.Queue()
+asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
 
 
 #
@@ -131,6 +141,7 @@ async def main():
             debug_channel,
             data_path,
             pinecone_service=pinecone_service,
+            pickle_queue=pickle_queue,
         )
     )
 
