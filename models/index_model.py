@@ -169,13 +169,6 @@ class Index_handler:
     def __init__(self, bot, usage_service):
         self.bot = bot
         self.openai_key = os.getenv("OPENAI_TOKEN")
-        self.llm_predictor = LLMPredictor(
-            llm=OpenAIChat(
-                temperature=0,
-                model_name="gpt-3.5-turbo",
-                openai_api_key=self.openai_key,
-            )
-        )
         self.index_storage = defaultdict(IndexData)
         self.loop = asyncio.get_running_loop()
         self.usage_service = usage_service
@@ -755,6 +748,10 @@ class Index_handler:
             )
             index_objects.append(index)
 
+        llm_predictor = LLMPredictor(
+            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+        )
+
         # For each index object, add its documents to a GPTTreeIndex
         if deep_compose:
             documents = []
@@ -793,14 +790,14 @@ class Index_handler:
                 partial(
                     GPTTreeIndex,
                     documents=documents,
-                    llm_predictor=self.llm_predictor,
+                    llm_predictor=llm_predictor,
                     embed_model=embedding_model,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                self.llm_predictor.last_token_usage, chatgpt=True
+                llm_predictor.last_token_usage, chatgpt=True
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -917,6 +914,10 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
+        llm_predictor = LLMPredictor(
+            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+        )
+
         ctx_response = await ctx.respond(
             embed=EmbedStatics.build_index_query_progress_embed(query)
         )
@@ -924,16 +925,6 @@ class Index_handler:
         try:
             embedding_model = OpenAIEmbedding()
             embedding_model.last_token_usage = 0
-            # response = await get_and_query(
-            #     ctx.user.id,
-            #     self.index_storage,
-            #     query,
-            #     response_mode,
-            #     nodes,
-            #     self.llm_predictor,
-            #     embedding_model,
-            #     child_branch_factor,
-            # )
             response = await self.loop.run_in_executor(
                 None,
                 partial(
@@ -943,14 +934,15 @@ class Index_handler:
                     query,
                     response_mode,
                     nodes,
-                    self.llm_predictor,
+                    llm_predictor,
                     embedding_model,
                     child_branch_factor,
                 ),
+
             )
-            print("The last token usage was ", self.llm_predictor.last_token_usage)
+            print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
-                self.llm_predictor.last_token_usage, chatgpt=True
+                llm_predictor.last_token_usage, chatgpt=True
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -959,7 +951,7 @@ class Index_handler:
             try:
                 total_price = round(
                     await self.usage_service.get_price(
-                        self.llm_predictor.last_token_usage, chatgpt=True
+                        llm_predictor.last_token_usage, chatgpt=True
                     )
                     + await self.usage_service.get_price(
                         embedding_model.last_token_usage, embeddings=True
