@@ -598,7 +598,6 @@ class TextService:
     async def process_conversation_message(
         converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB
     ):
-
         content = message.content.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
 
