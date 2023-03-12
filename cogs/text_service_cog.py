@@ -120,7 +120,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.full_conversation_history = defaultdict(list)
         self.summarize = self.model.summarize_conversations
 
-
         # Pinecone data
         self.pinecone_service = pinecone_service
 
@@ -232,15 +231,25 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         print("Attempting to load from pickles")
         # Try to load self.full_conversation_history, self.conversation_threads, and self.conversation_thread_owners from the `pickles` folder
         try:
-            with open(EnvService.save_path() / "pickles" / "full_conversation_history.pickle", "rb") as f:
+            with open(
+                EnvService.save_path() / "pickles" / "full_conversation_history.pickle",
+                "rb",
+            ) as f:
                 self.full_conversation_history = pickle.load(f)
                 print("Loaded full_conversation_history")
 
-            with open(EnvService.save_path() / "pickles" / "conversation_threads.pickle", "rb") as f:
+            with open(
+                EnvService.save_path() / "pickles" / "conversation_threads.pickle", "rb"
+            ) as f:
                 self.conversation_threads = pickle.load(f)
                 print("Loaded conversation_threads")
 
-            with open(EnvService.save_path() / "pickles" / "conversation_thread_owners.pickle", "rb") as f:
+            with open(
+                EnvService.save_path()
+                / "pickles"
+                / "conversation_thread_owners.pickle",
+                "rb",
+            ) as f:
                 self.conversation_thread_owners = pickle.load(f)
                 print("Loaded conversation_thread_owners")
 
@@ -269,14 +278,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         print("Commands synced")
 
-
         # Start an inline async loop that runs every 10 seconds to save the conversation history to a pickle file
         print("Starting pickle loop")
         while True:
             await asyncio.sleep(15)
             await self.pickle_queue.put(
-                Pickler(self.full_conversation_history, self.conversation_threads, self.conversation_thread_owners))
-
+                Pickler(
+                    self.full_conversation_history,
+                    self.conversation_threads,
+                    self.conversation_thread_owners,
+                )
+            )
 
     def check_conversing(self, channel_id, message_content):
         '''given channel id and a message, return true if it's a conversation thread, false if not, or if the message starts with "~"'''

@@ -79,10 +79,12 @@ asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 
 # Pickling service for conversation persistence
 try:
-    Path(EnvService.save_path()/"pickles").mkdir(exist_ok=True)
+    Path(EnvService.save_path() / "pickles").mkdir(exist_ok=True)
 except Exception:
     traceback.print_exc()
-    print("Could not start pickle service. Conversation history will not be persistent across restarts.")
+    print(
+        "Could not start pickle service. Conversation history will not be persistent across restarts."
+    )
 pickle_queue = asyncio.Queue()
 asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
 
