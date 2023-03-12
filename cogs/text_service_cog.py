@@ -590,6 +590,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if message.author == self.bot.user:
             return
 
+        # Check if the message is a discord system message
+        if message.type != discord.MessageType.default:
+            return
+
         # Moderations service is done here.
         if (
             hasattr(message, "guild")
