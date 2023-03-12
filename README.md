@@ -50,7 +50,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
 <p align="center"/>  
 <img src="https://i.imgur.com/YxkS0S5.png"/>  
-</p>  
+</p>
   
 - **CUSTOM INDEXES** - You can now upload files to your discord server and use them as a source of knowledge when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below. Here's an example below with a youtube video:
   
