@@ -455,9 +455,25 @@ class Search:
         embedding_model.last_token_usage = 0
 
         if not deep:
-            response = await index.aquery(query, embed_model=embedding_model, llm_predictor=llm_predictor, refine_template=CHAT_REFINE_PROMPT, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt,  response_mode=response_mode)
+            response = await index.aquery(
+                query,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor,
+                refine_template=CHAT_REFINE_PROMPT,
+                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                text_qa_template=self.qaprompt,
+                response_mode=response_mode,
+            )
         else:
-            response = await index.aquery(query, embed_model=embedding_model, llm_predictor=llm_predictor, refine_template=CHAT_REFINE_PROMPT, similarity_top_k=nodes or DEFAULT_SEARCH_NODES, text_qa_template=self.qaprompt, response_mode=response_mode)
+            response = await index.aquery(
+                query,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor,
+                refine_template=CHAT_REFINE_PROMPT,
+                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                text_qa_template=self.qaprompt,
+                response_mode=response_mode,
+            )
 
         await self.usage_service.update_usage(
             llm_predictor.last_token_usage, chatgpt=True

@@ -76,7 +76,7 @@ async def get_and_query(
             llm_predictor=llm_predictor,
             refine_template=CHAT_REFINE_PROMPT,
             embed_model=embed_model,
-            #optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
+            # optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
         )
     else:
         response = await index.aquery(
@@ -86,7 +86,7 @@ async def get_and_query(
             embed_model=embed_model,
             similarity_top_k=nodes,
             refine_template=CHAT_REFINE_PROMPT,
-            #optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
+            # optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7)
         )
     return response
 
@@ -922,7 +922,16 @@ class Index_handler:
         try:
             embedding_model = OpenAIEmbedding()
             embedding_model.last_token_usage = 0
-            response = await get_and_query(ctx.user.id, self.index_storage, query, response_mode, nodes, self.llm_predictor, embedding_model, child_branch_factor)
+            response = await get_and_query(
+                ctx.user.id,
+                self.index_storage,
+                query,
+                response_mode,
+                nodes,
+                self.llm_predictor,
+                embedding_model,
+                child_branch_factor,
+            )
             print("The last token usage was ", self.llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 self.llm_predictor.last_token_usage, chatgpt=True
