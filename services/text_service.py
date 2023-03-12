@@ -735,7 +735,11 @@ class TextService:
             )
 
             thinking_embed.set_footer(text="This may take a few seconds.")
-            thinking_message = await message.reply(embed=thinking_embed)
+            try:
+                thinking_message = await message.reply(embed=thinking_embed)
+            except:
+                pass
+
             try:
                 await message.channel.trigger_typing()
             except Exception:
