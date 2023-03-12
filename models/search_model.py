@@ -455,35 +455,24 @@ class Search:
         embedding_model.last_token_usage = 0
 
         if not deep:
-            response = await self.loop.run_in_executor(
-                None,
-                partial(
-                    index.query,
-                    query,
-                    embed_model=embedding_model,
-                    llm_predictor=llm_predictor,
-                    refine_template=CHAT_REFINE_PROMPT,
-                    similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
-                    text_qa_template=self.qaprompt,
-                    use_async=True,
-                    response_mode=response_mode,
-                ),
+            response = await index.aquery(
+                query,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor,
+                refine_template=CHAT_REFINE_PROMPT,
+                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                text_qa_template=self.qaprompt,
+                response_mode=response_mode,
             )
         else:
-            response = await self.loop.run_in_executor(
-                None,
-                partial(
-                    index.query,
-                    query,
-                    embedding_mode="hybrid",
-                    llm_predictor=llm_predictor,
-                    refine_template=CHAT_REFINE_PROMPT,
-                    include_text=True,
-                    embed_model=embedding_model,
-                    use_async=True,
-                    similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
-                    response_mode=response_mode,
-                ),
+            response = await index.aquery(
+                query,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor,
+                refine_template=CHAT_REFINE_PROMPT,
+                similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+                text_qa_template=self.qaprompt,
+                response_mode=response_mode,
             )
 
         await self.usage_service.update_usage(
