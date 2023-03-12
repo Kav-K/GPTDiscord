@@ -938,7 +938,6 @@ class Index_handler:
                     embedding_model,
                     child_branch_factor,
                 ),
-
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
