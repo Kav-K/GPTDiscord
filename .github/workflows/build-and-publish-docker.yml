@@ -27,12 +27,6 @@ jobs:
       id-token: write
 
     steps:
-      #Add swap for building arm64 image
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@v1.0
-        with:
-          swap-size-gb: 10
-
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -122,11 +116,6 @@ jobs:
       id-token: write
 
     steps:
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@v1.0
-        with:
-          swap-size-gb: 10
-
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -218,11 +207,6 @@ jobs:
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
     steps:
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@v1.0
-        with:
-          swap-size-gb: 10
-
       - name: Checkout repository
         uses: actions/checkout@v3
 
