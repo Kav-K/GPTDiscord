@@ -747,10 +747,7 @@ class Index_handler:
             index_objects.append(index)
 
         llm_predictor = LLMPredictor(
-            llm=OpenAIChat(
-                temperature=0,
-                model_name="gpt-3.5-turbo"
-            )
+            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
         )
 
         # For each index object, add its documents to a GPTTreeIndex
@@ -916,10 +913,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
         llm_predictor = LLMPredictor(
-            llm=OpenAIChat(
-                temperature=0,
-                model_name="gpt-3.5-turbo"
-            )
+            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
         )
 
         ctx_response = await ctx.respond(
