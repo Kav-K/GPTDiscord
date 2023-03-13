@@ -63,7 +63,7 @@ full = [
   "scipy==1.10.1",
   "nltk==3.8.1",
   "huggingface-hub==0.12.1",
-  "more-itertools==9.0.0",
+  "more-itertools==9.1.0",
   "ffmpeg-python==0.2.0",
   "sentence-transformers==2.2.2",
   "openai-whisper",
