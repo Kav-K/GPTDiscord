@@ -405,7 +405,10 @@ class EnvService:
             openai_token = os.getenv("OPENAI_TOKEN")
             return openai_token
         except Exception:
-            raise ValueError("OPENAI_TOKEN is not defined properly in the environment file! The bot cannot start without this token.")
+            raise ValueError(
+                "OPENAI_TOKEN is not defined properly in the environment file! The bot cannot start without this token."
+            )
+
     @staticmethod
     def get_openai_organization():
         try:

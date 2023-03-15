@@ -235,7 +235,6 @@ class Model:
             else 5
         )
 
-
     def reset_settings(self):
         keys = [
             "temp",
