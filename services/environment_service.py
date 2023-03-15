@@ -400,6 +400,21 @@ class EnvService:
             return None
 
     @staticmethod
+    def get_openai_token():
+        try:
+            openai_token = os.getenv("OPENAI_TOKEN")
+            return openai_token
+        except Exception:
+            raise ValueError("OPENAI_TOKEN is not defined properly in the environment file! The bot cannot start without this token.")
+    @staticmethod
+    def get_openai_organization():
+        try:
+            openai_org = os.getenv("OPENAI_ORGANIZATION")
+            return openai_org
+        except Exception:
+            return None
+
+    @staticmethod
     def get_google_search_api_key():
         try:
             google_search_api_key = os.getenv("GOOGLE_SEARCH_API_KEY")

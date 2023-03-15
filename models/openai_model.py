@@ -69,6 +69,10 @@ class Models:
     TURBO = "gpt-3.5-turbo"
     TURBO_DEV = "gpt-3.5-turbo-0301"
 
+    # GPT4 Models
+    GPT4 = "gpt-4"
+    GPT4_32 = "gpt-4-32k"
+
     # Model collections
     TEXT_MODELS = [
         DAVINCI,
@@ -79,8 +83,11 @@ class Models:
         CODE_CUSHMAN,
         TURBO,
         TURBO_DEV,
+        GPT4,
+        GPT4_32,
     ]
     CHATGPT_MODELS = [TURBO, TURBO_DEV]
+    GPT4_MODELS = [GPT4, GPT4_32]
     EDIT_MODELS = [EDIT, CODE_EDIT]
 
     DEFAULT = DAVINCI
@@ -96,6 +103,8 @@ class Models:
         "code-cushman-001": 2024,
         TURBO: 4096,
         TURBO_DEV: 4096,
+        GPT4: 8192,
+        GPT4_32: 32768,
     }
 
     @staticmethod
@@ -226,9 +235,6 @@ class Model:
             else 5
         )
 
-        print("Building language detector")
-        # self.detector = LanguageDetectorBuilder.from_languages(*Language.all()).build()
-        print("Language detector built")
 
     def reset_settings(self):
         keys = [
@@ -300,7 +306,8 @@ class Model:
             "openai_key",
         ]
 
-        self.openai_key = os.getenv("OPENAI_TOKEN")
+        self.openai_key = EnvService.get_openai_token()
+        self.openai_organization = EnvService.get_openai_organization()
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
 
@@ -840,6 +847,7 @@ class Model:
     async def send_chatgpt_chat_request(
         self,
         prompt_history,
+        model,
         bot_name,
         user_displayname,
         temp_override=None,
@@ -866,8 +874,8 @@ class Model:
                 # If this is the first message, it is the context prompt.
                 messages.append(
                     {
-                        "role": "user",
-                        "name": "System_Instructor",
+                        "role": "system",
+                        "name": "Instructor",
                         "content": message.text,
                     }
                 )
@@ -891,7 +899,7 @@ class Model:
         print(f"Messages -> {messages}")
         async with aiohttp.ClientSession(raise_for_status=False) as session:
             payload = {
-                "model": "gpt-3.5-turbo-0301",
+                "model": self.model if not model else model,
                 "messages": messages,
                 "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
@@ -906,6 +914,9 @@ class Model:
             headers = {
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
             }
+            if self.openai_organization:
+                headers["OpenAI-Organization"] = self.openai_organization
+
             async with session.post(
                 "https://api.openai.com/v1/chat/completions",
                 json=payload,
@@ -996,7 +1007,7 @@ class Model:
 
         print(f"The prompt about to be sent is {prompt}")
         print(
-            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}"
+            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}, model:{model if model else 'none'}, stop:{stop}"
         )
 
         # Non-ChatGPT simple completion models.
@@ -1038,7 +1049,7 @@ class Model:
                     print(f"Response -> {response}")
 
                     return response
-        else:  # ChatGPT Simple completion
+        else:  # ChatGPT/GPT4 Simple completion
             async with aiohttp.ClientSession(raise_for_status=False) as session:
                 payload = {
                     "model": self.model if not model else model,
@@ -1058,6 +1069,8 @@ class Model:
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
                 async with session.post(
                     "https://api.openai.com/v1/chat/completions",
                     json=payload,

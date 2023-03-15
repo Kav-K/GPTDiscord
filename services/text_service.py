@@ -284,7 +284,7 @@ class TextService:
                 and (
                     (
                         model is not None
-                        and (model in Models.CHATGPT_MODELS or model == "chatgpt")
+                        and (model in Models.CHATGPT_MODELS or (model == "chatgpt" or "gpt-4" in model))
                     )
                     or (
                         model is None
@@ -293,7 +293,7 @@ class TextService:
                 )
             )
             delegator = model or converser_cog.model.model
-            is_chatgpt_request = delegator in Models.CHATGPT_MODELS
+            is_chatgpt_request = delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
 
             if is_chatgpt_conversation:
                 _prompt_with_history = converser_cog.conversation_threads[
@@ -301,6 +301,7 @@ class TextService:
                 ].history
                 response = await converser_cog.model.send_chatgpt_chat_request(
                     _prompt_with_history,
+                    model=model,
                     bot_name=BOT_NAME,
                     user_displayname=user_displayname,
                     temp_override=overrides.temperature,
