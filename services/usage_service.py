@@ -14,7 +14,15 @@ class UsageService:
                 f.close()
         self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
-    async def get_price(self, tokens_used, prompt_tokens=None, completion_tokens=None, embeddings=False, chatgpt=False, gpt4=False):
+    async def get_price(
+        self,
+        tokens_used,
+        prompt_tokens=None,
+        completion_tokens=None,
+        embeddings=False,
+        chatgpt=False,
+        gpt4=False,
+    ):
         tokens_used = int(tokens_used)
         if chatgpt:
             price = (tokens_used / 1000) * 0.002
@@ -23,23 +31,27 @@ class UsageService:
             price = (prompt_tokens / 1000) * 0.03 + (completion_tokens / 1000) * 0.06
             return price
         elif not embeddings:
-            price = (
-                tokens_used / 1000
-            ) * 0.02
+            price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
         return price
 
-    async def update_usage(self, tokens_used, prompt_tokens=None, completion_tokens=None, embeddings=False, chatgpt=False, gpt4=False):
+    async def update_usage(
+        self,
+        tokens_used,
+        prompt_tokens=None,
+        completion_tokens=None,
+        embeddings=False,
+        chatgpt=False,
+        gpt4=False,
+    ):
         tokens_used = int(tokens_used)
         if chatgpt:
             price = (tokens_used / 1000) * 0.002
         elif gpt4:
             price = (prompt_tokens / 1000) * 0.03 + (completion_tokens / 1000) * 0.06
         elif not embeddings:
-            price = (
-                tokens_used / 1000
-            ) * 0.02
+            price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
         usage = await self.get_usage()

@@ -261,7 +261,9 @@ class TextService:
                         )
 
                         await converser_cog.end_conversation(ctx)
-                        converser_cog.remove_awaiting(ctx.author.id, ctx.channel.id, False, False)
+                        converser_cog.remove_awaiting(
+                            ctx.author.id, ctx.channel.id, False, False
+                        )
                         return
                 else:
                     await ctx.reply("The conversation context limit has been reached.")

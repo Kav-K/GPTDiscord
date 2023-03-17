@@ -311,7 +311,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if isinstance(ctx.channel, discord.Thread):
             thread = True
 
-
         if (
             conversation_limit
         ):  # if we reach the conversation limit we want to close from the channel it was maxed out in
@@ -1082,8 +1081,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             embed = discord.Embed(title=embed_title, color=0x808080)
             await ctx.respond(embed=embed)
-
-
 
         self.conversation_threads[target.id] = Thread(target.id)
         self.conversation_threads[target.id].model = (
