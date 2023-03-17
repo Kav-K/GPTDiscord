@@ -4,6 +4,7 @@ ARG PY_VERSION=3.10
 FROM python:${PY_VERSION} as base
 FROM base as builder
 ARG PY_VERSION
+ARG TARGETPLATFORM
 ARG FULL
 
 COPY . .
@@ -27,8 +28,9 @@ RUN pip install --target="/install" --upgrade pip setuptools wheel setuptools_ru
 COPY requirements_base.txt /install
 COPY requirements_full.txt /install
 RUN pip install --target="/install" --upgrade -r requirements_base.txt
-RUN if [ "${FULL}" = "true" ]; \
-    then pip install --target="/install" --upgrade torch==1.12.0+cpu torchvision==0.13.0+cpu -f https://download.pytorch.org/whl/torch_stable.html \
+RUN if [ "${FULL}" = "true" ]; then \
+    if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then pip install --target="/install" --upgrade torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi \
+    ; if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then pip install --target="/install" --upgrade torch==1.13.1 torchvision==0.14.1 -f https://torch.kmtea.eu/whl/stable.html -f https://ext.kmtea.eu/whl/stable.html ; fi \  
     ; pip install --target="/install" --upgrade \
        -r requirements_full.txt \
     ; pip install --target="/install" --upgrade \
