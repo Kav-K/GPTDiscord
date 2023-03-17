@@ -499,6 +499,12 @@ class Commands(discord.Cog, name="Commands"):
         min_value=-2,
         max_value=2,
     )
+    @discord.option(
+        name="use_threads",
+        description="Set this to false to start a channel conversation",
+        required=False,
+        default=True,
+    )
     @discord.guild_only()
     async def converse(
         self,
@@ -512,6 +518,7 @@ class Commands(discord.Cog, name="Commands"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
+        use_threads: bool,
     ):
         await self.converser_cog.converse_command(
             ctx,
@@ -524,6 +531,7 @@ class Commands(discord.Cog, name="Commands"):
             top_p,
             frequency_penalty,
             presence_penalty,
+            use_threads=use_threads,
         )
 
     @add_to_group("gpt")

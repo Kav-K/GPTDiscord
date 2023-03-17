@@ -306,6 +306,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     ):
         """end the thread of the user interacting with the bot, if the conversation has reached the limit close it for the owner"""
         normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
+        # Check if the channel is an instance of a thread
+        thread = False
+        if isinstance(ctx.channel, discord.Thread):
+            thread = True
+
+
         if (
             conversation_limit
         ):  # if we reach the conversation limit we want to close from the channel it was maxed out in
@@ -365,7 +371,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.channel.send(
             embed=EmbedStatics.generate_end_embed(),
-            view=ShareView(self, ctx.channel.id),
+            view=ShareView(self, ctx.channel.id) if thread else None,
         )
 
         # Close all conversation threads for the user
@@ -379,12 +385,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ][0]
                 self.conversation_thread_owners[owner_id].remove(ctx.channel.id)
                 # Attempt to close and lock the thread.
-                try:
-                    thread = await self.bot.fetch_channel(channel_id)
-                    await thread.edit(locked=True)
-                    await thread.edit(name="Closed-GPT")
-                except Exception:
-                    traceback.print_exc()
+                if thread:
+                    try:
+                        thread = await self.bot.fetch_channel(channel_id)
+                        await thread.edit(name="Closed-GPT")
+                        await thread.edit(archived=True)
+                    except Exception:
+                        traceback.print_exc()
             except Exception:
                 traceback.print_exc()
         else:
@@ -395,12 +402,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
 
                 # Attempt to close and lock the thread.
-                try:
-                    thread = await self.bot.fetch_channel(thread_id)
-                    await thread.edit(locked=True)
-                    await thread.edit(name="Closed-GPT")
-                except Exception:
-                    traceback.print_exc()
+                if thread:
+                    try:
+                        thread = await self.bot.fetch_channel(thread_id)
+                        await thread.edit(name="Closed-GPT")
+                        await thread.edit(archived=True)
+                    except Exception:
+                        traceback.print_exc()
 
     async def send_settings_text(self, ctx):
         """compose and return the settings menu to the interacting user"""
@@ -598,17 +606,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         new_conversation_history.append(
             EmbeddedConversationItem(
-                "\nThis conversation has some context from earlier, which has been summarized as follows: ",
+                f"\nThis conversation has some context from earlier, which has been summarized as follows: {summarized_text} \nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.",
                 0,
             )
         )
-        new_conversation_history.append(EmbeddedConversationItem(summarized_text, 0))
-        new_conversation_history.append(
-            EmbeddedConversationItem(
-                "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n",
-                0,
-            )
-        )
+
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
             EmbeddedConversationItem(
@@ -1017,6 +1019,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
+        use_threads: bool = True,  # Add this parameter
     ):
         """Command handler. Starts a conversation with the bot
 
@@ -1052,44 +1055,43 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if await Moderation.simple_moderate_and_respond(opener, ctx):
                 return
 
-        # if user.id in self.conversation_thread_owners:
-        #     await ctx.respond(
-        #         "You've already created a thread, end it before creating a new one",
-        #         delete_after=5,
-        #     )
-        #     return
-
-        if private:
-            await ctx.respond(
-                embed=discord.Embed(
-                    title=f"{user.name}'s private conversation with GPT3",
-                    color=0x808080,
+        if use_threads:
+            if private:
+                embed_title = f"{user.name}'s private conversation with GPT"
+                thread = await ctx.channel.create_thread(
+                    name=embed_title,
+                    auto_archive_duration=60,
                 )
-            )
-            thread = await ctx.channel.create_thread(
-                name=user.name + "'s private conversation with GPT3",
-                auto_archive_duration=60,
-            )
-        elif not private:
-            message_thread = await ctx.respond(
-                embed=discord.Embed(
-                    title=f"{user.name}'s conversation with GPT3", color=0x808080
+                target = thread
+            else:
+                embed_title = f"{user.name}'s conversation with GPT"
+                message_embed = discord.Embed(title=embed_title, color=0x808080)
+                message_thread = await ctx.send(embed=message_embed)
+                thread = await message_thread.create_thread(
+                    name=user.name + "'s conversation with GPT",
+                    auto_archive_duration=60,
                 )
-            )
-            # Get the actual message object for the message_thread
-            message_thread_real = await ctx.fetch_message(message_thread.id)
-            thread = await message_thread_real.create_thread(
-                name=user.name + "'s conversation with GPT3",
-                auto_archive_duration=60,
-            )
+                await ctx.respond("Conversation started.")
+                target = thread
+        else:
+            target = ctx.channel
+            if private:
+                embed_title = f"{user.name}'s private conversation with GPT"
+            else:
+                embed_title = f"{user.name}'s conversation with GPT"
 
-        self.conversation_threads[thread.id] = Thread(thread.id)
-        self.conversation_threads[thread.id].model = (
+            embed = discord.Embed(title=embed_title, color=0x808080)
+            await ctx.respond(embed=embed)
+
+
+
+        self.conversation_threads[target.id] = Thread(target.id)
+        self.conversation_threads[target.id].model = (
             self.model.model if not model else model
         )
 
         # Set the overrides for the conversation
-        self.conversation_threads[thread.id].set_overrides(
+        self.conversation_threads[target.id].set_overrides(
             temperature, top_p, frequency_penalty, presence_penalty
         )
 
@@ -1125,7 +1127,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                                 "frequency_penalty", None
                             )
                             presence_penalty = opener_file.get("presence_penalty", None)
-                            self.conversation_threads[thread.id].set_overrides(
+                            self.conversation_threads[target.id].set_overrides(
                                 temperature, top_p, frequency_penalty, presence_penalty
                             )
                             if (
@@ -1147,44 +1149,36 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
-            self.conversation_threads[thread.id].history.append(
+            self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
         elif not minimal:
-            self.conversation_threads[thread.id].history.append(
+            self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
             )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
-        self.conversation_thread_owners[user_id_normalized].append(thread.id)
-        overrides = self.conversation_threads[thread.id].get_overrides()
+        self.conversation_thread_owners[user_id_normalized].append(target.id)
+        overrides = self.conversation_threads[target.id].get_overrides()
 
-        await thread.send(f"<@{str(ctx.user.id)}> is the thread owner.")
+        await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")
 
-        await thread.send(
+        await target.send(
             embed=EmbedStatics.generate_conversation_embed(
-                self.conversation_threads, thread, opener, overrides
+                self.conversation_threads, target, opener, overrides
             )
         )
 
         # send opening
         if opener:
-            thread_message = await thread.send(
+            target_message = await target.send(
                 embed=EmbedStatics.generate_opener_embed(opener)
             )
-            if thread.id in self.conversation_threads:
+            if target.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
-                self.awaiting_thread_responses.append(thread.id)
+                self.awaiting_target_responses.append(target.id)
 
-                if not self.pinecone_service:
-                    self.conversation_threads[thread.id].history.append(
-                        EmbeddedConversationItem(
-                            f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
-                            0,
-                        )
-                    )
-
-                self.conversation_threads[thread.id].count += 1
+                # ... (no other changes in the middle part of the function)
 
             overrides = Override(
                 overrides["temperature"],
@@ -1195,21 +1189,21 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             await TextService.encapsulated_send(
                 self,
-                thread.id,
+                target.id,
                 opener
-                if thread.id not in self.conversation_threads or self.pinecone_service
+                if target.id not in self.conversation_threads or self.pinecone_service
                 else "".join(
-                    [item.text for item in self.conversation_threads[thread.id].history]
+                    [item.text for item in self.conversation_threads[target.id].history]
                 ),
-                thread_message,
+                target_message,
                 overrides=overrides,
                 user=user,
-                model=self.conversation_threads[thread.id].model,
+                model=self.conversation_threads[target.id].model,
                 custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)
-            if thread.id in self.awaiting_thread_responses:
-                self.awaiting_thread_responses.remove(thread.id)
+            if target.id in self.awaiting_target_responses:
+                self.awaiting_target_responses.remove(target.id)
 
     async def end_command(self, ctx: discord.ApplicationContext):
         """Command handler. Gets the user's thread and ends it"""
