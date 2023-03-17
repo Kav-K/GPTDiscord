@@ -620,10 +620,16 @@ class Model:
             f"{details['exception'].args[0]}"
         )
 
-    async def valid_text_request(self, response):
+    async def valid_text_request(self,response, model=None):
         try:
             tokens_used = int(response["usage"]["total_tokens"])
-            await self.usage_service.update_usage(tokens_used)
+            if model and model in Models.GPT4_MODELS:
+                await self.usage_service.update_usage(tokens_used,
+                                                      prompt_tokens=int(response["usage"]["prompt_tokens"]),
+                                                      completion_tokens=int(response["usage"]["completion_tokens"]),
+                                                      gpt4=True)
+            else:
+                await self.usage_service.update_usage(tokens_used)
         except Exception as e:
             raise ValueError(
                 "The API returned an invalid response: "
@@ -775,13 +781,6 @@ class Model:
 
                 return response
 
-    # async def send_language_detect_request_local(self, text):
-    #     detected = await asyncio.get_running_loop().run_in_executor(
-    #         None, self.detector.compute_language_confidence, text, Language.ENGLISH
-    #     )
-    #     if detected < 0.03:
-    #         return False
-    #     return True
 
     @backoff.on_exception(
         backoff.expo,
@@ -887,13 +886,28 @@ class Model:
                     {"role": "assistant", "name": bot_name_clean, "content": text}
                 )
             else:
-                username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
-                username_clean = self.cleanse_username(username)
-                text = message.text.replace(f"{username}:", "")
-                text = text.replace("<|endofstatement|>", "")
-                messages.append(
-                    {"role": "user", "name": username_clean, "content": text}
-                )
+                try:
+
+                    print("In first block The message text is ->" + message.text)
+                    if message.text.strip().lower().startswith("this conversation has some context from earlier"):
+                        print("Hit the exception clause")
+                        raise Exception("This is a context message")
+
+
+                    username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
+                    username_clean = self.cleanse_username(username)
+                    text = message.text.replace(f"{username}:", "")
+                    text = text.replace("<|endofstatement|>", "")
+                    messages.append(
+                        {"role": "user", "name": username_clean, "content": text}
+                    )
+                    print("Got to here")
+                except Exception:
+                    print("In second block The message text is ->" + message.text)
+                    text = message.text.replace("<|endofstatement|>", "")
+                    messages.append(
+                        {"role": "system", "content": text}
+                    )
 
         print(f"Messages -> {messages}")
         async with aiohttp.ClientSession(raise_for_status=False) as session:
@@ -1044,7 +1058,7 @@ class Model:
                     response = await resp.json()
                     # print(f"Payload -> {payload}")
                     # Parse the total tokens used for this request and response pair from the response
-                    await self.valid_text_request(response)
+                    await self.valid_text_request(response, model=self.model if model is None else model)
                     print(f"Response -> {response}")
 
                     return response
@@ -1078,7 +1092,7 @@ class Model:
                     response = await resp.json()
                     # print(f"Payload -> {payload}")
                     # Parse the total tokens used for this request and response pair from the response
-                    await self.valid_text_request(response)
+                    await self.valid_text_request(response, model=self.model if model is None else model)
                     print(f"Response -> {response}")
 
                     return response

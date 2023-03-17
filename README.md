@@ -45,7 +45,9 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
   
 # Recent Notable Updates  
 
-- **ChatGPT API Integration** - The ChatGPT API has been released and our bot is now fully integrated with it! Change to model to one of the ChatGPT turbo models with `/system settings`, or include the model as a param in your `/gpt converse`, `/gpt ask`, etc requests! The two currently available ChatGPT models are `gpt-3.5-turbo` and `gpt-3.5-turbo-0301`. This change is very experimental, so we're looking for your feedback and input on what you think of the new model's performance, especially for search and indexing functionality. 
+- **Full-channel conversations** - Start a conversation in a full discord channel, retained across restarts, permanent memory. Set `use_threads` to False in `/gpt converse`!
+
+- **GPT4 API Integration** - GPT-4 is fully supported by our bot, if you're off the waitlist, you can put in your organization ID in the environment file and it will work out of the box and allow you to select gpt-4 models in /system settings and etc!
   
 - **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
 <p align="center"/>  
@@ -105,7 +107,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
   
 `/gpt edit <instruction> <input> <temp> <top_p> <codex>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Codex uses a model trained on code. Editing is currently free  
   
-`/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT  
+`/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT. Also use the option `use_threads:False` to start a conversation in a full discord channel!
   
 - `opener:<opener text>` - Start a conversation with the bot, with a custom opener text (this is useful if you want it to take on a custom personality from the start).  
   

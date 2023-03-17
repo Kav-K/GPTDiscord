@@ -503,7 +503,7 @@ class Commands(discord.Cog, name="Commands"):
         name="use_threads",
         description="Set this to false to start a channel conversation",
         required=False,
-        default=False,
+        default=True,
     )
     @discord.guild_only()
     async def converse(

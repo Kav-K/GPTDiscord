@@ -388,8 +388,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if thread:
                     try:
                         thread = await self.bot.fetch_channel(channel_id)
-                        await thread.edit(locked=True)
                         await thread.edit(name="Closed-GPT")
+                        await thread.edit(archived=True)
                     except Exception:
                         traceback.print_exc()
             except Exception:
@@ -405,8 +405,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 if thread:
                     try:
                         thread = await self.bot.fetch_channel(thread_id)
-                        await thread.edit(locked=True)
                         await thread.edit(name="Closed-GPT")
+                        await thread.edit(archived=True)
                     except Exception:
                         traceback.print_exc()
 
@@ -606,17 +606,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         new_conversation_history.append(
             EmbeddedConversationItem(
-                "\nThis conversation has some context from earlier, which has been summarized as follows: ",
+                f"\nThis conversation has some context from earlier, which has been summarized as follows: {summarized_text} \nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.",
                 0,
             )
         )
-        new_conversation_history.append(EmbeddedConversationItem(summarized_text, 0))
-        new_conversation_history.append(
-            EmbeddedConversationItem(
-                "\nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.\n",
-                0,
-            )
-        )
+
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
             EmbeddedConversationItem(
@@ -1077,6 +1071,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     name=user.name + "'s conversation with GPT",
                     auto_archive_duration=60,
                 )
+                await ctx.respond("Conversation started.")
                 target = thread
         else:
             target = ctx.channel

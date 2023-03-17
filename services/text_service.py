@@ -73,14 +73,6 @@ class TextService:
             else prompt
         ), prompt
 
-        # Determine if we're sending a ChatGPT model request. If chatgpt is in the model name or the default model is a ChatGPT model.
-        # chatgpt_conversation = False
-        # chatgpt = False
-        # if (model and "chatgpt" in model.lower()) or (not model and converser_cog.model.model.lower() in Models.CHATGPT_MODELS):
-        #     chatgpt = True
-        #     if ctx.channel.id in converser_cog.conversation_threads:
-        #         chatgpt_conversation = True
-
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
         from_context = isinstance(ctx, discord.ApplicationContext)
@@ -260,7 +252,7 @@ class TextService:
                     tokens = converser_cog.usage_service.count_tokens(new_prompt)
 
                     if (
-                        tokens > converser_cog.model.summarize_threshold - 150
+                        tokens > converser_cog.model.summarize_threshold
                     ):  # 150 is a buffer for the second stage
                         await ctx.reply(
                             "I tried to summarize our current conversation so we could keep chatting, "
@@ -269,7 +261,7 @@ class TextService:
                         )
 
                         await converser_cog.end_conversation(ctx)
-                        converser_cog.remove_awaiting(ctx.author.id, ctx.channel.id)
+                        converser_cog.remove_awaiting(ctx.author.id, ctx.channel.id, False, False)
                         return
                 else:
                     await ctx.reply("The conversation context limit has been reached.")
