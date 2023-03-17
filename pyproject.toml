@@ -40,7 +40,8 @@ dependencies = [
 "python-pptx==0.6.21",
 "langchain==0.0.105",
 "unidecode==1.3.6",
-"tqdm==4.64.1"
+"tqdm==4.64.1",
+"docx2txt==0.8"
 ]
 
 dynamic = ["version"]
