@@ -306,6 +306,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     ):
         """end the thread of the user interacting with the bot, if the conversation has reached the limit close it for the owner"""
         normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
+        # Check if the channel is an instance of a thread
+        thread = False
+        if isinstance(ctx.channel, discord.Thread):
+            thread = True
+
+
         if (
             conversation_limit
         ):  # if we reach the conversation limit we want to close from the channel it was maxed out in
@@ -379,12 +385,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 ][0]
                 self.conversation_thread_owners[owner_id].remove(ctx.channel.id)
                 # Attempt to close and lock the thread.
-                try:
-                    thread = await self.bot.fetch_channel(channel_id)
-                    await thread.edit(locked=True)
-                    await thread.edit(name="Closed-GPT")
-                except Exception:
-                    traceback.print_exc()
+                if thread:
+                    try:
+                        thread = await self.bot.fetch_channel(channel_id)
+                        await thread.edit(locked=True)
+                        await thread.edit(name="Closed-GPT")
+                    except Exception:
+                        traceback.print_exc()
             except Exception:
                 traceback.print_exc()
         else:
@@ -395,12 +402,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
 
                 # Attempt to close and lock the thread.
-                try:
-                    thread = await self.bot.fetch_channel(thread_id)
-                    await thread.edit(locked=True)
-                    await thread.edit(name="Closed-GPT")
-                except Exception:
-                    traceback.print_exc()
+                if thread:
+                    try:
+                        thread = await self.bot.fetch_channel(thread_id)
+                        await thread.edit(locked=True)
+                        await thread.edit(name="Closed-GPT")
+                    except Exception:
+                        traceback.print_exc()
 
     async def send_settings_text(self, ctx):
         """compose and return the settings menu to the interacting user"""
@@ -1053,39 +1061,29 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if await Moderation.simple_moderate_and_respond(opener, ctx):
                 return
 
-        # if user.id in self.conversation_thread_owners:
-        #     await ctx.respond(
-        #         "You've already created a thread, end it before creating a new one",
-        #         delete_after=5,
-        #     )
-        #     return
-
-        # Add a variable to store the channel or thread
-        target = None
-
         if use_threads:
             if private:
-                embed_title = f"{user.name}'s private conversation with GPT3"
+                embed_title = f"{user.name}'s private conversation with GPT"
                 thread = await ctx.channel.create_thread(
-                    name=user.name + "'s private conversation with GPT3",
+                    name=embed_title,
                     auto_archive_duration=60,
                 )
                 target = thread
             else:
-                embed_title = f"{user.name}'s conversation with GPT3"
+                embed_title = f"{user.name}'s conversation with GPT"
                 message_embed = discord.Embed(title=embed_title, color=0x808080)
                 message_thread = await ctx.send(embed=message_embed)
                 thread = await message_thread.create_thread(
-                    name=user.name + "'s conversation with GPT3",
+                    name=user.name + "'s conversation with GPT",
                     auto_archive_duration=60,
                 )
                 target = thread
         else:
             target = ctx.channel
             if private:
-                embed_title = f"{user.name}'s private conversation with GPT3"
+                embed_title = f"{user.name}'s private conversation with GPT"
             else:
-                embed_title = f"{user.name}'s conversation with GPT3"
+                embed_title = f"{user.name}'s conversation with GPT"
 
             embed = discord.Embed(title=embed_title, color=0x808080)
             await ctx.send(embed=embed)
@@ -1098,7 +1096,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
 
         # Set the overrides for the conversation
-        self.conversation_threads[thread.id].set_overrides(
+        self.conversation_threads[target.id].set_overrides(
             temperature, top_p, frequency_penalty, presence_penalty
         )
 
@@ -1134,7 +1132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                                 "frequency_penalty", None
                             )
                             presence_penalty = opener_file.get("presence_penalty", None)
-                            self.conversation_threads[thread.id].set_overrides(
+                            self.conversation_threads[target.id].set_overrides(
                                 temperature, top_p, frequency_penalty, presence_penalty
                             )
                             if (
@@ -1156,17 +1154,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
-            self.conversation_threads[thread.id].history.append(
+            self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
         elif not minimal:
-            self.conversation_threads[thread.id].history.append(
+            self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
             )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
-        self.conversation_thread_owners[user_id_normalized].append(thread.id)
-        overrides = self.conversation_threads[thread.id].get_overrides()
+        self.conversation_thread_owners[user_id_normalized].append(target.id)
+        overrides = self.conversation_threads[target.id].get_overrides()
 
         await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")
 
