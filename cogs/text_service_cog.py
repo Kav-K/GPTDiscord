@@ -371,7 +371,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.channel.send(
             embed=EmbedStatics.generate_end_embed(),
-            view=ShareView(self, ctx.channel.id),
+            view=ShareView(self, ctx.channel.id) if thread else None,
         )
 
         # Close all conversation threads for the user
@@ -1086,7 +1086,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 embed_title = f"{user.name}'s conversation with GPT"
 
             embed = discord.Embed(title=embed_title, color=0x808080)
-            await ctx.send(embed=embed)
+            await ctx.respond(embed=embed)
 
 
 
