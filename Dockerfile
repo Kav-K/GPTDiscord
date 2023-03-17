@@ -27,8 +27,8 @@ RUN pip install --target="/install" --upgrade pip setuptools wheel setuptools_ru
 COPY requirements_base.txt /install
 COPY requirements_full.txt /install
 RUN pip install --target="/install" --upgrade -r requirements_base.txt
-RUN if [ "${FULL}" = "true" ]; then \
-    pip install --target="/install" --upgrade torch==1.12.0+cpu torchvision==0.13.0+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi \
+RUN if [ "${FULL}" = "true" ]; \
+    then pip install --target="/install" --upgrade torch==1.12.0+cpu torchvision==0.13.0+cpu -f https://download.pytorch.org/whl/torch_stable.html \
     ; pip install --target="/install" --upgrade \
        -r requirements_full.txt \
     ; pip install --target="/install" --upgrade \
