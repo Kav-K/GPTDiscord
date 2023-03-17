@@ -1173,7 +1173,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             if target.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
-                self.awaiting_target_responses.append(target.id)
+                if not self.pinecone_service:
+                    self.conversation_threads[target.id].history.append(
+                        EmbeddedConversationItem(
+                            f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
+                            0,
+                        )
+                    )
+                self.awaiting_thread_responses.append(target.id)
 
                 # ... (no other changes in the middle part of the function)
 
@@ -1199,8 +1206,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 custom_api_key=user_api_key,
             )
             self.awaiting_responses.remove(user_id_normalized)
-            if target.id in self.awaiting_target_responses:
-                self.awaiting_target_responses.remove(target.id)
+            if target.id in self.awaiting_thread_responses:
+                self.awaiting_thread_responses.remove(target.id)
 
     async def end_command(self, ctx: discord.ApplicationContext):
         """Command handler. Gets the user's thread and ends it"""
