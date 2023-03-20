@@ -883,7 +883,10 @@ class Model:
                 text = message.text.replace(bot_name, "")
                 text = text.replace("<|endofstatement|>", "")
                 messages.append(
-                    {"role": "assistant", "content": text} # TODO add back the assistant's name when the API is fixed..
+                    {
+                        "role": "assistant",
+                        "content": text,
+                    }  # TODO add back the assistant's name when the API is fixed..
                 )
             else:
                 try:

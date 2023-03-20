@@ -1084,14 +1084,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Check if the user is permitted to start a conversation in full channels
             # check if any of the user role names match CHANNEL_CHAT_ROLES
             if CHANNEL_CHAT_ROLES and CHANNEL_CHAT_ROLES != [None]:
-                if not any(
-                    role.name in CHANNEL_CHAT_ROLES for role in ctx.user.roles
-                ):
+                if not any(role.name in CHANNEL_CHAT_ROLES for role in ctx.user.roles):
                     await ctx.respond(
                         "You are not permitted to start a conversation in this channel."
                     )
                     return
-
 
             target = ctx.channel
             if private:
