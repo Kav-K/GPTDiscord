@@ -874,7 +874,6 @@ class Model:
                 messages.append(
                     {
                         "role": "system",
-                        "name": "Instructor",
                         "content": message.text,
                     }
                 )
@@ -884,29 +883,27 @@ class Model:
                 text = message.text.replace(bot_name, "")
                 text = text.replace("<|endofstatement|>", "")
                 messages.append(
-                    {"role": "assistant", "name": bot_name_clean, "content": text}
+                    {"role": "assistant", "content": text} # TODO add back the assistant's name when the API is fixed..
                 )
             else:
                 try:
-                    print("In first block The message text is ->" + message.text)
                     if (
                         message.text.strip()
                         .lower()
                         .startswith("this conversation has some context from earlier")
                     ):
-                        print("Hit the exception clause")
                         raise Exception("This is a context message")
 
                     username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
                     username_clean = self.cleanse_username(username)
                     text = message.text.replace(f"{username}:", "")
+                    # Strip whitespace just from the right side of the string
+                    text = text.rstrip()
                     text = text.replace("<|endofstatement|>", "")
                     messages.append(
                         {"role": "user", "name": username_clean, "content": text}
                     )
-                    print("Got to here")
                 except Exception:
-                    print("In second block The message text is ->" + message.text)
                     text = message.text.replace("<|endofstatement|>", "")
                     messages.append({"role": "system", "content": text})
 

@@ -43,6 +43,7 @@ CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
 PRE_MODERATE = EnvService.get_premoderate()
 FORCE_ENGLISH = EnvService.get_force_english()
 BOT_TAGGABLE = EnvService.get_bot_is_taggable()
+CHANNEL_CHAT_ROLES = EnvService.get_channel_chat_roles()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -1073,6 +1074,25 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.respond("Conversation started.")
                 target = thread
         else:
+            # Check if this current channel is already in a conversation
+            if ctx.channel.id in self.conversation_threads:
+                await ctx.respond(
+                    "There is already a conversation in this channel. Please finish that conversation before starting a new one."
+                )
+                return
+
+            # Check if the user is permitted to start a conversation in full channels
+            # check if any of the user role names match CHANNEL_CHAT_ROLES
+            if CHANNEL_CHAT_ROLES and CHANNEL_CHAT_ROLES != [None]:
+                if not any(
+                    role.name in CHANNEL_CHAT_ROLES for role in ctx.user.roles
+                ):
+                    await ctx.respond(
+                        "You are not permitted to start a conversation in this channel."
+                    )
+                    return
+
+
             target = ctx.channel
             if private:
                 embed_title = f"{user.name}'s private conversation with GPT"
