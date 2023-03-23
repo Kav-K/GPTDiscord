@@ -1018,7 +1018,7 @@ class Model:
         # Validate that  all the parameters are in a good state before we send the request
 
         if not max_tokens_override:
-            if model:
+            if model and model not in Models.GPT4_MODELS and model not in Models.CHATGPT_MODELS:
                 max_tokens_override = Models.get_max_tokens(model) - tokens
 
         print(f"The prompt about to be sent is {prompt}")
