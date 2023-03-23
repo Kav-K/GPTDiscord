@@ -10,24 +10,24 @@ from services.usage_service import UsageService
 # Non-ChatGPT -> TODO: make generic test and loop through text models
 @pytest.mark.asyncio
 async def test_send_req():
-
     usage_service = UsageService(Path("../tests"))
     model = Model(usage_service)
-    prompt = 'how many hours are in a day?'
+    prompt = "how many hours are in a day?"
     tokens = len(GPT2TokenizerFast.from_pretrained("gpt2")(prompt)["input_ids"])
     res = await model.send_request(prompt, tokens)
-    assert '24' in res['choices'][0]['text']
+    assert "24" in res["choices"][0]["text"]
 
 
 # ChatGPT version
 @pytest.mark.asyncio
 async def test_send_req_gpt():
-
     usage_service = UsageService(Path("../tests"))
     model = Model(usage_service)
-    prompt = 'how many hours are in a day?'
-    res = await model.send_request(prompt, None, is_chatgpt_request=True, model="gpt-3.5-turbo")
-    assert '24' in res['choices'][0]['message']['content']
+    prompt = "how many hours are in a day?"
+    res = await model.send_request(
+        prompt, None, is_chatgpt_request=True, model="gpt-3.5-turbo"
+    )
+    assert "24" in res["choices"][0]["message"]["content"]
 
 
 # GPT4 version
@@ -35,9 +35,9 @@ async def test_send_req_gpt():
 async def test_send_req_gpt4():
     usage_service = UsageService(Path("../tests"))
     model = Model(usage_service)
-    prompt = 'how many hours are in a day?'
+    prompt = "how many hours are in a day?"
     res = await model.send_request(prompt, None, is_chatgpt_request=True, model="gpt-4")
-    assert '24' in res['choices'][0]['message']['content']
+    assert "24" in res["choices"][0]["message"]["content"]
 
 
 # Edit request -> currently broken due to endpoint
@@ -48,4 +48,3 @@ async def test_send_req_gpt4():
 #     text = 'how many hours are in a day?'
 #     res = await model.send_edit_request(text, codex=True)
 #     assert '24' in res['choices'][0]['text']
-

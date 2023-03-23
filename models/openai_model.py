@@ -634,7 +634,7 @@ class Model:
                 await self.usage_service.update_usage(tokens_used)
         except Exception as e:
             traceback.print_exc()
-            if 'error' in response:
+            if "error" in response:
                 raise ValueError(
                     "The API returned an invalid response: "
                     + str(response["error"]["message"])
@@ -1018,7 +1018,11 @@ class Model:
         # Validate that  all the parameters are in a good state before we send the request
 
         if not max_tokens_override:
-            if model and model not in Models.GPT4_MODELS and model not in Models.CHATGPT_MODELS:
+            if (
+                model
+                and model not in Models.GPT4_MODELS
+                and model not in Models.CHATGPT_MODELS
+            ):
                 max_tokens_override = Models.get_max_tokens(model) - tokens
 
         print(f"The prompt about to be sent is {prompt}")
