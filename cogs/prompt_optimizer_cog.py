@@ -96,7 +96,8 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 best_of_override=1,
                 max_tokens_override=60,
                 custom_api_key=user_api_key,
-                is_chatgpt_request="turbo" in str(self.model.model),
+                is_chatgpt_request="turbo" in str(self.model.model)
+                or "gpt-4" in str(self.model.model),
             )
 
             # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
@@ -105,7 +106,10 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
 
             response_text = (
                 str(response["choices"][0]["text"])
-                if not self.model.model in Models.CHATGPT_MODELS
+                if not (
+                    self.model.model in Models.CHATGPT_MODELS
+                    or self.model.model in Models.GPT4_MODELS
+                )
                 else response["choices"][0]["message"]["content"]
             )
 
