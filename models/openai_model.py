@@ -633,10 +633,14 @@ class Model:
             else:
                 await self.usage_service.update_usage(tokens_used)
         except Exception as e:
-            raise ValueError(
-                "The API returned an invalid response: "
-                + str(response["error"]["message"])
-            ) from e
+            traceback.print_exc()
+            if 'error' in response:
+                raise ValueError(
+                    "The API returned an invalid response: "
+                    + str(response["error"]["message"])
+                ) from e
+            else:
+                raise ValueError("The API returned an invalid response") from e
 
     @backoff.on_exception(
         backoff.expo,
@@ -1010,13 +1014,11 @@ class Model:
         stop=None,
         custom_api_key=None,
         is_chatgpt_request=False,
-    ) -> (
-        Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
 
         if not max_tokens_override:
-            if model:
+            if model and model not in Models.GPT4_MODELS and model not in Models.CHATGPT_MODELS:
                 max_tokens_override = Models.get_max_tokens(model) - tokens
 
         print(f"The prompt about to be sent is {prompt}")
@@ -1057,7 +1059,7 @@ class Model:
                     headers=headers,
                 ) as resp:
                     response = await resp.json()
-                    # print(f"Payload -> {payload}")
+                    print(f"Payload -> {payload}")
                     # Parse the total tokens used for this request and response pair from the response
                     await self.valid_text_request(
                         response, model=self.model if model is None else model
