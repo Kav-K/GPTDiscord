@@ -1,4 +1,6 @@
 ## Other Features  
+### Full-channel chat
+This bot supports designating an entire discord text channel as a GPT conversation. Use /gpt converse and set the use_threads option to false. You can designate who is allowed to turn full channels into chat by setting the `CHANNEL_CHAT_ROLES` variable in your `.env` file to be a list of role names separated by commas that should be able to use this functionality.
 ### Health Check Service  
   
 The bot has the ability to launch a HTTP endpoint at `<host>:8181/` that will return a json response of the bot's status and uptime. This is especially useful if you want to run this bot on cloud application containers, like Azure App Service.  

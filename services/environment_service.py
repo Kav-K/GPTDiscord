@@ -251,6 +251,32 @@ class EnvService:
         return index_roles
 
     @staticmethod
+    def get_channel_chat_roles():
+        # GPT_ROLES is a comma separated list of string roles
+        # It can also just be one role
+        # Read these allowed roles and return as a list of strings
+        try:
+            cc_roles = os.getenv("CHANNEL_CHAT_ROLES")
+        except Exception:
+            cc_roles = None
+
+        if cc_roles is None:
+            print(
+                "INDEX_ROLES is not defined properly in the environment file!"
+                "Please copy your server's role and put it into INDEX_ROLES in the .env file."
+                'For example a line should look like: `INDEX_ROLES="Gpt"`'
+            )
+            print("Defaulting to allowing all users to use Index commands...")
+            return [None]
+
+        cc_roles = (
+            cc_roles.lower().strip().split(",")
+            if "," in cc_roles
+            else [cc_roles.lower()]
+        )
+        return cc_roles
+
+    @staticmethod
     def get_welcome_message():
         # WELCOME_MESSAGE is a default string used to welcome new members to the server if GPT3 is not available.
         # The string can be blank but this is not advised. If a string cannot be found in the .env file, the below string is used.
