@@ -90,8 +90,8 @@ class EmbedStatics:
             description=f"This index can now be queried and loaded with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -101,8 +101,8 @@ class EmbedStatics:
             description=f"Index add failed. {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -111,8 +111,8 @@ class EmbedStatics:
             title="Index Loaded" if not name else f"Index {name} loaded",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -122,8 +122,8 @@ class EmbedStatics:
             description=f"Index load failed. {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -133,8 +133,8 @@ class EmbedStatics:
             description=f"Index query failed. {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -144,8 +144,8 @@ class EmbedStatics:
             description=f"Indexes composed successfully, you can query and load this index with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -155,8 +155,8 @@ class EmbedStatics:
             description=f"Index compose failed. {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -166,7 +166,7 @@ class EmbedStatics:
             description=f"Your index composition is running, this may take a while.",
             color=discord.Color.blurple(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
         embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
         return embed
 
@@ -177,8 +177,8 @@ class EmbedStatics:
             description=f"Index {original} renamed to {renamed}",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -188,8 +188,8 @@ class EmbedStatics:
             description=f"Index rename from {original} to {renamed} failed. {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -208,8 +208,8 @@ class EmbedStatics:
             description=f"An error occured while performing search: {message}",
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -219,7 +219,7 @@ class EmbedStatics:
             description=f"Your original search request is being redone. This may take a while.",
             color=discord.Color.blurple(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
         embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
         return embed
 
@@ -230,7 +230,7 @@ class EmbedStatics:
             description=f"You can access your shared conversation at: {url}",
             color=discord.Color.blurple(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
         embed.set_thumbnail(url="https://i.imgur.com/8OIZc1A.png")
         return embed
 
@@ -241,8 +241,8 @@ class EmbedStatics:
             description=f"Conversation sharing failed: " + message,
             color=discord.Color.red(),
         )
-        # thumbnail of https://i.imgur.com/VLJ32x7.png
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
 
     @staticmethod
@@ -272,8 +272,8 @@ class EmbedStatics:
             description=f"Query:\n`{query}`\nThe index query was successful.\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -293,8 +293,8 @@ class EmbedStatics:
             description=f"Transcribed successfully:\n`{transcribed_text}`",
             color=discord.Color.green(),
         )
-        # thumbnail of https://i.imgur.com/7JF0oGD.png
-        embed.set_thumbnail(url="https://i.imgur.com/7JF0oGD.png")
+        # thumbnail of https://i.imgur.com/I5dIdg6.png
+        embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
         return embed
 
     @staticmethod
@@ -304,5 +304,5 @@ class EmbedStatics:
             description=f"Transcription failed: " + message,
             color=discord.Color.red(),
         )
-        embed.set_thumbnail(url="https://i.imgur.com/VLJ32x7.png")
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
         return embed
