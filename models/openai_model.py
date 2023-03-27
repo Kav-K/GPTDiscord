@@ -1143,9 +1143,9 @@ class Model:
     ) -> tuple[File, list[Any]]:
         # Validate that  all the parameters are in a good state before we send the request
         words = len(prompt.split(" "))
-        if words < 3 or words > 75:
+        if words < 1 or words > 75:
             raise ValueError(
-                "Prompt must be greater than 3 words and less than 75, it is currently "
+                "Prompt must be greater than 1 word and less than 75, it is currently "
                 + str(words)
             )
 
