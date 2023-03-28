@@ -413,9 +413,6 @@ class Commands(discord.Cog, name="Commands"):
         min_value=0,
         max_value=1,
     )
-    @discord.option(
-        name="codex", description="Enable codex version", required=False, default=False
-    )
     @discord.guild_only()
     async def edit(
         self,
@@ -425,10 +422,9 @@ class Commands(discord.Cog, name="Commands"):
         private: bool,
         temperature: float,
         top_p: float,
-        codex: bool,
     ):
         await self.converser_cog.edit_command(
-            ctx, instruction, text, private, temperature, top_p, codex
+            ctx, instruction, text, private, temperature, top_p
         )
 
     @add_to_group("gpt")
