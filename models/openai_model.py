@@ -935,7 +935,9 @@ class Model:
                 response = await resp.json()
                 # print(f"Payload -> {payload}")
                 # Parse the total tokens used for this request and response pair from the response
-                await self.valid_text_request(response, model=self.model if model is None else model)
+                await self.valid_text_request(
+                    response, model=self.model if model is None else model
+                )
                 print(f"Response -> {response}")
 
                 return response

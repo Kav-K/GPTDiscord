@@ -335,7 +335,9 @@ class TextService:
 
             response_text = (
                 converser_cog.cleanse_response(str(response["choices"][0]["text"]))
-                if not is_chatgpt_request and not is_chatgpt_conversation or from_edit_command
+                if not is_chatgpt_request
+                and not is_chatgpt_conversation
+                or from_edit_command
                 else converser_cog.cleanse_response(
                     str(response["choices"][0]["message"]["content"])
                 )
@@ -347,7 +349,10 @@ class TextService:
                 response_text = f"***{from_other_action}*** {response_text}"
             elif from_ask_command or from_ask_action:
                 response_model = response["model"]
-                if response_model in Models.GPT4_MODELS or response_model in Models.CHATGPT_MODELS:
+                if (
+                    response_model in Models.GPT4_MODELS
+                    or response_model in Models.CHATGPT_MODELS
+                ):
                     response_text = f"\n\n{response_text}"
                 response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
@@ -432,9 +437,7 @@ class TextService:
                             response_text, ctx
                         )
                     else:
-                        embed_pages = await converser_cog.paginate_embed(
-                            response_text
-                        )
+                        embed_pages = await converser_cog.paginate_embed(response_text)
                         view = ConversationView(
                             ctx,
                             converser_cog,
@@ -506,9 +509,7 @@ class TextService:
             else:
                 paginator = converser_cog.redo_users.get(ctx.author.id).paginator
                 if isinstance(paginator, pages.Paginator):
-                    embed_pages = await converser_cog.paginate_embed(
-                        response_text
-                    )
+                    embed_pages = await converser_cog.paginate_embed(response_text)
                     view = ConversationView(
                         ctx,
                         converser_cog,
@@ -959,7 +960,6 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 ctx=ctx,
                 model=self.model,
                 response_message=response_message,
-
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
                 from_ask_command=self.from_ask_command,
