@@ -46,5 +46,5 @@ async def test_send_req_gpt4():
 #     usage_service = UsageService(Path("../tests"))
 #     model = Model(usage_service)
 #     text = 'how many hours are in a day?'
-#     res = await model.send_edit_request(text, codex=True)
+#     res = await model.send_edit_request(text)
 #     assert '24' in res['choices'][0]['text']

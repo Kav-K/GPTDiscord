@@ -34,7 +34,6 @@ class TextService:
         instruction=None,
         from_ask_command=False,
         from_edit_command=False,
-        codex=False,
         model=None,
         user=None,
         custom_api_key=None,
@@ -59,7 +58,6 @@ class TextService:
             instruction (str, optional): Instruction for use with the edit endpoint. Defaults to None.
             from_ask_command (bool, optional): Called from the ask command. Defaults to False.
             from_edit_command (bool, optional): Called from the edit command. Defaults to False.
-            codex (bool, optional): Pass along that we want to use a codex model. Defaults to False.
             model (str, optional): Which model to generate output with. Defaults to None.
             user (discord.User, optional): An user object that can be used to set the stop. Defaults to None.
             custom_api_key (str, optional): per-user api key. Defaults to None.
@@ -317,7 +315,6 @@ class TextService:
                     instruction=instruction,
                     temp_override=overrides.temperature,
                     top_p_override=overrides.top_p,
-                    codex=codex,
                     custom_api_key=custom_api_key,
                 )
             else:
@@ -338,7 +335,7 @@ class TextService:
 
             response_text = (
                 converser_cog.cleanse_response(str(response["choices"][0]["text"]))
-                if not is_chatgpt_request and not is_chatgpt_conversation
+                if not is_chatgpt_request and not is_chatgpt_conversation or from_edit_command
                 else converser_cog.cleanse_response(
                     str(response["choices"][0]["message"]["content"])
                 )
@@ -349,14 +346,13 @@ class TextService:
             elif from_other_action:
                 response_text = f"***{from_other_action}*** {response_text}"
             elif from_ask_command or from_ask_action:
+                response_model = response["model"]
+                if response_model in Models.GPT4_MODELS or response_model in Models.CHATGPT_MODELS:
+                    response_text = f"\n\n{response_text}"
                 response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
-                if codex:
-                    response_text = response_text.strip()
-                    response_text = f"***Prompt:\n `{prompt}`***\n***Instruction:\n `{instruction}`***\n\n```\n{response_text}\n```"
-                else:
-                    response_text = response_text.strip()
-                    response_text = f"***Prompt:\n `{prompt}`***\n***Instruction:\n `{instruction}`***\n\n{response_text}\n"
+                response_text = response_text.strip()
+                response_text = f"***Prompt:***\n {prompt}\n\n***Instruction:***\n {instruction}\n\n***Response:***\n {response_text}"
 
             # If gpt3 tries writing a user mention try to replace it with their name
             response_text = await converser_cog.mention_to_username(ctx, response_text)
@@ -437,7 +433,7 @@ class TextService:
                         )
                     else:
                         embed_pages = await converser_cog.paginate_embed(
-                            response_text, codex, prompt, instruction
+                            response_text
                         )
                         view = ConversationView(
                             ctx,
@@ -500,7 +496,6 @@ class TextService:
                     ctx=ctx,
                     message=ctx,
                     response=response_message,
-                    codex=codex,
                     paginator=paginator,
                 )
                 converser_cog.redo_users[ctx.author.id].add_interaction(
@@ -512,7 +507,7 @@ class TextService:
                 paginator = converser_cog.redo_users.get(ctx.author.id).paginator
                 if isinstance(paginator, pages.Paginator):
                     embed_pages = await converser_cog.paginate_embed(
-                        response_text, codex, prompt, instruction
+                        response_text
                     )
                     view = ConversationView(
                         ctx,
@@ -950,7 +945,6 @@ class RedoButton(discord.ui.Button["ConversationView"]):
             instruction = self.converser_cog.redo_users[user_id].instruction
             ctx = self.converser_cog.redo_users[user_id].ctx
             response_message = self.converser_cog.redo_users[user_id].response
-            codex = self.converser_cog.redo_users[user_id].codex
 
             await interaction.response.send_message(
                 "Retrying your original request...", ephemeral=True, delete_after=15
@@ -965,7 +959,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                 ctx=ctx,
                 model=self.model,
                 response_message=response_message,
-                codex=codex,
+
                 custom_api_key=self.custom_api_key,
                 redo_request=True,
                 from_ask_command=self.from_ask_command,

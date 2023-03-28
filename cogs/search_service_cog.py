@@ -47,7 +47,7 @@ class SearchService(discord.Cog, name="SearchService"):
     async def paginate_embed(
         self, response_text, user: discord.Member, original_link=None
     ):
-        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
+        """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
@@ -59,9 +59,9 @@ class SearchService(discord.Cog, name="SearchService"):
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title=f"Search Results"
+                    title="Search Results"
                     if not original_link
-                    else f"Follow-up results",
+                    else "Follow-up results",
                     description=chunk,
                     url=original_link,
                 )

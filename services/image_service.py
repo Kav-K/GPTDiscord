@@ -122,7 +122,6 @@ class ImageService:
                 ctx=ctx,
                 response=result_message,
                 instruction=None,
-                codex=False,
                 paginator=None,
             )
 
@@ -184,7 +183,6 @@ class ImageService:
                         ctx=ctx,
                         response=result_message,
                         instruction=None,
-                        codex=False,
                         paginator=None,
                     )
 
