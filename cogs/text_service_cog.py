@@ -501,7 +501,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         return response_message
 
     async def paginate_embed(self, response_text):
-        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
+        """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
