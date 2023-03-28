@@ -350,10 +350,10 @@ class TextService:
             elif from_ask_command or from_ask_action:
                 response_model = response["model"]
                 if (
-                    response_model in Models.GPT4_MODELS
-                    or response_model in Models.CHATGPT_MODELS
+                    "gpt-3.5" in response_model
+                    or "gpt-4" in response_model
                 ):
-                    response_text = f"\n\n{response_text}"
+                    response_text = f"\n\n{response_text}" if not response_text.startswith("\n\n") else response_text
                 response_text = f"***{prompt}***{response_text}"
             elif from_edit_command:
                 response_text = response_text.strip()
