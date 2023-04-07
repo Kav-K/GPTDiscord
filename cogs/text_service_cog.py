@@ -500,14 +500,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     response_message = await ctx.channel.send(chunk)
         return response_message
 
-    async def paginate_embed(self, response_text, codex, prompt=None, instruction=None):
-        """Given a response text make embed pages and return a list of the pages. Codex makes it a codeblock in the embed"""
-        if codex:  # clean codex input
-            response_text = response_text.replace("```", "")
-            response_text = response_text.replace(f"***Prompt: {prompt}***\n", "")
-            response_text = response_text.replace(
-                f"***Instruction: {instruction}***\n\n", ""
-            )
+    async def paginate_embed(self, response_text):
+        """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
             response_text[i : i + self.EMBED_CUTOFF]
@@ -520,15 +514,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not first:
                 page = discord.Embed(
                     title=f"Page {count}",
-                    description=chunk
-                    if not codex
-                    else f"***Prompt:{prompt}***\n***Instruction:{instruction:}***\n```python\n{chunk}\n```",
+                    description=chunk,
                 )
                 first = True
             else:
                 page = discord.Embed(
                     title=f"Page {count}",
-                    description=chunk if not codex else f"```python\n{chunk}\n```",
+                    description=chunk,
                 )
             pages.append(page)
 
@@ -945,7 +937,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         private: bool,
         temperature: float,
         top_p: float,
-        codex: bool,
     ):
         """Command handler. Requests and returns a generation with no extras to the edit endpoint
 
@@ -955,7 +946,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             text (str): The text that should be modified
             temperature (float): Sets the temperature override
             top_p (float): Sets the top p override
-            codex (bool): Enables the codex edit model
         """
         user = ctx.user
 
@@ -991,7 +981,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             overrides=overrides,
             instruction=instruction,
             from_edit_command=True,
-            codex=codex,
             custom_api_key=user_api_key,
         )
 

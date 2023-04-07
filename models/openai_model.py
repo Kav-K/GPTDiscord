@@ -54,16 +54,11 @@ class Models:
     BABBAGE = "text-babbage-001"
     ADA = "text-ada-001"
 
-    # Code models
-    CODE_DAVINCI = "code-davinci-002"
-    CODE_CUSHMAN = "code-cushman-001"
-
     # Embedding models
     EMBEDDINGS = "text-embedding-ada-002"
 
     # Edit models
     EDIT = "text-davinci-edit-001"
-    CODE_EDIT = "code-davinci-edit-001"
 
     # ChatGPT Models
     TURBO = "gpt-3.5-turbo"
@@ -79,8 +74,6 @@ class Models:
         CURIE,
         BABBAGE,
         ADA,
-        CODE_DAVINCI,
-        CODE_CUSHMAN,
         TURBO,
         TURBO_DEV,
         GPT4,
@@ -88,7 +81,7 @@ class Models:
     ]
     CHATGPT_MODELS = [TURBO, TURBO_DEV]
     GPT4_MODELS = [GPT4, GPT4_32]
-    EDIT_MODELS = [EDIT, CODE_EDIT]
+    EDIT_MODELS = [EDIT]
 
     DEFAULT = DAVINCI
     LOW_USAGE_MODEL = CURIE
@@ -99,8 +92,6 @@ class Models:
         "text-curie-001": 2024,
         "text-babbage-001": 2024,
         "text-ada-001": 2024,
-        "code-davinci-002": 7900,
-        "code-cushman-001": 2024,
         TURBO: 4096,
         TURBO_DEV: 4096,
         GPT4: 8192,
@@ -648,6 +639,8 @@ class Model:
                     completion_tokens=int(response["usage"]["completion_tokens"]),
                     gpt4=True,
                 )
+            if model and model in Models.EDIT_MODELS:
+                pass
             else:
                 await self.usage_service.update_usage(tokens_used)
         except Exception as e:
@@ -708,17 +701,16 @@ class Model:
         text=None,
         temp_override=None,
         top_p_override=None,
-        codex=False,
         custom_api_key=None,
     ):
         print(
-            f"The text about to be edited is [{text}] with instructions [{instruction}] codex [{codex}]"
+            f"The text about to be edited is [{text}] with instructions [{instruction}]"
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
         async with aiohttp.ClientSession(raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)) as session:
             payload = {
-                "model": Models.EDIT if codex is False else Models.CODE_EDIT,
+                "model": Models.EDIT,
                 "input": "" if text is None else text,
                 "instruction": instruction,
                 "temperature": self.temp if temp_override is None else temp_override,
@@ -736,7 +728,7 @@ class Model:
                 "https://api.openai.com/v1/edits", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                await self.valid_text_request(response)
+                await self.valid_text_request(response, model=Models.EDIT)
                 return response
 
     @backoff.on_exception(
@@ -979,7 +971,9 @@ class Model:
                 response = await resp.json()
                 # print(f"Payload -> {payload}")
                 # Parse the total tokens used for this request and response pair from the response
-                await self.valid_text_request(response)
+                await self.valid_text_request(
+                    response, model=self.model if model is None else model
+                )
                 print(f"Response -> {response}")
 
                 return response
@@ -1104,7 +1098,7 @@ class Model:
                     headers=headers,
                 ) as resp:
                     response = await resp.json()
-                    print(f"Payload -> {payload}")
+                    # print(f"Payload -> {payload}")
                     # Parse the total tokens used for this request and response pair from the response
                     await self.valid_text_request(
                         response, model=self.model if model is None else model
