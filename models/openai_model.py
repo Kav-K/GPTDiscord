@@ -226,9 +226,7 @@ class Model:
             else 5
         )
         self.use_org = (
-            bool(SETTINGS_DB["use_org"])
-            if "use_org" in SETTINGS_DB
-            else False
+            bool(SETTINGS_DB["use_org"]) if "use_org" in SETTINGS_DB else False
         )
 
     def reset_settings(self):
@@ -662,7 +660,9 @@ class Model:
         on_backoff=backoff_handler_http,
     )
     async def send_embedding_request(self, text, custom_api_key=None):
-        async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": Models.EMBEDDINGS,
                 "input": text,
@@ -708,7 +708,9 @@ class Model:
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
-        async with aiohttp.ClientSession(raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": Models.EDIT,
                 "input": "" if text is None else text,
@@ -941,7 +943,9 @@ class Model:
                     messages.append({"role": "system", "content": text})
 
         print(f"Messages -> {messages}")
-        async with aiohttp.ClientSession(raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": self.model if not model else model,
                 "messages": messages,
@@ -1062,7 +1066,9 @@ class Model:
 
         # Non-ChatGPT simple completion models.
         if not is_chatgpt_request:
-            async with aiohttp.ClientSession(raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 payload = {
                     "model": self.model if model is None else model,
                     "prompt": prompt,
@@ -1107,7 +1113,9 @@ class Model:
 
                     return response
         else:  # ChatGPT/GPT4 Simple completion
-            async with aiohttp.ClientSession(raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 payload = {
                     "model": self.model if not model else model,
                     "messages": [{"role": "user", "content": prompt}],
@@ -1202,7 +1210,9 @@ class Model:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
 
-            async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 async with session.post(
                     "https://api.openai.com/v1/images/generations",
                     json=payload,
@@ -1211,7 +1221,9 @@ class Model:
                     response = await resp.json()
 
         else:
-            async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 data = aiohttp.FormData()
                 data.add_field("n", str(self.num_images))
                 data.add_field("size", self.image_size)

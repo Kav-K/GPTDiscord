@@ -127,7 +127,15 @@ class SearchService(discord.Cog, name="SearchService"):
 
         try:
             response, refined_text = await self.model.search(
-                ctx, query, user_api_key, search_scope, nodes, deep, response_mode, model, multistep,
+                ctx,
+                query,
+                user_api_key,
+                search_scope,
+                nodes,
+                deep,
+                response_mode,
+                model,
+                multistep,
             )
         except ValueError as e:
             traceback.print_exc()

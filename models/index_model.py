@@ -41,7 +41,9 @@ from llama_index import (
     GithubRepositoryReader,
     MockEmbedding,
     download_loader,
-    LLMPredictor, ServiceContext, QueryMode,
+    LLMPredictor,
+    ServiceContext,
+    QueryMode,
 )
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -75,9 +77,7 @@ def get_and_query(
     ].get_index_or_throw()
     # If multistep is enabled, multistep contains the llm_predictor.
     if isinstance(index, GPTTreeIndex):
-        step_decompose_transform = StepDecomposeQueryTransform(
-            multistep, verbose=True
-        )
+        step_decompose_transform = StepDecomposeQueryTransform(multistep, verbose=True)
         response = index.query(
             query,
             child_branch_factor=child_branch_factor,
@@ -88,9 +88,7 @@ def get_and_query(
             # Optionally have step_decompose_transform as query_transform if multistep is set
         )
     else:
-        step_decompose_transform = StepDecomposeQueryTransform(
-            multistep, verbose=True
-        )
+        step_decompose_transform = StepDecomposeQueryTransform(multistep, verbose=True)
         if multistep:
             index.index_struct.summary = "Provides information about everything you need to know about this topic, use this to answer the question."
         response = index.query(
@@ -249,13 +247,17 @@ class Index_handler:
         else:
             document = SimpleDirectoryReader(input_files=[file_path]).load_data()
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
-        index = GPTSimpleVectorIndex.from_documents(document, service_context=service_context, use_async=True)
+        index = GPTSimpleVectorIndex.from_documents(
+            document, service_context=service_context, use_async=True
+        )
         return index
 
     def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
         document = GoogleDocsReader().load_data(doc_id)
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
-        index = GPTSimpleVectorIndex.from_documents(document, service_context=service_context, use_async=True)
+        index = GPTSimpleVectorIndex.from_documents(
+            document, service_context=service_context, use_async=True
+        )
         return index
 
     def index_youtube_transcript(self, link, embed_model):
@@ -439,7 +441,6 @@ class Index_handler:
             response = await ctx.respond(
                 embed=EmbedStatics.build_index_progress_embed()
             )
-
 
             async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
                 async with aiofiles.tempfile.NamedTemporaryFile(
@@ -722,7 +723,7 @@ class Index_handler:
             await ctx.respond(embed=EmbedStatics.get_index_load_failure_embed(str(e)))
 
     async def index_to_docs(
-            self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
+        self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
     ) -> List[BaseDocument]:
         documents = []
         docstore = old_index.docstore
@@ -736,7 +737,9 @@ class Index_handler:
                 while node is not None:
                     extra_info = node.extra_info
                     text += f"{node.text} "
-                    next_node_id = node.relationships.get(DocumentRelationship.NEXT, None)
+                    next_node_id = node.relationships.get(
+                        DocumentRelationship.NEXT, None
+                    )
                     node = docstore.get_node(next_node_id) if next_node_id else None
 
             text_splitter = TokenTextSplitter(
@@ -782,7 +785,9 @@ class Index_handler:
             llm_predictor_mock = MockLLMPredictor(4096)
             embedding_model_mock = MockEmbedding(1536)
 
-            service_context_mock = ServiceContext.from_defaults(llm_predictor=llm_predictor_mock, embed_model=embedding_model_mock)
+            service_context_mock = ServiceContext.from_defaults(
+                llm_predictor=llm_predictor_mock, embed_model=embedding_model_mock
+            )
 
             # Run the mock call first
             await self.loop.run_in_executor(
@@ -805,7 +810,9 @@ class Index_handler:
                     "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
                 )
 
-            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embedding_model)
+            service_context = ServiceContext.from_defaults(
+                llm_predictor=llm_predictor, embed_model=embedding_model
+            )
 
             tree_index = await self.loop.run_in_executor(
                 None,
@@ -818,7 +825,8 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage, chatgpt=True,
+                llm_predictor.last_token_usage,
+                chatgpt=True,
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -939,9 +947,7 @@ class Index_handler:
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
 
-        llm_predictor = LLMPredictor(
-            llm=ChatOpenAI(temperature=0, model_name=model)
-        )
+        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
         ctx_response = await ctx.respond(
             embed=EmbedStatics.build_index_query_progress_embed(query)
@@ -949,7 +955,9 @@ class Index_handler:
 
         try:
             embedding_model = OpenAIEmbedding()
-            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embedding_model)
+            service_context = ServiceContext.from_defaults(
+                llm_predictor=llm_predictor, embed_model=embedding_model
+            )
 
             embedding_model.last_token_usage = 0
             response = await self.loop.run_in_executor(
@@ -968,7 +976,9 @@ class Index_handler:
             )
             print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+                llm_predictor.last_token_usage,
+                chatgpt=True,
+                gpt4=True if model in Models.GPT4_MODELS else False,
             )
             await self.usage_service.update_usage(
                 embedding_model.last_token_usage, embeddings=True
@@ -977,7 +987,9 @@ class Index_handler:
             try:
                 total_price = round(
                     await self.usage_service.get_price(
-                        llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+                        llm_predictor.last_token_usage,
+                        chatgpt=True,
+                        gpt4=True if model in Models.GPT4_MODELS else False,
                     )
                     + await self.usage_service.get_price(
                         embedding_model.last_token_usage, embeddings=True

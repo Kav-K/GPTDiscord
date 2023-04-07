@@ -25,7 +25,7 @@ class UsageService:
     ):
         tokens_used = int(tokens_used)
         if gpt4:
-            price = (tokens_used / 1000) * 0.05 # This is a very rough estimate
+            price = (tokens_used / 1000) * 0.05  # This is a very rough estimate
             return price
         elif chatgpt:
             price = (tokens_used / 1000) * 0.002
@@ -47,7 +47,7 @@ class UsageService:
     ):
         tokens_used = int(tokens_used)
         if gpt4:
-            price = (tokens_used / 1000) * 0.05 # This is a very rough estimate..
+            price = (tokens_used / 1000) * 0.05  # This is a very rough estimate..
         elif chatgpt:
             price = (tokens_used / 1000) * 0.002
         elif not embeddings:

@@ -268,7 +268,9 @@ class EnvService:
                 "Please copy your server's role and put it into CHANNEL_CHAT_ROLES in the .env file."
                 'For example a line should look like: `CHANNEL_CHAT_ROLES="Gpt"`'
             )
-            print("Defaulting to allowing all users to make conversations in full channels...")
+            print(
+                "Defaulting to allowing all users to make conversations in full channels..."
+            )
             return [None]
 
         cc_roles = (

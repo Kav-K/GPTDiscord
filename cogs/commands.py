@@ -842,7 +842,13 @@ class Commands(discord.Cog, name="Commands"):
     ):
         await ctx.defer()
         await self.index_cog.query_command(
-            ctx, query, nodes, response_mode, child_branch_factor, model, multistep,
+            ctx,
+            query,
+            nodes,
+            response_mode,
+            child_branch_factor,
+            model,
+            multistep,
         )
 
     #
@@ -1078,7 +1084,14 @@ class Commands(discord.Cog, name="Commands"):
         multistep: bool,
     ):
         await self.search_cog.search_command(
-            ctx, query, scope, nodes, deep, response_mode, model, multistep,
+            ctx,
+            query,
+            scope,
+            nodes,
+            deep,
+            response_mode,
+            model,
+            multistep,
         )
 
     # Transcribe commands

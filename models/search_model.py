@@ -19,7 +19,9 @@ from llama_index import (
     OpenAIEmbedding,
     SimpleDirectoryReader,
     MockLLMPredictor,
-    MockEmbedding, ServiceContext, QueryMode,
+    MockEmbedding,
+    ServiceContext,
+    QueryMode,
 )
 from llama_index.composability import QASummaryGraphBuilder
 from llama_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
@@ -335,18 +337,22 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        llm_predictor = LLMPredictor(
-            llm=ChatOpenAI(temperature=0, model_name=model)
-        )
+        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
         service_context = ServiceContext.from_defaults(embed_model=embedding_model)
 
         if not deep:
             embed_model_mock = MockEmbedding(embed_dim=1536)
-            service_context_mock = ServiceContext.from_defaults(embed_model=embed_model_mock)
+            service_context_mock = ServiceContext.from_defaults(
+                embed_model=embed_model_mock
+            )
             self.loop.run_in_executor(
                 None,
-                partial(GPTSimpleVectorIndex.from_documents, documents, service_context=service_context_mock),
+                partial(
+                    GPTSimpleVectorIndex.from_documents,
+                    documents,
+                    service_context=service_context_mock,
+                ),
             )
             total_usage_price = await self.usage_service.get_price(
                 embed_model_mock.last_token_usage, embeddings=True
@@ -391,7 +397,9 @@ class Search:
                 )
 
             service_context = ServiceContext.from_defaults(
-                embed_model=embedding_model, llm_predictor=llm_predictor_deep, chunk_size_limit=512,
+                embed_model=embedding_model,
+                llm_predictor=llm_predictor_deep,
+                chunk_size_limit=512,
             )
             graph_builder = QASummaryGraphBuilder(service_context=service_context)
 
@@ -405,7 +413,8 @@ class Search:
 
             total_usage_price = await self.usage_service.get_price(
                 llm_predictor_deep.last_token_usage,
-                chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+                chatgpt=True,
+                gpt4=True if model in Models.GPT4_MODELS else False,
             ) + await self.usage_service.get_price(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -415,7 +424,8 @@ class Search:
             )
             await self.usage_service.update_usage(
                 llm_predictor_deep.last_token_usage,
-                chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+                chatgpt=True,
+                gpt4=True if model in Models.GPT4_MODELS else False,
             )
             price += total_usage_price
 
@@ -428,7 +438,9 @@ class Search:
         embedding_model.last_token_usage = 0
 
         if not deep:
-            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embedding_model)
+            service_context = ServiceContext.from_defaults(
+                llm_predictor=llm_predictor, embed_model=embedding_model
+            )
             step_decompose_transform = StepDecomposeQueryTransform(
                 llm_predictor, verbose=True
             )
@@ -440,7 +452,7 @@ class Search:
                 partial(
                     index.query,
                     query,
-                    service_context = service_context,
+                    service_context=service_context,
                     refine_template=CHAT_REFINE_PROMPT,
                     similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
                     text_qa_template=self.qaprompt,
@@ -469,9 +481,7 @@ class Search:
                 {
                     "index_struct_type": "simple_dict",
                     "query_mode": "default",
-                    "query_kwargs": {
-                        "similarity_top_k": 1
-                    },
+                    "query_kwargs": {"similarity_top_k": 1},
                 },
                 {
                     "index_struct_type": "list",
@@ -479,7 +489,7 @@ class Search:
                     "query_kwargs": {
                         "response_mode": "tree_summarize",
                         "use_async": True,
-                        "verbose": True
+                        "verbose": True,
                     },
                 },
                 {
@@ -503,13 +513,17 @@ class Search:
             )
 
         await self.usage_service.update_usage(
-            llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+            llm_predictor.last_token_usage,
+            chatgpt=True,
+            gpt4=True if model in Models.GPT4_MODELS else False,
         )
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
         price += await self.usage_service.get_price(
-            llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
+            llm_predictor.last_token_usage,
+            chatgpt=True,
+            gpt4=True if model in Models.GPT4_MODELS else False,
         ) + await self.usage_service.get_price(
             embedding_model.last_token_usage, embeddings=True
         )
