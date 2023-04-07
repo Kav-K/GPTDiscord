@@ -1,3 +1,4 @@
+import asyncio.exceptions
 import datetime
 import re
 import traceback
@@ -559,6 +560,16 @@ class TextService:
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
+        except asyncio.exceptions.TimeoutError as e:
+            embed = EmbedStatics.get_api_timeout_embed()
+            if from_context:
+                await ctx.send_followup(embed=embed)
+            else:
+                await ctx.reply(embed=embed)
+            converser_cog.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
+
         # Error catching for OpenAI model value errors
         except ValueError as e:
             embed = EmbedStatics.get_invalid_value_embed(e)
@@ -576,12 +587,10 @@ class TextService:
         except Exception as e:
             embed = EmbedStatics.get_general_error_embed(e)
 
-            if not from_context:
-                await ctx.send_followup(embed=embed)
-            elif from_ask_command:
-                await ctx.respond(embed=embed)
-            else:
-                await ctx.reply(embed=embed)
+            try:
+                await ctx.channel.send(embed=embed)
+            except:
+                pass
 
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command

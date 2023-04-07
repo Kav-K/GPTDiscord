@@ -10,6 +10,15 @@ class EmbedStatics:
         pass
 
     @staticmethod
+    def get_api_timeout_embed():
+        embed = discord.Embed(
+            title="The API timed out. Try again later.",
+            description=f"*This is an issue with the OpenAI APIs, not with the bot instance.*",
+            color=discord.Color.red(),
+        )
+        return embed
+
+    @staticmethod
     def get_invalid_api_response_embed(e):
         embed = discord.Embed(
             title="The API returned an invalid response",

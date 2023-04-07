@@ -78,6 +78,7 @@ class Settings_autocompleter:
                 )
             ],
             "type": ["warn", "delete"],
+            "use_org": ["True", "False"],
         }
         options = values.get(ctx.options["parameter"], [])
         if options:
@@ -95,6 +96,11 @@ class Settings_autocompleter:
         ]
         return models
 
+    async def get_index_and_search_models(
+        ctx: discord.AutocompleteContext,
+    ):
+        return ["gpt-3.5-turbo", "gpt-4"]
+
     async def get_converse_models(
         ctx: discord.AutocompleteContext,
     ):
@@ -108,7 +114,6 @@ class Settings_autocompleter:
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command
         """gets valid values for the type option"""
-        print(f"The value is {ctx.value}")
         return [
             value
             for value in ModerationOptions.OPTIONS

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import discord
 import aiohttp
-from langchain.llms import OpenAIChat
+from langchain.chat_models import ChatOpenAI
 from llama_index import (
     QuestionAnswerPrompt,
     GPTSimpleVectorIndex,
@@ -19,13 +19,17 @@ from llama_index import (
     OpenAIEmbedding,
     SimpleDirectoryReader,
     MockLLMPredictor,
-    MockEmbedding,
+    MockEmbedding, ServiceContext, QueryMode,
 )
+from llama_index.composability import QASummaryGraphBuilder
 from llama_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
+from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
+from llama_index.optimization import SentenceEmbeddingOptimizer
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
 
+from models.openai_model import Models
 from services.environment_service import EnvService
 
 MAX_SEARCH_PRICE = EnvService.get_max_search_price()
@@ -209,6 +213,8 @@ class Search:
         nodes,
         deep,
         response_mode,
+        model="gpt-3.5-turbo",
+        multistep=False,
         redo=None,
     ):
         DEFAULT_SEARCH_NODES = 1
@@ -330,14 +336,17 @@ class Search:
         embedding_model = OpenAIEmbedding()
 
         llm_predictor = LLMPredictor(
-            llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+            llm=ChatOpenAI(temperature=0, model_name=model)
         )
+
+        service_context = ServiceContext.from_defaults(embed_model=embedding_model)
 
         if not deep:
             embed_model_mock = MockEmbedding(embed_dim=1536)
+            service_context_mock = ServiceContext.from_defaults(embed_model=embed_model_mock)
             self.loop.run_in_executor(
                 None,
-                partial(GPTSimpleVectorIndex, documents, embed_model=embed_model_mock),
+                partial(GPTSimpleVectorIndex.from_documents, documents, service_context=service_context_mock),
             )
             total_usage_price = await self.usage_service.get_price(
                 embed_model_mock.last_token_usage, embeddings=True
@@ -350,9 +359,9 @@ class Search:
             index = await self.loop.run_in_executor(
                 None,
                 partial(
-                    GPTSimpleVectorIndex,
+                    GPTSimpleVectorIndex.from_documents,
                     documents,
-                    embed_model=embedding_model,
+                    service_context=service_context,
                     use_async=True,
                 ),
             )
@@ -372,12 +381,8 @@ class Search:
             price += total_usage_price
         else:
             llm_predictor_deep = LLMPredictor(
-                llm=OpenAIChat(temperature=0, model_name="gpt-3.5-turbo")
+                llm=ChatOpenAI(temperature=0, model_name=model)
             )
-
-            # Try a mock call first
-            llm_predictor_mock = MockLLMPredictor(4096)
-            embed_model_mock = MockEmbedding(embed_dim=1536)
 
             if ctx:
                 await self.try_edit(
@@ -385,47 +390,22 @@ class Search:
                     self.build_search_determining_price_embed(query_refined_text),
                 )
 
-            await self.loop.run_in_executor(
-                None,
-                partial(
-                    GPTKnowledgeGraphIndex,
-                    documents,
-                    chunk_size_limit=512,
-                    max_triplets_per_chunk=2,
-                    embed_model=embed_model_mock,
-                    llm_predictor=llm_predictor_mock,
-                ),
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, llm_predictor=llm_predictor_deep, chunk_size_limit=512,
             )
-            total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage,
-                chatgpt=True,
-            ) + await self.usage_service.get_price(
-                embed_model_mock.last_token_usage, embeddings=True
-            )
-            print(f"Total usage price: {total_usage_price}")
-            if total_usage_price > MAX_SEARCH_PRICE:
-                await self.try_delete(in_progress_message)
-                raise ValueError(
-                    "Doing this deep search would be prohibitively expensive. Please try a narrower search scope. This deep search indexing would have cost ${:.2f}.".format(
-                        total_usage_price
-                    )
-                )
+            graph_builder = QASummaryGraphBuilder(service_context=service_context)
 
             index = await self.loop.run_in_executor(
                 None,
                 partial(
-                    GPTKnowledgeGraphIndex,
+                    graph_builder.build_graph_from_documents,
                     documents,
-                    chunk_size_limit=512,
-                    max_triplets_per_chunk=2,
-                    embed_model=embedding_model,
-                    llm_predictor=llm_predictor_deep,
                 ),
             )
 
             total_usage_price = await self.usage_service.get_price(
                 llm_predictor_deep.last_token_usage,
-                chatgpt=True,
+                chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
             ) + await self.usage_service.get_price(
                 embedding_model.last_token_usage, embeddings=True
             )
@@ -435,7 +415,7 @@ class Search:
             )
             await self.usage_service.update_usage(
                 llm_predictor_deep.last_token_usage,
-                chatgpt=True,
+                chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
             )
             price += total_usage_price
 
@@ -448,45 +428,88 @@ class Search:
         embedding_model.last_token_usage = 0
 
         if not deep:
+            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embedding_model)
+            step_decompose_transform = StepDecomposeQueryTransform(
+                llm_predictor, verbose=True
+            )
+            if multistep:
+                index.index_struct.summary = "Provides information about everything you need to know about this topic, use this to answer the question."
+
             response = await self.loop.run_in_executor(
                 None,
                 partial(
                     index.query,
                     query,
-                    embed_model=embedding_model,
-                    llm_predictor=llm_predictor,
+                    service_context = service_context,
                     refine_template=CHAT_REFINE_PROMPT,
                     similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
                     text_qa_template=self.qaprompt,
                     use_async=True,
                     response_mode=response_mode,
+                    optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.7),
+                    query_transform=step_decompose_transform if multistep else None,
                 ),
             )
         else:
+            # response = await self.loop.run_in_executor(
+            #     None,
+            #     partial(
+            #         index.query,
+            #         query,
+            #         embedding_mode="hybrid",
+            #         refine_template=CHAT_REFINE_PROMPT,
+            #         include_text=True,
+            #         use_async=True,
+            #         similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
+            #         response_mode=response_mode,
+            #         service_context=service_context,
+            #     ),
+            # )
+            query_configs = [
+                {
+                    "index_struct_type": "simple_dict",
+                    "query_mode": "default",
+                    "query_kwargs": {
+                        "similarity_top_k": 1
+                    },
+                },
+                {
+                    "index_struct_type": "list",
+                    "query_mode": "default",
+                    "query_kwargs": {
+                        "response_mode": "tree_summarize",
+                        "use_async": True,
+                        "verbose": True
+                    },
+                },
+                {
+                    "index_struct_type": "tree",
+                    "query_mode": "default",
+                    "query_kwargs": {
+                        "verbose": True,
+                        "use_async": True,
+                        "child_branch_factor": 2,
+                    },
+                },
+            ]
             response = await self.loop.run_in_executor(
                 None,
                 partial(
                     index.query,
                     query,
-                    embedding_mode="hybrid",
-                    llm_predictor=llm_predictor,
-                    refine_template=CHAT_REFINE_PROMPT,
-                    include_text=True,
-                    embed_model=embedding_model,
-                    use_async=True,
-                    similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
-                    response_mode=response_mode,
+                    query_configs=query_configs,
+                    service_context=service_context,
                 ),
             )
 
         await self.usage_service.update_usage(
-            llm_predictor.last_token_usage, chatgpt=True
+            llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
         )
         await self.usage_service.update_usage(
             embedding_model.last_token_usage, embeddings=True
         )
         price += await self.usage_service.get_price(
-            llm_predictor.last_token_usage, chatgpt=True
+            llm_predictor.last_token_usage, chatgpt=True, gpt4=True if model in Models.GPT4_MODELS else False
         ) + await self.usage_service.get_price(
             embedding_model.last_token_usage, embeddings=True
         )

@@ -259,7 +259,7 @@ class IndexService(discord.Cog, name="IndexService"):
         await self.index_handler.load_index(ctx, index, server, search, user_api_key)
 
     async def query_command(
-        self, ctx, query, nodes, response_mode, child_branch_factor
+        self, ctx, query, nodes, response_mode, child_branch_factor, model, multistep,
     ):
         """Command handler to query your index"""
 
@@ -277,7 +277,7 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await self.index_handler.query(
-            ctx, query, response_mode, nodes, user_api_key, child_branch_factor
+            ctx, query, response_mode, nodes, user_api_key, child_branch_factor, model, multistep,
         )
 
     async def compose_command(self, ctx, name):
