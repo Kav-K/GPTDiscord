@@ -1100,7 +1100,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         if opener or opener_file:
             user_id_normalized = ctx.author.id
-        else:    
+        else:
             user_id_normalized = user.id
         if opener_file:
             if not opener_file.endswith((".txt", ".json")):
@@ -1121,9 +1121,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         opener_file = json.loads(opener_file)
                         temperature = opener_file.get("temperature", None)
                         top_p = opener_file.get("top_p", None)
-                        frequency_penalty = opener_file.get(
-                            "frequency_penalty", None
-                        )
+                        frequency_penalty = opener_file.get("frequency_penalty", None)
                         presence_penalty = opener_file.get("presence_penalty", None)
                         self.conversation_threads[target.id].set_overrides(
                             temperature, top_p, frequency_penalty, presence_penalty
@@ -1134,8 +1132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                             opener = opener_file.get("text", "error getting text")
                         else:
                             opener = (
-                                opener_file.get("text", "error getting text")
-                                + opener
+                                opener_file.get("text", "error getting text") + opener
                             )
                     except Exception:  # Parse as just regular text
                         if not opener:
@@ -1143,7 +1140,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         else:
                             opener = opener_file + opener
                 except Exception:
-                    opener_file = None  # Just start a regular thread if the file fails to load
+                    opener_file = (
+                        None  # Just start a regular thread if the file fails to load
+                    )
 
         # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:

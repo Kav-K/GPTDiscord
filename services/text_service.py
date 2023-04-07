@@ -163,8 +163,10 @@ class TextService:
                     # If there's an opener we add it to the history
                     if converser_cog.conversation_threads[ctx.channel.id].has_opener:
                         _prompt_with_history += [
-                        converser_cog.conversation_threads[ctx.channel.id].history[1]
-                    ]
+                            converser_cog.conversation_threads[ctx.channel.id].history[
+                                1
+                            ]
+                        ]
 
                     # Append the similar prompts to the prompt with history
                     _prompt_with_history += [
