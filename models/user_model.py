@@ -59,6 +59,7 @@ class Thread:
         self.thread_id = thread_id
         self.history = []
         self.count = 0
+        self.has_opener = False
         self.model = None
         self.temperature = None
         self.top_p = None

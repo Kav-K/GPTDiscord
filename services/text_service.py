@@ -155,10 +155,15 @@ class TextService:
                         n=converser_cog.model.num_conversation_lookback,
                     )
 
-                    # When we are in embeddings mode, only the pre-text is contained in converser_cog.conversation_threads[message.channel.id].history, so we
-                    # can use that as a base to build our new prompt
+                    # We use the pretext to build our new history
                     _prompt_with_history = [
                         converser_cog.conversation_threads[ctx.channel.id].history[0]
+                    ]
+
+                    # If there's an opener we add it to the history
+                    if converser_cog.conversation_threads[ctx.channel.id].has_opener:
+                        _prompt_with_history += [
+                        converser_cog.conversation_threads[ctx.channel.id].history[1]
                     ]
 
                     # Append the similar prompts to the prompt with history
