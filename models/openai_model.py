@@ -225,6 +225,9 @@ class Model:
             if "num_conversation_lookback" in SETTINGS_DB
             else 5
         )
+        self.use_org = (
+            bool(SETTINGS_DB["use_org"]) if "use_org" in SETTINGS_DB else False
+        )
 
     def reset_settings(self):
         keys = [
@@ -244,6 +247,7 @@ class Model:
             "welcome_message_enabled",
             "num_static_conversation_items",
             "num_conversation_lookback",
+            "use_org",
         ]
         for key in keys:
             try:
@@ -274,6 +278,7 @@ class Model:
         self._top_p = None
         self._temp = None
         self._mode = None
+        self._use_org = None
         self.set_initial_state(usage_service)
 
         try:
@@ -294,12 +299,23 @@ class Model:
             "_hidden_attributes",
             "model_max_tokens",
             "openai_key",
+            "openai_organization",
+            "IMAGE_SAVE_PATH",
         ]
 
         self.openai_key = EnvService.get_openai_token()
         self.openai_organization = EnvService.get_openai_organization()
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
+
+    @property
+    def use_org(self):
+        return self._use_org
+
+    @use_org.setter
+    def use_org(self, value):
+        self._use_org = value
+        SETTINGS_DB["use_org"] = value
 
     @property
     def num_static_conversation_items(self):
@@ -644,7 +660,9 @@ class Model:
         on_backoff=backoff_handler_http,
     )
     async def send_embedding_request(self, text, custom_api_key=None):
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": Models.EMBEDDINGS,
                 "input": text,
@@ -653,6 +671,10 @@ class Model:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
                 "https://api.openai.com/v1/embeddings", json=payload, headers=headers
             ) as resp:
@@ -686,7 +708,9 @@ class Model:
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
-        async with aiohttp.ClientSession(raise_for_status=False) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": Models.EDIT,
                 "input": "" if text is None else text,
@@ -698,6 +722,10 @@ class Model:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
                 "https://api.openai.com/v1/edits", json=payload, headers=headers
             ) as resp:
@@ -768,6 +796,10 @@ class Model:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
@@ -813,6 +845,10 @@ class Model:
                 "max_tokens": max_tokens,
             }
             headers = {"Authorization": f"Bearer {self.openai_key}"}
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
                 "https://api.openai.com/v1/completions", json=payload, headers=headers
             ) as resp:
@@ -907,7 +943,9 @@ class Model:
                     messages.append({"role": "system", "content": text})
 
         print(f"Messages -> {messages}")
-        async with aiohttp.ClientSession(raise_for_status=False) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
                 "model": self.model if not model else model,
                 "messages": messages,
@@ -924,8 +962,10 @@ class Model:
             headers = {
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
             }
-            if self.openai_organization:
-                headers["OpenAI-Organization"] = self.openai_organization
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
 
             async with session.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -1026,7 +1066,9 @@ class Model:
 
         # Non-ChatGPT simple completion models.
         if not is_chatgpt_request:
-            async with aiohttp.ClientSession(raise_for_status=False) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 payload = {
                     "model": self.model if model is None else model,
                     "prompt": prompt,
@@ -1051,6 +1093,11 @@ class Model:
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }
+                self.use_org = True if "true" in str(self.use_org).lower() else False
+                if self.use_org:
+                    if self.openai_organization:
+                        headers["OpenAI-Organization"] = self.openai_organization
+
                 async with session.post(
                     "https://api.openai.com/v1/completions",
                     json=payload,
@@ -1066,7 +1113,9 @@ class Model:
 
                     return response
         else:  # ChatGPT/GPT4 Simple completion
-            async with aiohttp.ClientSession(raise_for_status=False) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 payload = {
                     "model": self.model if not model else model,
                     "messages": [{"role": "user", "content": prompt}],
@@ -1085,8 +1134,10 @@ class Model:
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
+                self.use_org = True if "true" in str(self.use_org).lower() else False
+                if self.use_org:
+                    if self.openai_organization:
+                        headers["OpenAI-Organization"] = self.openai_organization
                 async with session.post(
                     "https://api.openai.com/v1/chat/completions",
                     json=payload,
@@ -1154,7 +1205,14 @@ class Model:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
             }
-            async with aiohttp.ClientSession(raise_for_status=True) as session:
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
+
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 async with session.post(
                     "https://api.openai.com/v1/images/generations",
                     json=payload,
@@ -1163,7 +1221,9 @@ class Model:
                     response = await resp.json()
 
         else:
-            async with aiohttp.ClientSession(raise_for_status=True) as session:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
                 data = aiohttp.FormData()
                 data.add_field("n", str(self.num_images))
                 data.add_field("size", self.image_size)

@@ -45,7 +45,9 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
   
 # Recent Notable Updates  
 
-- **Full-channel conversations** - Start a conversation in a full discord channel, retained across restarts, permanent memory. Set `use_threads` to False in `/gpt converse`!
+- **GPT4 Support for /search and /index** - You can now use GPT4 to do your searching and indexing tasks!
+
+- **Multi-step query decompositions** - When doing a query with /search or /index, the bot will break down complicated questions into smaller questions and progressively build up an answer, use the `multistep` option in `/search` and `/index query`
 
 - **GPT4 API Integration** - GPT-4 is fully supported by our bot, if you're off the waitlist, you can put in your organization ID in the environment file and it will work out of the box and allow you to select gpt-4 models in /system settings and etc!
   

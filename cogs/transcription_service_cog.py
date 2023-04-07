@@ -55,7 +55,6 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             # Delete audiotemp/{str(ctx.user.id)}temp.mp3 if it already exists
             if Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).exists():
                 Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).unlink()
-            print("before call")
             try:
                 file_path = await asyncio.get_running_loop().run_in_executor(
                     None,
@@ -73,7 +72,6 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 )
                 return
 
-            print("after call the file path was" + file_path)
         else:
             await ctx.respond(
                 "Please upload a valid youtube link. Other links are not implemented yet"

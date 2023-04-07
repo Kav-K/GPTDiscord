@@ -816,6 +816,20 @@ class Commands(discord.Cog, name="Commands"):
         max_value=3,
         input_type=discord.SlashCommandOptionType.integer,
     )
+    @discord.option(
+        name="model",
+        description="The model to use for the request (querying, not composition)",
+        required=False,
+        default="gpt-3.5-turbo",
+        autocomplete=Settings_autocompleter.get_index_and_search_models,
+    )
+    @discord.option(
+        name="multistep",
+        description="Do a more intensive, multi-step query,",
+        required=False,
+        default=False,
+        input_type=discord.SlashCommandOptionType.boolean,
+    )
     async def query(
         self,
         ctx: discord.ApplicationContext,
@@ -823,10 +837,18 @@ class Commands(discord.Cog, name="Commands"):
         nodes: int,
         response_mode: str,
         child_branch_factor: int,
+        model: str,
+        multistep: bool,
     ):
         await ctx.defer()
         await self.index_cog.query_command(
-            ctx, query, nodes, response_mode, child_branch_factor
+            ctx,
+            query,
+            nodes,
+            response_mode,
+            child_branch_factor,
+            model,
+            multistep,
         )
 
     #
@@ -1035,6 +1057,20 @@ class Commands(discord.Cog, name="Commands"):
         default="default",
         choices=["default", "compact", "tree_summarize"],
     )
+    @discord.option(
+        name="model",
+        description="The model to use for the request (querying, not composition)",
+        required=False,
+        default="gpt-3.5-turbo",
+        autocomplete=Settings_autocompleter.get_index_and_search_models,
+    )
+    @discord.option(
+        name="multistep",
+        description="Do a more intensive, multi-step query,",
+        required=False,
+        default=False,
+        input_type=discord.SlashCommandOptionType.boolean,
+    )
     @discord.guild_only()
     async def search(
         self,
@@ -1044,9 +1080,18 @@ class Commands(discord.Cog, name="Commands"):
         nodes: int,
         deep: bool,
         response_mode: str,
+        model: str,
+        multistep: bool,
     ):
         await self.search_cog.search_command(
-            ctx, query, scope, nodes, deep, response_mode
+            ctx,
+            query,
+            scope,
+            nodes,
+            deep,
+            response_mode,
+            model,
+            multistep,
         )
 
     # Transcribe commands

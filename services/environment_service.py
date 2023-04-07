@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from pathlib import Path
 from typing import Union
 
@@ -232,6 +233,7 @@ class EnvService:
         try:
             index_roles = os.getenv("INDEX_ROLES")
         except Exception:
+            traceback.print_exc()
             index_roles = None
 
         if index_roles is None:
@@ -262,11 +264,13 @@ class EnvService:
 
         if cc_roles is None:
             print(
-                "INDEX_ROLES is not defined properly in the environment file!"
-                "Please copy your server's role and put it into INDEX_ROLES in the .env file."
-                'For example a line should look like: `INDEX_ROLES="Gpt"`'
+                "CHANNEL_CHAT_ROLES is not defined properly in the environment file!"
+                "Please copy your server's role and put it into CHANNEL_CHAT_ROLES in the .env file."
+                'For example a line should look like: `CHANNEL_CHAT_ROLES="Gpt"`'
             )
-            print("Defaulting to allowing all users to use Index commands...")
+            print(
+                "Defaulting to allowing all users to make conversations in full channels..."
+            )
             return [None]
 
         cc_roles = (
