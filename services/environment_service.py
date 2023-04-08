@@ -297,7 +297,7 @@ class EnvService:
                 'For example a line should look like: `CHANNEL_INSTRUCTION_ROLES="Gpt"`'
             )
             print(
-                "Defaulting to allowing all users to make conversations in full channels..."
+                "Defaulting to allowing all users to set instructions for channels..."
             )
             return [None]
 
