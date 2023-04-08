@@ -878,6 +878,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await ctx.defer(ephemeral=private)
 
+        if mode == "set" and not (instruction or instruction_file):
+            await ctx.respond("You must include either an **instruction** or an **instruction file**")
+            return
+        
         # Check if any of the message author's role names are in CHANNEL_INSTRUCTION_ROLES, if not, continue as user
         if type == "channel" and mode in ["set", "clear"]:
             if CHANNEL_INSTRUCTION_ROLES != [None] and not any(
@@ -905,7 +909,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.instructions[set_id] = Instruction(set_id, instruction)
             await ctx.respond(f"The system instruction is set for **{type}**")
         elif mode == "get":
-            await ctx.respond(f"The prompt is '{self.instructions[set_id].prompt}'")
+            try:
+                await ctx.respond(f"The instruction is **'{self.instructions[set_id].prompt}'**")
+            except Exception:
+                await ctx.respond("There is no instruction set")
         elif mode == "clear":
             self.instructions.pop(set_id)
             await ctx.respond(f"The instruction has been removed for **{type}**")
