@@ -10,7 +10,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)  
   
 # Overview
-A robust, all-in-one GPT3 interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory powered by [Pinecone](https://www.pinecone.io/), automatic request retry, fault tolerance and reliability for servers of any scale, and much more.  
+A robust, all-in-one GPT interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory powered by [Pinecone](https://www.pinecone.io/), automatic request retry, fault tolerance and reliability for servers of any scale, and much more.  
   
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)  
 
@@ -51,23 +51,23 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 
 - **GPT4 API Integration** - GPT-4 is fully supported by our bot, if you're off the waitlist, you can put in your organization ID in the environment file and it will work out of the box and allow you to select gpt-4 models in /system settings and etc!
   
-- **AI-Assisted Google Search** - Use GPT3 to browse the internet, you can search the internet for a query and GPT3 will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
+- **AI-Assisted Google Search** - Use GPT to browse the internet, you can search the internet for a query and GPT will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
 <p align="center"/>  
 <img src="https://i.imgur.com/YxkS0S5.png"/>  
 </p>
   
-- **CUSTOM INDEXES** - You can now upload files to your discord server and use them as a source of knowledge when asking GPT3 questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below. Here's an example below with a youtube video:
+- **CUSTOM INDEXES** - You can now upload files to your discord server and use them as a source of knowledge when asking GPT questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below. Here's an example below with a youtube video:
   
 <p align="center"/>  
 <img src="https://i.imgur.com/H98UXad.png"/>  
 </p>  
 
 # Features  
-- **Directly prompt GPT3 with `/gpt ask <prompt>`**  
+- **Directly prompt GPT with `/gpt ask <prompt>`**  
   
 - **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!  
   
-- **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT3 questions!  
+- **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT questions!  
   
 - **AI-Assisted Google Search** - Speaks for itself!  
   
@@ -79,7 +79,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
   
 - **DeepL Translations** - Translate text with DeepL. `/translate <text>`  
   
-- **Redo Requests** - A simple button after the GPT3 response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!  
+- **Redo Requests** - A simple button after the GPT response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!  
   
 - **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!  
   
@@ -103,9 +103,9 @@ These commands are grouped, so each group has a prefix but you can easily tab co
   
 `/help` - Display help text for the bot  
   
-### (Chat)GPT3 Commands  
+### (Chat)GPT Commands  
   
-`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT3 Davinci 003 model a question. Optional overrides available  
+`/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT Davinci 003 model a question. Optional overrides available  
   
 `/gpt edit <instruction> <input> <temp> <top_p>` Use the bot to edit text using the given instructions for how to do it, currently an alpha openai feature so results might vary. Editing is currently free  
   
@@ -137,7 +137,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 ### Search Commands
 
-`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt3 should think>` - Search the internet with GPT3 assistance!
+`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt should think>` - Search the internet with GPT assistance!
 
 - The `scope` defines how many top level websites to visit during the search, capped at 6
 - `nodes` defines how many nodes inside the built index after webpage retrieval to use. 

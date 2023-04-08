@@ -1,5 +1,5 @@
 # AI-Assisted Google Search  
-This bot supports searching google for answers to your questions with assistance from GPT3! To get started, you need to get a Google Custom Search API key, and a Google Custom Search Engine ID. You can then define these as follows in your `.env` file:  
+This bot supports searching google for answers to your questions with assistance from GPT! To get started, you need to get a Google Custom Search API key, and a Google Custom Search Engine ID. You can then define these as follows in your `.env` file:  
 ```env  
 GOOGLE_SEARCH_API_KEY="...."  
 GOOGLE_SEARCH_ENGINE_ID="...."  

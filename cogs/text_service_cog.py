@@ -353,7 +353,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ctx, discord.ApplicationContext
         ):  # When the conversation is ended from the slash command
             await ctx.respond(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
@@ -361,13 +361,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             ctx, discord.Interaction
         ):  # When the user ends the conversation from the button
             await ctx.response.send_message(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
                 ephemeral=True,
                 delete_after=10,
             )
         else:  # The case for when the user types "end" in the channel
             await ctx.reply(
-                "You have ended the conversation with GPT3. Start a conversation with /gpt converse",
+                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
                 delete_after=10,
             )
 
@@ -583,7 +583,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 >= self.model.max_conversation_length
             ):
                 await message.reply(
-                    "You have reached the maximum conversation length. You have ended the conversation with GPT3, and it has ended."
+                    "You have reached the maximum conversation length. You have ended the conversation with GPT, and it has ended."
                 )
                 await self.end_conversation(message, conversation_limit=True)
                 return True
@@ -706,12 +706,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
             await self.ask_command(
                 message,
-                prompt,
-                False,
-                None,
-                None,
-                None,
-                None,
+                prompt=prompt,
                 from_message_context=True,
             )
 
@@ -766,20 +761,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         embed.add_field(
             name="/gpt ask",
-            value="Ask GPT3 something. Be clear, long, and concise in your prompt. Don't waste tokens.",
+            value="Ask GPT something. Be clear, long, and concise in your prompt. Don't waste tokens.",
             inline=False,
         )
         embed.add_field(
             name="/gpt edit",
-            value="Use GPT3 to edit a piece of text given an instruction",
+            value="Use GPT to edit a piece of text given an instruction",
             inline=False,
         )
         embed.add_field(
-            name="/gpt converse", value="Start a conversation with GPT3", inline=False
+            name="/gpt converse", value="Start a conversation with GPT", inline=False
         )
         embed.add_field(
             name="/gpt end",
-            value="End a conversation with GPT3. You can also type `end` in the conversation.",
+            value="End a conversation with GPT. You can also type `end` in the conversation.",
             inline=False,
         )
         embed.add_field(
@@ -921,15 +916,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
-        private: bool,
-        temperature: float,
-        top_p: float,
-        frequency_penalty: float,
-        presence_penalty: float,
-        from_ask_action=None,
-        from_other_action=None,
-        from_message_context=None,
-        model=None,
+        private: bool = False,
+        temperature: float = None,
+        top_p: float = None,
+        frequency_penalty: float = None,
+        presence_penalty: float = None,
+        from_ask_action = None,
+        from_other_action = None,
+        from_message_context = None,
+        prompt_file: discord.Attachment = None,
+        model = None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -945,6 +941,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         is_context = isinstance(ctx, discord.ApplicationContext)
 
         user = ctx.user if is_context else ctx.author
+
+        if not prompt or prompt_file:
+            await ctx.respond("You must include either a **prompt** or a **prompt file**")
+            return
+
+        if prompt_file:
+            bytestring = await prompt_file.read()
+            file_prompt = bytestring.decode('utf-8')
+        if prompt and prompt_file:
+            prompt = f"{file_prompt}\n\n{prompt}"
+        elif prompt_file:
+            prompt = file_prompt
+
         prompt = await self.mention_to_username(ctx, prompt.strip())
 
         if len(prompt) < self.model.prompt_min_length:
@@ -1198,7 +1207,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         None  # Just start a regular thread if the file fails to load
                     )
 
-        # Append the starter text for gpt3 to the user's history so it gets concatenated with the prompt later
+        # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
             self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
@@ -1333,12 +1342,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         prompt = await self.mention_to_username(ctx, message.content)
         await self.ask_command(
             ctx,
-            prompt,
-            private=False,
-            temperature=None,
-            top_p=None,
-            frequency_penalty=None,
-            presence_penalty=None,
+            prompt=prompt,
             from_ask_action=prompt,
         )
 
@@ -1362,12 +1366,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await self.ask_command(
             ctx,
-            prompt,
-            private=False,
-            temperature=None,
-            top_p=None,
-            frequency_penalty=None,
-            presence_penalty=None,
+            prompt=prompt,
             from_other_action=from_other_action,
         )
 
@@ -1392,11 +1391,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await self.ask_command(
             ctx,
             prompt=prompt,
-            private=False,
-            temperature=None,
-            top_p=None,
-            frequency_penalty=None,
-            presence_penalty=None,
             from_other_action=from_other_action,
         )
 
@@ -1422,12 +1416,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         await self.ask_command(
             ctx,
-            prompt,
-            private=False,
-            temperature=None,
-            top_p=None,
-            frequency_penalty=None,
-            presence_penalty=None,
+            prompt=prompt,
             from_other_action=from_other_action,
         )
 

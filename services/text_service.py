@@ -377,7 +377,7 @@ class TextService:
                 response_text = response_text.strip()
                 response_text = f"***Prompt:***\n {prompt}\n\n***Instruction:***\n {instruction}\n\n***Response:***\n {response_text}"
 
-            # If gpt3 tries writing a user mention try to replace it with their name
+            # If gpt tries writing a user mention try to replace it with their name
             response_text = await converser_cog.mention_to_username(ctx, response_text)
 
             # If the user is conversing, add the GPT response to their conversation history.
@@ -798,7 +798,7 @@ class TextService:
                 )
             else:
                 await ctx.reply(
-                    "You must set up your API key before typing in a GPT3 powered channel, type `/setup` to enter your API key."
+                    "You must set up your API key before typing in a GPT powered channel, type `/setup` to enter your API key."
                 )
         return user_api_key
 
