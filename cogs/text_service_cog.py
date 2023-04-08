@@ -886,15 +886,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.respond("You don't have permisson to set the channel instruction. Defaulting to setting a user instruction")
                 type = "user"
 
-        # If premoderation is enabled, check
-        if PRE_MODERATE:
-            if await Moderation.simple_moderate_and_respond(instruction, ctx):
-                return
         
         if instruction_file:
             bytestring = await instruction_file.read()
             instruction = bytestring.decode('utf-8')
         
+        # If premoderation is enabled, check
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(instruction, ctx):
+                return
+            
         if type == "channel":
             set_id = ctx.channel.id
         else:
