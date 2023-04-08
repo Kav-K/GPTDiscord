@@ -19,7 +19,7 @@ from models.openai_model import Override
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
-from models.user_model import Thread, EmbeddedConversationItem
+from models.user_model import Thread, EmbeddedConversationItem, Instruction
 from collections import defaultdict
 from sqlitedict import SqliteDict
 
@@ -44,6 +44,8 @@ PRE_MODERATE = EnvService.get_premoderate()
 FORCE_ENGLISH = EnvService.get_force_english()
 BOT_TAGGABLE = EnvService.get_bot_is_taggable()
 CHANNEL_CHAT_ROLES = EnvService.get_channel_chat_roles()
+BOT_TAGGABLE_ROLES = EnvService.get_gpt_roles()
+CHANNEL_INSTRUCTION_ROLES = EnvService.get_channel_instruction_roles()
 
 #
 # Obtain the Moderation table and the General table, these are two SQLite tables that contain
@@ -69,7 +71,6 @@ except Exception as e:
     raise e
 
 BOT_NAME = EnvService.get_custom_bot_name()
-BOT_TAGGABLE_ROLES = EnvService.get_gpt_roles()
 
 
 class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
@@ -119,6 +120,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.awaiting_thread_responses = []
         self.conversation_threads = {}
         self.full_conversation_history = defaultdict(list)
+        self.instructions = defaultdict(list)
         self.summarize = self.model.summarize_conversations
 
         # Pinecone data
@@ -862,6 +864,50 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         await ctx.respond(embed=embed)
+
+    async def instruction_command(
+            self,
+            ctx: discord.ApplicationContext,
+            mode: str,
+            type: str,
+            instruction: str,
+            instruction_file: discord.Attachment,
+            private: bool,
+    ):
+        """Command to let users set their own system prompt or add one to the channel"""
+
+        await ctx.defer(ephemeral=private)
+
+        # Check if any of the message author's role names are in CHANNEL_INSTRUCTION_ROLES, if not, continue as user
+        if type == "channel" and mode in ["set", "clear"]:
+            if CHANNEL_INSTRUCTION_ROLES != [None] and not any(
+                role.name.lower() in CHANNEL_INSTRUCTION_ROLES for role in ctx.author.roles
+            ):
+                await ctx.respond("You don't have permisson to set the channel instruction. Defaulting to setting a user instruction")
+                type = "user"
+
+        # If premoderation is enabled, check
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(instruction, ctx):
+                return
+        
+        if instruction_file:
+            bytestring = await instruction_file.read()
+            instruction = bytestring.decode('utf-8')
+        
+        if type == "channel":
+            set_id = ctx.channel.id
+        else:
+            set_id = ctx.user.id
+
+        if mode == "set":
+            self.instructions[set_id] = Instruction(set_id, instruction)
+            await ctx.respond(f"The system instruction is set for **{type}**")
+        elif mode == "get":
+            await ctx.respond(f"The prompt is '{self.instructions[set_id].prompt}'")
+        elif mode == "clear":
+            self.instructions.pop(set_id)
+            await ctx.respond(f"The instruction has been removed for **{type}**")
 
     async def ask_command(
         self,

@@ -149,7 +149,7 @@ class EnvService:
 
     @staticmethod
     def get_translator_roles():
-        # DALLE_ROLES is a comma separated list of string roles
+        # TRANSLATOR_ROLES is a comma separated list of string roles
         # It can also just be one role
         # Read these allowed roles and return as a list of strings
         try:
@@ -175,7 +175,7 @@ class EnvService:
 
     @staticmethod
     def get_search_roles():
-        # DALLE_ROLES is a comma separated list of string roles
+        # SEARCH_ROLES is a comma separated list of string roles
         # It can also just be one role
         # Read these allowed roles and return as a list of strings
         try:
@@ -227,7 +227,7 @@ class EnvService:
 
     @staticmethod
     def get_index_roles():
-        # GPT_ROLES is a comma separated list of string roles
+        # INDEX_ROLES is a comma separated list of string roles
         # It can also just be one role
         # Read these allowed roles and return as a list of strings
         try:
@@ -254,7 +254,7 @@ class EnvService:
 
     @staticmethod
     def get_channel_chat_roles():
-        # GPT_ROLES is a comma separated list of string roles
+        # CHANNEL_CHAT_ROLES is a comma separated list of string roles
         # It can also just be one role
         # Read these allowed roles and return as a list of strings
         try:
@@ -267,6 +267,34 @@ class EnvService:
                 "CHANNEL_CHAT_ROLES is not defined properly in the environment file!"
                 "Please copy your server's role and put it into CHANNEL_CHAT_ROLES in the .env file."
                 'For example a line should look like: `CHANNEL_CHAT_ROLES="Gpt"`'
+            )
+            print(
+                "Defaulting to allowing all users to make conversations in full channels..."
+            )
+            return [None]
+
+        cc_roles = (
+            cc_roles.lower().strip().split(",")
+            if "," in cc_roles
+            else [cc_roles.lower()]
+        )
+        return cc_roles
+    
+    @staticmethod
+    def get_channel_instruction_roles():
+        # CHANNEL_INSTRUCTION_ROLES is a comma separated list of string roles
+        # It can also just be one role
+        # Read these allowed roles and return as a list of strings
+        try:
+            cc_roles = os.getenv("CHANNEL_INSTRUCTION_ROLES")
+        except Exception:
+            cc_roles = None
+
+        if cc_roles is None:
+            print(
+                "CHANNEL_INSTRUCTION_ROLES is not defined properly in the environment file!"
+                "Please copy your server's role and put it into CHANNEL_INSTRUCTION_ROLES in the .env file."
+                'For example a line should look like: `CHANNEL_INSTRUCTION_ROLES="Gpt"`'
             )
             print(
                 "Defaulting to allowing all users to make conversations in full channels..."

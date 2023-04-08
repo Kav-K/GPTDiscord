@@ -300,6 +300,14 @@ class TextService:
                 delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
             )
 
+            system_instruction = None
+            if ctx.channel.id in converser_cog.instructions:
+                system_instruction = converser_cog.instructions[ctx.channel.id].prompt
+                tokens += converser_cog.usage_service.count_tokens(system_instruction)
+            elif ctx.author.id in converser_cog.instructions:
+                system_instruction = converser_cog.instructions[ctx.author.id].prompt
+                tokens += converser_cog.usage_service.count_tokens(system_instruction)
+
             if is_chatgpt_conversation:
                 _prompt_with_history = converser_cog.conversation_threads[
                     ctx.channel.id
@@ -337,6 +345,7 @@ class TextService:
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
                     is_chatgpt_request=is_chatgpt_request,
+                    system_instruction=system_instruction
                 )
 
             # Clean the request response

@@ -310,6 +310,59 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("gpt")
     @discord.slash_command(
+        name="instruction",
+        description="Set your own system instruction",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="mode", 
+        description="Set/Get/Clear prompt", 
+        choices=["set", "get", "clear"],
+        required=True
+    )
+    @discord.option(
+        name="type", 
+        description="Enable for channel or for user", 
+        choices=["user", "channel"],
+        required=True
+    )
+    @discord.option(
+        name="instruction", 
+        description="The instruction to set", 
+        required=False
+    )
+    @discord.option(
+        name="instruction_file", 
+        description="The instruction to set from a txt file",
+        input_type=discord.SlashCommandOptionType.attachment,
+        required=False
+    )
+    @discord.option(
+        name="private", 
+        description="Will only be visible to you", 
+        required=False
+    )
+    @discord.guild_only()
+    async def instruction(
+        self,
+        ctx: discord.ApplicationContext,
+        mode: str,
+        type: str,
+        instruction: str,
+        instruction_file: discord.Attachment,
+        private: bool,
+    ):
+        await self.converser_cog.instruction_command(
+            ctx,
+            mode,
+            type,
+            instruction,
+            instruction_file,
+            private
+        )
+
+    @add_to_group("gpt")
+    @discord.slash_command(
         name="ask",
         description="Ask GPT3 something!",
         guild_ids=ALLOWED_GUILDS,
