@@ -300,13 +300,18 @@ class TextService:
                 delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
             )
 
-            system_instruction = None
+            #Set some variables if a user or channel has a system instruction set
             if ctx.channel.id in converser_cog.instructions:
                 system_instruction = converser_cog.instructions[ctx.channel.id].prompt
+                usage_message = "***Added channel instruction to prompt***"
                 tokens += converser_cog.usage_service.count_tokens(system_instruction)
             elif ctx.author.id in converser_cog.instructions:
                 system_instruction = converser_cog.instructions[ctx.author.id].prompt
+                usage_message = "***Added user instruction to prompt***"
                 tokens += converser_cog.usage_service.count_tokens(system_instruction)
+            else:
+                system_instruction = None
+                usage_message = None
 
             if is_chatgpt_conversation:
                 _prompt_with_history = converser_cog.conversation_threads[
@@ -362,8 +367,10 @@ class TextService:
 
             if from_message_context:
                 response_text = f"{response_text}"
+                response_text = f"{usage_message}\n\n{response_text}" if system_instruction else response_text
             elif from_other_action:
                 response_text = f"***{from_other_action}*** {response_text}"
+                response_text = f"{usage_message}\n\n{response_text}" if system_instruction else response_text
             elif from_ask_command or from_ask_action:
                 response_model = response["model"]
                 if "gpt-3.5" in response_model or "gpt-4" in response_model:
@@ -373,6 +380,7 @@ class TextService:
                         else response_text
                     )
                 response_text = f"***{prompt}***{response_text}"
+                response_text = f"{usage_message}\n\n{response_text}" if system_instruction else response_text
             elif from_edit_command:
                 response_text = response_text.strip()
                 response_text = f"***Prompt:***\n {prompt}\n\n***Instruction:***\n {instruction}\n\n***Response:***\n {response_text}"

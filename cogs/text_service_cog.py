@@ -11,7 +11,7 @@ import aiofiles
 import json
 
 import discord
-from discord import ClientUser
+from discord.ext import pages
 
 from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
@@ -885,10 +885,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await ctx.respond("You don't have permisson to set the channel instruction. Defaulting to setting a user instruction")
                 type = "user"
 
-        
         if instruction_file:
             bytestring = await instruction_file.read()
-            instruction = bytestring.decode('utf-8')
+            file_instruction = bytestring.decode('utf-8')
+        if instruction and instruction_file:
+            instruction = f"{file_instruction}\n\n{instruction}"
+        elif instruction_file:
+            instruction = file_instruction
         
         # If premoderation is enabled, check
         if PRE_MODERATE:
@@ -905,7 +908,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await ctx.respond(f"The system instruction is set for **{type}**")
         elif mode == "get":
             try:
-                await ctx.respond(f"The instruction is **'{self.instructions[set_id].prompt}'**")
+                instruction = self.instructions[set_id].prompt
+                embed_pages = await self.paginate_embed(instruction)
+                paginator = pages.Paginator(
+                    pages=embed_pages,
+                    timeout=None,
+                    author_check=False
+                )
+                await paginator.respond(ctx.interaction)
             except Exception:
                 await ctx.respond("There is no instruction set")
         elif mode == "clear":
@@ -942,7 +952,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         user = ctx.user if is_context else ctx.author
 
-        if not prompt or prompt_file:
+        if not (prompt or prompt_file):
             await ctx.respond("You must include either a **prompt** or a **prompt file**")
             return
 
