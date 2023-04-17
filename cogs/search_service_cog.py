@@ -158,7 +158,6 @@ class SearchService(discord.Cog, name="SearchService"):
 
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
-
             if prompt in ["stop", "end", "quit", "exit"]:
                 await message.reply("Ending chat session.")
                 self.chat_agents.pop(message.channel.id)
@@ -170,7 +169,6 @@ class SearchService(discord.Cog, name="SearchService"):
                 return
             elif prompt.startswith("~"):
                 return
-
 
             self.thread_awaiting_responses.append(message.channel.id)
 
