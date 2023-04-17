@@ -158,6 +158,20 @@ class SearchService(discord.Cog, name="SearchService"):
 
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
+
+            if prompt in ["stop", "end", "quit", "exit"]:
+                await message.reply("Ending chat session.")
+                self.chat_agents.pop(message.channel.id)
+
+                # close the thread
+                thread = await self.bot.fetch_channel(message.channel.id)
+                await thread.edit(name="Closed-GPT")
+                await thread.edit(archived=True)
+                return
+            elif prompt.startswith("~"):
+                return
+
+
             self.thread_awaiting_responses.append(message.channel.id)
 
             try:
@@ -187,7 +201,7 @@ class SearchService(discord.Cog, name="SearchService"):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
-            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}",
+            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}\n\nType `end` to stop the conversation",
             color=0x808080,
         )
         message_thread = await ctx.send(embed=message_embed)
