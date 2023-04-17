@@ -83,6 +83,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
     )
+    search = discord.SlashCommandGroup(
+        name="search",
+        description="Search commands for the bot",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_search_roles()],
+    )
 
     #
     # System commands
@@ -1072,8 +1078,9 @@ class Commands(discord.Cog, name="Commands"):
         await self.converser_cog.summarize_action(ctx, message)
 
     # Search slash commands
+    @add_to_group("search")
     @discord.slash_command(
-        name="search",
+        name="query",
         description="Search google alongside GPT for something",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_search_roles()],
