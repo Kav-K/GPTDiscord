@@ -56,7 +56,7 @@ class SearchService(discord.Cog, name="SearchService"):
         self.redo_users = {}
         self.chat_agents = {}
         self.thread_awaiting_responses = []
-        self.converser_cog=converser_cog
+        self.converser_cog = converser_cog
         # Make a mapping of all the country codes and their full country names:
 
     async def paginate_embed(
@@ -103,8 +103,7 @@ class SearchService(discord.Cog, name="SearchService"):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i : i + 2000]
-            for i in range(0, len(response_text), 2000)
+            response_text[i : i + 2000] for i in range(0, len(response_text), 2000)
         ]
         pages = []
         first = False
@@ -137,10 +136,10 @@ class SearchService(discord.Cog, name="SearchService"):
 
         # if we are still awaiting a response from the agent, then we don't want to process the message.
         if message.channel.id in self.thread_awaiting_responses:
-            resp_message = await message.reply("Please wait for the agent to respond to a previous message first!")
-            deletion_time = datetime.datetime.now() + datetime.timedelta(
-                seconds=5
+            resp_message = await message.reply(
+                "Please wait for the agent to respond to a previous message first!"
             )
+            deletion_time = datetime.datetime.now() + datetime.timedelta(seconds=5)
             deletion_time = deletion_time.timestamp()
 
             original_deletion_message = Deletion(message, deletion_time)
@@ -182,9 +181,15 @@ class SearchService(discord.Cog, name="SearchService"):
 
             self.thread_awaiting_responses.remove(message.channel.id)
 
-    async def search_chat_command(self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False):
+    async def search_chat_command(
+        self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False
+    ):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
-        message_embed = discord.Embed(title=embed_title, description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}", color=0x808080)
+        message_embed = discord.Embed(
+            title=embed_title,
+            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}",
+            color=0x808080,
+        )
         message_thread = await ctx.send(embed=message_embed)
         thread = await message_thread.create_thread(
             name=ctx.user.name + "'s internet-connected conversation with GPT",
@@ -194,13 +199,17 @@ class SearchService(discord.Cog, name="SearchService"):
         print("The search scope is " + str(search_scope) + ".")
 
         # Make a new agent for this user to chat.
-        search = GoogleSearchAPIWrapper(google_api_key=GOOGLE_API_KEY, google_cse_id=GOOGLE_SEARCH_ENGINE_ID, k=search_scope)
+        search = GoogleSearchAPIWrapper(
+            google_api_key=GOOGLE_API_KEY,
+            google_cse_id=GOOGLE_SEARCH_ENGINE_ID,
+            k=search_scope,
+        )
 
         tools = [
             Tool(
                 name="Search",
                 func=search.run,
-                description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet."
+                description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet.",
             ),
         ]
 
@@ -211,7 +220,7 @@ class SearchService(discord.Cog, name="SearchService"):
                 Tool(
                     name="Wolfram",
                     func=wolfram.run,
-                    description="useful when you need to answer questions about math, solve equations, do proofs, mathematical science questions, science questions, and when asked to do numerical based reasoning."
+                    description="useful when you need to answer questions about math, solve equations, do proofs, mathematical science questions, science questions, and when asked to do numerical based reasoning.",
                 )
             )
             print("Wolfram tool added to internet-connected conversation agent.")
@@ -219,16 +228,27 @@ class SearchService(discord.Cog, name="SearchService"):
             traceback.print_exc()
             print("Wolfram tool not added to internet-connected conversation agent.")
 
-        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        memory = ConversationBufferMemory(
+            memory_key="chat_history", return_messages=True
+        )
 
         if use_gpt4:
             print("using GPT4")
-            llm = ChatOpenAI(model="gpt-4", temperature=0.7, openai_api_key=OPENAI_API_KEY)
+            llm = ChatOpenAI(
+                model="gpt-4", temperature=0.7, openai_api_key=OPENAI_API_KEY
+            )
         else:
-            llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
+            llm = ChatOpenAI(
+                model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY
+            )
 
-        agent_chain = initialize_agent(tools, llm, agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
-                                       verbose=True, memory=memory)
+        agent_chain = initialize_agent(
+            tools,
+            llm,
+            agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+            verbose=True,
+            memory=memory,
+        )
 
         self.chat_agents[thread.id] = agent_chain
 

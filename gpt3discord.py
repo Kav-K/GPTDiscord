@@ -185,7 +185,11 @@ async def main():
         EnvService.get_google_search_api_key()
         and EnvService.get_google_search_engine_id()
     ):
-        bot.add_cog(SearchService(bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")))
+        bot.add_cog(
+            SearchService(
+                bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")
+            )
+        )
         print("The Search service is enabled.")
 
     bot.add_cog(

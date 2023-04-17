@@ -1077,7 +1077,7 @@ class Commands(discord.Cog, name="Commands"):
     async def summarize_action(self, ctx, message: discord.Message):
         await self.converser_cog.summarize_action(ctx, message)
 
-    @add_to_group('internet')
+    @add_to_group("internet")
     @discord.slash_command(
         name="chat",
         description="Chat with GPT connected to the internet!",
@@ -1100,11 +1100,18 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.boolean,
         default=False,
     )
-    async def chat(self, ctx: discord.ApplicationContext, search_scope: int = 2, use_gpt4: bool = False):
-        await self.search_cog.search_chat_command(ctx, search_scope=search_scope, use_gpt4=use_gpt4)
+    async def chat(
+        self,
+        ctx: discord.ApplicationContext,
+        search_scope: int = 2,
+        use_gpt4: bool = False,
+    ):
+        await self.search_cog.search_chat_command(
+            ctx, search_scope=search_scope, use_gpt4=use_gpt4
+        )
 
     # Search slash commands
-    @add_to_group('internet')
+    @add_to_group("internet")
     @discord.slash_command(
         name="search",
         description="Search google alongside GPT for something",
