@@ -468,6 +468,17 @@ class EnvService:
             )
 
     @staticmethod
+    def get_wolfram_api_key():
+        try:
+            openai_token = os.getenv("WOLFRAM_API_KEY")
+            return openai_token
+        except Exception:
+            print(
+                "WOLFRAM_API_KEY is not defined properly in the environment file! The bot cannot use /internet chat's wolfram functionalities without this"
+            )
+            return None
+
+    @staticmethod
     def get_openai_organization():
         try:
             openai_org = os.getenv("OPENAI_ORGANIZATION")

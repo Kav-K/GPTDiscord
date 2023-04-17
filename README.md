@@ -21,6 +21,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - [Installation](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/INSTALLATION.md)  
 -- [DigitalOcean Droplet Guide](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/DROPLET-GUIDE.md) 
 -- [OpenAI Token Guide](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/OPENAI-GUIDE.md)
+- [Internet Connected Chat](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/INTERNET-CONNECTED-CHAT.md)
 - [Permanent Memory](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/PERMANENT-MEMORY.md)    
 - [AI-Search](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/AI-SEARCH.md)  
 - [Custom Indexes](https://github.com/Kav-K/GPT3Discord/blob/main/detailed_guides/CUSTOM-INDEXES.md)  
@@ -34,15 +35,25 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 
 # Screenshots  
   
-<p align="center">  
-<img src="https://i.imgur.com/KeLpDgj.png"/>  
-<img  src="https://i.imgur.com/jLp1T0h.png"/>  
-<img src="https://i.imgur.com/cY4895V.png"/>  
-<img src="https://i.imgur.com/9leCixJ.png"/>  
-  
+<p align="center">
+Internet-connected chat (Google + Wolfram!)<br>
+<img src="https://i.imgur.com/8o296Ok.png"/><br>
+Regular Chat <br>
+<img src="https://i.imgur.com/KeLpDgj.png"/><br>
+Image generation and optimization<br>
+<img  src="https://i.imgur.com/jLp1T0h.png"/><br>
+AI-based moderation<br>
+<img src="https://i.imgur.com/cY4895V.png"/><br>
+Custom indexing and Document Q&A<br>
+<img src="https://i.imgur.com/9leCixJ.png"/><br>
 </p>  
   
 # Recent Notable Updates  
+
+- **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to google and wolfram alpha!
+<p align="center"/>
+<img src="https://i.imgur.com/8o296Ok.png"/>
+</p>
 
 - **GPT4 Support for /search and /index** - You can now use GPT4 to do your searching and indexing tasks!
 

@@ -1,13 +1,19 @@
+import datetime
 import traceback
 
 import aiohttp
 import re
 import discord
 from discord.ext import pages
+from langchain import GoogleSearchAPIWrapper, WolframAlphaAPIWrapper
+from langchain.agents import Tool, initialize_agent, AgentType
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
 
 from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
 from models.search_model import Search
+from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
@@ -16,6 +22,10 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 PRE_MODERATE = EnvService.get_premoderate()
+GOOGLE_API_KEY = EnvService.get_google_search_api_key()
+GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
+OPENAI_API_KEY = EnvService.get_openai_token()
+WOLFRAM_API_KEY = EnvService.get_wolfram_api_key()
 
 
 class RedoSearchUser:
@@ -35,6 +45,8 @@ class SearchService(discord.Cog, name="SearchService"):
         bot,
         gpt_model,
         usage_service,
+        deletion_service,
+        converser_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -42,6 +54,9 @@ class SearchService(discord.Cog, name="SearchService"):
         self.model = Search(gpt_model, usage_service)
         self.EMBED_CUTOFF = 2000
         self.redo_users = {}
+        self.chat_agents = {}
+        self.thread_awaiting_responses = []
+        self.converser_cog=converser_cog
         # Make a mapping of all the country codes and their full country names:
 
     async def paginate_embed(
@@ -83,6 +98,139 @@ class SearchService(discord.Cog, name="SearchService"):
             pages.append(page)
 
         return pages
+
+    async def paginate_chat_embed(self, response_text):
+        """Given a response text make embed pages and return a list of the pages."""
+
+        response_text = [
+            response_text[i : i + 2000]
+            for i in range(0, len(response_text), 2000)
+        ]
+        pages = []
+        first = False
+        # Send each chunk as a message
+        for count, chunk in enumerate(response_text, start=1):
+            if not first:
+                page = discord.Embed(
+                    title=f"{count}",
+                    description=chunk,
+                )
+                first = True
+            else:
+                page = discord.Embed(
+                    title=f"{count}",
+                    description=chunk,
+                )
+            pages.append(page)
+
+        return pages
+
+    @discord.Cog.listener()
+    async def on_message(self, message):
+        # Check if the message is from a bot.
+        if message.author.id == self.bot.user.id:
+            return
+
+        # Check if the message is from a guild.
+        if not message.guild:
+            return
+
+        # if we are still awaiting a response from the agent, then we don't want to process the message.
+        if message.channel.id in self.thread_awaiting_responses:
+            resp_message = await message.reply("Please wait for the agent to respond to a previous message first!")
+            deletion_time = datetime.datetime.now() + datetime.timedelta(
+                seconds=5
+            )
+            deletion_time = deletion_time.timestamp()
+
+            original_deletion_message = Deletion(message, deletion_time)
+            deletion_message = Deletion(resp_message, deletion_time)
+            await self.converser_cog.deletion_queue.put(deletion_message)
+            await self.converser_cog.deletion_queue.put(original_deletion_message)
+            return
+
+        # Pre moderation
+        if PRE_MODERATE:
+            if await Moderation.simple_moderate_and_respond(message.content, message):
+                await message.delete()
+                return
+
+        prompt = message.content.strip()
+
+        # If the message channel is in self.chat_agents, then we delegate the message to the agent.
+        if message.channel.id in self.chat_agents:
+            self.thread_awaiting_responses.append(message.channel.id)
+
+            try:
+                await message.channel.trigger_typing()
+            except:
+                pass
+
+            agent = self.chat_agents[message.channel.id]
+            response = await self.bot.loop.run_in_executor(None, agent.run, prompt)
+            if len(response) > 2000:
+                embed_pages = await self.paginate_chat_embed(response)
+                paginator = pages.Paginator(
+                    pages=embed_pages,
+                    timeout=None,
+                    author_check=False,
+                )
+                await paginator.respond(message)
+            else:
+                response = response.replace("\\n", "\n")
+                await message.reply(response)
+
+            self.thread_awaiting_responses.remove(message.channel.id)
+
+    async def search_chat_command(self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False):
+        embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
+        message_embed = discord.Embed(title=embed_title, description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}", color=0x808080)
+        message_thread = await ctx.send(embed=message_embed)
+        thread = await message_thread.create_thread(
+            name=ctx.user.name + "'s internet-connected conversation with GPT",
+            auto_archive_duration=60,
+        )
+        await ctx.respond("Conversation started.")
+        print("The search scope is " + str(search_scope) + ".")
+
+        # Make a new agent for this user to chat.
+        search = GoogleSearchAPIWrapper(google_api_key=GOOGLE_API_KEY, google_cse_id=GOOGLE_SEARCH_ENGINE_ID, k=search_scope)
+
+        tools = [
+            Tool(
+                name="Search",
+                func=search.run,
+                description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet."
+            ),
+        ]
+
+        # Try to add wolfram tool
+        try:
+            wolfram = WolframAlphaAPIWrapper(wolfram_alpha_appid=WOLFRAM_API_KEY)
+            tools.append(
+                Tool(
+                    name="Wolfram",
+                    func=wolfram.run,
+                    description="useful when you need to answer questions about math, solve equations, do proofs, mathematical science questions, science questions, and when asked to do numerical based reasoning."
+                )
+            )
+            print("Wolfram tool added to internet-connected conversation agent.")
+        except Exception:
+            traceback.print_exc()
+            print("Wolfram tool not added to internet-connected conversation agent.")
+
+        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+        if use_gpt4:
+            print("using GPT4")
+            llm = ChatOpenAI(model="gpt-4", temperature=0.7, openai_api_key=OPENAI_API_KEY)
+        else:
+            llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY)
+
+        agent_chain = initialize_agent(tools, llm, agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                                       verbose=True, memory=memory)
+
+        self.chat_agents[thread.id] = agent_chain
 
     async def search_command(
         self,

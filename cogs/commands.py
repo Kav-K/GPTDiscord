@@ -83,6 +83,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
     )
+    internet = discord.SlashCommandGroup(
+        name="internet",
+        description="Transcription services using OpenAI Whisper2",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
+    )
 
     #
     # System commands
@@ -1071,7 +1077,34 @@ class Commands(discord.Cog, name="Commands"):
     async def summarize_action(self, ctx, message: discord.Message):
         await self.converser_cog.summarize_action(ctx, message)
 
+    @add_to_group('internet')
+    @discord.slash_command(
+        name="chat",
+        description="Chat with GPT connected to the internet!",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_gpt_roles()],
+    )
+    @discord.option(
+        name="search_scope",
+        description="How many top links to use for context",
+        required=False,
+        input_type=discord.SlashCommandOptionType.integer,
+        max_value=6,
+        min_value=1,
+        default=2,
+    )
+    @discord.option(
+        name="use_gpt4",
+        description="Use GPT4 instead of GPT3",
+        required=False,
+        input_type=discord.SlashCommandOptionType.boolean,
+        default=False,
+    )
+    async def chat(self, ctx: discord.ApplicationContext, search_scope: int = 2, use_gpt4: bool = False):
+        await self.search_cog.search_chat_command(ctx, search_scope=search_scope, use_gpt4=use_gpt4)
+
     # Search slash commands
+    @add_to_group('internet')
     @discord.slash_command(
         name="search",
         description="Search google alongside GPT for something",
