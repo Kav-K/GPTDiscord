@@ -315,32 +315,28 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="mode", 
-        description="Set/Get/Clear prompt", 
+        name="mode",
+        description="Set/Get/Clear prompt",
         choices=["set", "get", "clear"],
-        required=True
+        required=True,
     )
     @discord.option(
-        name="type", 
-        description="Enable for channel or for user", 
+        name="type",
+        description="Enable for channel or for user",
         choices=["user", "channel"],
-        required=True
+        required=True,
     )
     @discord.option(
-        name="instruction", 
-        description="The instruction to set", 
-        required=False
+        name="instruction", description="The instruction to set", required=False
     )
     @discord.option(
-        name="instruction_file", 
+        name="instruction_file",
         description="The instruction to set from a txt file",
         input_type=discord.SlashCommandOptionType.attachment,
-        required=False
+        required=False,
     )
     @discord.option(
-        name="private", 
-        description="Will only be visible to you", 
-        required=False
+        name="private", description="Will only be visible to you", required=False
     )
     @discord.guild_only()
     async def instruction(
@@ -353,12 +349,7 @@ class Commands(discord.Cog, name="Commands"):
         private: bool,
     ):
         await self.converser_cog.instruction_command(
-            ctx,
-            mode,
-            type,
-            instruction,
-            instruction_file,
-            private
+            ctx, mode, type, instruction, instruction_file, private
         )
 
     @add_to_group("gpt")
@@ -371,9 +362,9 @@ class Commands(discord.Cog, name="Commands"):
         name="prompt", description="The prompt to send to the model", required=False
     )
     @discord.option(
-        name="prompt_file", 
-        description="The prompt file to send to the model. Is added before the prompt, both can be combined", 
-        required=False, 
+        name="prompt_file",
+        description="The prompt file to send to the model. Is added before the prompt, both can be combined",
+        required=False,
         input_type=discord.SlashCommandOptionType.attachment,
     )
     @discord.option(

@@ -279,7 +279,7 @@ class EnvService:
             else [cc_roles.lower()]
         )
         return cc_roles
-    
+
     @staticmethod
     def get_channel_instruction_roles():
         # CHANNEL_INSTRUCTION_ROLES is a comma separated list of string roles

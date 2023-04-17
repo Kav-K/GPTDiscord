@@ -1063,12 +1063,13 @@ class Model:
         messages = [{"role": "user", "content": prompt}]
         # modify prompt if a system instruction is set
         if system_instruction and is_chatgpt_request:
-            messages = [{"role": "system", "content": system_instruction},
-                        {"role": "user", "content": prompt}]
+            messages = [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt},
+            ]
         elif system_instruction:
             prompt = f"{system_instruction} {prompt}"
 
-        
         if system_instruction:
             print(f"The instruction added to the prompt will be {system_instruction}")
         print(f"The prompt about to be sent is {prompt}")

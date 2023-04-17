@@ -256,9 +256,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 print("Loaded conversation_thread_owners")
 
             with open(
-                EnvService.save_path()
-                / "pickles"
-                / "instructions.pickle",
+                EnvService.save_path() / "pickles" / "instructions.pickle",
                 "rb",
             ) as f:
                 self.instructions = pickle.load(f)
@@ -871,43 +869,48 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await ctx.respond(embed=embed)
 
     async def instruction_command(
-            self,
-            ctx: discord.ApplicationContext,
-            mode: str,
-            type: str,
-            instruction: str,
-            instruction_file: discord.Attachment,
-            private: bool,
+        self,
+        ctx: discord.ApplicationContext,
+        mode: str,
+        type: str,
+        instruction: str,
+        instruction_file: discord.Attachment,
+        private: bool,
     ):
         """Command to let users set their own system prompt or add one to the channel"""
 
         await ctx.defer(ephemeral=private)
 
         if mode == "set" and not (instruction or instruction_file):
-            await ctx.respond("You must include either an **instruction** or an **instruction file**")
+            await ctx.respond(
+                "You must include either an **instruction** or an **instruction file**"
+            )
             return
-        
+
         # Check if any of the message author's role names are in CHANNEL_INSTRUCTION_ROLES, if not, continue as user
         if type == "channel" and mode in ["set", "clear"]:
             if CHANNEL_INSTRUCTION_ROLES != [None] and not any(
-                role.name.lower() in CHANNEL_INSTRUCTION_ROLES for role in ctx.author.roles
+                role.name.lower() in CHANNEL_INSTRUCTION_ROLES
+                for role in ctx.author.roles
             ):
-                await ctx.respond("You don't have permisson to set the channel instruction. Defaulting to setting a user instruction")
+                await ctx.respond(
+                    "You don't have permisson to set the channel instruction. Defaulting to setting a user instruction"
+                )
                 type = "user"
 
         if instruction_file:
             bytestring = await instruction_file.read()
-            file_instruction = bytestring.decode('utf-8')
+            file_instruction = bytestring.decode("utf-8")
         if instruction and instruction_file:
             instruction = f"{file_instruction}\n\n{instruction}"
         elif instruction_file:
             instruction = file_instruction
-        
+
         # If premoderation is enabled, check
         if PRE_MODERATE:
             if await Moderation.simple_moderate_and_respond(instruction, ctx):
                 return
-            
+
         if type == "channel":
             set_id = ctx.channel.id
         else:
@@ -921,9 +924,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 instruction = self.instructions[set_id].prompt
                 embed_pages = await self.paginate_embed(instruction)
                 paginator = pages.Paginator(
-                    pages=embed_pages,
-                    timeout=None,
-                    author_check=False
+                    pages=embed_pages, timeout=None, author_check=False
                 )
                 await paginator.respond(ctx.interaction)
             except Exception:
@@ -941,11 +942,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float = None,
         frequency_penalty: float = None,
         presence_penalty: float = None,
-        from_ask_action = None,
-        from_other_action = None,
-        from_message_context = None,
+        from_ask_action=None,
+        from_other_action=None,
+        from_message_context=None,
         prompt_file: discord.Attachment = None,
-        model = None,
+        model=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -963,12 +964,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         user = ctx.user if is_context else ctx.author
 
         if not (prompt or prompt_file):
-            await ctx.respond("You must include either a **prompt** or a **prompt file**")
+            await ctx.respond(
+                "You must include either a **prompt** or a **prompt file**"
+            )
             return
 
         if prompt_file:
             bytestring = await prompt_file.read()
-            file_prompt = bytestring.decode('utf-8')
+            file_prompt = bytestring.decode("utf-8")
         if prompt and prompt_file:
             prompt = f"{file_prompt}\n\n{prompt}"
         elif prompt_file:

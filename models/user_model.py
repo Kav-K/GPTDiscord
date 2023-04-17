@@ -52,7 +52,7 @@ class User:
 
     def __str__(self):
         return self.__repr__()
-    
+
 
 class Instruction:
     def __init__(self, id, prompt):
