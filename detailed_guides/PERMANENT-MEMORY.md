@@ -1,7 +1,7 @@
 # Permanent Memory and Conversations  
 Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and <a href="https://www.pinecone.io/">Pinecone</a>.  
   
-Pinecone is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT3 responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.  
+Pinecone is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.  
   
 **You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**  
   

@@ -15,10 +15,12 @@ class Pickler:
         full_conversation_history,
         conversation_threads,
         conversation_thread_owners,
+        instructions,
     ):
         self.full_conversation_history = full_conversation_history
         self.conversation_threads = conversation_threads
         self.conversation_thread_owners = conversation_thread_owners
+        self.instructions = instructions
 
     # This function will be called by the bot to process the message queue
     @staticmethod
@@ -55,6 +57,11 @@ class Pickler:
                     "wb",
                 ) as f:
                     await f.write(pickle.dumps(to_pickle.conversation_thread_owners))
+
+                async with aiofiles.open(
+                    EnvService.save_path() / "pickles" / "instructions.pickle", "wb"
+                ) as f:
+                    await f.write(pickle.dumps(to_pickle.instructions))
 
                 await asyncio.sleep(PROCESS_WAIT_TIME)
             except Exception:

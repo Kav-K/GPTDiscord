@@ -1048,6 +1048,7 @@ class Model:
         stop=None,
         custom_api_key=None,
         is_chatgpt_request=False,
+        system_instruction=None,
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
 
@@ -1059,6 +1060,17 @@ class Model:
             ):
                 max_tokens_override = Models.get_max_tokens(model) - tokens
 
+        messages = [{"role": "user", "content": prompt}]
+        # modify prompt if a system instruction is set
+        if system_instruction and is_chatgpt_request:
+            messages = [{"role": "system", "content": system_instruction},
+                        {"role": "user", "content": prompt}]
+        elif system_instruction:
+            prompt = f"{system_instruction} {prompt}"
+
+        
+        if system_instruction:
+            print(f"The instruction added to the prompt will be {system_instruction}")
         print(f"The prompt about to be sent is {prompt}")
         print(
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}, model:{model if model else 'none'}, stop:{stop}"
@@ -1118,7 +1130,7 @@ class Model:
             ) as session:
                 payload = {
                     "model": self.model if not model else model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "messages": messages,
                     "stop": "" if stop is None else stop,
                     "temperature": self.temp
                     if temp_override is None

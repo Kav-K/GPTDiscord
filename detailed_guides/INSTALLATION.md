@@ -35,7 +35,7 @@ ADMIN_ROLES = "Admin,Owner"
 DALLE_ROLES = "Admin,Openai,Dalle,gpt"  
 # People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse  
 GPT_ROLES = "openai,gpt"  
-WELCOME_MESSAGE = "Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!"  # This is a fallback message if gpt3 fails to generate a welcome message.  
+WELCOME_MESSAGE = "Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!"  # This is a fallback message if gpt fails to generate a welcome message.  
 USER_INPUT_API_KEYS="False" # If True, users must use their own API keys for OpenAI. If False, the bot will use the API key in the .env file.  
 # Moderations Service alert channel, this is where moderation alerts will be sent as a default if enabled  
 MODERATIONS_ALERT_CHANNEL = "977697652147892304"  

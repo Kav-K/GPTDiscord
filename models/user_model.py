@@ -52,6 +52,24 @@ class User:
 
     def __str__(self):
         return self.__repr__()
+    
+
+class Instruction:
+    def __init__(self, id, prompt):
+        self.id = id
+        self.prompt = prompt
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __repr__(self):
+        return f"User(id={self.id}, prompt={self.prompt})"
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class Thread:

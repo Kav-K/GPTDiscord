@@ -310,12 +310,71 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("gpt")
     @discord.slash_command(
-        name="ask",
-        description="Ask GPT3 something!",
+        name="instruction",
+        description="Set your own system instruction",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
-        name="prompt", description="The prompt to send to GPT3", required=True
+        name="mode", 
+        description="Set/Get/Clear prompt", 
+        choices=["set", "get", "clear"],
+        required=True
+    )
+    @discord.option(
+        name="type", 
+        description="Enable for channel or for user", 
+        choices=["user", "channel"],
+        required=True
+    )
+    @discord.option(
+        name="instruction", 
+        description="The instruction to set", 
+        required=False
+    )
+    @discord.option(
+        name="instruction_file", 
+        description="The instruction to set from a txt file",
+        input_type=discord.SlashCommandOptionType.attachment,
+        required=False
+    )
+    @discord.option(
+        name="private", 
+        description="Will only be visible to you", 
+        required=False
+    )
+    @discord.guild_only()
+    async def instruction(
+        self,
+        ctx: discord.ApplicationContext,
+        mode: str,
+        type: str,
+        instruction: str,
+        instruction_file: discord.Attachment,
+        private: bool,
+    ):
+        await self.converser_cog.instruction_command(
+            ctx,
+            mode,
+            type,
+            instruction,
+            instruction_file,
+            private
+        )
+
+    @add_to_group("gpt")
+    @discord.slash_command(
+        name="ask",
+        description="Ask the bot something!",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="prompt", description="The prompt to send to the model", required=False
+    )
+    @discord.option(
+        name="prompt_file", 
+        description="The prompt file to send to the model. Is added before the prompt, both can be combined", 
+        required=False, 
+        input_type=discord.SlashCommandOptionType.attachment,
     )
     @discord.option(
         name="model",
@@ -359,6 +418,7 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         prompt: str,
+        prompt_file: discord.Attachment,
         model: str,
         private: bool,
         temperature: float,
@@ -374,18 +434,19 @@ class Commands(discord.Cog, name="Commands"):
             top_p,
             frequency_penalty,
             presence_penalty,
+            prompt_file=prompt_file,
             model=model,
         )
 
     @add_to_group("gpt")
     @discord.slash_command(
         name="edit",
-        description="Ask GPT3 to edit some text!",
+        description="Ask the bot to edit some text!",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
         name="instruction",
-        description="How you want GPT3 to edit the text",
+        description="How you want the bot to edit the text",
         required=True,
     )
     @discord.option(
@@ -430,7 +491,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("gpt")
     @discord.slash_command(
         name="converse",
-        description="Have a conversation with GPT3",
+        description="Have a conversation with GPT",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
@@ -533,7 +594,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("gpt")
     @discord.slash_command(
         name="end",
-        description="End a conversation with GPT3",
+        description="End a conversation with GPT",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
@@ -1022,7 +1083,7 @@ class Commands(discord.Cog, name="Commands"):
     # Search slash commands
     @discord.slash_command(
         name="search",
-        description="Search google alongside GPT3 for something",
+        description="Search google alongside GPT for something",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_search_roles()],
     )

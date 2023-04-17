@@ -78,7 +78,7 @@ class EmbedStatics:
         )
         embed.add_field(
             name="Ignoring Messages",
-            value="If you want GPT3 to ignore your messages, start your messages with `~`\n\n",
+            value="If you want GPT to ignore your messages, start your messages with `~`\n\n",
             inline=False,
         )
         return embed
@@ -204,7 +204,7 @@ class EmbedStatics:
     @staticmethod
     def get_edit_command_output_embed(response_text):
         embed = discord.Embed(
-            title="GPT3 Edits",
+            title="GPT Edits",
             description=f"{response_text}",
             color=discord.Color.light_grey(),
         )
