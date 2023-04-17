@@ -151,12 +151,14 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 
 ### Search Commands
 
-`/search query:<prompt> scope:<number of sites to visit> nodes:<how deep gpt should think>` - Search the internet with GPT assistance!
+`/internet search:<prompt> scope:<number of sites to visit> nodes:<how deep gpt should think>` - Search the internet with GPT assistance!
 
 - The `scope` defines how many top level websites to visit during the search, capped at 6
 - `nodes` defines how many nodes inside the built index after webpage retrieval to use. 
 - Increasing the scope or the nodes will make the requests take longer and will be more expensive, but will usually be more accurate.
   
+`/internet chat search_scope:<number> use_gpt:<True/False>` - Start an internet-connected chat with GPT, connected to Google and Wolfram.
+
 ### Custom Indexes Commands  
   
 This bot supports per-user custom indexes. This means that users can upload files of their choosing, such as PDFs and ask GPT to answer questions based on those files.  
