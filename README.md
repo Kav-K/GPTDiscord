@@ -84,6 +84,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!  
   
 - **Auto-retry on API errors** - Automatically resend failed requests to OpenAI's APIs!  
+
+- Set context-based pre-instructions per-user and per-channel
   
 - Automatically re-send your prompt and update the response in place if you edit your original prompt!  
  
@@ -128,6 +130,8 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 - `minimal` - Start a conversation with the bot, like ChatGPT, with minimal context (saves tokens)  
   
 `/gpt end` - End a conversation with the bot.  
+
+`/gpt instruction mode:<set/get/clear> type:<user/channel> <instruction> <instruction_file>` - Set, get, or clear a custom instruction for the bot to use when asking questions.
   
 ### DALL-E2 Commands  
   
