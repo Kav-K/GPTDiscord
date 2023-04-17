@@ -255,6 +255,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.conversation_thread_owners = pickle.load(f)
                 print("Loaded conversation_thread_owners")
 
+            with open(
+                EnvService.save_path()
+                / "pickles"
+                / "instructions.pickle",
+                "rb",
+            ) as f:
+                self.instructions = pickle.load(f)
+                print("Loaded instructions")
+
             # Fail if all three weren't loaded
             assert self.full_conversation_history is not {}
             assert self.conversation_threads is not {}
@@ -289,6 +298,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     self.full_conversation_history,
                     self.conversation_threads,
                     self.conversation_thread_owners,
+                    self.instructions,
                 )
             )
 

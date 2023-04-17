@@ -301,13 +301,13 @@ class TextService:
             )
 
             #Set some variables if a user or channel has a system instruction set
-            if ctx.channel.id in converser_cog.instructions:
-                system_instruction = converser_cog.instructions[ctx.channel.id].prompt
-                usage_message = "***Added channel instruction to prompt***"
-                tokens += converser_cog.usage_service.count_tokens(system_instruction)
-            elif ctx.author.id in converser_cog.instructions:
+            if ctx.author.id in converser_cog.instructions:
                 system_instruction = converser_cog.instructions[ctx.author.id].prompt
                 usage_message = "***Added user instruction to prompt***"
+                tokens += converser_cog.usage_service.count_tokens(system_instruction)
+            elif ctx.channel.id in converser_cog.instructions:
+                system_instruction = converser_cog.instructions[ctx.channel.id].prompt
+                usage_message = "***Added channel instruction to prompt***"
                 tokens += converser_cog.usage_service.count_tokens(system_instruction)
             else:
                 system_instruction = None
