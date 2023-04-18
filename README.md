@@ -36,8 +36,8 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 # Screenshots  
   
 <p align="center">
-Internet-connected chat (Google + Wolfram!)<br>
-<img src="https://i.imgur.com/8o296Ok.png"/><br>
+Internet-connected chat (Google + Wolfram + Link Crawling)<br>
+<img src="https://i.imgur.com/t9BDkJD.png"/><br>
 Regular Chat <br>
 <img src="https://i.imgur.com/KeLpDgj.png"/><br>
 Image generation and optimization<br>
@@ -50,9 +50,9 @@ Custom indexing and Document Q&A<br>
   
 # Recent Notable Updates  
 
-- **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to google and wolfram alpha!
+- **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to google and wolfram alpha and can browse and access links that you send it!
 <p align="center"/>
-<img src="https://i.imgur.com/8o296Ok.png"/>
+<img src="https://i.imgur.com/t9BDkJD.png"/>
 </p>
 
 - **GPT4 Support for /search and /index** - You can now use GPT4 to do your searching and indexing tasks!

@@ -1,16 +1,24 @@
 import datetime
+import os
+import tempfile
 import traceback
+from typing import Optional, Dict, Any
 
 import aiohttp
 import re
 import discord
+from bs4 import BeautifulSoup
 from discord.ext import pages
-from langchain import GoogleSearchAPIWrapper, WolframAlphaAPIWrapper
+from langchain import GoogleSearchAPIWrapper, WolframAlphaAPIWrapper, FAISS, InMemoryDocstore
 from langchain.agents import Tool, initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory, CombinedMemory
+from langchain.requests import TextRequestsWrapper, Requests
+from llama_index import GPTSimpleVectorIndex, Document, SimpleDirectoryReader, ServiceContext, OpenAIEmbedding
+from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
+from pydantic import Extra, BaseModel
+from transformers import GPT2TokenizerFast
 
-from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
 from models.search_model import Search
 from services.deletion_service import Deletion
@@ -25,8 +33,11 @@ PRE_MODERATE = EnvService.get_premoderate()
 GOOGLE_API_KEY = EnvService.get_google_search_api_key()
 GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
 OPENAI_API_KEY = EnvService.get_openai_token()
+# Set the environment
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 WOLFRAM_API_KEY = EnvService.get_wolfram_api_key()
 
+vector_stores = {}
 
 class RedoSearchUser:
     def __init__(self, ctx, query, search_scope, nodes, response_mode):
@@ -36,6 +47,73 @@ class RedoSearchUser:
         self.nodes = nodes
         self.response_mode = response_mode
 
+
+class CustomTextRequestWrapper(BaseModel):
+    """Lightweight wrapper around requests library.
+
+    The main purpose of this wrapper is to always return a text output.
+    """
+
+    headers: Optional[Dict[str, str]] = None
+    aiosession: Optional[aiohttp.ClientSession] = None
+    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+
+    class Config:
+        """Configuration for this pydantic object."""
+
+        extra = Extra.forbid
+        arbitrary_types_allowed = True
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+
+
+    @property
+    def requests(self) -> Requests:
+        return Requests(headers=self.headers, aiosession=self.aiosession)
+
+    def get(self, url: str, **kwargs: Any) -> str:
+
+        # the "url" field is actuall some input from the LLM, it is a comma separated string of the url and a boolean value and the original query
+        url, use_gpt4, original_query = url.split(",")
+        use_gpt4 = use_gpt4 == "True"
+        """GET the URL and return the text."""
+        text = self.requests.get(url, **kwargs).text
+
+
+        # Load this text into BeautifulSoup, clean it up and only retain text content within <p> and <title> and <h1> type tags, get rid of all javascript and css too.
+        soup = BeautifulSoup(text, "html.parser")
+
+        # Decompose script, style, head, and meta tags
+        for tag in soup(["script", "style", "head", "meta"]):
+            tag.decompose()
+
+        # Get remaining text from the soup object
+        text = soup.get_text()
+
+        # Clean up white spaces
+        text = re.sub(r"\s+", " ", text)
+
+
+        # If not using GPT-4 and the text token amount is over 3500, truncate it to 3500 tokens
+        tokens = len(self.tokenizer(text)["input_ids"])
+        print("The scraped text content is: " + text)
+        if len(text) < 5:
+            return "This website could not be scraped. I cannot answer this question."
+        if (not use_gpt4 and tokens > 3000) or (use_gpt4 and tokens > 7000):
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+                f.write(text)
+                f.close()
+                document = SimpleDirectoryReader(input_files=[f.name]).load_data()
+                embed_model = OpenAIEmbedding()
+                service_context = ServiceContext.from_defaults(embed_model=embed_model)
+                index = GPTSimpleVectorIndex.from_documents(
+                    document, service_context=service_context, use_async=True
+                )
+                response_text = index.query(original_query, refine_template=CHAT_REFINE_PROMPT, similarity_top_k=4, response_mode="compact")
+                return response_text
+
+        return text
 
 class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
@@ -211,7 +289,7 @@ class SearchService(discord.Cog, name="SearchService"):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
-            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}\n\nType `end` to stop the conversation",
+            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nCrawling is enabled, send the bot a link for it to access it!\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}\n\nType `end` to stop the conversation",
             color=0x808080,
         )
         message_thread = await ctx.send(embed=message_embed)
@@ -229,11 +307,19 @@ class SearchService(discord.Cog, name="SearchService"):
             k=search_scope,
         )
 
+        requests = CustomTextRequestWrapper()
+
         tools = [
             Tool(
                 name="Search",
                 func=search.run,
                 description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet.",
+            ),
+            # The requests tool
+            Tool(
+                name="Web Crawling",
+                func=requests.get,
+                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is the value of use_gpt4, which is {use_gpt4}, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', False, 'What is this webpage?'",
             ),
         ]
 
@@ -272,6 +358,7 @@ class SearchService(discord.Cog, name="SearchService"):
             verbose=True,
             memory=memory,
             max_execution_time=120,
+            max_iterations=4,
             early_stopping_method="generate",
         )
 
