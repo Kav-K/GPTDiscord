@@ -9,12 +9,23 @@ import re
 import discord
 from bs4 import BeautifulSoup
 from discord.ext import pages
-from langchain import GoogleSearchAPIWrapper, WolframAlphaAPIWrapper, FAISS, InMemoryDocstore
+from langchain import (
+    GoogleSearchAPIWrapper,
+    WolframAlphaAPIWrapper,
+    FAISS,
+    InMemoryDocstore,
+)
 from langchain.agents import Tool, initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory, CombinedMemory
 from langchain.requests import TextRequestsWrapper, Requests
-from llama_index import GPTSimpleVectorIndex, Document, SimpleDirectoryReader, ServiceContext, OpenAIEmbedding
+from llama_index import (
+    GPTSimpleVectorIndex,
+    Document,
+    SimpleDirectoryReader,
+    ServiceContext,
+    OpenAIEmbedding,
+)
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from pydantic import Extra, BaseModel
 from transformers import GPT2TokenizerFast
@@ -38,6 +49,7 @@ os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 WOLFRAM_API_KEY = EnvService.get_wolfram_api_key()
 
 vector_stores = {}
+
 
 class RedoSearchUser:
     def __init__(self, ctx, query, search_scope, nodes, response_mode):
@@ -67,19 +79,16 @@ class CustomTextRequestWrapper(BaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
 
-
     @property
     def requests(self) -> Requests:
         return Requests(headers=self.headers, aiosession=self.aiosession)
 
     def get(self, url: str, **kwargs: Any) -> str:
-
         # the "url" field is actuall some input from the LLM, it is a comma separated string of the url and a boolean value and the original query
         url, use_gpt4, original_query = url.split(",")
         use_gpt4 = use_gpt4 == "True"
         """GET the URL and return the text."""
         text = self.requests.get(url, **kwargs).text
-
 
         # Load this text into BeautifulSoup, clean it up and only retain text content within <p> and <title> and <h1> type tags, get rid of all javascript and css too.
         soup = BeautifulSoup(text, "html.parser")
@@ -93,7 +102,6 @@ class CustomTextRequestWrapper(BaseModel):
 
         # Clean up white spaces
         text = re.sub(r"\s+", " ", text)
-
 
         # If not using GPT-4 and the text token amount is over 3500, truncate it to 3500 tokens
         tokens = len(self.tokenizer(text)["input_ids"])
@@ -110,10 +118,16 @@ class CustomTextRequestWrapper(BaseModel):
                 index = GPTSimpleVectorIndex.from_documents(
                     document, service_context=service_context, use_async=True
                 )
-                response_text = index.query(original_query, refine_template=CHAT_REFINE_PROMPT, similarity_top_k=4, response_mode="compact")
+                response_text = index.query(
+                    original_query,
+                    refine_template=CHAT_REFINE_PROMPT,
+                    similarity_top_k=4,
+                    response_mode="compact",
+                )
                 return response_text
 
         return text
+
 
 class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
