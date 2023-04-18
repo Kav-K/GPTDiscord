@@ -134,6 +134,9 @@ class SearchService(discord.Cog, name="SearchService"):
         if not message.guild:
             return
 
+        if message.content.strip().startswith("~"):
+            return
+
         # if we are still awaiting a response from the agent, then we don't want to process the message.
         if message.channel.id in self.thread_awaiting_responses:
             resp_message = await message.reply(
@@ -167,8 +170,6 @@ class SearchService(discord.Cog, name="SearchService"):
                 await thread.edit(name="Closed-GPT")
                 await thread.edit(archived=True)
                 return
-            elif prompt.startswith("~"):
-                return
 
             self.thread_awaiting_responses.append(message.channel.id)
 
@@ -181,8 +182,15 @@ class SearchService(discord.Cog, name="SearchService"):
             try:
                 response = await self.bot.loop.run_in_executor(None, agent.run, prompt)
             except Exception as e:
-                response = f"Error: {e}"
-                traceback.print_exc()
+                # Try again one more time
+                try:
+                    response = await self.bot.loop.run_in_executor(
+                        None, agent.run, prompt
+                    )
+                except Exception as e:
+                    response = f"Error: {e}"
+                    traceback.print_exc()
+
             if len(response) > 2000:
                 embed_pages = await self.paginate_chat_embed(response)
                 paginator = pages.Paginator(
