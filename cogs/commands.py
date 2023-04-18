@@ -1082,7 +1082,7 @@ class Commands(discord.Cog, name="Commands"):
         name="chat",
         description="Chat with GPT connected to the internet!",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_gpt_roles()],
+        checks=[Check.check_search_roles()],
     )
     @discord.option(
         name="search_scope",

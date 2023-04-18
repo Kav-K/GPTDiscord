@@ -178,7 +178,11 @@ class SearchService(discord.Cog, name="SearchService"):
                 pass
 
             agent = self.chat_agents[message.channel.id]
-            response = await self.bot.loop.run_in_executor(None, agent.run, prompt)
+            try:
+                response = await self.bot.loop.run_in_executor(None, agent.run, prompt)
+            except Exception as e:
+                response = f"Error: {e}"
+                traceback.print_exc()
             if len(response) > 2000:
                 embed_pages = await self.paginate_chat_embed(response)
                 paginator = pages.Paginator(
@@ -245,7 +249,6 @@ class SearchService(discord.Cog, name="SearchService"):
         )
 
         if use_gpt4:
-            print("using GPT4")
             llm = ChatOpenAI(
                 model="gpt-4", temperature=0.7, openai_api_key=OPENAI_API_KEY
             )
@@ -260,6 +263,8 @@ class SearchService(discord.Cog, name="SearchService"):
             agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
             verbose=True,
             memory=memory,
+            max_execution_time=120,
+            early_stopping_method="generate",
         )
 
         self.chat_agents[thread.id] = agent_chain
