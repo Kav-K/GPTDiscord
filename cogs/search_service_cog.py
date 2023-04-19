@@ -40,6 +40,7 @@ from services.text_service import TextService
 
 from contextlib import redirect_stdout
 
+
 async def capture_stdout(func, *args, **kwargs):
     buffer = io.StringIO()
     with redirect_stdout(buffer):
@@ -286,7 +287,9 @@ class SearchService(discord.Cog, name="SearchService"):
             used_tools = []
             try:
                 # Start listening to STDOUT before this call. We wanna track all the output for this specific call below
-                response, stdout_output = await capture_stdout(self.bot.loop.run_in_executor, None, agent.run, prompt)
+                response, stdout_output = await capture_stdout(
+                    self.bot.loop.run_in_executor, None, agent.run, prompt
+                )
                 response = str(response)
                 print(stdout_output)
 
@@ -296,7 +299,6 @@ class SearchService(discord.Cog, name="SearchService"):
                     used_tools.append("Google Search")
                 if "Web-Crawling-Tool" in stdout_output:
                     used_tools.append("Web Crawler")
-
 
             except Exception as e:
                 # Try again one more time
@@ -324,8 +326,10 @@ class SearchService(discord.Cog, name="SearchService"):
                     description=response,
                     color=0x808080,
                 )
-                if (len(used_tools) > 0):
-                    response_embed.set_footer(text="Used tools: " + ", ".join(used_tools))
+                if len(used_tools) > 0:
+                    response_embed.set_footer(
+                        text="Used tools: " + ", ".join(used_tools)
+                    )
                 await message.reply(embed=response_embed)
 
             self.thread_awaiting_responses.remove(message.channel.id)
