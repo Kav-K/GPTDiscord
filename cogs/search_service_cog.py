@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import tempfile
 import traceback
@@ -36,6 +37,17 @@ from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
+
+from contextlib import redirect_stdout
+
+async def capture_stdout(func, *args, **kwargs):
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        result = await func(*args, **kwargs)
+    captured_output = buffer.getvalue()
+    buffer.close()
+    return result, captured_output
+
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
@@ -271,8 +283,21 @@ class SearchService(discord.Cog, name="SearchService"):
                 pass
 
             agent = self.chat_agents[message.channel.id]
+            used_tools = []
             try:
-                response = await self.bot.loop.run_in_executor(None, agent.run, prompt)
+                # Start listening to STDOUT before this call. We wanna track all the output for this specific call below
+                response, stdout_output = await capture_stdout(self.bot.loop.run_in_executor, None, agent.run, prompt)
+                response = str(response)
+                print(stdout_output)
+
+                if "Wolfram-Tool" in stdout_output:
+                    used_tools.append("Wolfram Alpha")
+                if "Search-Tool" in stdout_output:
+                    used_tools.append("Google Search")
+                if "Web-Crawling-Tool" in stdout_output:
+                    used_tools.append("Web Crawler")
+
+
             except Exception as e:
                 # Try again one more time
                 try:
@@ -293,7 +318,15 @@ class SearchService(discord.Cog, name="SearchService"):
                 await paginator.respond(message)
             else:
                 response = response.replace("\\n", "\n")
-                await message.reply(response)
+                # Build a response embed
+                response_embed = discord.Embed(
+                    title="",
+                    description=response,
+                    color=0x808080,
+                )
+                if (len(used_tools) > 0):
+                    response_embed.set_footer(text="Used tools: " + ", ".join(used_tools))
+                await message.reply(embed=response_embed)
 
             self.thread_awaiting_responses.remove(message.channel.id)
 
@@ -325,13 +358,13 @@ class SearchService(discord.Cog, name="SearchService"):
 
         tools = [
             Tool(
-                name="Search",
+                name="Search-Tool",
                 func=search.run,
                 description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet.",
             ),
             # The requests tool
             Tool(
-                name="Web Crawling",
+                name="Web-Crawling-Tool",
                 func=requests.get,
                 description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is the value of use_gpt4, which is {use_gpt4}, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', False, 'What is this webpage?'",
             ),
@@ -342,7 +375,7 @@ class SearchService(discord.Cog, name="SearchService"):
             wolfram = WolframAlphaAPIWrapper(wolfram_alpha_appid=WOLFRAM_API_KEY)
             tools.append(
                 Tool(
-                    name="Wolfram",
+                    name="Wolfram-Tool",
                     func=wolfram.run,
                     description="useful when you need to answer questions about math, solve equations, do proofs, mathematical science questions, science questions, and when asked to do numerical based reasoning.",
                 )
