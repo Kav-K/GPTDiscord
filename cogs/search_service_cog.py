@@ -291,7 +291,12 @@ class SearchService(discord.Cog, name="SearchService"):
                     self.bot.loop.run_in_executor, None, agent.run, prompt
                 )
                 response = str(response)
-                print(stdout_output)
+                
+                try:
+                    print(stdout_output)
+                except:
+                    traceback.print_exc()
+                    stdout_output = "" 
 
                 if "Wolfram-Tool" in stdout_output:
                     used_tools.append("Wolfram Alpha")
