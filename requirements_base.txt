@@ -1,4 +1,4 @@
-Pillow==9.3.0
+Pillow==9.5.0
 openai==0.27.0
 pytube==12.1.2
 py-cord==2.4.1
