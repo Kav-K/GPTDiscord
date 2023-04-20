@@ -5,7 +5,7 @@ This bot supports and uses DeepL for translations (optionally). If you want to e
 DEEPL_TOKEN="your deepl token"  
 ```  
   
-The DeepL translation service unlocks some new commands for your bot:  
+You can sign up for a Free Tier of DeepL API, which allows 500,000 characters/month of language translations. The DeepL translation service unlocks some new commands for your bot:  
   
 `/translate <text> <language>` - Translate any given piece of text into the language that you provide  
   
