@@ -23,6 +23,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 -- [OpenAI Token Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OPENAI-GUIDE.md)
 - [Internet Connected Chat](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/INTERNET-CONNECTED-CHAT.md)
 - [Permanent Memory](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/PERMANENT-MEMORY.md)    
+- [Multi-Modality](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/MULTI-MODALITY.md)
 - [AI-Search](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-SEARCH.md)  
 - [Custom Indexes](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CUSTOM-INDEXES.md)  
 - [AI-Moderation](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-MODERATION.md)  
@@ -50,27 +51,15 @@ Custom indexing and Document Q&A<br>
   
 # Recent Notable Updates  
 
+- **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
+<p align="center"/>
+<img src="https://i.imgur.com/OTJBm1W.png"/>
+</p>
+
 - **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to google and wolfram alpha and can browse and access links that you send it!
 <p align="center"/>
 <img src="https://i.imgur.com/t9BDkJD.png"/>
 </p>
-
-- **GPT4 Support for /search and /index** - You can now use GPT4 to do your searching and indexing tasks!
-
-- **Multi-step query decompositions** - When doing a query with /search or /index, the bot will break down complicated questions into smaller questions and progressively build up an answer, use the `multistep` option in `/search` and `/index query`
-
-- **GPT4 API Integration** - GPT-4 is fully supported by our bot, if you're off the waitlist, you can put in your organization ID in the environment file and it will work out of the box and allow you to select gpt-4 models in /system settings and etc!
-  
-- **AI-Assisted Google Search** - Use GPT to browse the internet, you can search the internet for a query and GPT will look at the top websites for you automatically and formulate an answer to your query! You can also ask follow-up questions, this is kinda like BingGPT, but much better lol!  
-<p align="center"/>  
-<img src="https://i.imgur.com/YxkS0S5.png"/>  
-</p>
-  
-- **CUSTOM INDEXES** - You can now upload files to your discord server and use them as a source of knowledge when asking GPT questions. You can also use webpage links as context, images, full documents, csvs, powerpoints, audio files, and even **youtube videos**! Read more in the 'Custom Indexes' section below. Here's an example below with a youtube video:
-  
-<p align="center"/>  
-<img src="https://i.imgur.com/H98UXad.png"/>  
-</p>  
 
 # Features  
 - **Directly prompt GPT with `/gpt ask <prompt>`**  

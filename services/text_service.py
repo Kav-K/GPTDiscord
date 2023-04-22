@@ -4,12 +4,15 @@ import re
 import traceback
 from collections import defaultdict
 
+import aiofiles
 import aiohttp
 import discord
+import requests
 from discord.ext import pages
 import unidecode
 
 from models.embed_statics_model import EmbedStatics
+from models.replicate_model import BLIPModel
 from services.deletion_service import Deletion
 from models.openai_model import Model, Override, Models
 from models.user_model import EmbeddedConversationItem, RedoUser
@@ -18,6 +21,7 @@ from services.moderations_service import Moderation
 
 BOT_NAME = EnvService.get_custom_bot_name()
 PRE_MODERATE = EnvService.get_premoderate()
+blip = BLIPModel()
 
 
 class TextService:
@@ -26,23 +30,23 @@ class TextService:
 
     @staticmethod
     async def encapsulated_send(
-        converser_cog,
-        id,
-        prompt,
-        ctx,
-        response_message=None,
-        overrides=None,
-        instruction=None,
-        from_ask_command=False,
-        from_edit_command=False,
-        model=None,
-        user=None,
-        custom_api_key=None,
-        edited_request=False,
-        redo_request=False,
-        from_ask_action=False,
-        from_other_action=None,
-        from_message_context=None,
+            converser_cog,
+            id,
+            prompt,
+            ctx,
+            response_message=None,
+            overrides=None,
+            instruction=None,
+            from_ask_command=False,
+            from_edit_command=False,
+            model=None,
+            user=None,
+            custom_api_key=None,
+            edited_request=False,
+            redo_request=False,
+            from_ask_action=False,
+            from_other_action=None,
+            from_message_context=None,
     ):
         """General service function for sending and receiving gpt generations
 
@@ -90,8 +94,8 @@ class TextService:
 
             # Pinecone is enabled, we will create embeddings for this conversation.
             if (
-                converser_cog.pinecone_service
-                and ctx.channel.id in converser_cog.conversation_threads
+                    converser_cog.pinecone_service
+                    and ctx.channel.id in converser_cog.conversation_threads
             ):
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
                     if item.text.strip() == BOT_NAME + "<|endofstatement|>":
@@ -128,8 +132,8 @@ class TextService:
                         [
                             item.text
                             for item in converser_cog.conversation_threads[
-                                ctx.channel.id
-                            ].history
+                            ctx.channel.id
+                        ].history
                         ]
                     )
                     converser_cog.redo_users[ctx.author.id].prompt = new_prompt
@@ -176,15 +180,15 @@ class TextService:
 
                     # iterate UP TO the last X prompts in the history
                     for i in range(
-                        1,
-                        min(
-                            len(
-                                converser_cog.conversation_threads[
-                                    ctx.channel.id
-                                ].history
+                            1,
+                            min(
+                                len(
+                                    converser_cog.conversation_threads[
+                                        ctx.channel.id
+                                    ].history
+                                ),
+                                converser_cog.model.num_static_conversation_items,
                             ),
-                            converser_cog.model.num_static_conversation_items,
-                        ),
                     ):
                         _prompt_with_history.append(
                             converser_cog.conversation_threads[ctx.channel.id].history[
@@ -225,11 +229,12 @@ class TextService:
 
             # No pinecone, we do conversation summarization for long term memory instead
             elif (
-                id in converser_cog.conversation_threads
-                and tokens > converser_cog.model.summarize_threshold
-                and not from_ask_command
-                and not from_edit_command
-                and not converser_cog.pinecone_service  # This should only happen if we are not doing summarizations.
+                    id in converser_cog.conversation_threads
+                    and tokens > converser_cog.model.summarize_threshold
+                    and not from_ask_command
+                    and not from_edit_command
+                    and not converser_cog.pinecone_service
+            # This should only happen if we are not doing summarizations.
             ):
                 # We don't need to worry about the differences between interactions and messages in this block,
                 # because if we are in this block, we can only be using a message object for ctx
@@ -243,22 +248,22 @@ class TextService:
 
                     # Check again if the prompt is about to go past the token limit
                     new_prompt = (
-                        "".join(
-                            [
-                                item.text
-                                for item in converser_cog.conversation_threads[
+                            "".join(
+                                [
+                                    item.text
+                                    for item in converser_cog.conversation_threads[
                                     id
                                 ].history
-                            ]
-                        )
-                        + "\n"
-                        + BOT_NAME
+                                ]
+                            )
+                            + "\n"
+                            + BOT_NAME
                     )
 
                     tokens = converser_cog.usage_service.count_tokens(new_prompt)
 
                     if (
-                        tokens > converser_cog.model.summarize_threshold
+                            tokens > converser_cog.model.summarize_threshold
                     ):  # 150 is a buffer for the second stage
                         await ctx.reply(
                             "I tried to summarize our current conversation so we could keep chatting, "
@@ -278,26 +283,26 @@ class TextService:
 
             # Send the request to the model
             is_chatgpt_conversation = (
-                ctx.channel.id in converser_cog.conversation_threads
-                and not from_ask_command
-                and not from_edit_command
-                and (
-                    (
-                        model is not None
-                        and (
-                            model in Models.CHATGPT_MODELS
-                            or (model == "chatgpt" or "gpt-4" in model)
-                        )
+                    ctx.channel.id in converser_cog.conversation_threads
+                    and not from_ask_command
+                    and not from_edit_command
+                    and (
+                            (
+                                    model is not None
+                                    and (
+                                            model in Models.CHATGPT_MODELS
+                                            or (model == "chatgpt" or "gpt-4" in model)
+                                    )
+                            )
+                            or (
+                                    model is None
+                                    and converser_cog.model.model in Models.CHATGPT_MODELS
+                            )
                     )
-                    or (
-                        model is None
-                        and converser_cog.model.model in Models.CHATGPT_MODELS
-                    )
-                )
             )
             delegator = model or converser_cog.model.model
             is_chatgpt_request = (
-                delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
+                    delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
             )
 
             # Set some variables if a user or channel has a system instruction set
@@ -358,8 +363,8 @@ class TextService:
             response_text = (
                 converser_cog.cleanse_response(str(response["choices"][0]["text"]))
                 if not is_chatgpt_request
-                and not is_chatgpt_conversation
-                or from_edit_command
+                   and not is_chatgpt_conversation
+                   or from_edit_command
                 else converser_cog.cleanse_response(
                     str(response["choices"][0]["message"]["content"])
                 )
@@ -402,9 +407,9 @@ class TextService:
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
-                ctx.channel.id in converser_cog.conversation_threads
-                and not from_ask_command
-                and not converser_cog.pinecone_service
+                    ctx.channel.id in converser_cog.conversation_threads
+                    and not from_ask_command
+                    and not converser_cog.pinecone_service
             ):
                 if not redo_request:
                     converser_cog.conversation_threads[ctx.channel.id].history.append(
@@ -419,10 +424,10 @@ class TextService:
 
             # Embeddings case!
             elif (
-                ctx.channel.id in converser_cog.conversation_threads
-                and not from_ask_command
-                and not from_edit_command
-                and converser_cog.pinecone_service
+                    ctx.channel.id in converser_cog.conversation_threads
+                    and not from_ask_command
+                    and not from_edit_command
+                    and converser_cog.pinecone_service
             ):
                 conversation_id = ctx.channel.id
 
@@ -431,7 +436,7 @@ class TextService:
 
                 # Create an embedding and timestamp for the prompt
                 response_text = (
-                    "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
+                        "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
                 )
 
                 # response_text = response_text.encode("ascii", "ignore").decode()
@@ -638,10 +643,22 @@ class TextService:
 
     @staticmethod
     async def process_conversation_message(
-        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB
+            converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB, file=None
     ):
         content = message.content.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
+
+        if file and blip.get_is_usable():
+            async with aiofiles.tempfile.NamedTemporaryFile(delete=False
+                                                            ) as temp_file:
+                await file.save(temp_file.name)
+                try:
+                    image_answer = blip.ask_image_question("What is this image? Be as detailed, verbose, and concise as possible.", temp_file.name)
+                    content = f"Image Understanding Information: {image_answer}\n" + content
+                except Exception:
+                    traceback.print_exc()
+                    await message.reply("I wasn't able to understand the file you gave me.")
+                    return
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in converser_cog.END_PROMPTS:
@@ -652,7 +669,7 @@ class TextService:
             # Pre-moderation check
             if PRE_MODERATE:
                 if await Moderation.simple_moderate_and_respond(
-                    message.content, message
+                        message.content, message
                 ):
                     await message.delete()
                     return
@@ -745,8 +762,8 @@ class TextService:
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
             if (
-                converser_cog.pinecone_service
-                or message.channel.id not in converser_cog.conversation_threads
+                    converser_cog.pinecone_service
+                    or message.channel.id not in converser_cog.conversation_threads
             ):
                 primary_prompt = prompt
             else:
@@ -754,8 +771,8 @@ class TextService:
                     [
                         item.text
                         for item in converser_cog.conversation_threads[
-                            message.channel.id
-                        ].history
+                        message.channel.id
+                    ].history
                     ]
                 )
 
@@ -839,10 +856,10 @@ class TextService:
                     converser_cog.conversation_threads[
                         after.channel.id
                     ].history = converser_cog.conversation_threads[
-                        after.channel.id
-                    ].history[
-                        :-2
-                    ]
+                                    after.channel.id
+                                ].history[
+                                :-2
+                                ]
 
                     pinecone_dont_reinsert = None
                     if not converser_cog.pinecone_service:
@@ -886,14 +903,14 @@ class TextService:
 
 class ConversationView(discord.ui.View):
     def __init__(
-        self,
-        ctx,
-        converser_cog,
-        id,
-        model,
-        from_ask_command=False,
-        from_edit_command=False,
-        custom_api_key=None,
+            self,
+            ctx,
+            converser_cog,
+            id,
+            model,
+            from_ask_command=False,
+            from_edit_command=False,
+            custom_api_key=None,
     ):
         super().__init__(timeout=3600)  # 1 hour interval to redo.
         self.converser_cog = converser_cog
@@ -946,9 +963,9 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
         # Get the user
         user_id = interaction.user.id
         if (
-            user_id in self.converser_cog.conversation_thread_owners
-            and interaction.channel.id
-            in self.converser_cog.conversation_thread_owners[user_id]
+                user_id in self.converser_cog.conversation_thread_owners
+                and interaction.channel.id
+                in self.converser_cog.conversation_thread_owners[user_id]
         ):
             try:
                 await self.converser_cog.end_conversation(
@@ -968,7 +985,7 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
 
 class RedoButton(discord.ui.Button["ConversationView"]):
     def __init__(
-        self, converser_cog, model, from_ask_command, from_edit_command, custom_api_key
+            self, converser_cog, model, from_ask_command, from_edit_command, custom_api_key
     ):
         super().__init__(
             style=discord.ButtonStyle.danger,

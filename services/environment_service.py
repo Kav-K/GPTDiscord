@@ -495,6 +495,14 @@ class EnvService:
             return None
 
     @staticmethod
+    def get_replicate_api_key():
+        try:
+            replicate_key = os.getenv("REPLICATE_API_KEY")
+            return replicate_key
+        except Exception:
+            return None
+
+    @staticmethod
     def get_google_search_engine_id():
         try:
             google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
