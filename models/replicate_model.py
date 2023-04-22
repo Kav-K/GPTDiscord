@@ -3,8 +3,8 @@ import os
 from services.environment_service import EnvService
 import replicate
 
-class BLIPModel:
 
+class BLIPModel:
     def __init__(self):
         # Try to get the replicate API key from the environment
         self.replicate_key = EnvService.get_replicate_api_key()
