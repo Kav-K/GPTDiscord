@@ -1,5 +1,6 @@
 import datetime
 import io
+import json
 import os
 import sys
 import tempfile
@@ -79,7 +80,11 @@ def my_parse(self, text):
         #     "action_input": text
         # }
         # This will cause the bot to respond with the text as if it were a final answer.
-        text_without_triple_backticks = f'{{"action": "Final Answer", "action_input": "{text_without_triple_backticks}"}}'
+        print("ATTEMPTING TO REFORMAT", file=sys.stderr)
+        text_without_triple_backticks = f'{{"action": "Final Answer", "action_input": {json.dumps(text_without_triple_backticks)}}}'
+        # Make sure this is formatted in json
+        print("THE RETRIED WRAPPED CODE", file=sys.stderr)
+        print(text_without_triple_backticks, file=sys.stderr)
 
         result = original_parse(self, text_without_triple_backticks)
 
