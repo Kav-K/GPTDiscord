@@ -52,6 +52,9 @@ class EmbedStatics:
             description=f"This conversation has ended. You can start a new one with `/gpt converse`",
             color=0x808080,
         )
+        embed.set_thumbnail(url="https://i.imgur.com/asA13vI.png")
+        footer_text = "Conversation ended"
+        embed.set_footer(text=footer_text, icon_url="https://i.imgur.com/asA13vI.png")
         return embed
 
     @staticmethod
@@ -215,6 +218,17 @@ class EmbedStatics:
         embed = discord.Embed(
             title="AI-Assisted Search",
             description=f"An error occured while performing search: {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
+        return embed
+
+    @staticmethod
+    def get_internet_chat_failure_embed(message):
+        embed = discord.Embed(
+            title="Internet-Connected Chat",
+            description=f"An error occured while using internet connected chat: {message}",
             color=discord.Color.red(),
         )
         # thumbnail of https://i.imgur.com/hbdBZfG.png
