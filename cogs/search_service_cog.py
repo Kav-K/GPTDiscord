@@ -85,7 +85,6 @@ def my_parse(self, text):
             result = original_parse(self, text_without_triple_backticks)
 
         else:
-
             # Insert "```json" before the opening curly brace
             text_without_triple_backticks = re.sub(
                 r"({)", r"```json \1", text_without_triple_backticks
