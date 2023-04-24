@@ -496,7 +496,10 @@ class TextService:
                             custom_view=view,
                             author_check=True,
                         )
-                        response_message = await paginator.respond(ctx.interaction)
+                        try:
+                            response_message = await paginator.respond(ctx.interaction)
+                        except:
+                            response_message = await paginator.send(ctx.channel)
                 else:
                     paginator = None
                     if not from_context:
