@@ -15,13 +15,25 @@ from langchain import (
     GoogleSearchAPIWrapper,
     WolframAlphaAPIWrapper,
     FAISS,
-    InMemoryDocstore, LLMChain, ConversationChain,
+    InMemoryDocstore,
+    LLMChain,
+    ConversationChain,
 )
-from langchain.agents import Tool, initialize_agent, AgentType, ZeroShotAgent, AgentExecutor
+from langchain.agents import (
+    Tool,
+    initialize_agent,
+    AgentType,
+    ZeroShotAgent,
+    AgentExecutor,
+)
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory, CombinedMemory
-from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, MessagesPlaceholder, \
-    HumanMessagePromptTemplate
+from langchain.prompts import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    MessagesPlaceholder,
+    HumanMessagePromptTemplate,
+)
 from langchain.requests import TextRequestsWrapper, Requests
 from llama_index import (
     GPTSimpleVectorIndex,
@@ -52,7 +64,9 @@ original_parse = ConvoOutputParser.parse
 def my_parse(self, text):
     # Remove all pairs of triple backticks from the input. However, don't remove pairs of ```json and ```. Only remove ``` and ``` pairs, maintain the text between the pairs so that only the backticks
     # are removed and the text is left intact.
-    text_without_triple_backticks = re.sub(r"```(?!json)(.*?)```", r"\1", text, flags=re.DOTALL)
+    text_without_triple_backticks = re.sub(
+        r"```(?!json)(.*?)```", r"\1", text, flags=re.DOTALL
+    )
 
     # Call the original parse() method with the modified input
     try:
@@ -138,7 +152,7 @@ class CustomTextRequestWrapper(BaseModel):
         except:
             url = url
             use_gpt4 = False
-            original_query="No Original Query Provided"
+            original_query = "No Original Query Provided"
 
         use_gpt4 = use_gpt4 == "True"
         """GET the URL and return the text."""
