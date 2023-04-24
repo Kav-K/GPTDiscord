@@ -50,15 +50,15 @@ class ImageUnderstandingModel:
         # Read the image file and encode it in base64 format
         if not self.google_cloud_api_key:
             return "None"
-        with open(filepath, 'rb') as image_file:
-            encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+        with open(filepath, "rb") as image_file:
+            encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
 
         # Prepare the JSON payload
         payload = {
             "requests": [
                 {
                     "image": {"content": encoded_image},
-                    "features": [{"type": "TEXT_DETECTION"}]
+                    "features": [{"type": "TEXT_DETECTION"}],
                 }
             ]
         }
@@ -71,15 +71,19 @@ class ImageUnderstandingModel:
 
         # Send the async request
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=header, data=json.dumps(payload)) as response:
+            async with session.post(
+                url, headers=header, data=json.dumps(payload)
+            ) as response:
                 result = await response.json()
 
                 if response.status == 200:
                     # Get fullTextAnnotation
-                    full_text_annotation = result.get('responses', [])[0].get('fullTextAnnotation')
+                    full_text_annotation = result.get("responses", [])[0].get(
+                        "fullTextAnnotation"
+                    )
 
                     if full_text_annotation:
-                        extracted_text = full_text_annotation.get('text')
+                        extracted_text = full_text_annotation.get("text")
 
                         # Return the extracted text
                         return extracted_text
@@ -87,4 +91,5 @@ class ImageUnderstandingModel:
                         return ""
                 else:
                     raise Exception(
-                        f"Google Cloud Vision API returned an error. Status code: {response.status}, Error: {result}")
+                        f"Google Cloud Vision API returned an error. Status code: {response.status}, Error: {result}"
+                    )

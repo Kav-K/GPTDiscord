@@ -766,7 +766,7 @@ class TextService:
                                     prompt,
                                     temp_file.name,
                                 ),
-                                image_understanding_model.do_image_ocr(temp_file.name)
+                                image_understanding_model.do_image_ocr(temp_file.name),
                             )
                             prompt = (
                                 f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nImage Info-OCR: {image_ocr}\n"
