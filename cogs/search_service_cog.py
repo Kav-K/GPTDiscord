@@ -45,6 +45,7 @@ from langchain.agents.conversational_chat.output_parser import ConvoOutputParser
 
 original_parse = ConvoOutputParser.parse
 
+
 def my_parse(self, text):
     # Remove the extra triple backticks from the text input
     text_without_triple_backticks = text.replace("```", "")
@@ -54,8 +55,10 @@ def my_parse(self, text):
 
     return result
 
+
 # Replace the original parse function with the new one
 ConvoOutputParser.parse = my_parse
+
 
 async def capture_stdout(func, *args, **kwargs):
     buffer = io.StringIO()
@@ -324,7 +327,9 @@ class SearchService(discord.Cog, name="SearchService"):
             except Exception as e:
                 response = f"Error: {e}"
                 traceback.print_exc()
-                await message.reply(embed=EmbedStatics.get_internet_chat_failure_embed(response))
+                await message.reply(
+                    embed=EmbedStatics.get_internet_chat_failure_embed(response)
+                )
                 self.thread_awaiting_responses.remove(message.channel.id)
                 return
 
@@ -359,10 +364,12 @@ class SearchService(discord.Cog, name="SearchService"):
         message_embed = discord.Embed(
             title=embed_title,
             description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nCrawling is enabled, send the bot a link for it to access it!\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}\n\nType `end` to stop the conversation",
-            color=0xba6093,
+            color=0xBA6093,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/lt5AYJ9.png")
-        message_embed.set_footer(text="Internet Chat", icon_url="https://i.imgur.com/lt5AYJ9.png")
+        message_embed.set_footer(
+            text="Internet Chat", icon_url="https://i.imgur.com/lt5AYJ9.png"
+        )
         message_thread = await ctx.send(embed=message_embed)
         thread = await message_thread.create_thread(
             name=ctx.user.name + "'s internet-connected conversation with GPT",

@@ -1145,10 +1145,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 target = thread
             else:
                 embed_title = f"{user.name}'s conversation with GPT"
-                message_embed = discord.Embed(title=embed_title, description=f"**Model**: {self.model.model if not model else model}", color=0x808080)
+                message_embed = discord.Embed(
+                    title=embed_title,
+                    description=f"**Model**: {self.model.model if not model else model}",
+                    color=0x808080,
+                )
                 message_embed.set_thumbnail(url="https://i.imgur.com/asA13vI.png")
-                footer_text = "Regular Chat" if not image_understanding_model.get_is_usable() else "Regular Chat, Multi-Modal"
-                message_embed.set_footer(text=footer_text, icon_url="https://i.imgur.com/asA13vI.png")
+                footer_text = (
+                    "Regular Chat"
+                    if not image_understanding_model.get_is_usable()
+                    else "Regular Chat, Multi-Modal"
+                )
+                message_embed.set_footer(
+                    text=footer_text, icon_url="https://i.imgur.com/asA13vI.png"
+                )
                 message_thread = await ctx.send(embed=message_embed)
                 thread = await message_thread.create_thread(
                     name=user.name + "'s conversation with GPT",
