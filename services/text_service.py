@@ -12,7 +12,7 @@ from discord.ext import pages
 import unidecode
 
 from models.embed_statics_model import EmbedStatics
-from models.replicate_model import ImageUnderstandingModel
+from models.image_understanding_model import ImageUnderstandingModel
 from services.deletion_service import Deletion
 from models.openai_model import Model, Override, Models
 from models.user_model import EmbeddedConversationItem, RedoUser
@@ -756,7 +756,7 @@ class TextService:
                     ) as temp_file:
                         await file.save(temp_file.name)
                         try:
-                            image_caption, image_qa = await asyncio.gather(
+                            image_caption, image_qa, image_ocr = await asyncio.gather(
                                 asyncio.to_thread(
                                     image_understanding_model.get_image_caption,
                                     temp_file.name,
@@ -766,9 +766,10 @@ class TextService:
                                     prompt,
                                     temp_file.name,
                                 ),
+                                image_understanding_model.do_image_ocr(temp_file.name)
                             )
                             prompt = (
-                                f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\n"
+                                f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nImage Info-OCR: {image_ocr}\n"
                                 + prompt
                             )
                             try:

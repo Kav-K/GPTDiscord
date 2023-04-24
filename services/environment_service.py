@@ -533,3 +533,11 @@ class EnvService:
             return deep_compose_price
         except Exception:
             return 3.00
+
+    @staticmethod
+    def get_google_cloud_project_id():
+        try:
+            google_cloud_project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
+            return google_cloud_project_id
+        except Exception:
+            return None
