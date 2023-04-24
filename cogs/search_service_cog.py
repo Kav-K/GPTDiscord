@@ -448,7 +448,7 @@ class SearchService(discord.Cog, name="SearchService"):
             Tool(
                 name="Web-Crawling-Tool",
                 func=requests.get,
-                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is the value of use_gpt4, which is {use_gpt4}, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', False, 'What is this webpage?'",
+                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is the value of use_gpt4, which is {use_gpt4}, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', False, 'What is this webpage?'. This tool should only be used if a direct link is provided and not in conjunction with other tools.",
             ),
         ]
 
