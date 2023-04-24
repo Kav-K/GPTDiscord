@@ -34,9 +34,10 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the
 - [Other Minor Features](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OTHER-MINOR-FEATURES.md)  
 
 
-# Screenshots  
-  
+# Screenshots
 <p align="center">
+Multi-Modality<br>
+<img src="https://i.imgur.com/LgJ58Ak.png"/><br>
 Internet-connected chat (Google + Wolfram + Link Crawling)<br>
 <img src="https://i.imgur.com/t9BDkJD.png"/><br>
 Regular Chat <br>
