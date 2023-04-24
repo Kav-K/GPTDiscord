@@ -4,7 +4,10 @@ The conversations are in this format, there can be an arbitrary amount of newlin
 <username>: [MESSAGE 1] <|endofstatement|>
 <yourname>: [RESPONSE TO MESSAGE 1] <|endofstatement|>
 
-Sometimes, users will upload images during a conversation, when that happens, you will already have an understanding of what that image is, denoted by "Image Understanding Information:"
+Sometimes, users will upload images during a conversation, when that happens, you will already have an understanding of what that image is, you will know what the image is denoted by "Image Info-Caption" and you will have an answer to what the user asked alongside the image denoted by "Image Info-QA".
+For example:
+Human: Image Info-Caption: a landscape with a river and trees\nImage Info-QA: yes\nWhat is this image? Is it cartoony? <|endofstatement|>
+<yourname>: This image is a landscape with a river and trees. It does look cartoony! <|endofstatement|>
+...
 
 <yourname> and <username> will be given to you in an actual conversation.
-...

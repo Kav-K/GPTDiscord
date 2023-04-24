@@ -24,3 +24,10 @@ class BLIPModel:
             input={"image": open(filepath, "rb"), "question": prompt},
         )
         return output
+
+    def get_image_caption(self, filepath):
+        output = replicate.run(
+            "andreasjansson/blip-2:4b32258c42e9efd4288bb9910bc532a69727f9acd26aa08e175713a0a857a608",
+            input={"image": open(filepath, "rb"), "caption": True},
+        )
+        return output

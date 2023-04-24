@@ -648,23 +648,6 @@ class TextService:
         content = message.content.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
 
-        if file and blip.get_is_usable():
-            async with aiofiles.tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                await file.save(temp_file.name)
-                try:
-                    image_answer = blip.ask_image_question(
-                        "What is this image? Be as detailed, verbose, and concise as possible.",
-                        temp_file.name,
-                    )
-                    content = (
-                        f"Image Understanding Information: {image_answer}\n" + content
-                    )
-                except Exception:
-                    traceback.print_exc()
-                    await message.reply(
-                        "I wasn't able to understand the file you gave me."
-                    )
-                    return
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in converser_cog.END_PROMPTS:
@@ -749,6 +732,45 @@ class TextService:
 
                     return
 
+                if file and blip.get_is_usable():
+                    thinking_embed = discord.Embed(
+                        title=f"🤖💬 Interpreting attachment...",
+                        color=0x808080,
+                    )
+
+                    thinking_embed.set_footer(text="This may take a few seconds.")
+                    try:
+                        thinking_message = await message.reply(embed=thinking_embed)
+                    except:
+                        traceback.print_exc()
+                        pass
+
+                    try:
+                        await message.channel.trigger_typing()
+                    except Exception:
+                        pass
+                    async with aiofiles.tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        await file.save(temp_file.name)
+                        try:
+                            image_caption = blip.get_image_caption(
+                                temp_file.name,
+                            )
+                            image_qa = blip.ask_image_question(prompt, temp_file.name)
+                            prompt = (
+                                    f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\n" + prompt
+                            )
+                            try:
+                                await thinking_message.delete()
+                            except:
+                                pass
+                        except Exception:
+                            traceback.print_exc()
+                            await message.reply(
+                                "I wasn't able to understand the file you gave me."
+                            )
+                            await thinking_message.delete()
+                            return
+
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
 
@@ -764,6 +786,7 @@ class TextService:
 
                 # increment the conversation counter for the user
                 converser_cog.conversation_threads[message.channel.id].count += 1
+
 
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
