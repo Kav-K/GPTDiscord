@@ -80,9 +80,23 @@ def my_parse(self, text):
         #     "action_input": text
         # }
         # This will cause the bot to respond with the text as if it were a final answer.
-        text_without_triple_backticks = f'{{"action": "Final Answer", "action_input": {json.dumps(text_without_triple_backticks)}}}'
+        if "action_input" not in text_without_triple_backticks:
+            text_without_triple_backticks = f'{{"action": "Final Answer", "action_input": {json.dumps(text_without_triple_backticks)}}}'
+            result = original_parse(self, text_without_triple_backticks)
 
-        result = original_parse(self, text_without_triple_backticks)
+        else:
+
+            # Insert "```json" before the opening curly brace
+            text_without_triple_backticks = re.sub(
+                r"({)", r"```json \1", text_without_triple_backticks
+            )
+
+            # Insert "```" after the closing curly brace
+            text_without_triple_backticks = re.sub(
+                r"(})", r"\1 ```", text_without_triple_backticks
+            )
+
+            result = original_parse(self, text_without_triple_backticks)
 
     return result
 
