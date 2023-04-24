@@ -1,6 +1,7 @@
 import datetime
 import io
 import os
+import sys
 import tempfile
 import traceback
 from typing import Optional, Dict, Any
@@ -47,11 +48,23 @@ original_parse = ConvoOutputParser.parse
 
 
 def my_parse(self, text):
-    # Remove the extra triple backticks from the text input
-    text_without_triple_backticks = text.replace("```", "")
+    # Remove all pairs of triple backticks from the input. However, don't remove pairs of ```json and ```. Only remove ``` and ``` pairs, maintain the text between the pairs so that only the backticks
+    # are removed and the text is left intact.
+    text_without_triple_backticks = re.sub(r"```(?!json)(.*?)```", r"\1", text, flags=re.DOTALL)
+
+
+
+    print("ORIGINAL TEXT WAS:", file=sys.stderr)
+    print(text, file=sys.stderr)
+    print("MODIFIED TEXT IS:", file=sys.stderr)
+    print(text_without_triple_backticks, file=sys.stderr)
 
     # Call the original parse() method with the modified input
-    result = original_parse(self, text_without_triple_backticks)
+    try:
+        result = original_parse(self, text_without_triple_backticks)
+    except Exception:
+        traceback.print_exc()
+        print("Caught an exception")
 
     return result
 
