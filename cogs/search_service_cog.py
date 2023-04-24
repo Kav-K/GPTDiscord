@@ -15,11 +15,13 @@ from langchain import (
     GoogleSearchAPIWrapper,
     WolframAlphaAPIWrapper,
     FAISS,
-    InMemoryDocstore,
+    InMemoryDocstore, LLMChain, ConversationChain,
 )
-from langchain.agents import Tool, initialize_agent, AgentType
+from langchain.agents import Tool, initialize_agent, AgentType, ZeroShotAgent, AgentExecutor
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory, CombinedMemory
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, MessagesPlaceholder, \
+    HumanMessagePromptTemplate
 from langchain.requests import TextRequestsWrapper, Requests
 from llama_index import (
     GPTSimpleVectorIndex,
@@ -52,19 +54,20 @@ def my_parse(self, text):
     # are removed and the text is left intact.
     text_without_triple_backticks = re.sub(r"```(?!json)(.*?)```", r"\1", text, flags=re.DOTALL)
 
-
-
-    print("ORIGINAL TEXT WAS:", file=sys.stderr)
-    print(text, file=sys.stderr)
-    print("MODIFIED TEXT IS:", file=sys.stderr)
-    print(text_without_triple_backticks, file=sys.stderr)
-
     # Call the original parse() method with the modified input
     try:
         result = original_parse(self, text_without_triple_backticks)
     except Exception:
         traceback.print_exc()
-        print("Caught an exception")
+        # Take the text and format it like
+        # {
+        #     "action": "Final Answer",
+        #     "action_input": text
+        # }
+        # This will cause the bot to respond with the text as if it were a final answer.
+        text_without_triple_backticks = f'{{"action": "Final Answer", "action_input": "{text_without_triple_backticks}"}}'
+
+        result = original_parse(self, text_without_triple_backticks)
 
     return result
 
@@ -130,7 +133,13 @@ class CustomTextRequestWrapper(BaseModel):
 
     def get(self, url: str, **kwargs: Any) -> str:
         # the "url" field is actuall some input from the LLM, it is a comma separated string of the url and a boolean value and the original query
-        url, use_gpt4, original_query = url.split(",")
+        try:
+            url, use_gpt4, original_query = url.split(",")
+        except:
+            url = url
+            use_gpt4 = False
+            original_query="No Original Query Provided"
+
         use_gpt4 = use_gpt4 == "True"
         """GET the URL and return the text."""
         text = self.requests.get(url, **kwargs).text
@@ -404,7 +413,7 @@ class SearchService(discord.Cog, name="SearchService"):
             Tool(
                 name="Search-Tool",
                 func=search.run,
-                description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet.",
+                description="useful when you need to answer questions about current events or retrieve information about a topic that may require the internet. The input to this tool is a search query to ask google. Search queries should be less than 8 words. For example, an input could be 'What is the weather like in New York?' and the tool input would be 'weather new york'.",
             ),
             # The requests tool
             Tool(
@@ -435,11 +444,11 @@ class SearchService(discord.Cog, name="SearchService"):
 
         if use_gpt4:
             llm = ChatOpenAI(
-                model="gpt-4", temperature=0.7, openai_api_key=OPENAI_API_KEY
+                model="gpt-4", temperature=0, openai_api_key=OPENAI_API_KEY
             )
         else:
             llm = ChatOpenAI(
-                model="gpt-3.5-turbo", temperature=0.7, openai_api_key=OPENAI_API_KEY
+                model="gpt-3.5-turbo", temperature=0, openai_api_key=OPENAI_API_KEY
             )
 
         agent_chain = initialize_agent(
