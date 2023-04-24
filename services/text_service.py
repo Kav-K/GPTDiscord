@@ -651,7 +651,6 @@ class TextService:
         content = message.content.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
 
-
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in converser_cog.END_PROMPTS:
             await converser_cog.end_conversation(message)
@@ -752,15 +751,25 @@ class TextService:
                         await message.channel.trigger_typing()
                     except Exception:
                         pass
-                    async with aiofiles.tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    async with aiofiles.tempfile.NamedTemporaryFile(
+                        delete=False
+                    ) as temp_file:
                         await file.save(temp_file.name)
                         try:
                             image_caption, image_qa = await asyncio.gather(
-                                asyncio.to_thread(image_understanding_model.get_image_caption, temp_file.name),
-                                asyncio.to_thread(image_understanding_model.ask_image_question, prompt, temp_file.name)
+                                asyncio.to_thread(
+                                    image_understanding_model.get_image_caption,
+                                    temp_file.name,
+                                ),
+                                asyncio.to_thread(
+                                    image_understanding_model.ask_image_question,
+                                    prompt,
+                                    temp_file.name,
+                                ),
                             )
                             prompt = (
-                                    f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\n" + prompt
+                                f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\n"
+                                + prompt
                             )
                             try:
                                 await thinking_message.delete()
@@ -789,7 +798,6 @@ class TextService:
 
                 # increment the conversation counter for the user
                 converser_cog.conversation_threads[message.channel.id].count += 1
-
 
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
