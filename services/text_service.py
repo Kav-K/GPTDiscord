@@ -12,7 +12,7 @@ from discord.ext import pages
 import unidecode
 
 from models.embed_statics_model import EmbedStatics
-from models.replicate_model import BLIPModel
+from models.replicate_model import ImageUnderstandingModel
 from services.deletion_service import Deletion
 from models.openai_model import Model, Override, Models
 from models.user_model import EmbeddedConversationItem, RedoUser
@@ -21,7 +21,7 @@ from services.moderations_service import Moderation
 
 BOT_NAME = EnvService.get_custom_bot_name()
 PRE_MODERATE = EnvService.get_premoderate()
-blip = BLIPModel()
+image_understanding_model = ImageUnderstandingModel()
 
 
 class TextService:
@@ -732,7 +732,7 @@ class TextService:
 
                     return
 
-                if file and blip.get_is_usable():
+                if file and image_understanding_model.get_is_usable():
                     thinking_embed = discord.Embed(
                         title=f"🤖💬 Interpreting attachment...",
                         color=0x808080,
@@ -752,10 +752,10 @@ class TextService:
                     async with aiofiles.tempfile.NamedTemporaryFile(delete=False) as temp_file:
                         await file.save(temp_file.name)
                         try:
-                            image_caption = blip.get_image_caption(
-                                temp_file.name,
+                            image_caption, image_qa = await asyncio.gather(
+                                asyncio.to_thread(image_understanding_model.get_image_caption, temp_file.name),
+                                asyncio.to_thread(image_understanding_model.ask_image_question, prompt, temp_file.name)
                             )
-                            image_qa = blip.ask_image_question(prompt, temp_file.name)
                             prompt = (
                                     f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\n" + prompt
                             )
