@@ -905,7 +905,7 @@ class Model:
                 # If this is the first message, it is the context prompt.
                 messages.append(
                     {
-                        "role": "system",
+                        "role": "user",
                         "content": message.text,
                     }
                 )
