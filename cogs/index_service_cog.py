@@ -14,7 +14,8 @@ USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 PRE_MODERATE = EnvService.get_premoderate()
 GITHUB_TOKEN = EnvService.get_github_token()
-os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
+if GITHUB_TOKEN:
+    os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
 
 
 class IndexService(discord.Cog, name="IndexService"):
