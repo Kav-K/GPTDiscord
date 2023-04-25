@@ -69,7 +69,7 @@ class IndexService(discord.Cog, name="IndexService"):
 
         prompt = message.content.strip()
 
-        if self.index_handler.get_is_in_index_chat(message):
+        if await self.index_handler.get_is_in_index_chat(message):
 
             self.thread_awaiting_responses.append(message.channel.id)
 
