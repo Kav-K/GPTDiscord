@@ -70,17 +70,19 @@ class IndexService(discord.Cog, name="IndexService"):
 
         prompt = message.content.strip()
 
-        self.thread_awaiting_responses.append(message.channel.id)
+        if self.index_handler.get_is_in_index_chat(message):
 
-        try:
-            await message.channel.trigger_typing()
-        except:
-            pass
+            self.thread_awaiting_responses.append(message.channel.id)
 
-        chat_result = await self.index_handler.execute_index_chat_message(message, prompt)
-        if chat_result:
-            await message.channel.send(chat_result)
-            self.thread_awaiting_responses.remove(message.channel.id)
+            try:
+                await message.channel.trigger_typing()
+            except:
+                pass
+
+            chat_result = await self.index_handler.execute_index_chat_message(message, prompt)
+            if chat_result:
+                await message.channel.send(chat_result)
+                self.thread_awaiting_responses.remove(message.channel.id)
 
 
     async def index_chat_command(self, ctx, user_index, search_index, model):

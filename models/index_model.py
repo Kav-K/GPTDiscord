@@ -215,6 +215,9 @@ class Index_handler:
             traceback.print_exc()
             return False
 
+    async def get_is_in_index_chat(self, ctx):
+        return ctx.channel.id in self.index_chat_chains
+
     async def execute_index_chat_message(self, ctx, message):
         if ctx.channel.id not in self.index_chat_chains:
             return None
