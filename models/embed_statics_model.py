@@ -183,6 +183,17 @@ class EmbedStatics:
         return embed
 
     @staticmethod
+    def get_index_chat_preparation_message():
+        embed = discord.Embed(
+            title="Index Chat",
+            description=f"Your index chat is preparing, this might take a moment.",
+            color=discord.Color.blurple(),
+        )
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/txHhNzL.png")
+        return embed
+
+    @staticmethod
     def get_index_rename_success_embed(original, renamed):
         embed = discord.Embed(
             title=f"Index Rename",

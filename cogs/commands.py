@@ -724,6 +724,44 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
+        name="talk",
+        description="Select one of your saved indexes to talk to",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.guild_only()
+    @discord.option(
+        name="user_index",
+        description="Which user file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
+    )
+    @discord.option(
+        name="search_index",
+        description="Which search index file to load the index from",
+        required=False,
+        autocomplete=File_autocompleter.get_user_search_indexes,
+    )
+    @discord.option(
+        name="model",
+        description="The model to use for the conversation",
+        required=False,
+        default="gpt-3.5-turbo",
+        autocomplete=Settings_autocompleter.get_index_and_search_models,
+    )
+    async def talk(
+            self,
+            ctx: discord.ApplicationContext,
+            user_index: str,
+            search_index: str,
+            model: str,
+    ):
+        await ctx.defer()
+        await self.index_cog.index_chat_command(
+            ctx, user_index, search_index, model
+        )
+
+    @add_to_group("index")
+    @discord.slash_command(
         name="add", description="Add an index to query from", guild_ids=ALLOWED_GUILDS
     )
     @discord.guild_only()

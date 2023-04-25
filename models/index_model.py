@@ -17,11 +17,14 @@ from datetime import date
 
 from discord import InteractionResponse, Interaction
 from discord.ext import pages
+from langchain import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
+from langchain.memory import ConversationBufferMemory
 from llama_index.data_structs.data_structs import Node
 from llama_index.data_structs.node_v2 import DocumentRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
+from llama_index.langchain_helpers.agents import IndexToolConfig, LlamaToolkit, create_llama_chat_agent
 from llama_index.optimization import SentenceEmbeddingOptimizer
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 
@@ -193,6 +196,7 @@ class Index_handler:
             "answer the question: {query_str}\n"
         )
         self.EMBED_CUTOFF = 2000
+        self.index_chat_chains = {}
 
     async def rename_index(self, ctx, original_path, rename_path):
         """Command handler to rename a user index"""
@@ -210,6 +214,96 @@ class Index_handler:
         except Exception as e:
             traceback.print_exc()
             return False
+
+    async def execute_index_chat_message(self, ctx, message):
+        if ctx.channel.id not in self.index_chat_chains:
+            return None
+
+        if message.lower() in ["stop", "end", "quit", "exit"]:
+            await ctx.reply("Ending chat session.")
+            self.index_chat_chains.pop(message.channel.id)
+
+            # close the thread
+            thread = await self.bot.fetch_channel(message.channel.id)
+            await thread.edit(name="Closed-GPT")
+            await thread.edit(archived=True)
+            return "Ended chat session."
+
+        agent_output = await self.loop.run_in_executor(
+            None, partial(self.index_chat_chains[ctx.channel.id].run, message)
+        )
+        return agent_output
+
+    async def start_index_chat(self, ctx, search, user, model):
+        if search:
+            index_file = EnvService.find_shared_file(
+                f"indexes/{ctx.user.id}_search/{search}"
+            )
+        elif user:
+            index_file = EnvService.find_shared_file(
+                f"indexes/{ctx.user.id}/{user}"
+            )
+
+        assert index_file is not None
+
+        preparation_message = await ctx.channel.send(embed=EmbedStatics.get_index_chat_preparation_message())
+
+        index = await self.loop.run_in_executor(
+            None, partial(self.index_load_file, index_file)
+        )
+
+        summary_response = await self.loop.run_in_executor(
+            None, partial(index.query, "What is a summary of this document?")
+        )
+
+        tool_config = IndexToolConfig(
+            index=index,
+            name=f"Vector Index",
+            description=f"useful for when you want to answer queries about the external data you're connected to. The data you're connected to is: {summary_response}",
+            index_query_kwargs={"similarity_top_k": 3},
+            tool_kwargs={"return_direct": True}
+        )
+        toolkit = LlamaToolkit(
+            index_configs=[tool_config],
+        )
+        memory = ConversationBufferMemory(memory_key="chat_history")
+        llm = ChatOpenAI(model=model, temperature=0)
+        agent_chain = create_llama_chat_agent(
+            toolkit,
+            llm,
+            memory=memory,
+            verbose=True
+        )
+
+        embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
+        # Get only the last part after the last / of the index_file
+        try:
+            index_file_name = str(index_file).split("/")[-1]
+        except:
+            index_file_name = index_file
+
+        message_embed = discord.Embed(
+            title=embed_title,
+            description=f"The agent is connected to the data index named {index_file_name}\nModel: {model}",
+            color=0x00995b,
+        )
+        message_embed.set_thumbnail(url="https://i.imgur.com/7V6apMT.png")
+        message_embed.set_footer(
+            text="Data Chat", icon_url="https://i.imgur.com/7V6apMT.png"
+        )
+        message_thread = await ctx.send(embed=message_embed)
+        thread = await message_thread.create_thread(
+            name=ctx.user.name + "'s data-connected conversation with GPT",
+            auto_archive_duration=60,
+        )
+        await ctx.respond("Conversation started.")
+
+        try:
+            await preparation_message.delete()
+        except:
+            pass
+
+        self.index_chat_chains[thread.id] = agent_chain
 
     async def paginate_embed(self, response_text):
         """Given a response text make embed pages and return a list of the pages."""

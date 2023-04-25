@@ -33,7 +33,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "11.5.5"
+__version__ = "11.6.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -174,6 +174,7 @@ async def main():
         IndexService(
             bot,
             usage_service,
+            deletion_queue,
         )
     )
 
