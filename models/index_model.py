@@ -24,7 +24,11 @@ from langchain.memory import ConversationBufferMemory
 from llama_index.data_structs.data_structs import Node
 from llama_index.data_structs.node_v2 import DocumentRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
-from llama_index.langchain_helpers.agents import IndexToolConfig, LlamaToolkit, create_llama_chat_agent
+from llama_index.langchain_helpers.agents import (
+    IndexToolConfig,
+    LlamaToolkit,
+    create_llama_chat_agent,
+)
 from llama_index.optimization import SentenceEmbeddingOptimizer
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 
@@ -243,13 +247,13 @@ class Index_handler:
                 f"indexes/{ctx.user.id}_search/{search}"
             )
         elif user:
-            index_file = EnvService.find_shared_file(
-                f"indexes/{ctx.user.id}/{user}"
-            )
+            index_file = EnvService.find_shared_file(f"indexes/{ctx.user.id}/{user}")
 
         assert index_file is not None
 
-        preparation_message = await ctx.channel.send(embed=EmbedStatics.get_index_chat_preparation_message())
+        preparation_message = await ctx.channel.send(
+            embed=EmbedStatics.get_index_chat_preparation_message()
+        )
 
         index = await self.loop.run_in_executor(
             None, partial(self.index_load_file, index_file)
@@ -264,19 +268,14 @@ class Index_handler:
             name=f"Vector Index",
             description=f"useful for when you want to answer queries about the external data you're connected to. The data you're connected to is: {summary_response}",
             index_query_kwargs={"similarity_top_k": 3},
-            tool_kwargs={"return_direct": True}
+            tool_kwargs={"return_direct": True},
         )
         toolkit = LlamaToolkit(
             index_configs=[tool_config],
         )
         memory = ConversationBufferMemory(memory_key="chat_history")
         llm = ChatOpenAI(model=model, temperature=0)
-        agent_chain = create_llama_chat_agent(
-            toolkit,
-            llm,
-            memory=memory,
-            verbose=True
-        )
+        agent_chain = create_llama_chat_agent(toolkit, llm, memory=memory, verbose=True)
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
         # Get only the last part after the last / of the index_file
@@ -288,7 +287,7 @@ class Index_handler:
         message_embed = discord.Embed(
             title=embed_title,
             description=f"The agent is connected to the data index named {index_file_name}\nModel: {model}",
-            color=0x00995b,
+            color=0x00995B,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/7V6apMT.png")
         message_embed.set_footer(

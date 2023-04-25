@@ -37,7 +37,6 @@ class IndexService(discord.Cog, name="IndexService"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
-
         # Check for self
         if message.author == self.bot.user:
             return
@@ -83,7 +82,6 @@ class IndexService(discord.Cog, name="IndexService"):
             if chat_result:
                 await message.channel.send(chat_result)
                 self.thread_awaiting_responses.remove(message.channel.id)
-
 
     async def index_chat_command(self, ctx, user_index, search_index, model):
         if not user_index and not search_index:
