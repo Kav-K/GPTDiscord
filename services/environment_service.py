@@ -456,6 +456,14 @@ class EnvService:
             return deepl_token
         except Exception:
             return None
+            
+    @staticmethod
+    def get_github_token():
+        try:
+            github_token = os.getenv("GITHUB_TOKEN")
+            return github_token
+        except Exception:
+            return None
 
     @staticmethod
     def get_openai_token():

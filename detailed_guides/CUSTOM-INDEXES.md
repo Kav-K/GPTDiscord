@@ -3,11 +3,12 @@ This bot supports per-user custom indexes. This means that users can upload file
   
 **This feature uses a large amount of tokens and money, and you should restrict it to trusted users.**  
   
-Supported filetypes:  
+Supported filetypes/sources:  
 - All text and data based files (PDF, TXT, DOCX, PPTX, CSV etc)  
 - Images (JPG, PNG, etc) (Note: The bot will do OCR on the images to extract the text, this requires a lot of processing power sometimes)  
 - Videos/Audio (MP4, MP3, etc) (Note: The bot will use OpenAI on the audio to extract the text, this requires a lot of processing power sometimes)  
-- **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!  
+- **Youtube Videos** - For all youtube videos that are transcribable, the bot will index the entire transcription of the given youtube video URL!
+- GitHub repositories can also be indexed by the bot! To enable this, add an access token to `GITHUB_TOKEN` in your `.env` file. You can create a token at https://github.com/settings/tokens. 
   
 Index Compositions:  
 Indexes can be combined with other indexes through a composition. To combine indexes, you can run the `/index compose` command, and select the indexes that you want to combine together. You should only combine relevant indexes together, combining irrelevant indexes together will result in poor results (for example, don't upload a math textbook and then upload a large set of poems and combine them together). When creating a composition, you will be given the option to do a "Deep" composition, deep compositions are more detailed and will give you better results, but are incredibly costly and will sometimes take multiple minutes to compose.  
