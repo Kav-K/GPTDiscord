@@ -749,16 +749,14 @@ class Commands(discord.Cog, name="Commands"):
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def talk(
-            self,
-            ctx: discord.ApplicationContext,
-            user_index: str,
-            search_index: str,
-            model: str,
+        self,
+        ctx: discord.ApplicationContext,
+        user_index: str,
+        search_index: str,
+        model: str,
     ):
         await ctx.defer()
-        await self.index_cog.index_chat_command(
-            ctx, user_index, search_index, model
-        )
+        await self.index_cog.index_chat_command(ctx, user_index, search_index, model)
 
     @add_to_group("index")
     @discord.slash_command(
