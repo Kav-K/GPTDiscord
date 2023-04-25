@@ -70,7 +70,6 @@ class IndexService(discord.Cog, name="IndexService"):
         prompt = message.content.strip()
 
         if self.index_handler.get_is_in_index_chat(message):
-
             self.thread_awaiting_responses.append(message.channel.id)
 
             try:
@@ -78,7 +77,9 @@ class IndexService(discord.Cog, name="IndexService"):
             except:
                 pass
 
-            chat_result = await self.index_handler.execute_index_chat_message(message, prompt)
+            chat_result = await self.index_handler.execute_index_chat_message(
+                message, prompt
+            )
             if chat_result:
                 await message.channel.send(chat_result)
                 self.thread_awaiting_responses.remove(message.channel.id)
