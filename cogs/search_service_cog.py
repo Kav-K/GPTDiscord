@@ -223,12 +223,12 @@ class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
 
     def __init__(
-            self,
-            bot,
-            gpt_model,
-            usage_service,
-            deletion_service,
-            converser_cog,
+        self,
+        bot,
+        gpt_model,
+        usage_service,
+        deletion_service,
+        converser_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -242,12 +242,12 @@ class SearchService(discord.Cog, name="SearchService"):
         # Make a mapping of all the country codes and their full country names:
 
     async def paginate_embed(
-            self, response_text, user: discord.Member, original_link=None
+        self, response_text, user: discord.Member, original_link=None
     ):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i: i + self.EMBED_CUTOFF]
+            response_text[i : i + self.EMBED_CUTOFF]
             for i in range(0, len(response_text), self.EMBED_CUTOFF)
         ]
         pages = []
@@ -285,7 +285,7 @@ class SearchService(discord.Cog, name="SearchService"):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i: i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
         ]
         pages = []
         first = False
@@ -416,7 +416,7 @@ class SearchService(discord.Cog, name="SearchService"):
             self.thread_awaiting_responses.remove(message.channel.id)
 
     async def search_chat_command(
-            self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False
+        self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False
     ):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
@@ -501,18 +501,18 @@ class SearchService(discord.Cog, name="SearchService"):
         self.chat_agents[thread.id] = agent_chain
 
     async def search_command(
-            self,
-            ctx: discord.ApplicationContext,
-            query,
-            search_scope,
-            nodes,
-            deep,
-            response_mode,
-            model="gpt-3.5-turbo",
-            multistep=False,
-            redo=None,
-            from_followup=None,
-            followup_user=None,
+        self,
+        ctx: discord.ApplicationContext,
+        query,
+        search_scope,
+        nodes,
+        deep,
+        response_mode,
+        model="gpt-3.5-turbo",
+        multistep=False,
+        redo=None,
+        from_followup=None,
+        followup_user=None,
     ):
         """Command handler for the search command"""
         await ctx.defer() if not redo else None
@@ -531,8 +531,8 @@ class SearchService(discord.Cog, name="SearchService"):
                 return
 
         if (
-                not EnvService.get_google_search_api_key()
-                or not EnvService.get_google_search_engine_id()
+            not EnvService.get_google_search_api_key()
+            or not EnvService.get_google_search_engine_id()
         ):
             await ctx.respond(
                 embed=EmbedStatics.get_search_failure_embed(
@@ -619,10 +619,10 @@ class SearchService(discord.Cog, name="SearchService"):
 
 class SearchView(discord.ui.View):
     def __init__(
-            self,
-            ctx,
-            search_cog,
-            response_text,
+        self,
+        ctx,
+        search_cog,
+        response_text,
     ):
         super().__init__(timeout=None)  # No timeout
         self.search_cog = search_cog
@@ -709,14 +709,14 @@ class FollowupModal(discord.ui.Modal):
 
         # Build the context
         context_text = (
-                "Original question: "
-                + query
-                + "\n"
-                + "Answer to original: "
-                + self.response_text
-                + "\n"
-                + "Follow-up question: "
-                + self.children[0].value
+            "Original question: "
+            + query
+            + "\n"
+            + "Answer to original: "
+            + self.response_text
+            + "\n"
+            + "Follow-up question: "
+            + self.children[0].value
         )
 
         # Get the link of the message that the user interacted on
