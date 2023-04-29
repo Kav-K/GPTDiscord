@@ -84,8 +84,8 @@ It will then prompt you for your password, which you should enter, and then you 
 
 #### Clone the project files
 ```shell
-git clone https://github.com/Kav-K/GPT3Discord.git
-cd GPT3Discord/
+git clone https://github.com/Kav-K/GPTDiscord.git
+cd GPTDiscord/
 ````
 
 #### Install system packages (python)  
@@ -144,7 +144,7 @@ screen -d -r {ID} # replace {ID} with the ID of the screen session you want to r
 
 As a last resort, you can try to run the bot using python in a basic way, with simply  
 ```shell
-cd GPT3Discord
+cd GPTDiscord
 
 python3.9 gpt3discord.py  
 ```
@@ -230,7 +230,7 @@ Here's a great video from a community member that shows an installation on Windo
   
 ## Updating   
   
-To update the bot, run (when working in the directory of GPT3discord):  
+To update the bot, run (when working in the directory of GPTdiscord):  
   
 ```
 # To get the latest branch:  
