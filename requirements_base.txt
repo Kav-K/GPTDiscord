@@ -11,7 +11,7 @@ aiofiles==22.1.0
 pinecone-client==2.1.0
 sqlitedict==2.1.0
 backoff==2.2.1
-flask==2.2.3
+flask==2.3.2
 llama-index==0.5.23
 PyPDF2==3.0.1
 youtube_transcript_api==0.5.0
