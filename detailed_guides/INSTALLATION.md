@@ -58,7 +58,7 @@ https://discordpy.readthedocs.io/en/stable/discord.html
 - Toggle PRESENCE INTENT:  
   - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)  
 - Add Bot the server.  
-  - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot, application.commands  
+  - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot, applications.commands  
   - Bot Permissions will appear, select the desired permissions  
   - Copy the link generated below and paste it on the browser  
   - On add to server select the desired server to add the bot  
