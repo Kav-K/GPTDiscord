@@ -65,14 +65,22 @@ https://discordpy.readthedocs.io/en/stable/discord.html
 - Make sure you have updated your .env file with valid values for `DEBUG_GUILD`, `DEBUG_CHANNEL` and `ALLOWED_GUILDS`, otherwise the bot will not work. Guild IDs can be found by right clicking a server and clicking `Copy ID`, similarly, channel IDs can be found by right clicking a channel and clicking `Copy ID`.  
   
   
-### Server Installation  
+### Server Creation
   
 First, you want to get a server, for this guide, I will be using DigitalOcean as the host.   
-  
-For instructions on how to get a server from start to finish, they are available on DigitalOcean's website directly from the community, available here: https://www.digitalocean.com/community/tutorials/how-to-set-up-an-ubuntu-20-04-server-on-a-digitalocean-droplet. Ignore the part about setting up an "ssh key", and just use a password instead.   
-  
-**Please sign up for a DigitalOcean account using my referral link if you'd like to support me https://m.do.co/c/e31eff1231a4**  
-  
+
+[Instructions on how to get a server from start to finish.](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/DROPLET-GUIDE.md)
+
+### Connect to Server
+
+There are two ways to connect to your server, either through the DigitalOcean GUI, or through a terminal program via ssh.
+
+#### DigitalOcean GUI
+
+Open your DigitalOcean account, and click on the droplet you just created. Then, click on the "Access" tab, and click on "Launch Console". This will open a terminal window in your browser, and you will be able to interact with your server through this terminal window.
+
+#### SSH
+
 After you set up the server, the DigitalOcean GUI will give you an IP address, copy this IP address. Afterwards, you will need to SSH into the server. This can be done using a program such as "PuTTy", or by using your commandline, if it's supported. To login to the server, your username will be "root", your password will be the password that you defined earlier when setting up the droplet, and the IP address will be the IP address you copied after the droplet was finished creation.  
   
 To connect with ssh, run the following command in terminal:  
