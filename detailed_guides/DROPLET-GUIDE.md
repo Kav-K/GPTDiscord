@@ -6,7 +6,7 @@
 
 <div><h3>1. <a href="https://m.do.co/c/e31eff1231a4" target="_blank">Go to DigitalOcean</a></h3>
 </div>
-<p><em>Note: By using the referral link above, you will receive $200 credit for 60 days as a bonus.</em></p>
+<p><em>Note: By using the referral link above, you will receive a $200 credit for 60 days as a bonus.</em></p>
 
 <div><h3>2. Click on Sign up to register yourself.</h3>
 <img src="https://images.tango.us/workflows/c1516302-2b29-472d-b9d6-82e1e6a58d4e/steps/98d99473-62a5-4ee8-ad23-b1659c31a315/b791b344-0dba-4bb4-809b-250a675e9545.png?fm=png&crop=focalpoint&fit=crop&fp-x=0.8105&fp-y=0.0795&fp-z=2.9158&w=1200&ar=1879%3A931" width="600" alt="Click on Sign up to register yourself." />
