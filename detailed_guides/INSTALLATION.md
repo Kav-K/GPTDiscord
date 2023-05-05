@@ -1,11 +1,11 @@
 # Requirements and Usage  
 **For OCR, and document functionalities**:  
 ```  
-pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
+pip3 install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
 ```
 OR  
 ```
-python3.9 -m pip install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
+python3.9 -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
 ```  
 **For audio extraction for indexing from .mp3 and .mp4 files**:  
 ```
@@ -159,7 +159,7 @@ To use docker you can use the following command after [installing docker](https:
 - Make sure the path on the left side of the colon in the paths below is a valid path on your machibne
 
 ```shell
-docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share ghcr.io/kav-k/gpt3discord:main  
+docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share ghcr.io/kav-k/gptdiscord:main-full  
 ```  
 
 If you wish to build your own image then do the following commands instead
