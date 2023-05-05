@@ -17,7 +17,7 @@ on:
 
 jobs:
   docker-push-base:
-    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPT3Discord' }}
+    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
     runs-on: ubuntu-20.04
     permissions:
       contents: read
@@ -106,7 +106,7 @@ jobs:
    
 
   docker-push-full:
-    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPT3Discord' }}
+    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
     runs-on: ubuntu-20.04
     permissions:
       contents: read
@@ -198,7 +198,7 @@ jobs:
 
   docker-pr:
     # Only builds amd64 due to arm64 being slow
-    if: ${{ github.event_name == 'pull_request' && github.repository == 'Kav-K/GPT3Discord' }}
+    if: ${{ github.event_name == 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
     runs-on: ubuntu-20.04
     permissions:
       contents: read
