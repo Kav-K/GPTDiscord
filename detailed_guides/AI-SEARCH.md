@@ -66,3 +66,11 @@ Click "Get a Key":
 ------------------------------------
 
 ![image](https://user-images.githubusercontent.com/23362597/233268067-5a6cfaf1-bec0-48b3-8add-70b218fb4264.png)
+
+10\. Enable Cloud Vision API for image recognition
+
+https://console.cloud.google.com/apis/api/vision.googleapis.com/metrics?project=luminous-lambda-385603
+
+11\. Enable Custom Search API for Google search
+
+https://console.cloud.google.com/apis/api/customsearch.googleapis.com/metrics?project=luminous-lambda-385603
