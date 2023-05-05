@@ -56,21 +56,23 @@ Click "Get a Key":
 ![image](https://user-images.githubusercontent.com/23362597/233267659-f82621f4-1f0b-46bf-8994-be443dd79932.png)
 
 
-8\. Name your project and agree to the Terms of Service
+7\. Name your project and agree to the Terms of Service
 ------------------------------------
 
 ![image](https://user-images.githubusercontent.com/23362597/233267793-ca3c273d-ebc6-44a5-a49d-0d4c3223c992.png)
 
 
-9\. Copy your Google search API key to your .env file
+8\. Copy your Google search API key to your .env file
 ------------------------------------
 
 ![image](https://user-images.githubusercontent.com/23362597/233268067-5a6cfaf1-bec0-48b3-8add-70b218fb4264.png)
 
-10\. Enable Cloud Vision API for image recognition
 
-https://console.cloud.google.com/apis/api/vision.googleapis.com/metrics?project=luminous-lambda-385603
+9\. Enable Cloud Vision API for image recognition
 
-11\. Enable Custom Search API for Google search
+https://console.cloud.google.com/apis/api/vision.googleapis.com/
 
-https://console.cloud.google.com/apis/api/customsearch.googleapis.com/metrics?project=luminous-lambda-385603
+
+10\. Enable Custom Search API for Google search
+
+https://console.cloud.google.com/apis/api/customsearch.googleapis.com/
