@@ -131,7 +131,17 @@ These commands are grouped, so each group has a prefix but you can easily tab co
   
 `/gpt end` - End a conversation with the bot.  
 
-`/gpt instruction mode:<set/get/clear> type:<user/channel> <instruction> <instruction_file>` - Set, get, or clear a custom instruction for the bot to use when asking questions.
+`/gpt instruction mode:<set/get/clear> type:<user/channel> <instruction> <instruction_file>` - The commands let you set a system instruction for 3.5-turbo and gpt4, or just prepending text for davinci and older models. Instruction will be added to prompts but not shown. The command has 3 options, `set` and `clear` can only be used with the `channel` type if the user has the `CHANNEL_INSTRUCTION_ROLES` role. User set instructions take priority, then channel instructions. This effect applies to `/gpt ask`, @ing the bot and the right click context menu options.
+
+* set
+  * Lets you set an instruction for yourself with `user` or the channel you run the command in with `channel`
+  * `instruction` allows setting the text normally
+  * `instruction_file` allows upload of a file, similar to the openers
+  * When using both `instruction` and `instruction_file`, they will be combined with `instruction` appended after the `instruction_file`
+* get
+  * Prints the currently set instruction for either the `user` or `channel` it is ran in.
+* clear
+  * Removes the currently set instruction for either the `user` or `channel` it is ran in.
   
 ### DALL-E2 Commands  
   
