@@ -37,7 +37,7 @@ from langchain.prompts import (
 )
 from langchain.requests import TextRequestsWrapper, Requests
 from llama_index import (
-    GPTSimpleVectorIndex,
+    GPTVectorStoreIndex,
     Document,
     SimpleDirectoryReader,
     ServiceContext,
@@ -205,7 +205,7 @@ class CustomTextRequestWrapper(BaseModel):
                 document = SimpleDirectoryReader(input_files=[f.name]).load_data()
                 embed_model = OpenAIEmbedding()
                 service_context = ServiceContext.from_defaults(embed_model=embed_model)
-                index = GPTSimpleVectorIndex.from_documents(
+                index = GPTVectorStoreIndex.from_documents(
                     document, service_context=service_context, use_async=True
                 )
                 response_text = index.query(

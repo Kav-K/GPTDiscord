@@ -22,7 +22,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
 from langchain.memory import ConversationBufferMemory
 from llama_index.data_structs.data_structs import Node
-from llama_index.data_structs.node_v2 import DocumentRelationship
+from llama_index.data_structs.node import DocumentRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.langchain_helpers.agents import (
     IndexToolConfig,
@@ -37,7 +37,7 @@ from llama_index.readers.schema.base import Document
 from llama_index.langchain_helpers.text_splitter import TokenTextSplitter
 
 from llama_index import (
-    GPTSimpleVectorIndex,
+    GPTVectorStoreIndex,
     SimpleDirectoryReader,
     QuestionAnswerPrompt,
     BeautifulSoupWebReader,
@@ -50,7 +50,6 @@ from llama_index import (
     download_loader,
     LLMPredictor,
     ServiceContext,
-    QueryMode,
 )
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
@@ -79,7 +78,7 @@ def get_and_query(
     service_context,
     multistep,
 ):
-    index: [GPTSimpleVectorIndex, GPTTreeIndex] = index_storage[
+    index: [GPTVectorStoreIndex, GPTTreeIndex] = index_storage[
         user_id
     ].get_index_or_throw()
     # If multistep is enabled, multistep contains the llm_predictor.
@@ -333,7 +332,7 @@ class Index_handler:
 
         return pages
 
-    def index_file(self, file_path, embed_model, suffix=None) -> GPTSimpleVectorIndex:
+    def index_file(self, file_path, embed_model, suffix=None) -> GPTVectorStoreIndex:
         if suffix and suffix == ".md":
             loader = MarkdownReader()
             document = loader.load_data(file_path)
@@ -343,15 +342,15 @@ class Index_handler:
         else:
             document = SimpleDirectoryReader(input_files=[file_path]).load_data()
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
-        index = GPTSimpleVectorIndex.from_documents(
+        index = GPTVectorStoreIndex.from_documents(
             document, service_context=service_context, use_async=True
         )
         return index
 
-    def index_gdoc(self, doc_id, embed_model) -> GPTSimpleVectorIndex:
+    def index_gdoc(self, doc_id, embed_model) -> GPTVectorStoreIndex:
         document = GoogleDocsReader().load_data(doc_id)
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
-        index = GPTSimpleVectorIndex.from_documents(
+        index = GPTVectorStoreIndex.from_documents(
             document, service_context=service_context, use_async=True
         )
         return index
@@ -363,7 +362,7 @@ class Index_handler:
             raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-        index = GPTSimpleVectorIndex.from_documents(
+        index = GPTVectorStoreIndex.from_documents(
             documents,
             service_context=service_context,
             use_async=True,
@@ -385,24 +384,24 @@ class Index_handler:
             )
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-        index = GPTSimpleVectorIndex.from_documents(
+        index = GPTVectorStoreIndex.from_documents(
             documents,
             service_context=service_context,
             use_async=True,
         )
         return index
 
-    def index_load_file(self, file_path) -> [GPTSimpleVectorIndex, ComposableGraph]:
+    def index_load_file(self, file_path) -> [GPTVectorStoreIndex, ComposableGraph]:
         try:
             index = GPTTreeIndex.load_from_disk(file_path)
         except AssertionError:
-            index = GPTSimpleVectorIndex.load_from_disk(file_path)
+            index = GPTVectorStoreIndex.load_from_disk(file_path)
         return index
 
-    def index_discord(self, document, embed_model) -> GPTSimpleVectorIndex:
+    def index_discord(self, document, embed_model) -> GPTVectorStoreIndex:
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-        index = GPTSimpleVectorIndex.from_documents(
+        index = GPTVectorStoreIndex.from_documents(
             document,
             service_context=service_context,
             use_async=True,
@@ -427,7 +426,7 @@ class Index_handler:
         # Delete the temporary file
         return documents
 
-    async def index_webpage(self, url, embed_model) -> GPTSimpleVectorIndex:
+    async def index_webpage(self, url, embed_model) -> GPTVectorStoreIndex:
         # First try to connect to the URL to see if we can even reach it.
         try:
             async with aiohttp.ClientSession() as session:
@@ -444,7 +443,7 @@ class Index_handler:
                             index = await self.loop.run_in_executor(
                                 None,
                                 functools.partial(
-                                    GPTSimpleVectorIndex,
+                                    GPTVectorStoreIndex,
                                     documents=documents,
                                     embed_model=embed_model,
                                     use_async=True,
@@ -459,12 +458,12 @@ class Index_handler:
             website_extractor=DEFAULT_WEBSITE_EXTRACTOR
         ).load_data(urls=[url])
 
-        # index = GPTSimpleVectorIndex(documents, embed_model=embed_model, use_async=True)
+        # index = GPTVectorStoreIndex(documents, embed_model=embed_model, use_async=True)
         service_context = ServiceContext.from_defaults(embed_model=embed_model)
         index = await self.loop.run_in_executor(
             None,
             functools.partial(
-                GPTSimpleVectorIndex.from_documents,
+                GPTVectorStoreIndex.from_documents,
                 documents=documents,
                 service_context=service_context,
                 use_async=True,
@@ -620,7 +619,7 @@ class Index_handler:
             index = await self.loop.run_in_executor(
                 None,
                 functools.partial(
-                    GPTSimpleVectorIndex,
+                    GPTVectorStoreIndex,
                     documents=documents,
                     embed_model=embedding_model,
                     use_async=True,
@@ -954,7 +953,7 @@ class Index_handler:
             simple_index = await self.loop.run_in_executor(
                 None,
                 partial(
-                    GPTSimpleVectorIndex.from_documents,
+                    GPTVectorStoreIndex.from_documents,
                     documents=documents,
                     service_context=service_context,
                     use_async=True,

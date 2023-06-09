@@ -12,7 +12,7 @@ import aiohttp
 from langchain.chat_models import ChatOpenAI
 from llama_index import (
     QuestionAnswerPrompt,
-    GPTSimpleVectorIndex,
+    GPTVectorStoreIndex,
     BeautifulSoupWebReader,
     Document,
     LLMPredictor,
@@ -21,9 +21,8 @@ from llama_index import (
     MockLLMPredictor,
     MockEmbedding,
     ServiceContext,
-    QueryMode,
 )
-from llama_index.composability import QASummaryGraphBuilder
+from llama_index.composability import QASummaryQueryEngineBuilder
 from llama_index.indices.knowledge_graph import GPTKnowledgeGraphIndex
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.optimization import SentenceEmbeddingOptimizer
@@ -349,7 +348,7 @@ class Search:
             self.loop.run_in_executor(
                 None,
                 partial(
-                    GPTSimpleVectorIndex.from_documents,
+                    GPTVectorStoreIndex.from_documents,
                     documents,
                     service_context=service_context_mock,
                 ),
@@ -365,7 +364,7 @@ class Search:
             index = await self.loop.run_in_executor(
                 None,
                 partial(
-                    GPTSimpleVectorIndex.from_documents,
+                    GPTVectorStoreIndex.from_documents,
                     documents,
                     service_context=service_context,
                     use_async=True,
@@ -401,12 +400,12 @@ class Search:
                 llm_predictor=llm_predictor_deep,
                 chunk_size_limit=512,
             )
-            graph_builder = QASummaryGraphBuilder(service_context=service_context)
+            graph_builder = QASummaryQueryEngineBuilder(service_context=service_context)
 
             index = await self.loop.run_in_executor(
                 None,
                 partial(
-                    graph_builder.build_graph_from_documents,
+                    graph_builder.build_from_documents,
                     documents,
                 ),
             )
