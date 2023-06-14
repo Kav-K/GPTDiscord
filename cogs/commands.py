@@ -898,8 +898,8 @@ class Commands(discord.Cog, name="Commands"):
         description="Response mode, doesn't work on deep composed indexes",
         guild_ids=ALLOWED_GUILDS,
         required=False,
-        default="default",
-        choices=["default", "compact", "tree_summarize"],
+        default="refine",
+        choices=["refine", "compact", "tree_summarize"],
     )
     @discord.option(
         name="child_branch_factor",
@@ -1182,8 +1182,8 @@ class Commands(discord.Cog, name="Commands"):
         description="Response mode, doesn't work on deep searches",
         guild_ids=ALLOWED_GUILDS,
         required=False,
-        default="default",
-        choices=["default", "compact", "tree_summarize"],
+        default="refine",
+        choices=["refine", "compact", "tree_summarize"],
     )
     @discord.option(
         name="model",

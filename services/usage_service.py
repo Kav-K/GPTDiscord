@@ -34,6 +34,7 @@ class UsageService:
             price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
+        price = round(price, 6)
         return price
 
     async def update_usage(
@@ -54,13 +55,15 @@ class UsageService:
             price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
-        usage = await self.get_usage()
+        price = round(price, 6)
+        usage = round(await self.get_usage(), 6)
+        new_total = round(usage + price, 6)
         print(
-            f"Cost -> Old: {str(usage)} | New: {str(usage + float(price))}, used {str(float(price))} credits"
+            f"{'Completion' if not embeddings else 'Embed'} cost -> Old: {str(usage)} | New: {str(new_total)}, used {str(price)} credits"
         )
         # Do the same as above but with aiofiles
         async with aiofiles.open(self.usage_file_path, "w") as f:
-            await f.write(str(usage + float(price)))
+            await f.write(str(new_total))
             await f.close()
 
     async def set_usage(self, usage):

@@ -270,11 +270,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             assert self.conversation_thread_owners is not defaultdict(list)
 
         except Exception:
-            print("Failed to load from pickles")
+            print("Failed to load existing pickles")
             self.full_conversation_history = defaultdict(list)
             self.conversation_threads = {}
             self.conversation_thread_owners = defaultdict(list)
-            traceback.print_exc()
+            print("Set empty dictionaries, pickles will be saved in the future")
 
         print("Syncing commands...")
 
