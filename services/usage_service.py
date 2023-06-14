@@ -34,7 +34,7 @@ class UsageService:
             price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
-        price = round(price, 4)
+        price = round(price, 6)
         return price
 
     async def update_usage(
@@ -55,9 +55,9 @@ class UsageService:
             price = (tokens_used / 1000) * 0.02
         else:
             price = (tokens_used / 1000) * 0.0004
-        price = round(price, 4)
-        usage = round(await self.get_usage(), 4)
-        new_total = round(usage + price, 4)
+        price = round(price, 6)
+        usage = round(await self.get_usage(), 6)
+        new_total = round(usage + price, 6)
         print(
             f"{'Completion' if not embeddings else 'Embed'} cost -> Old: {str(usage)} | New: {str(new_total)}, used {str(price)} credits"
         )
