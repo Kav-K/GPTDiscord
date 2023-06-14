@@ -91,13 +91,11 @@ def get_and_query(
         retriever = TreeSelectLeafRetriever(
             index=index,
             child_branch_factor=child_branch_factor,
-            service_context=service_context
+            service_context=service_context,
         )
     else:
         retriever = VectorIndexRetriever(
-            index=index,
-            similarity_top_k=nodes,
-            service_context=service_context
+            index=index, similarity_top_k=nodes, service_context=service_context
         )
 
     response_synthesizer = ResponseSynthesizer.from_args(
@@ -109,14 +107,13 @@ def get_and_query(
     )
 
     query_engine = RetrieverQueryEngine(
-        retriever=retriever,
-        response_synthesizer=response_synthesizer
+        retriever=retriever, response_synthesizer=response_synthesizer
     )
 
     multistep_query_engine = MultiStepQueryEngine(
         query_engine=query_engine,
         query_transform=StepDecomposeQueryTransform(multistep),
-        index_summary="Provides information about everything you need to know about this topic, use this to answer the question."
+        index_summary="Provides information about everything you need to know about this topic, use this to answer the question.",
     )
 
     if multistep:
@@ -176,8 +173,12 @@ class IndexData:
         if len(file) > 93:
             file = file[:93]
 
-        index.storage_context.persist(persist_dir=EnvService.save_path() / "indexes" / f"{str(user_id)}" / f"{file}")
-        
+        index.storage_context.persist(
+            persist_dir=EnvService.save_path()
+            / "indexes"
+            / f"{str(user_id)}"
+            / f"{file}"
+        )
 
     def reset_indexes(self, user_id):
         self.individual_indexes = []
@@ -273,7 +274,10 @@ class Index_handler:
         )
 
         summary_response = await self.loop.run_in_executor(
-            None, partial(index.as_query_engine().query, "What is a summary of this document?")
+            None,
+            partial(
+                index.as_query_engine().query, "What is a summary of this document?"
+            ),
         )
 
         query_engine = index.as_query_engine(similarity_top_k=3)
@@ -942,12 +946,12 @@ class Index_handler:
 
             # Now we have a list of tree indexes, we can compose them
             if not name:
-                name = (
-                    f"{date.today().month}_{date.today().day}_composed_deep_index"
-                )
+                name = f"{date.today().month}_{date.today().day}_composed_deep_index"
 
             # Save the composed index
-            tree_index.storage_context.persist(persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name)
+            tree_index.storage_context.persist(
+                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name
+            )
 
             self.index_storage[user_id].queryable_index = tree_index
 
@@ -979,7 +983,9 @@ class Index_handler:
                 name = f"{date.today().month}_{date.today().day}_composed_index"
 
             # Save the composed index
-            simple_index.storage_context.persist(persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name)
+            simple_index.storage_context.persist(
+                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name
+            )
             self.index_storage[user_id].queryable_index = simple_index
 
             try:
@@ -1023,7 +1029,12 @@ class Index_handler:
             Path(EnvService.save_path() / "indexes" / str(ctx.guild.id)).mkdir(
                 parents=True, exist_ok=True
             )
-            index.storage_context.persist(persist_dir=EnvService.save_path() / "indexes" / str(ctx.guild.id) / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}")
+            index.storage_context.persist(
+                persist_dir=EnvService.save_path()
+                / "indexes"
+                / str(ctx.guild.id)
+                / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}"
+            )
 
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
         except Exception as e:

@@ -64,7 +64,12 @@ class Search:
         # Save the index to file under the user id
         file = f"{date.today().month}_{date.today().day}_{query[:20]}"
 
-        index.storage_context.persist(persist_dir=EnvService.save_path() / "indexes" / f"{str(user_id)}_search" / f"{file}")
+        index.storage_context.persist(
+            persist_dir=EnvService.save_path()
+            / "indexes"
+            / f"{str(user_id)}_search"
+            / f"{file}"
+        )
 
     def build_search_started_embed(self):
         embed = discord.Embed(
@@ -338,7 +343,7 @@ class Search:
         llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
         service_context = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor, embed_model=embedding_model
+            llm_predictor=llm_predictor, embed_model=embedding_model
         )
 
         # Check price
@@ -361,7 +366,7 @@ class Search:
             raise ValueError(
                 "Doing this search would be prohibitively expensive. Please try a narrower search scope."
             )
-        
+
         if not deep:
             index = await self.loop.run_in_executor(
                 None,
@@ -404,7 +409,7 @@ class Search:
                 in_progress_message, self.build_search_indexed_embed(query_refined_text)
             )
 
-########################################
+        ########################################
 
         if not deep:
             step_decompose_transform = StepDecomposeQueryTransform(
@@ -417,38 +422,31 @@ class Search:
             )
 
             response_synthesizer = ResponseSynthesizer.from_args(
-            response_mode=response_mode,
-            use_async=True,
-            refine_template=CHAT_REFINE_PROMPT,
-            text_qa_template=self.qaprompt,
-            optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7),
-            service_context=service_context,
+                response_mode=response_mode,
+                use_async=True,
+                refine_template=CHAT_REFINE_PROMPT,
+                text_qa_template=self.qaprompt,
+                optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7),
+                service_context=service_context,
             )
 
             query_engine = RetrieverQueryEngine(
-            retriever=retriever,
-            response_synthesizer=response_synthesizer
+                retriever=retriever, response_synthesizer=response_synthesizer
             )
             multistep_query_engine = MultiStepQueryEngine(
-            query_engine=query_engine,
-            query_transform=step_decompose_transform,
-            index_summary="Provides information about everything you need to know about this topic, use this to answer the question."
+                query_engine=query_engine,
+                query_transform=step_decompose_transform,
+                index_summary="Provides information about everything you need to know about this topic, use this to answer the question.",
             )
             if multistep:
                 response = await self.loop.run_in_executor(
                     None,
-                    partial(
-                        multistep_query_engine.query,
-                        query
-                    ),
+                    partial(multistep_query_engine.query, query),
                 )
             else:
                 response = await self.loop.run_in_executor(
                     None,
-                    partial(
-                        query_engine.query,
-                        query
-                    ),
+                    partial(query_engine.query, query),
                 )
         else:
             query_configs = [
