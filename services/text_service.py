@@ -883,7 +883,7 @@ class TextService:
     @staticmethod
     async def process_conversation_edit(converser_cog, after, original_message):
         if after.author.id in converser_cog.redo_users:
-            if after.id == original_message[after.author.id]:
+            if after.id == original_message.get(after.author.id, None):
                 response_message = converser_cog.redo_users[after.author.id].response
                 ctx = converser_cog.redo_users[after.author.id].ctx
                 await response_message.edit(content="Redoing prompt 🔄...")
