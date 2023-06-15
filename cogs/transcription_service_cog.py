@@ -52,16 +52,20 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
 
         if await UrlCheck.check_youtube_link(link):
             # We need to download the youtube video and save it to a temporary file
-            
+
             options = {
-                'format': 'bestaudio/best',
-                'outtmpl': os.path.join("audiotemp/", f'{ctx.user.id}temp.%(ext)s'),  # save file as the videos title
-                'quiet': True,
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
+                "format": "bestaudio/best",
+                "outtmpl": os.path.join(
+                    "audiotemp/", f"{ctx.user.id}temp.%(ext)s"
+                ),  # save file as the videos title
+                "quiet": True,
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                ],
             }
 
             # Delete audiotemp/{str(ctx.user.id)}temp.mp3 if it already exists
@@ -71,6 +75,7 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             def download_video(url, options):
                 with YoutubeDL(options) as ydl:
                     ydl.download([url])
+
             try:
                 await asyncio.get_running_loop().run_in_executor(
                     None,

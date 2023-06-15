@@ -120,10 +120,13 @@ class Check:
 
         return inner
 
+
 class UrlCheck:
     @staticmethod
     async def check_youtube_link(url):
-        youtube_regex = r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/'
+        youtube_regex = (
+            r"(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/"
+        )
         match = re.match(youtube_regex, url)
         if match is not None:
             return True
