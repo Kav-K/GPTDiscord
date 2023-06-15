@@ -1013,11 +1013,12 @@ class Model:
             data = aiohttp.FormData()
             data.add_field("model", "whisper-1")
             print("audio." + file.filename.split(".")[-1])
+            #TODO: make async
             data.add_field(
                 "file",
-                await file.read()
+                file.read()
                 if isinstance(file, discord.Attachment)
-                else await file.fp.read(),
+                else file.fp.read(),
                 filename="audio." + file.filename.split(".")[-1]
                 if isinstance(file, discord.Attachment)
                 else "audio.mp4",

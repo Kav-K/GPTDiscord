@@ -63,6 +63,7 @@ from llama_index.schema import BaseDocument
 
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
+from models.check_model import UrlCheck
 from services.environment_service import EnvService
 
 SHORT_TO_LONG_CACHE = {}
@@ -719,7 +720,7 @@ class Index_handler:
                 return
 
             # Check if the link contains youtube in it
-            if "youtube" in link:
+            if await UrlCheck.check_youtube_link(link):
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_youtube_transcript, link, embedding_model)
                 )
