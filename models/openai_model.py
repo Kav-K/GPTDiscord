@@ -83,8 +83,18 @@ class Models:
         GPT4_DEV,
         GPT4_32_DEV,
     ]
-    CHATGPT_MODELS = [TURBO, TURBO_16, TURBO_DEV, TURBO_16_DEV,]
-    GPT4_MODELS = [GPT4, GPT4_32, GPT4_DEV, GPT4_32_DEV,]
+    CHATGPT_MODELS = [
+        TURBO,
+        TURBO_16,
+        TURBO_DEV,
+        TURBO_16_DEV,
+    ]
+    GPT4_MODELS = [
+        GPT4,
+        GPT4_32,
+        GPT4_DEV,
+        GPT4_32_DEV,
+    ]
     EDIT_MODELS = [EDIT]
 
     DEFAULT = TURBO
@@ -192,7 +202,9 @@ class Model:
             else 100000
         )  # The maximum number of conversation items to keep in memory
         self.model = (
-            SETTINGS_DB["model"] if "model" in SETTINGS_DB and SETTINGS_DB["model"] in Models.TEXT_MODELS else Models.DEFAULT
+            SETTINGS_DB["model"]
+            if "model" in SETTINGS_DB and SETTINGS_DB["model"] in Models.TEXT_MODELS
+            else Models.DEFAULT
         )
         self._low_usage_mode = False
         self.usage_service = usage_service
@@ -640,8 +652,7 @@ class Model:
                 pass
             else:
                 await self.usage_service.update_usage(
-                    tokens_used,
-                    await self.usage_service.get_cost_name(model)
+                    tokens_used, await self.usage_service.get_cost_name(model)
                 )
         except Exception as e:
             traceback.print_exc()

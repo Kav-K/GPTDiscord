@@ -251,10 +251,12 @@ class Search:
             query_refined_text = query_refined.generations[0][0].text
 
             await self.usage_service.update_usage(
-                query_refined.llm_output.get("token_usage").get("total_tokens"), "davinci"
+                query_refined.llm_output.get("token_usage").get("total_tokens"),
+                "davinci",
             )
             price += await self.usage_service.get_price(
-                query_refined.llm_output.get("token_usage").get("total_tokens"), "davinci"
+                query_refined.llm_output.get("token_usage").get("total_tokens"),
+                "davinci",
             )
 
         except Exception as e:
@@ -484,14 +486,14 @@ class Search:
 
         await self.usage_service.update_usage(
             service_context.llm_predictor.total_tokens_used,
-            await self.usage_service.get_cost_name(model)
+            await self.usage_service.get_cost_name(model),
         )
         await self.usage_service.update_usage(
             service_context.embed_model.total_tokens_used, "embedding"
         )
         price += await self.usage_service.get_price(
             service_context.llm_predictor.total_tokens_used,
-            await self.usage_service.get_cost_name(model)
+            await self.usage_service.get_cost_name(model),
         ) + await self.usage_service.get_price(
             service_context.embed_model.total_tokens_used, "embedding"
         )

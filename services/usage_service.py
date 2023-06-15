@@ -43,17 +43,16 @@ class UsageService:
     @staticmethod
     async def get_model_cost(mode: ModeType) -> float:
         return UsageService.COST_MAPPING.get(mode, 0)
+
     @staticmethod
     async def get_cost_name(model) -> str:
         return UsageService.MODEL_COST_MAP.get(model, "davinci")
-    
-    async def get_price(
-        self,
-        tokens_used,
-        mode: ModeType = None
-    ):
+
+    async def get_price(self, tokens_used, mode: ModeType = None):
         tokens_used = int(tokens_used)
-        price = (tokens_used / 1000) * await self.get_model_cost(mode)  # This is a very rough estimate
+        price = (tokens_used / 1000) * await self.get_model_cost(
+            mode
+        )  # This is a very rough estimate
         price = round(price, 6)
         return price
 

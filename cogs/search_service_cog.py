@@ -199,7 +199,9 @@ class CustomTextRequestWrapper(BaseModel):
         print("The scraped text content is: " + text)
         if len(text) < 5:
             return "This website could not be scraped. I cannot answer this question."
-        if (not model in Models.CHATGPT_MODELS and tokens > 3000) or (model in Models.GPT4_MODELS and tokens > 7000):
+        if (not model in Models.CHATGPT_MODELS and tokens > 3000) or (
+            model in Models.GPT4_MODELS and tokens > 7000
+        ):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 f.write(text)
                 f.close()
@@ -479,9 +481,7 @@ class SearchService(discord.Cog, name="SearchService"):
             memory_key="chat_history", return_messages=True
         )
 
-        llm = ChatOpenAI(
-            model=model, temperature=0, openai_api_key=OPENAI_API_KEY
-        )
+        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
         agent_chain = initialize_agent(
             tools,
