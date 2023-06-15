@@ -1130,20 +1130,20 @@ class Commands(discord.Cog, name="Commands"):
         default=2,
     )
     @discord.option(
-        name="use_gpt4",
-        description="Use GPT4 instead of GPT3",
+        name="model",
+        description="The model to use for the request (querying, not composition)",
         required=False,
-        input_type=discord.SlashCommandOptionType.boolean,
-        default=False,
+        default="gpt-3.5-turbo",
+        autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def chat(
         self,
         ctx: discord.ApplicationContext,
+        model: str,
         search_scope: int = 2,
-        use_gpt4: bool = False,
     ):
         await self.search_cog.search_chat_command(
-            ctx, search_scope=search_scope, use_gpt4=use_gpt4
+            ctx, search_scope=search_scope, model=model
         )
 
     # Search slash commands

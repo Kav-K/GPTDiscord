@@ -157,7 +157,7 @@ These commands are grouped, so each group has a prefix but you can easily tab co
 - `nodes` defines how many nodes inside the built index after webpage retrieval to use. 
 - Increasing the scope or the nodes will make the requests take longer and will be more expensive, but will usually be more accurate.
   
-`/internet chat search_scope:<number> use_gpt:<True/False>` - Start an internet-connected chat with GPT, connected to Google and Wolfram.
+`/internet chat search_scope:<number> model:<turbo or gpt4>` - Start an internet-connected chat with GPT, connected to Google and Wolfram.
 
 ### Custom Indexes Commands  
   

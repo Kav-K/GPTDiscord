@@ -570,12 +570,12 @@ class Index_handler:
                         ),
                     )
                     await self.usage_service.update_usage(
-                        embedding_model.last_token_usage, embeddings=True
+                        embedding_model.last_token_usage, "embedding"
                     )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -644,12 +644,12 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -730,12 +730,12 @@ class Index_handler:
             else:
                 index = await self.index_webpage(link, embedding_model)
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -790,13 +790,13 @@ class Index_handler:
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
                 price = "Unknown"
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
@@ -912,9 +912,9 @@ class Index_handler:
             )
             total_usage_price = await self.usage_service.get_price(
                 llm_predictor_mock.last_token_usage,
-                chatgpt=True,  # TODO Enable again when tree indexes are fixed
+                "turbo",  # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
-                embedding_model_mock.last_token_usage, embeddings=True
+                embedding_model_mock.last_token_usage, "embedding"
             )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
@@ -938,10 +938,10 @@ class Index_handler:
 
             await self.usage_service.update_usage(
                 llm_predictor.last_token_usage,
-                chatgpt=True,
+                "turbo"
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             # Now we have a list of tree indexes, we can compose them
@@ -976,7 +976,7 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             if not name:
@@ -990,7 +990,7 @@ class Index_handler:
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 price = "Unknown"
@@ -1017,11 +1017,11 @@ class Index_handler:
                 None, partial(self.index_discord, document, embedding_model)
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
@@ -1087,22 +1087,20 @@ class Index_handler:
             print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 llm_predictor.last_token_usage,
-                chatgpt=True,
-                gpt4=True if model in Models.GPT4_MODELS else False,
+                await self.usage_service.get_cost_name(model)
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 total_price = round(
                     await self.usage_service.get_price(
                         llm_predictor.last_token_usage,
-                        chatgpt=True,
-                        gpt4=True if model in Models.GPT4_MODELS else False,
+                        await self.usage_service.get_cost_name(model)
                     )
                     + await self.usage_service.get_price(
-                        embedding_model.last_token_usage, embeddings=True
+                        embedding_model.last_token_usage, "embedding"
                     ),
                     6,
                 )
