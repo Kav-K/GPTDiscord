@@ -199,7 +199,7 @@ class CustomTextRequestWrapper(BaseModel):
         print("The scraped text content is: " + text)
         if len(text) < 5:
             return "This website could not be scraped. I cannot answer this question."
-        if (not model in Models.CHATGPT_MODELS and tokens > 3000) or (
+        if (model in Models.CHATGPT_MODELS and tokens > 3000) or (
             model in Models.GPT4_MODELS and tokens > 7000
         ):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
@@ -211,7 +211,7 @@ class CustomTextRequestWrapper(BaseModel):
                 index = GPTVectorStoreIndex.from_documents(
                     document, service_context=service_context, use_async=True
                 )
-                response_text = index.query(
+                response_text = index.as_query_engine.query(
                     original_query,
                     refine_template=CHAT_REFINE_PROMPT,
                     similarity_top_k=4,
