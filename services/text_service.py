@@ -915,9 +915,16 @@ class TextService:
 
                     converser_cog.conversation_threads[after.channel.id].count += 1
 
-                overrides = converser_cog.conversation_threads[
+                conversation_overrides = converser_cog.conversation_threads[
                     after.channel.id
                 ].get_overrides()
+
+                overrides = Override(
+                conversation_overrides["temperature"],
+                conversation_overrides["top_p"],
+                conversation_overrides["frequency_penalty"],
+                conversation_overrides["presence_penalty"],
+            )
 
                 await TextService.encapsulated_send(
                     converser_cog,
@@ -925,10 +932,7 @@ class TextService:
                     prompt=edited_content,
                     ctx=ctx,
                     response_message=response_message,
-                    temp_override=overrides["temperature"],
-                    top_p_override=overrides["top_p"],
-                    frequency_penalty_override=overrides["frequency_penalty"],
-                    presence_penalty_override=overrides["presence_penalty"],
+                    overrides=overrides,
                     model=converser_cog.conversation_threads[after.channel.id].model,
                     edited_request=True,
                 )
