@@ -48,7 +48,6 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from pydantic import Extra, BaseModel
-from transformers import GPT2TokenizerFast
 import tiktoken
 
 from models.embed_statics_model import EmbedStatics

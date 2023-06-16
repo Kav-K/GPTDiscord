@@ -2,7 +2,7 @@ from pathlib import Path
 
 import aiofiles
 from typing import Literal
-from transformers import GPT2TokenizerFast
+import tiktoken
 
 
 class UsageService:
@@ -13,7 +13,7 @@ class UsageService:
             with self.usage_file_path.open("w") as f:
                 f.write("0.00")
                 f.close()
-        self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
     COST_MAPPING = {
         "gpt4": 0.05,
@@ -85,7 +85,7 @@ class UsageService:
         return usage
 
     def count_tokens(self, text):
-        res = self.tokenizer(text)["input_ids"]
+        res = self.tokenizer.encode(text)
         return len(res)
 
     async def update_usage_image(self, image_size):
@@ -110,6 +110,6 @@ class UsageService:
 
     @staticmethod
     def count_tokens_static(text):
-        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-        res = tokenizer(text)["input_ids"]
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+        res = tokenizer.encode(text)
         return len(res)
