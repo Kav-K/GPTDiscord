@@ -42,7 +42,7 @@ from llama_index import (
     SimpleDirectoryReader,
     ServiceContext,
     OpenAIEmbedding,
-    ResponseSynthesizer
+    ResponseSynthesizer,
 )
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
@@ -180,7 +180,7 @@ class CustomTextRequestWrapper(BaseModel):
         except:
             url = url
             model = "gpt-3.5-turbo"
-            original_query = "No Original Query Provided" 
+            original_query = "No Original Query Provided"
 
         """GET the URL and return the text."""
         text = self.requests.get(url, **kwargs).text
@@ -203,7 +203,10 @@ class CustomTextRequestWrapper(BaseModel):
         tokens = len(enc.encode(text))
         if len(text) < 5:
             return "This website could not be scraped. I cannot answer this question."
-        if (model in Models.CHATGPT_MODELS and tokens > Models.get_max_tokens(model) - 1000) or (
+        if (
+            model in Models.CHATGPT_MODELS
+            and tokens > Models.get_max_tokens(model) - 1000
+        ) or (
             model in Models.GPT4_MODELS and tokens > Models.get_max_tokens(model) - 1000
         ):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
@@ -216,13 +219,13 @@ class CustomTextRequestWrapper(BaseModel):
                     document, service_context=service_context, use_async=True
                 )
                 retriever = VectorIndexRetriever(
-                    index = index, similarity_top_k=4, service_context=service_context
+                    index=index, similarity_top_k=4, service_context=service_context
                 )
                 response_synthesizer = ResponseSynthesizer.from_args(
                     response_mode="compact",
                     refine_template=CHAT_REFINE_PROMPT,
                     service_context=service_context,
-                    use_async=True
+                    use_async=True,
                 )
                 query_engine = RetrieverQueryEngine(
                     retriever=retriever, response_synthesizer=response_synthesizer
