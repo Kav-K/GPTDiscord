@@ -920,11 +920,11 @@ class TextService:
                 ].get_overrides()
 
                 overrides = Override(
-                conversation_overrides["temperature"],
-                conversation_overrides["top_p"],
-                conversation_overrides["frequency_penalty"],
-                conversation_overrides["presence_penalty"],
-            )
+                    conversation_overrides["temperature"],
+                    conversation_overrides["top_p"],
+                    conversation_overrides["frequency_penalty"],
+                    conversation_overrides["presence_penalty"],
+                )
 
                 await TextService.encapsulated_send(
                     converser_cog,
