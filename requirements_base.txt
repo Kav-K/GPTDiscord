@@ -1,6 +1,7 @@
 Pillow==9.3.0
 openai==0.27.0
-pytube==12.1.2
+yt-dlp==2023.3.4
+ffmpeg==1.4
 py-cord==2.4.1
 beautifulsoup4==4.11.2
 python-dotenv==1.0.0
@@ -26,5 +27,6 @@ pytest-asyncio==0.21.0
 pytest~=7.2.2
 google-api-python-client==2.85.0
 wolframalpha==5.0.0
+nltk==3.8.1
 replicate==0.8.1
 tiktoken==0.4.0

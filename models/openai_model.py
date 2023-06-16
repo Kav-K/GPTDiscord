@@ -51,8 +51,6 @@ class Models:
     # Text models
     DAVINCI = "text-davinci-003"
     CURIE = "text-curie-001"
-    BABBAGE = "text-babbage-001"
-    ADA = "text-ada-001"
 
     # Embedding models
     EMBEDDINGS = "text-embedding-ada-002"
@@ -62,40 +60,58 @@ class Models:
 
     # ChatGPT Models
     TURBO = "gpt-3.5-turbo"
-    TURBO_DEV = "gpt-3.5-turbo-0301"
+    TURBO_16 = "gpt-3.5-turbo-16k"
+    TURBO_DEV = "gpt-3.5-turbo-0613"
+    TURBO_16_DEV = "gpt-3.5-turbo-16k-0613"
 
     # GPT4 Models
     GPT4 = "gpt-4"
     GPT4_32 = "gpt-4-32k"
+    GPT4_DEV = "gpt-4-0613"
+    GPT4_32_DEV = "gpt-4-32k-0613"
 
     # Model collections
     TEXT_MODELS = [
         DAVINCI,
         CURIE,
-        BABBAGE,
-        ADA,
         TURBO,
+        TURBO_16,
         TURBO_DEV,
+        TURBO_16_DEV,
         GPT4,
         GPT4_32,
+        GPT4_DEV,
+        GPT4_32_DEV,
     ]
-    CHATGPT_MODELS = [TURBO, TURBO_DEV]
-    GPT4_MODELS = [GPT4, GPT4_32]
+    CHATGPT_MODELS = [
+        TURBO,
+        TURBO_16,
+        TURBO_DEV,
+        TURBO_16_DEV,
+    ]
+    GPT4_MODELS = [
+        GPT4,
+        GPT4_32,
+        GPT4_DEV,
+        GPT4_32_DEV,
+    ]
     EDIT_MODELS = [EDIT]
 
-    DEFAULT = DAVINCI
+    DEFAULT = TURBO
     LOW_USAGE_MODEL = CURIE
 
     # Tokens Mapping
     TOKEN_MAPPING = {
-        "text-davinci-003": 4024,
-        "text-curie-001": 2024,
-        "text-babbage-001": 2024,
-        "text-ada-001": 2024,
+        DAVINCI: 4024,
+        CURIE: 2024,
         TURBO: 4096,
+        TURBO_16: 16384,
         TURBO_DEV: 4096,
+        TURBO_16_DEV: 16384,
         GPT4: 8192,
         GPT4_32: 32768,
+        GPT4_DEV: 8192,
+        GPT4_32_DEV: 32768,
     }
 
     @staticmethod
@@ -186,8 +202,10 @@ class Model:
             else 100000
         )  # The maximum number of conversation items to keep in memory
         self.model = (
-            SETTINGS_DB["model"] if "model" in SETTINGS_DB else Models.DEFAULT
-        )  # The model to use
+            SETTINGS_DB["model"]
+            if "model" in SETTINGS_DB and SETTINGS_DB["model"] in Models.TEXT_MODELS
+            else Models.DEFAULT
+        )
         self._low_usage_mode = False
         self.usage_service = usage_service
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
@@ -630,17 +648,12 @@ class Model:
     async def valid_text_request(self, response, model=None):
         try:
             tokens_used = int(response["usage"]["total_tokens"])
-            if model and model in Models.GPT4_MODELS:
-                await self.usage_service.update_usage(
-                    tokens_used,
-                    prompt_tokens=int(response["usage"]["prompt_tokens"]),
-                    completion_tokens=int(response["usage"]["completion_tokens"]),
-                    gpt4=True,
-                )
             if model and model in Models.EDIT_MODELS:
                 pass
             else:
-                await self.usage_service.update_usage(tokens_used)
+                await self.usage_service.update_usage(
+                    tokens_used, await self.usage_service.get_cost_name(model)
+                )
         except Exception as e:
             traceback.print_exc()
             if "error" in response:
@@ -1000,11 +1013,10 @@ class Model:
             data = aiohttp.FormData()
             data.add_field("model", "whisper-1")
             print("audio." + file.filename.split(".")[-1])
+            # TODO: make async
             data.add_field(
                 "file",
-                await file.read()
-                if isinstance(file, discord.Attachment)
-                else await file.fp.read(),
+                file.read() if isinstance(file, discord.Attachment) else file.fp.read(),
                 filename="audio." + file.filename.split(".")[-1]
                 if isinstance(file, discord.Attachment)
                 else "audio.mp4",

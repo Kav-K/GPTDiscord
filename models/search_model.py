@@ -215,7 +215,7 @@ class Search:
         nodes,
         deep,
         response_mode,
-        model="gpt-3.5-turbo",
+        model,
         multistep=False,
         redo=None,
     ):
@@ -251,10 +251,12 @@ class Search:
             query_refined_text = query_refined.generations[0][0].text
 
             await self.usage_service.update_usage(
-                query_refined.llm_output.get("token_usage").get("total_tokens")
+                query_refined.llm_output.get("token_usage").get("total_tokens"),
+                "davinci",
             )
             price += await self.usage_service.get_price(
-                query_refined.llm_output.get("token_usage").get("total_tokens")
+                query_refined.llm_output.get("token_usage").get("total_tokens"),
+                "davinci",
             )
 
         except Exception as e:
@@ -360,7 +362,7 @@ class Search:
             ),
         )
         total_usage_price = await self.usage_service.get_price(
-            embed_model_mock.total_tokens_used, embeddings=True
+            embed_model_mock.total_tokens_used, "embedding"
         )
         if total_usage_price > 1.00:
             raise ValueError(
@@ -484,24 +486,22 @@ class Search:
 
         await self.usage_service.update_usage(
             service_context.llm_predictor.total_tokens_used,
-            chatgpt=True,
-            gpt4=True if model in Models.GPT4_MODELS else False,
+            await self.usage_service.get_cost_name(model),
         )
         await self.usage_service.update_usage(
-            service_context.embed_model.total_tokens_used, embeddings=True
+            service_context.embed_model.total_tokens_used, "embedding"
         )
         price += await self.usage_service.get_price(
             service_context.llm_predictor.total_tokens_used,
-            chatgpt=True,
-            gpt4=True if model in Models.GPT4_MODELS else False,
+            await self.usage_service.get_cost_name(model),
         ) + await self.usage_service.get_price(
-            service_context.embed_model.total_tokens_used, embeddings=True
+            service_context.embed_model.total_tokens_used, "embedding"
         )
 
         if ctx:
             await self.try_edit(
                 in_progress_message,
-                self.build_search_final_embed(query_refined_text, str(price)),
+                self.build_search_final_embed(query_refined_text, str(round(price, 6))),
             )
 
         return response, query_refined_text

@@ -1,4 +1,6 @@
 import discord
+import re
+import aiohttp
 
 from services.environment_service import EnvService
 from typing import Callable
@@ -117,3 +119,20 @@ class Check:
             return True
 
         return inner
+
+
+class UrlCheck:
+    @staticmethod
+    async def check_youtube_link(url):
+        youtube_regex = (
+            r"(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/"
+        )
+        match = re.match(youtube_regex, url)
+        if match is not None:
+            return True
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                final_url = str(resp.url)
+                match = re.match(youtube_regex, final_url)
+                return match is not None

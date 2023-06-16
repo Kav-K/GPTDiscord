@@ -99,7 +99,8 @@ class Settings_autocompleter:
     async def get_index_and_search_models(
         ctx: discord.AutocompleteContext,
     ):
-        return ["gpt-3.5-turbo", "gpt-4"]
+        models = Models.CHATGPT_MODELS + Models.GPT4_MODELS
+        return [value for value in models if value.startswith(ctx.value.lower())]
 
     async def get_converse_models(
         ctx: discord.AutocompleteContext,

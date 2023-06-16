@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import aiofiles
-from transformers import GPT2TokenizerFast
+from typing import Literal
+import tiktoken
 
 
 class UsageService:
@@ -12,56 +13,62 @@ class UsageService:
             with self.usage_file_path.open("w") as f:
                 f.write("0.00")
                 f.close()
-        self.tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
-    async def get_price(
-        self,
-        tokens_used,
-        prompt_tokens=None,
-        completion_tokens=None,
-        embeddings=False,
-        chatgpt=False,
-        gpt4=False,
-    ):
+    COST_MAPPING = {
+        "gpt4": 0.05,
+        "gpt4-32": 0.1,
+        "turbo": 0.0019,
+        "turbo-16": 0.0038,
+        "davinci": 0.02,
+        "curie": 0.002,
+        "embedding": 0.0001,
+    }
+
+    MODEL_COST_MAP = {
+        "gpt-4": "gpt4",
+        "gpt-4-32k": "gpt4-32",
+        "gpt-4-0613": "gpt4",
+        "gpt-4-32k-0613": "gpt4-32",
+        "gpt-3.5-turbo": "turbo",
+        "gpt-3.5-turbo-16k": "turbo-16",
+        "gpt-3.5-turbo-0613": "turbo",
+        "gpt-3.5-turbo-16k-0613": "turbo",
+        "text-davinci-003": "davinci",
+        "text-curie-001": "curie",
+    }
+
+    ModeType = Literal["gpt4", "gpt4-32k", "turbo", "turbo-16k", "davinci", "embedding"]
+
+    @staticmethod
+    async def get_model_cost(mode: ModeType) -> float:
+        return UsageService.COST_MAPPING.get(mode, 0)
+
+    @staticmethod
+    async def get_cost_name(model) -> str:
+        return UsageService.MODEL_COST_MAP.get(model, "davinci")
+
+    async def get_price(self, tokens_used, mode: ModeType = None):
         tokens_used = int(tokens_used)
-        if gpt4:
-            price = (tokens_used / 1000) * 0.05  # This is a very rough estimate
-            return price
-        elif chatgpt:
-            price = (tokens_used / 1000) * 0.002
-            return price
-        elif not embeddings:
-            price = (tokens_used / 1000) * 0.02
-        else:
-            price = (tokens_used / 1000) * 0.0004
+        price = (tokens_used / 1000) * await self.get_model_cost(
+            mode
+        )  # This is a very rough estimate
         price = round(price, 6)
         return price
 
     async def update_usage(
         self,
         tokens_used,
-        prompt_tokens=None,
-        completion_tokens=None,
-        embeddings=False,
-        chatgpt=False,
-        gpt4=False,
+        mode: ModeType = None,
     ):
         tokens_used = int(tokens_used)
-        if gpt4:
-            price = (tokens_used / 1000) * 0.05  # This is a very rough estimate..
-        elif chatgpt:
-            price = (tokens_used / 1000) * 0.002
-        elif not embeddings:
-            price = (tokens_used / 1000) * 0.02
-        else:
-            price = (tokens_used / 1000) * 0.0004
+        price = (tokens_used / 1000) * await self.get_model_cost(mode)
         price = round(price, 6)
         usage = round(await self.get_usage(), 6)
         new_total = round(usage + price, 6)
         print(
-            f"{'Completion' if not embeddings else 'Embed'} cost -> Old: {str(usage)} | New: {str(new_total)}, used {str(price)} credits"
+            f"{'Completion' if mode != 'embedding' else 'Embed'} cost -> Old: {str(usage)} | New: {str(new_total)}, used {str(price)} credits"
         )
-        # Do the same as above but with aiofiles
         async with aiofiles.open(self.usage_file_path, "w") as f:
             await f.write(str(new_total))
             await f.close()
@@ -78,7 +85,7 @@ class UsageService:
         return usage
 
     def count_tokens(self, text):
-        res = self.tokenizer(text)["input_ids"]
+        res = self.tokenizer.encode(text)
         return len(res)
 
     async def update_usage_image(self, image_size):
@@ -103,6 +110,6 @@ class UsageService:
 
     @staticmethod
     def count_tokens_static(text):
-        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-        res = tokenizer(text)["input_ids"]
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+        res = tokenizer.encode(text)
         return len(res)

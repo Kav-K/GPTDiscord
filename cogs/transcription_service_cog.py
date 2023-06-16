@@ -1,15 +1,17 @@
 import asyncio
 import traceback
+import os
 from functools import partial
 from pathlib import Path
+from yt_dlp import YoutubeDL
 
-import aiohttp
+
 import discord
 from discord.ext import pages
-from pytube import YouTube
 
 from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
+from models.check_model import UrlCheck
 from services.environment_service import EnvService
 from services.text_service import TextService
 
@@ -48,20 +50,39 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             if not user_api_key:
                 return
 
-        if "youtube" in link:
+        if await UrlCheck.check_youtube_link(link):
             # We need to download the youtube video and save it to a temporary file
-            yt = YouTube(link)
+
+            options = {
+                "format": "bestaudio/best",
+                "outtmpl": os.path.join(
+                    "audiotemp/", f"{ctx.user.id}temp.%(ext)s"
+                ),  # save file as the videos title
+                "quiet": True,
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                ],
+            }
 
             # Delete audiotemp/{str(ctx.user.id)}temp.mp3 if it already exists
             if Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).exists():
                 Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).unlink()
+
+            def download_video(url, options):
+                with YoutubeDL(options) as ydl:
+                    ydl.download([url])
+
             try:
-                file_path = await asyncio.get_running_loop().run_in_executor(
+                await asyncio.get_running_loop().run_in_executor(
                     None,
                     partial(
-                        yt.streams.filter().first().download,
-                        output_path="audiotemp",
-                        filename="{}temp".format(str(ctx.user.id)),
+                        download_video,
+                        link,
+                        options,
                     ),
                 )
             except Exception as e:
@@ -79,6 +100,7 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             return
 
         # Load the file object from the file_path
+        file_path = Path("audiotemp/{}temp.mp3".format(str(ctx.user.id)))
         file = discord.File(file_path)
 
         response_message = await ctx.respond(

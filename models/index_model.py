@@ -63,6 +63,7 @@ from llama_index.schema import BaseDocument
 
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
+from models.check_model import UrlCheck
 from services.environment_service import EnvService
 
 SHORT_TO_LONG_CACHE = {}
@@ -570,12 +571,12 @@ class Index_handler:
                         ),
                     )
                     await self.usage_service.update_usage(
-                        embedding_model.last_token_usage, embeddings=True
+                        embedding_model.last_token_usage, "embedding"
                     )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -644,12 +645,12 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -719,7 +720,7 @@ class Index_handler:
                 return
 
             # Check if the link contains youtube in it
-            if "youtube" in link:
+            if await UrlCheck.check_youtube_link(link):
                 index = await self.loop.run_in_executor(
                     None, partial(self.index_youtube_transcript, link, embedding_model)
                 )
@@ -730,12 +731,12 @@ class Index_handler:
             else:
                 index = await self.index_webpage(link, embedding_model)
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -790,13 +791,13 @@ class Index_handler:
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
                 price = "Unknown"
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
@@ -912,9 +913,9 @@ class Index_handler:
             )
             total_usage_price = await self.usage_service.get_price(
                 llm_predictor_mock.last_token_usage,
-                chatgpt=True,  # TODO Enable again when tree indexes are fixed
+                "turbo",  # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
-                embedding_model_mock.last_token_usage, embeddings=True
+                embedding_model_mock.last_token_usage, "embedding"
             )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
@@ -937,11 +938,10 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage,
-                chatgpt=True,
+                llm_predictor.last_token_usage, "turbo"
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             # Now we have a list of tree indexes, we can compose them
@@ -976,7 +976,7 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             if not name:
@@ -990,7 +990,7 @@ class Index_handler:
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except:
                 price = "Unknown"
@@ -1017,11 +1017,11 @@ class Index_handler:
                 None, partial(self.index_discord, document, embedding_model)
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, embeddings=True
+                    embedding_model.last_token_usage, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
@@ -1087,22 +1087,20 @@ class Index_handler:
             print("The last token usage was ", llm_predictor.last_token_usage)
             await self.usage_service.update_usage(
                 llm_predictor.last_token_usage,
-                chatgpt=True,
-                gpt4=True if model in Models.GPT4_MODELS else False,
+                await self.usage_service.get_cost_name(model),
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, embeddings=True
+                embedding_model.last_token_usage, "embedding"
             )
 
             try:
                 total_price = round(
                     await self.usage_service.get_price(
                         llm_predictor.last_token_usage,
-                        chatgpt=True,
-                        gpt4=True if model in Models.GPT4_MODELS else False,
+                        await self.usage_service.get_cost_name(model),
                     )
                     + await self.usage_service.get_price(
-                        embedding_model.last_token_usage, embeddings=True
+                        embedding_model.last_token_usage, "embedding"
                     ),
                     6,
                 )

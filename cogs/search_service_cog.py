@@ -42,10 +42,13 @@ from llama_index import (
     SimpleDirectoryReader,
     ServiceContext,
     OpenAIEmbedding,
+    ResponseSynthesizer,
 )
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from pydantic import Extra, BaseModel
-from transformers import GPT2TokenizerFast
+import tiktoken
 
 from models.embed_statics_model import EmbedStatics
 from models.search_model import Search
@@ -53,6 +56,7 @@ from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
+from models.openai_model import Models
 
 from contextlib import redirect_stdout
 
@@ -152,7 +156,6 @@ class CustomTextRequestWrapper(BaseModel):
 
     headers: Optional[Dict[str, str]] = None
     aiosession: Optional[aiohttp.ClientSession] = None
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
     class Config:
         """Configuration for this pydantic object."""
@@ -170,13 +173,15 @@ class CustomTextRequestWrapper(BaseModel):
     def get(self, url: str, **kwargs: Any) -> str:
         # the "url" field is actuall some input from the LLM, it is a comma separated string of the url and a boolean value and the original query
         try:
-            url, use_gpt4, original_query = url.split(",")
+            url, model, original_query = url.split(",")
+            url = url.strip()
+            model = model.strip()
+            original_query = original_query.strip()
         except:
             url = url
-            use_gpt4 = False
+            model = "gpt-3.5-turbo"
             original_query = "No Original Query Provided"
 
-        use_gpt4 = use_gpt4 == "True"
         """GET the URL and return the text."""
         text = self.requests.get(url, **kwargs).text
 
@@ -191,14 +196,19 @@ class CustomTextRequestWrapper(BaseModel):
         text = soup.get_text()
 
         # Clean up white spaces
-        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
 
         # If not using GPT-4 and the text token amount is over 3500, truncate it to 3500 tokens
-        tokens = len(self.tokenizer(text)["input_ids"])
-        print("The scraped text content is: " + text)
+        enc = tiktoken.encoding_for_model(model)
+        tokens = len(enc.encode(text))
         if len(text) < 5:
             return "This website could not be scraped. I cannot answer this question."
-        if (not use_gpt4 and tokens > 3000) or (use_gpt4 and tokens > 7000):
+        if (
+            model in Models.CHATGPT_MODELS
+            and tokens > Models.get_max_tokens(model) - 1000
+        ) or (
+            model in Models.GPT4_MODELS and tokens > Models.get_max_tokens(model) - 1000
+        ):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 f.write(text)
                 f.close()
@@ -208,12 +218,19 @@ class CustomTextRequestWrapper(BaseModel):
                 index = GPTVectorStoreIndex.from_documents(
                     document, service_context=service_context, use_async=True
                 )
-                response_text = index.query(
-                    original_query,
-                    refine_template=CHAT_REFINE_PROMPT,
-                    similarity_top_k=4,
-                    response_mode="compact",
+                retriever = VectorIndexRetriever(
+                    index=index, similarity_top_k=4, service_context=service_context
                 )
+                response_synthesizer = ResponseSynthesizer.from_args(
+                    response_mode="compact",
+                    refine_template=CHAT_REFINE_PROMPT,
+                    service_context=service_context,
+                    use_async=True,
+                )
+                query_engine = RetrieverQueryEngine(
+                    retriever=retriever, response_synthesizer=response_synthesizer
+                )
+                response_text = query_engine.query(original_query)
                 return response_text
 
         return text
@@ -416,12 +433,12 @@ class SearchService(discord.Cog, name="SearchService"):
             self.thread_awaiting_responses.remove(message.channel.id)
 
     async def search_chat_command(
-        self, ctx: discord.ApplicationContext, search_scope=2, use_gpt4: bool = False
+        self, ctx: discord.ApplicationContext, model, search_scope=2
     ):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
-            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nCrawling is enabled, send the bot a link for it to access it!\nModel: {'gpt-3.5-turbo' if not use_gpt4 else 'GPT-4'}\n\nType `end` to stop the conversation",
+            description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nCrawling is enabled, send the bot a link for it to access it!\nModel: {model}\n\nType `end` to stop the conversation",
             color=0xBA6093,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/lt5AYJ9.png")
@@ -455,7 +472,7 @@ class SearchService(discord.Cog, name="SearchService"):
             Tool(
                 name="Web-Crawling-Tool",
                 func=requests.get,
-                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is the value of use_gpt4, which is {use_gpt4}, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', False, 'What is this webpage?'. This tool should only be used if a direct link is provided and not in conjunction with other tools.",
+                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is {model} and is the GPT model used, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', gpt-3.5-turbo, 'What is this webpage?'. This tool should only be used if a direct link is provided and not in conjunction with other tools.",
             ),
         ]
 
@@ -478,14 +495,7 @@ class SearchService(discord.Cog, name="SearchService"):
             memory_key="chat_history", return_messages=True
         )
 
-        if use_gpt4:
-            llm = ChatOpenAI(
-                model="gpt-4", temperature=0, openai_api_key=OPENAI_API_KEY
-            )
-        else:
-            llm = ChatOpenAI(
-                model="gpt-3.5-turbo", temperature=0, openai_api_key=OPENAI_API_KEY
-            )
+        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
         agent_chain = initialize_agent(
             tools,
@@ -508,7 +518,7 @@ class SearchService(discord.Cog, name="SearchService"):
         nodes,
         deep,
         response_mode,
-        model="gpt-3.5-turbo",
+        model,
         multistep=False,
         redo=None,
         from_followup=None,
