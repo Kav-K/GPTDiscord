@@ -9,6 +9,7 @@ from pathlib import Path
 
 import discord
 import aiohttp
+import openai
 from langchain.chat_models import ChatOpenAI
 from llama_index import (
     QuestionAnswerPrompt,
@@ -224,6 +225,7 @@ class Search:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         # Initialize the search cost
         price = 0
