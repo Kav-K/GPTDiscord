@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 import aiohttp
 import re
 import discord
+import openai
 from bs4 import BeautifulSoup
 from discord.ext import pages
 from langchain import (
@@ -134,6 +135,8 @@ GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
 OPENAI_API_KEY = EnvService.get_openai_token()
 # Set the environment
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
 WOLFRAM_API_KEY = EnvService.get_wolfram_api_key()
 
 vector_stores = {}

@@ -9,6 +9,8 @@ from collections import defaultdict
 import aiohttp
 import discord
 import aiofiles
+import openai
+import tiktoken
 from functools import partial
 from typing import List, Optional
 from pathlib import Path
@@ -20,6 +22,7 @@ from langchain import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
 from langchain.memory import ConversationBufferMemory
+from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.data_structs.data_structs import Node
 from llama_index.data_structs.node import DocumentRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
@@ -352,7 +355,7 @@ class Index_handler:
 
         return pages
 
-    def index_file(self, file_path, embed_model, suffix=None) -> GPTVectorStoreIndex:
+    def index_file(self, file_path, service_context, suffix=None) -> GPTVectorStoreIndex:
         if suffix and suffix == ".md":
             loader = MarkdownReader()
             document = loader.load_data(file_path)
@@ -361,26 +364,23 @@ class Index_handler:
             document = epub_loader.load_data(file_path)
         else:
             document = SimpleDirectoryReader(input_files=[file_path]).load_data()
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
         index = GPTVectorStoreIndex.from_documents(
             document, service_context=service_context, use_async=True
         )
         return index
 
-    def index_gdoc(self, doc_id, embed_model) -> GPTVectorStoreIndex:
+    def index_gdoc(self, doc_id, service_context) -> GPTVectorStoreIndex:
         document = GoogleDocsReader().load_data(doc_id)
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
         index = GPTVectorStoreIndex.from_documents(
             document, service_context=service_context, use_async=True
         )
         return index
 
-    def index_youtube_transcript(self, link, embed_model):
+    def index_youtube_transcript(self, link, service_context):
         try:
             documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
         except Exception as e:
             raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
         index = GPTVectorStoreIndex.from_documents(
             documents,
@@ -389,7 +389,7 @@ class Index_handler:
         )
         return index
 
-    def index_github_repository(self, link, embed_model):
+    def index_github_repository(self, link, service_context):
         # Extract the "owner" and the "repo" name from the github link.
         owner = link.split("/")[3]
         repo = link.split("/")[4]
@@ -402,7 +402,6 @@ class Index_handler:
             documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(
                 branch="master"
             )
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
         index = GPTVectorStoreIndex.from_documents(
             documents,
@@ -416,9 +415,7 @@ class Index_handler:
         index = load_index_from_storage(storage_context)
         return index
 
-    def index_discord(self, document, embed_model) -> GPTVectorStoreIndex:
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
-
+    def index_discord(self, document, service_context) -> GPTVectorStoreIndex:
         index = GPTVectorStoreIndex.from_documents(
             document,
             service_context=service_context,
@@ -444,7 +441,7 @@ class Index_handler:
         # Delete the temporary file
         return documents
 
-    async def index_webpage(self, url, embed_model) -> GPTVectorStoreIndex:
+    async def index_webpage(self, url, service_context) -> GPTVectorStoreIndex:
         # First try to connect to the URL to see if we can even reach it.
         try:
             async with aiohttp.ClientSession() as session:
@@ -463,7 +460,7 @@ class Index_handler:
                                 functools.partial(
                                     GPTVectorStoreIndex,
                                     documents=documents,
-                                    embed_model=embed_model,
+                                    service_context=service_context,
                                     use_async=True,
                                 ),
                             )
@@ -477,7 +474,6 @@ class Index_handler:
         ).load_data(urls=[url])
 
         # index = GPTVectorStoreIndex(documents, embed_model=embed_model, use_async=True)
-        service_context = ServiceContext.from_defaults(embed_model=embed_model)
         index = await self.loop.run_in_executor(
             None,
             functools.partial(
@@ -499,6 +495,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         type_to_suffix_mappings = {
             "text/plain": ".txt",
@@ -561,22 +558,28 @@ class Index_handler:
                 ) as temp_file:
                     await file.save(temp_file.name)
                     embedding_model = OpenAIEmbedding()
+                    token_counter = TokenCountingHandler(
+                        tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                        verbose=False
+                    )
+                    callback_manager = CallbackManager([token_counter])
+                    service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
                     index = await self.loop.run_in_executor(
                         None,
                         partial(
                             self.index_file,
                             Path(temp_file.name),
-                            embedding_model,
+                            service_context,
                             suffix,
                         ),
                     )
                     await self.usage_service.update_usage(
-                        embedding_model.last_token_usage, "embedding"
+                        token_counter.total_embedding_token_count, "embedding"
                     )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.total_embedding_token_count, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -600,10 +603,17 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
             embedding_model = OpenAIEmbedding()
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                verbose=False
+            )
+            callback_manager = CallbackManager([token_counter])
+            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
 
             # Pre-emptively connect and get the content-type of the response
             try:
@@ -639,18 +649,18 @@ class Index_handler:
                 functools.partial(
                     GPTVectorStoreIndex,
                     documents=documents,
-                    embed_model=embedding_model,
+                    service_context=service_context,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.total_embedding_token_count, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -690,10 +700,17 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
             embedding_model = OpenAIEmbedding()
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                verbose=False
+            )
+            callback_manager = CallbackManager([token_counter])
+            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
 
             # Pre-emptively connect and get the content-type of the response
             try:
@@ -722,21 +739,21 @@ class Index_handler:
             # Check if the link contains youtube in it
             if await UrlCheck.check_youtube_link(link):
                 index = await self.loop.run_in_executor(
-                    None, partial(self.index_youtube_transcript, link, embedding_model)
+                    None, partial(self.index_youtube_transcript, link, service_context)
                 )
             elif "github" in link:
                 index = await self.loop.run_in_executor(
-                    None, partial(self.index_github_repository, link, embedding_model)
+                    None, partial(self.index_github_repository, link, service_context)
                 )
             else:
-                index = await self.index_webpage(link, embedding_model)
+                index = await self.index_webpage(link, service_context)
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.embedding_token_counts, "embedding"
                 )
             except:
                 traceback.print_exc()
@@ -780,24 +797,31 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         try:
             document = await self.load_data(
                 channel_ids=[channel.id], limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                verbose=False
+            )
+            callback_manager = CallbackManager([token_counter])
+            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
             index = await self.loop.run_in_executor(
-                None, partial(self.index_discord, document, embedding_model)
+                None, partial(self.index_discord, document, service_context)
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.total_embedding_token_count, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
                 price = "Unknown"
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
@@ -812,6 +836,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         try:
             if server:
@@ -897,9 +922,16 @@ class Index_handler:
 
             llm_predictor_mock = MockLLMPredictor(4096)
             embedding_model_mock = MockEmbedding(1536)
+            
+            token_counter_mock = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                verbose=False
+            )
+
+            callback_manager_mock = CallbackManager([token_counter_mock])
 
             service_context_mock = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor_mock, embed_model=embedding_model_mock
+                llm_predictor=llm_predictor_mock, embed_model=embedding_model_mock, callback_manager=callback_manager_mock
             )
 
             # Run the mock call first
@@ -912,10 +944,10 @@ class Index_handler:
                 ),
             )
             total_usage_price = await self.usage_service.get_price(
-                llm_predictor_mock.last_token_usage,
+                token_counter_mock.total_llm_token_count,
                 "turbo",  # TODO Enable again when tree indexes are fixed
             ) + await self.usage_service.get_price(
-                embedding_model_mock.last_token_usage, "embedding"
+                token_counter_mock.total_embedding_token_count, "embedding"
             )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
@@ -923,8 +955,15 @@ class Index_handler:
                     "Doing this deep search would be prohibitively expensive. Please try a narrower search scope."
                 )
 
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode,
+                verbose=False
+            )
+
+            callback_manager = CallbackManager([token_counter])
+
             service_context = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor, embed_model=embedding_model
+                llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
             )
 
             tree_index = await self.loop.run_in_executor(
@@ -938,10 +977,10 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage, "turbo"
+                token_counter.total_llm_token_count, "turbo"
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
 
             # Now we have a list of tree indexes, we can compose them
@@ -963,7 +1002,14 @@ class Index_handler:
 
             embedding_model = OpenAIEmbedding()
 
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model)
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode,
+                verbose=False
+            )
+
+            callback_manager = CallbackManager([token_counter])
+
+            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
 
             simple_index = await self.loop.run_in_executor(
                 None,
@@ -976,7 +1022,7 @@ class Index_handler:
             )
 
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
 
             if not name:
@@ -990,7 +1036,7 @@ class Index_handler:
 
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.total_embedding_token_count, "embedding"
                 )
             except:
                 price = "Unknown"
@@ -1004,6 +1050,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         try:
             channel_ids: List[int] = []
@@ -1013,15 +1060,21 @@ class Index_handler:
                 channel_ids=channel_ids, limit=message_limit, oldest_first=False
             )
             embedding_model = OpenAIEmbedding()
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
+                verbose=False
+            )
+            callback_manager = CallbackManager([token_counter])
+            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
             index = await self.loop.run_in_executor(
-                None, partial(self.index_discord, document, embedding_model)
+                None, partial(self.index_discord, document, service_context)
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
             try:
                 price = await self.usage_service.get_price(
-                    embedding_model.last_token_usage, "embedding"
+                    token_counter.total_embedding_token_count, "embedding"
                 )
             except Exception:
                 traceback.print_exc()
@@ -1056,6 +1109,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
@@ -1065,11 +1119,17 @@ class Index_handler:
 
         try:
             embedding_model = OpenAIEmbedding()
-            service_context = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor, embed_model=embedding_model
+            token_counter = TokenCountingHandler(
+                tokenizer=tiktoken.encoding_for_model(model).encode,
+                verbose=False
             )
 
-            embedding_model.last_token_usage = 0
+            callback_manager = CallbackManager([token_counter])
+            service_context = ServiceContext.from_defaults(
+                llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
+            )
+
+            token_counter.reset_counts()
             response = await self.loop.run_in_executor(
                 None,
                 partial(
@@ -1084,23 +1144,23 @@ class Index_handler:
                     multistep=llm_predictor if multistep else None,
                 ),
             )
-            print("The last token usage was ", llm_predictor.last_token_usage)
+            print("The last token usage was ", token_counter.total_llm_token_count)
             await self.usage_service.update_usage(
-                llm_predictor.last_token_usage,
+                token_counter.total_llm_token_count,
                 await self.usage_service.get_cost_name(model),
             )
             await self.usage_service.update_usage(
-                embedding_model.last_token_usage, "embedding"
+                token_counter.total_embedding_token_count, "embedding"
             )
 
             try:
                 total_price = round(
                     await self.usage_service.get_price(
-                        llm_predictor.last_token_usage,
+                        token_counter.total_llm_token_count,
                         await self.usage_service.get_cost_name(model),
                     )
                     + await self.usage_service.get_price(
-                        embedding_model.last_token_usage, "embedding"
+                        token_counter.total_embedding_token_count, "embedding"
                     ),
                     6,
                 )
@@ -1212,6 +1272,7 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         if not self.index_storage[ctx.user.id].has_indexes(ctx.user.id):
             await ctx.respond(

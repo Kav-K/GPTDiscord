@@ -9,6 +9,8 @@ from pathlib import Path
 
 import discord
 import aiohttp
+import openai
+import tiktoken
 from langchain.chat_models import ChatOpenAI
 from llama_index import (
     QuestionAnswerPrompt,
@@ -22,6 +24,7 @@ from llama_index import (
     ServiceContext,
     ResponseSynthesizer,
 )
+from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.composability import QASummaryQueryEngineBuilder
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine, MultiStepQueryEngine
@@ -224,6 +227,7 @@ class Search:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
+        openai.api_key = os.environ["OPENAI_API_KEY"]
 
         # Initialize the search cost
         price = 0
@@ -344,14 +348,27 @@ class Search:
 
         llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
-        service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor, embed_model=embedding_model
+        token_counter = TokenCountingHandler(
+            tokenizer=tiktoken.encoding_for_model(model).encode,
+            verbose=False
         )
 
+        callback_manager = CallbackManager([token_counter])
+
+        service_context = ServiceContext.from_defaults(
+            llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
+        )
+
+
         # Check price
+        token_counter_mock = TokenCountingHandler(
+            tokenizer=tiktoken.encoding_for_model(model).encode,
+            verbose=False
+        )
+        callback_manager_mock = CallbackManager([token_counter_mock])
         embed_model_mock = MockEmbedding(embed_dim=1536)
         service_context_mock = ServiceContext.from_defaults(
-            embed_model=embed_model_mock
+            embed_model=embed_model_mock, callback_manager=callback_manager_mock
         )
         self.loop.run_in_executor(
             None,
@@ -362,7 +379,7 @@ class Search:
             ),
         )
         total_usage_price = await self.usage_service.get_price(
-            embed_model_mock.total_tokens_used, "embedding"
+            token_counter_mock.total_embedding_token_count, "embedding"
         )
         if total_usage_price > 1.00:
             raise ValueError(
@@ -485,17 +502,17 @@ class Search:
             )
 
         await self.usage_service.update_usage(
-            service_context.llm_predictor.total_tokens_used,
+            token_counter.total_llm_token_count,
             await self.usage_service.get_cost_name(model),
         )
         await self.usage_service.update_usage(
-            service_context.embed_model.total_tokens_used, "embedding"
+            token_counter.total_embedding_token_count, "embedding"
         )
         price += await self.usage_service.get_price(
-            service_context.llm_predictor.total_tokens_used,
+            token_counter.total_llm_token_count,
             await self.usage_service.get_cost_name(model),
         ) + await self.usage_service.get_price(
-            service_context.embed_model.total_tokens_used, "embedding"
+            token_counter.total_embedding_token_count, "embedding"
         )
 
         if ctx:
