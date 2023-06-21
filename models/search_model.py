@@ -349,21 +349,20 @@ class Search:
         llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
         token_counter = TokenCountingHandler(
-            tokenizer=tiktoken.encoding_for_model(model).encode,
-            verbose=False
+            tokenizer=tiktoken.encoding_for_model(model).encode, verbose=False
         )
 
         callback_manager = CallbackManager([token_counter])
 
         service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
+            llm_predictor=llm_predictor,
+            embed_model=embedding_model,
+            callback_manager=callback_manager,
         )
-
 
         # Check price
         token_counter_mock = TokenCountingHandler(
-            tokenizer=tiktoken.encoding_for_model(model).encode,
-            verbose=False
+            tokenizer=tiktoken.encoding_for_model(model).encode, verbose=False
         )
         callback_manager_mock = CallbackManager([token_counter_mock])
         embed_model_mock = MockEmbedding(embed_dim=1536)

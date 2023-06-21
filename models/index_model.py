@@ -355,7 +355,9 @@ class Index_handler:
 
         return pages
 
-    def index_file(self, file_path, service_context, suffix=None) -> GPTVectorStoreIndex:
+    def index_file(
+        self, file_path, service_context, suffix=None
+    ) -> GPTVectorStoreIndex:
         if suffix and suffix == ".md":
             loader = MarkdownReader()
             document = loader.load_data(file_path)
@@ -559,11 +561,15 @@ class Index_handler:
                     await file.save(temp_file.name)
                     embedding_model = OpenAIEmbedding()
                     token_counter = TokenCountingHandler(
-                        tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                        verbose=False
+                        tokenizer=tiktoken.encoding_for_model(
+                            "text-davinci-003"
+                        ).encode,
+                        verbose=False,
                     )
                     callback_manager = CallbackManager([token_counter])
-                    service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+                    service_context = ServiceContext.from_defaults(
+                        embed_model=embedding_model, callback_manager=callback_manager
+                    )
                     index = await self.loop.run_in_executor(
                         None,
                         partial(
@@ -610,10 +616,12 @@ class Index_handler:
             embedding_model = OpenAIEmbedding()
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False
+                verbose=False,
             )
             callback_manager = CallbackManager([token_counter])
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, callback_manager=callback_manager
+            )
 
             # Pre-emptively connect and get the content-type of the response
             try:
@@ -707,10 +715,12 @@ class Index_handler:
             embedding_model = OpenAIEmbedding()
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False
+                verbose=False,
             )
             callback_manager = CallbackManager([token_counter])
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, callback_manager=callback_manager
+            )
 
             # Pre-emptively connect and get the content-type of the response
             try:
@@ -806,10 +816,12 @@ class Index_handler:
             embedding_model = OpenAIEmbedding()
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False
+                verbose=False,
             )
             callback_manager = CallbackManager([token_counter])
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, callback_manager=callback_manager
+            )
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document, service_context)
             )
@@ -922,16 +934,18 @@ class Index_handler:
 
             llm_predictor_mock = MockLLMPredictor(4096)
             embedding_model_mock = MockEmbedding(1536)
-            
+
             token_counter_mock = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False
+                verbose=False,
             )
 
             callback_manager_mock = CallbackManager([token_counter_mock])
 
             service_context_mock = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor_mock, embed_model=embedding_model_mock, callback_manager=callback_manager_mock
+                llm_predictor=llm_predictor_mock,
+                embed_model=embedding_model_mock,
+                callback_manager=callback_manager_mock,
             )
 
             # Run the mock call first
@@ -957,13 +971,15 @@ class Index_handler:
 
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode,
-                verbose=False
+                verbose=False,
             )
 
             callback_manager = CallbackManager([token_counter])
 
             service_context = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
+                llm_predictor=llm_predictor,
+                embed_model=embedding_model,
+                callback_manager=callback_manager,
             )
 
             tree_index = await self.loop.run_in_executor(
@@ -1004,12 +1020,14 @@ class Index_handler:
 
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode,
-                verbose=False
+                verbose=False,
             )
 
             callback_manager = CallbackManager([token_counter])
 
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, callback_manager=callback_manager
+            )
 
             simple_index = await self.loop.run_in_executor(
                 None,
@@ -1062,10 +1080,12 @@ class Index_handler:
             embedding_model = OpenAIEmbedding()
             token_counter = TokenCountingHandler(
                 tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False
+                verbose=False,
             )
             callback_manager = CallbackManager([token_counter])
-            service_context = ServiceContext.from_defaults(embed_model=embedding_model, callback_manager=callback_manager)
+            service_context = ServiceContext.from_defaults(
+                embed_model=embedding_model, callback_manager=callback_manager
+            )
             index = await self.loop.run_in_executor(
                 None, partial(self.index_discord, document, service_context)
             )
@@ -1120,13 +1140,14 @@ class Index_handler:
         try:
             embedding_model = OpenAIEmbedding()
             token_counter = TokenCountingHandler(
-                tokenizer=tiktoken.encoding_for_model(model).encode,
-                verbose=False
+                tokenizer=tiktoken.encoding_for_model(model).encode, verbose=False
             )
 
             callback_manager = CallbackManager([token_counter])
             service_context = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor, embed_model=embedding_model, callback_manager=callback_manager
+                llm_predictor=llm_predictor,
+                embed_model=embedding_model,
+                callback_manager=callback_manager,
             )
 
             token_counter.reset_counts()
