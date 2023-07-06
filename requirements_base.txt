@@ -1,6 +1,6 @@
 Pillow==9.3.0
 openai==0.27.0
-yt-dlp==2023.3.4
+yt-dlp==2023.7.6
 ffmpeg==1.4
 py-cord==2.4.1
 beautifulsoup4==4.11.2
