@@ -23,8 +23,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
 from langchain.memory import ConversationBufferMemory
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
-from llama_index.data_structs.data_structs import Node
-from llama_index.data_structs.node import DocumentRelationship
+from llama_index.schema import NodeRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.langchain_helpers.agents import (
     IndexToolConfig,
@@ -59,10 +58,12 @@ from llama_index import (
     ResponseSynthesizer,
     load_index_from_storage,
 )
+
+from llama_index.schema import TextNode
+from llama_index.storage.docstore.types import RefDocInfo
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from llama_index.composability import ComposableGraph
-from llama_index.schema import BaseDocument
 
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
@@ -874,23 +875,16 @@ class Index_handler:
 
     async def index_to_docs(
         self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
-    ) -> List[BaseDocument]:
+    ) -> List[Document]:
         documents = []
         docstore = old_index.docstore
+        ref_docs = old_index.ref_doc_info
 
-        for doc_id in docstore.docs.keys():
+        for document in ref_docs.values():
             text = ""
-
-            document = docstore.get_document(doc_id)
-            if document is not None:
-                node = docstore.get_node(document.get_doc_id())
-                while node is not None:
-                    extra_info = node.extra_info
-                    text += f"{node.text} "
-                    next_node_id = node.relationships.get(
-                        DocumentRelationship.NEXT, None
-                    )
-                    node = docstore.get_node(next_node_id) if next_node_id else None
+            for node in document.node_ids:
+                node = docstore.get_node(node)
+                text += f"{node.text} "
 
             text_splitter = TokenTextSplitter(
                 separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
@@ -898,9 +892,8 @@ class Index_handler:
             text_chunks = text_splitter.split_text(text)
 
             for chunk_text in text_chunks:
-                new_doc = Document(text=chunk_text, extra_info=extra_info)
+                new_doc = Document(text=chunk_text, extra_info=document.metadata)
                 documents.append(new_doc)
-                print(new_doc)
 
         return documents
 
@@ -1283,7 +1276,7 @@ class Index_handler:
                 channel_id, limit=limit, oldest_first=oldest_first
             )
             results.append(
-                Document(channel_content, extra_info={"channel_name": channel_name})
+                Document(text=channel_content, extra_info={"channel_name": channel_name})
             )
         return results
 
