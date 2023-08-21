@@ -11,7 +11,7 @@
 # Overview
 A robust, all-in-one GPT interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory powered by [Pinecone](https://www.pinecone.io/), automatic request retry, fault tolerance and reliability for servers of any scale, and much more.  
   
-SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q (You can try out the bot here also in a limited fashion)  
+SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
 
 # Table of Contents  
 
