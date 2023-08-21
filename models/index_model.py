@@ -1276,7 +1276,9 @@ class Index_handler:
                 channel_id, limit=limit, oldest_first=oldest_first
             )
             results.append(
-                Document(text=channel_content, extra_info={"channel_name": channel_name})
+                Document(
+                    text=channel_content, extra_info={"channel_name": channel_name}
+                )
             )
         return results
 
