@@ -135,7 +135,7 @@ class ModelLimits:
     MAX_CONVERSATION_LENGTH = 100000
 
     MIN_SUMMARIZE_THRESHOLD = 800
-    MAX_SUMMARIZE_THRESHOLD = 3500
+    MAX_SUMMARIZE_THRESHOLD = 30000
 
     MIN_NUM_IMAGES = 1
     MAX_NUM_IMAGES = 4
@@ -485,6 +485,12 @@ class Model:
         # Set the token count
         self._max_tokens = Models.get_max_tokens(self._model)
         SETTINGS_DB["model"] = model
+
+        # Set the summarize threshold if the model was set to gpt-4
+        if "gpt-4" in self._model:
+            self._summarize_threshold = 28000
+        elif "gpt-3" in self._model:
+            self._summarize_threshold = 6000
 
     @property
     def max_conversation_length(self):
