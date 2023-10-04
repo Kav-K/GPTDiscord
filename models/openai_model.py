@@ -129,7 +129,7 @@ class ImageSize:
 
 class ModelLimits:
     MIN_TOKENS = 15
-    MAX_TOKENS = 4096
+    MAX_TOKENS = 32000
 
     MIN_CONVERSATION_LENGTH = 1
     MAX_CONVERSATION_LENGTH = 100000
