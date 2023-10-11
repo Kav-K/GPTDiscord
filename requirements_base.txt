@@ -13,6 +13,7 @@ pinecone-client==2.1.0
 sqlitedict==2.1.0
 backoff==2.2.1
 flask==2.2.3
+werkzeug==2.2.2
 llama-index==0.6.38
 pypdf==3.11.1
 youtube_transcript_api==0.5.0
