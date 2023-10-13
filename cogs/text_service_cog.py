@@ -660,6 +660,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Moderations service is done here.
         if (
             hasattr(message, "guild")
+            and message.guild
             and message.guild.id in Moderation.moderation_queues
             and Moderation.moderation_queues[message.guild.id] is not None
         ):
