@@ -19,6 +19,7 @@ from cogs.moderations_service_cog import ModerationsService
 from cogs.commands import Commands
 from cogs.transcription_service_cog import TranscribeService
 from cogs.translation_service_cog import TranslationService
+from cogs.activity_service_cog import activity_service_cog
 from cogs.index_service_cog import IndexService
 from models.deepl_model import TranslationModel
 from services.health_service import HealthService
@@ -33,7 +34,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "11.8.2"
+__version__ = "11.8.232"
 
 
 PID_FILE = Path("bot.pid")
@@ -77,6 +78,7 @@ deletion_queue = asyncio.Queue()
 asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
 asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
 
+
 # Pickling service for conversation persistence
 try:
     Path(EnvService.save_path() / "pickles").mkdir(exist_ok=True)
@@ -92,10 +94,7 @@ asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
 #
 # Settings for the bot
 #
-activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help /gpt, and more!"
-)
-bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
+bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!")
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
@@ -108,7 +107,8 @@ model = Model(usage_service)
 @bot.event  # Using self gives u
 async def on_ready():  # I can make self optional by
     print("We have logged in as {0.user}".format(bot))
-
+    # Placing it here ensures that it doesn't get loaded too quickly
+    bot.add_cog(activity_service_cog(bot))
 
 @bot.event
 async def on_application_command_error(
