@@ -41,6 +41,9 @@ class IndexService(discord.Cog, name="IndexService"):
         if message.author == self.bot.user:
             return
 
+        if message.type != discord.MessageType.default:
+            return
+
         # Check if the message is from a guild.
         if not message.guild:
             return

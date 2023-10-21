@@ -336,6 +336,10 @@ class SearchService(discord.Cog, name="SearchService"):
         if not message.guild:
             return
 
+        # System message
+        if message.type != discord.MessageType.default:
+            return
+
         if message.content.strip().startswith("~"):
             return
 
