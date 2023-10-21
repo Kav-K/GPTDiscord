@@ -122,7 +122,7 @@ python3.9 -m pip install .
 
 #### Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
 ```shell 
-cp sample.env .env  
+cp .env .env  
 ```
 
 #### The command below is used to edit the .env file and to put in your API keys. You can right click within the editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.  
