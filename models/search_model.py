@@ -21,7 +21,8 @@ from llama_index import (
     OpenAIEmbedding,
     SimpleDirectoryReader,
     MockEmbedding,
-    ServiceContext, get_response_synthesizer,
+    ServiceContext,
+    get_response_synthesizer,
 )
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.composability import QASummaryQueryEngineBuilder

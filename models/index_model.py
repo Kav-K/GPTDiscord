@@ -55,7 +55,8 @@ from llama_index import (
     LLMPredictor,
     ServiceContext,
     StorageContext,
-    load_index_from_storage, get_response_synthesizer,
+    load_index_from_storage,
+    get_response_synthesizer,
 )
 
 from llama_index.schema import TextNode
@@ -82,11 +83,13 @@ token_counter = TokenCountingHandler(
     verbose=False,
 )
 node_parser = SimpleNodeParser.from_defaults(
-  text_splitter=TokenTextSplitter(chunk_size=256, chunk_overlap=20)
+    text_splitter=TokenTextSplitter(chunk_size=256, chunk_overlap=20)
 )
 callback_manager = CallbackManager([token_counter])
 service_context = ServiceContext.from_defaults(
-    embed_model=embedding_model, callback_manager=callback_manager, node_parser=node_parser
+    embed_model=embedding_model,
+    callback_manager=callback_manager,
+    node_parser=node_parser,
 )
 
 
@@ -232,8 +235,11 @@ class Index_handler:
     )
     callback_manager = CallbackManager([token_counter])
     service_context = ServiceContext.from_defaults(
-        embed_model=embedding_model, callback_manager=callback_manager, node_parser=node_parser
+        embed_model=embedding_model,
+        callback_manager=callback_manager,
+        node_parser=node_parser,
     )
+
     def __init__(self, bot, usage_service):
         self.bot = bot
         self.openai_key = os.getenv("OPENAI_TOKEN")
@@ -633,7 +639,6 @@ class Index_handler:
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
-
             # Pre-emptively connect and get the content-type of the response
             try:
                 async with aiohttp.ClientSession() as session:
@@ -723,7 +728,6 @@ class Index_handler:
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
-
             # Pre-emptively connect and get the content-type of the response
             try:
                 async with aiohttp.ClientSession() as session:
@@ -1089,7 +1093,6 @@ class Index_handler:
         )
 
         try:
-
             token_counter.reset_counts()
             response = await self.loop.run_in_executor(
                 None,
