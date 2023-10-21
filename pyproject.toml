@@ -18,7 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
 ]
 dependencies = [
-"Pillow==9.3.0",
+"Pillow==10.0.1",
 "openai==0.27.8",
 "yt-dlp==2023.3.4",
 "ffmpeg==1.4",
