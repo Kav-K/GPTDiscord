@@ -21,15 +21,13 @@ from llama_index import (
     OpenAIEmbedding,
     SimpleDirectoryReader,
     MockEmbedding,
-    ServiceContext,
-    ResponseSynthesizer,
+    ServiceContext, get_response_synthesizer,
 )
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.composability import QASummaryQueryEngineBuilder
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine, MultiStepQueryEngine
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
-from llama_index.optimization import SentenceEmbeddingOptimizer
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 from langchain import OpenAI
@@ -439,12 +437,11 @@ class Search:
                 similarity_top_k=nodes or DEFAULT_SEARCH_NODES,
             )
 
-            response_synthesizer = ResponseSynthesizer.from_args(
+            response_synthesizer = get_response_synthesizer(
                 response_mode=response_mode,
                 use_async=True,
                 refine_template=CHAT_REFINE_PROMPT,
                 text_qa_template=self.qaprompt,
-                optimizer=SentenceEmbeddingOptimizer(threshold_cutoff=0.7),
                 service_context=service_context,
             )
 

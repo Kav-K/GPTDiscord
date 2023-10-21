@@ -49,7 +49,10 @@ class UsageService:
         return UsageService.MODEL_COST_MAP.get(model, "davinci")
 
     async def get_price(self, tokens_used, mode: ModeType = None):
-        tokens_used = int(tokens_used)
+        if isinstance(tokens_used, str) or isinstance(tokens_used, int):
+            tokens_used = int(tokens_used)
+        else:
+            tokens_used = int(len(tokens_used))
         price = (tokens_used / 1000) * await self.get_model_cost(
             mode
         )  # This is a very rough estimate

@@ -43,8 +43,8 @@ from llama_index import (
     SimpleDirectoryReader,
     ServiceContext,
     OpenAIEmbedding,
-    ResponseSynthesizer,
 )
+from llama_index.response_synthesizers import get_response_synthesizer, ResponseMode
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
@@ -224,8 +224,8 @@ class CustomTextRequestWrapper(BaseModel):
                 retriever = VectorIndexRetriever(
                     index=index, similarity_top_k=4, service_context=service_context
                 )
-                response_synthesizer = ResponseSynthesizer.from_args(
-                    response_mode="compact",
+                response_synthesizer = get_response_synthesizer(
+                    response_mode=ResponseMode.COMPACT,
                     refine_template=CHAT_REFINE_PROMPT,
                     service_context=service_context,
                     use_async=True,
@@ -745,4 +745,5 @@ class FollowupModal(discord.ui.Modal):
             from_followup=FollowupData(message_link, self.children[0].value),
             response_mode=self.search_cog.redo_users[self.ctx.user.id].response_mode,
             followup_user=interaction.user,
+            model="gpt-4-32k",
         )
