@@ -193,13 +193,19 @@ class IndexData:
         try:
             # First, clear all the files inside it
             for file in os.listdir(EnvService.find_shared_file(f"indexes/{user_id}")):
-                os.remove(EnvService.find_shared_file(f"indexes/{user_id}/{file}"))
+                try:
+                    os.remove(EnvService.find_shared_file(f"indexes/{user_id}/{file}"))
+                except:
+                    traceback.print_exc()
             for file in os.listdir(
                 EnvService.find_shared_file(f"indexes/{user_id}_search")
             ):
-                os.remove(
-                    EnvService.find_shared_file(f"indexes/{user_id}_search/{file}")
-                )
+                try:
+                    os.remove(
+                        EnvService.find_shared_file(f"indexes/{user_id}_search/{file}")
+                    )
+                except:
+                    traceback.print_exc()
         except Exception:
             traceback.print_exc()
 
