@@ -204,4 +204,9 @@ If you follow the link above, you will now get to detailed step-by-step guides t
 
   
 *The number and content of the guides is constantly adapted to current requirements.*  
-  
+
+# Our Amazing Contributors ⭐
+
+<a href="https://github.com/Kav-K/GPTDiscord">
+<img src="https://contrib.rocks/image?repo=Kav-K/GPTDiscord" />
+</a>
