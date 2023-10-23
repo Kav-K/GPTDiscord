@@ -8,7 +8,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:  # https://github.com/stefanzweifel/git-auto-commit-action#checkout-the-correct-branch
             ref: ${{ github.head_ref }}
       - uses: actions/setup-python@v4
@@ -26,10 +26,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run a one-line script
         run: echo Hello, world!
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
