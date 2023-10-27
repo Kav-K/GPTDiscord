@@ -782,8 +782,7 @@ class TextService:
                                 f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
                                 f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\n\nNow, the original prompt "
                                 f"is given below, use the image understanding data to answer the question but don't "
-                                f"refer directly to the data."
-                                + prompt
+                                f"refer directly to the data." + prompt
                             )
                             try:
                                 await thinking_message.delete()
@@ -1008,7 +1007,7 @@ class ConversationView(discord.ui.View):
                     view=None,
                 )
         except Exception:
-            pass # Silently fail, as this usually means we were not able to retrieve the correct webhook token.
+            pass  # Silently fail, as this usually means we were not able to retrieve the correct webhook token.
 
 
 class EndConvoButton(discord.ui.Button["ConversationView"]):
