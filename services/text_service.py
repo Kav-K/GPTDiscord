@@ -756,7 +756,12 @@ class TextService:
                     ) as temp_file:
                         await file.save(temp_file.name)
                         try:
-                            image_caption, image_qa, image_ocr = await asyncio.gather(
+                            (
+                                image_caption,
+                                image_qa,
+                                minigpt_output,
+                                image_ocr,
+                            ) = await asyncio.gather(
                                 asyncio.to_thread(
                                     image_understanding_model.get_image_caption,
                                     temp_file.name,
@@ -766,10 +771,18 @@ class TextService:
                                     prompt,
                                     temp_file.name,
                                 ),
+                                asyncio.to_thread(
+                                    image_understanding_model.get_minigpt_answer,
+                                    prompt,
+                                    temp_file.name,
+                                ),
                                 image_understanding_model.do_image_ocr(temp_file.name),
                             )
                             prompt = (
-                                f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nImage Info-OCR: {image_ocr}\n"
+                                f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
+                                f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\n\nNow, the original prompt "
+                                f"is given below, use the image understanding data to answer the question but don't "
+                                f"refer directly to the data."
                                 + prompt
                             )
                             try:
@@ -978,21 +991,24 @@ class ConversationView(discord.ui.View):
             self.add_item(EndConvoButton(self.converser_cog))
 
     async def on_timeout(self):
-        # Remove the button from the view/message
-        self.clear_items()
-        # Send a message to the user saying the view has timed out
-        if self.message:
-            # check if the timeout happens in a thread and if it's locked
-            if isinstance(self.message.channel, discord.Thread):
-                if self.message.channel.locked:
-                    return
-            await self.message.edit(
-                view=None,
-            )
-        else:
-            await self.ctx.edit(
-                view=None,
-            )
+        try:
+            # Remove the button from the view/message
+            self.clear_items()
+            # Send a message to the user saying the view has timed out
+            if self.message:
+                # check if the timeout happens in a thread and if it's locked
+                if isinstance(self.message.channel, discord.Thread):
+                    if self.message.channel.locked:
+                        return
+                await self.message.edit(
+                    view=None,
+                )
+            else:
+                await self.ctx.edit(
+                    view=None,
+                )
+        except Exception:
+            pass # Silently fail, as this usually means we were not able to retrieve the correct webhook token.
 
 
 class EndConvoButton(discord.ui.Button["ConversationView"]):

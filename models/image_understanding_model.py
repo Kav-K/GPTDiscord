@@ -32,6 +32,13 @@ class ImageUnderstandingModel:
         )
         return output
 
+    def get_minigpt_answer(self, prompt, filepath):
+        output = replicate.run(
+            "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
+            input={"image": open(filepath, "rb"), "prompt": prompt},
+        )
+        return output
+
     def get_image_caption(self, filepath):
         output = replicate.run(
             "andreasjansson/blip-2:4b32258c42e9efd4288bb9910bc532a69727f9acd26aa08e175713a0a857a608",
