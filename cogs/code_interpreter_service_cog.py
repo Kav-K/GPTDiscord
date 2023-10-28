@@ -229,7 +229,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 response = f"Error: {e}"
                 traceback.print_exc()
                 await message.reply(
-                    embed=EmbedStatics.get_internet_chat_failure_embed(response)
+                    embed=EmbedStatics.get_code_chat_failure_embed(response)
                 )
                 self.thread_awaiting_responses.remove(message.channel.id)
                 return
@@ -244,7 +244,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             if len(artifact_names) > 0:
                 artifact_names = artifact_names[0].split(",")
                 artifact_names = [artifact_name.strip().replace("'", "") for artifact_name in artifact_names]
-                print("The artifact names are: ", artifact_names)
 
             if len(response) > 2000:
                 embed_pages = await self.paginate_chat_embed(response)
