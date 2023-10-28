@@ -1,4 +1,4 @@
-name: CI
+scname: CI
 on:
   push:
     branches:
@@ -33,135 +33,72 @@ jobs:
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: 104.248.105.234
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: gpt3discord.py
-          target: /home/gptbot/
+          target: /home/kaveen/GPTDiscord
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: 104.248.105.234
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: conversation_starter_pretext.txt
-          target: /home/gptbot/
+          target: /home/kaveen/GPTDiscord
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
-          host: 104.248.105.234
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: image_optimizer_pretext.txt
-          target: /home/gptbot/
+          target: /home/kaveen/GPTDiscord/
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
           local: cogs
-          remote: /home/gptbot/cogs
-          host: 104.248.105.234
+          remote: /home/kaveen/GPTDiscord/cogs
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
           local: models
-          remote: /home/gptbot/models
-          host: 104.248.105.234
+          remote: /home/kaveen/GPTDiscord/models
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
           local: openers
-          remote: /home/gptbot/openers
-          host: 104.248.105.234
+          remote: /home/kaveen/GPTDiscord/openers
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
           local: services
-          remote: /home/gptbot/services
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-      - name: copy file via ssh password (OAI)
-        uses: appleboy/scp-action@master
-        with:
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-          port: 22
-          source: gpt3discord.py
-          target: /home/gptbotopenai/
-      - name: copy file via ssh password (OAI)
-        uses: appleboy/scp-action@master
-        with:
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-          port: 22
-          source: conversation_starter_pretext.txt
-          target: /home/gptbotopenai/
-      - name: copy file via ssh password (OAI)
-        uses: appleboy/scp-action@master
-        with:
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-          port: 22
-          source: image_optimizer_pretext.txt
-          target: /home/gptbotopenai/
-      - name: Copy via ssh (OAI)
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: cogs
-          remote: /home/gptbotopenai/cogs
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-      - name: Copy via ssh (OAI)
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: models
-          remote: /home/gptbotopenai/models
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-      - name: Copy via ssh (OAI)
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: openers
-          remote: /home/gptbotopenai/openers
-          host: 104.248.105.234
-          username: root
-          password: ${{ secrets.SSH_PASS }}
-      - name: Copy via ssh (OAI)
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: services
-          remote: /home/gptbotopenai/services
-          host: 104.248.105.234
+          remote: /home/kaveen/GPTDiscord/services
+          host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
       - name: Restart bot!
         uses: fifsky/ssh-action@master
         with:
           command: |
-            cd /home/gptbot
+            cd /home/kaveen/GPTDiscord
             kill -9 $(cat bot.pid)
             rm bot.pid
             screen -dmS GPTBot python3.9 gpt3discord.py
-            cd /home/gptbotopenai
-            kill -9 $(cat bot.pid)
-            rm bot.pid
-            screen -dmS GPTBotOpenAI python3.9 gpt3discord.py
             logout
             exit
-          host: 104.248.105.234
+          host: lab.kaveenk.dev
           user: root
           pass: ${{ secrets.SSH_PASS}}
