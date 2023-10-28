@@ -247,6 +247,17 @@ class EmbedStatics:
         return embed
 
     @staticmethod
+    def get_code_chat_failure_embed(message):
+        embed = discord.Embed(
+            title="Code Interpreter Chat",
+            description=f"An error occured while using code interpreter chat: {message}",
+            color=discord.Color.red(),
+        )
+        # thumbnail of https://i.imgur.com/hbdBZfG.png
+        embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
+        return embed
+
+    @staticmethod
     def get_search_redo_progress_embed():
         embed = discord.Embed(
             title="AI-Assisted Search",

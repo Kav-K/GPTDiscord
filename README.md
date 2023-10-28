@@ -9,8 +9,10 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)  
   
 # Overview
-A robust, all-in-one GPT interface for Discord. Chat just like ChatGPT right inside Discord! Generate beautiful AI art using DALL-E 2! Automatically moderate your server using AI! Upload documents, videos, and files to get AI-assisted insights! A thorough integration with permanent conversation memory powered by [Pinecone](https://www.pinecone.io/), automatic request retry, fault tolerance and reliability for servers of any scale, and much more.  
-  
+An all-in-one, robust, OpenAI Integration for Discord. This bot is on feature parity with ChatGPT web, and even does some things slightly better! 
+
+We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, q&a on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
+
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
 
 # Table of Contents  
@@ -22,6 +24,7 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
 -- [DigitalOcean Droplet Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/DROPLET-GUIDE.md) 
 -- [OpenAI Token Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OPENAI-GUIDE.md)
 - [Internet Connected Chat](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/INTERNET-CONNECTED-CHAT.md)
+- [Code Interpreter / Advanced Data Analysis](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CODE-INTERPRETER.md)  
 - [Permanent Memory](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/PERMANENT-MEMORY.md)    
 - [Multi-Modality](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/MULTI-MODALITY.md)
 - [AI-Search](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-SEARCH.md)  
@@ -37,58 +40,46 @@ SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
 # Screenshots
 <p align="center">
 Multi-Modality<br>
-<img src="https://i.imgur.com/LgJ58Ak.png"/><br>
+<img src="https://i.imgur.com/TsfgtU2.png"/><br>
 Internet-connected chat (Google + Wolfram + Link Crawling)<br>
-<img src="https://i.imgur.com/t9BDkJD.png"/><br>
-Regular Chat <br>
-<img src="https://i.imgur.com/KeLpDgj.png"/><br>
-Image generation and optimization<br>
-<img  src="https://i.imgur.com/jLp1T0h.png"/><br>
-AI-based moderation<br>
-<img src="https://i.imgur.com/cY4895V.png"/><br>
+<img src="https://i.imgur.com/nHRNY2l.png"/><br>
+Code Interpreter / Advanced Data Analysis <br>
+<img src="https://i.imgur.com/Y2VvwHd.png"/><br>
 Custom indexing and Document Q&A<br>
-<img src="https://i.imgur.com/9leCixJ.png"/><br>
+<img src="https://i.imgur.com/iPGuUt1.png"/><br>
 </p>  
   
 # Recent Notable Updates  
 
+- **Code-Interpreter / Advanced Data Analysis** - Just like ChatGPT GPTDiscord now has a fully fleged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install python and system packages, and access the internet from the execution environment.
+
+
 - **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
-<p align="center"/>
-<img src="https://i.imgur.com/OTJBm1W.png"/>
-</p>
+
 
 - **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to google and wolfram alpha and can browse and access links that you send it!
-<p align="center"/>
-<img src="https://i.imgur.com/t9BDkJD.png"/>
-</p>
+# Features
+- **Multi-modal** with image understanding
 
-# Features  
-- **Directly prompt GPT with `/gpt ask <prompt>`**  
+- **Code Interpreter / Advanced Data Analysis**
+ 
+- Long term, **permanent conversations** with GPT models
+
+- **Use your own files**, pdfs, txt files, websites, discord channel content as context when asking GPT questions!  
   
-- **Have long term, permanent conversations with the bot, just like chatgpt, with `/gpt converse`** - Conversations happen in threads that get automatically cleaned up!  
+- **Internet-connected** chatting with GPT, connected to google, wolfram alpha, and a web crawler
   
-- **Custom Indexes** - Use your own files, pdfs, txt files, websites, discord channel content as context when asking GPT questions!  
+- Generate **DALL-E AI images**, and even optimize them right in discord
   
-- **AI-Assisted Google Search** - Speaks for itself!  
+- **Translate** text with DeepL.
+   
+- Moderate your server automatically with AI!  
   
-- **DALL-E Image Generation** - Generate DALL-E AI images right in discord with `/dalle draw <prompt>`! It even supports multiple image qualities, multiple images, creating image variants, retrying, and saving images.  
-  
-- **DALL-E Image Prompt Optimization** - Given some text that you're trying to generate an image for, the bot will automatically optimize the text to be more DALL-E friendly! `/dalle optimize <prompt>`  
-  
-- **Edit Requests** - Ask GPT to edit a piece of text or code with a given instruction. `/gpt edit <instruction> <text>`  
-  
-- **DeepL Translations** - Translate text with DeepL. `/translate <text>`  
-  
-- **Redo Requests** - A simple button after the GPT response or DALL-E generation allows you to redo the initial prompt you asked. You can also redo conversation messages by just editing your message!  
-  
-- **Automatic AI-Based Server Moderation** - Moderate your server automatically with AI!  
-  
-- **Auto-retry on API errors** - Automatically resend failed requests to OpenAI's APIs!  
+- **Auto-retry on API errors** - Automatically resend failed requests silently to ensure seamless experience
 
 - Set context-based pre-instructions per-user and per-channel
   
-- Automatically re-send your prompt and update the response in place if you edit your original prompt!  
- 
+- Ability to redo, edit your conversation messages while chatting with GPT
 - ShareGPT integration to share your conversations
 - Tag your bot in chat and it'll respond!  
 - Async and fault tolerant, **can handle hundreds of users at once**, if the upstream API permits!  
@@ -142,14 +133,11 @@ These commands are grouped, so each group has a prefix but you can easily tab co
   * Prints the currently set instruction for either the `user` or `channel` it is ran in.
 * clear
   * Removes the currently set instruction for either the `user` or `channel` it is ran in.
-  
-### DALL-E2 Commands  
-  
-`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt  
-  
-`/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.  
 
-### Search Commands
+### Code Interpreter // Advanced Data Analysis Commands
+`/code chat` - Start a code interpreter chat with GPT. You can type `end` to end the conversation
+
+### Search & Internet Commands
 
 `/internet search:<prompt> scope:<number of sites to visit> nodes:<how deep gpt should think>` - Search the internet with GPT assistance!
 
@@ -176,7 +164,15 @@ This bot supports per-user custom indexes. This means that users can upload file
 `/index add_discord channel:<discord channel>` - Create an add an index based on a discord channel  
   
 `/index discord_backup` - Use the last 3000 messages of every channel on your discord server as an index. Needs both an admin and a index role  
+
+`/index chat user_index:<user_index> search_index:<search_index>` - Chat with your documents that you've indexed previously!
+
+### DALL-E2 Commands  
   
+`/dalle draw <prompt>` - Have DALL-E generate images based on a prompt  
+  
+`/dalle optimize <image prompt text>` Optimize a given prompt text for DALL-E image generation.  
+
 ### System and Settings  
   
 `/system settings` - Display settings for the model (temperature, top_p, etc)  

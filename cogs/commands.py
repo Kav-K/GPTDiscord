@@ -30,6 +30,7 @@ class Commands(discord.Cog, name="Commands"):
         translations_cog=None,
         search_cog=None,
         transcribe_cog=None,
+        code_interpreter_cog=None,
     ):
         super().__init__()
         self.bot = bot
@@ -45,6 +46,7 @@ class Commands(discord.Cog, name="Commands"):
         self.translations_cog = translations_cog
         self.search_cog = search_cog
         self.transcribe_cog = transcribe_cog
+        self.code_interpreter_cog = code_interpreter_cog
 
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
@@ -87,7 +89,13 @@ class Commands(discord.Cog, name="Commands"):
         name="internet",
         description="Transcription services using OpenAI Whisper2",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
+        checks=[Check.check_index_roles()],  # TODO new role checker for internet
+    )
+    code_interpreter = discord.SlashCommandGroup(
+        name="code",
+        description="Code interpreter functionalities",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_index_roles()],  # TODO new role checker for code interpreter
     )
 
     #
@@ -724,7 +732,7 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="talk",
+        name="chat",
         description="Select one of your saved indexes to talk to",
         guild_ids=ALLOWED_GUILDS,
     )
@@ -745,7 +753,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the conversation",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def talk(
@@ -914,7 +922,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -1020,6 +1028,38 @@ class Commands(discord.Cog, name="Commands"):
     )
     async def draw_action(self, ctx, message: discord.Message):
         await self.image_draw_cog.draw_action(ctx, message)
+
+
+    """
+    Code interpreter commands and actions
+    """
+    @add_to_group("code")
+    @discord.slash_command(
+        name="chat",
+        description="Chat with code-interpreting GPT!",
+        guild_ids=ALLOWED_GUILDS,
+        checks=[Check.check_search_roles()],
+    )
+    @discord.option(
+        name="model",
+        description="The model to use for the request (querying, not composition)",
+        required=False,
+        default="gpt-4-32k",
+        autocomplete=Settings_autocompleter.get_index_and_search_models,
+    )
+    async def chat_code(
+        self,
+        ctx: discord.ApplicationContext,
+        model: str,
+    ):
+        if not self.code_interpreter_cog:
+            await ctx.respond(
+                "Code interpretation is disabled on this server.", ephemeral=True
+            )
+            return
+        await self.code_interpreter_cog.code_interpreter_chat_command(
+            ctx, model=model
+        )
 
     """
     Translation commands and actions
@@ -1133,7 +1173,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def chat(
@@ -1189,7 +1229,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(

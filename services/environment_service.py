@@ -511,6 +511,14 @@ class EnvService:
             return None
 
     @staticmethod
+    def get_e2b_api_key():
+        try:
+            e2b_key = os.getenv("E2B_API_KEY")
+            return e2b_key
+        except Exception:
+            return None
+
+    @staticmethod
     def get_google_search_engine_id():
         try:
             google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")

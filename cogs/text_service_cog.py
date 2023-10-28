@@ -1151,14 +1151,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     description=f"**Model**: {self.model.model if not model else model}",
                     color=0x808080,
                 )
-                message_embed.set_thumbnail(url="https://i.imgur.com/asA13vI.png")
+                message_embed.set_thumbnail(url="https://i.imgur.com/wpp4TIf.png")
                 footer_text = (
                     "Regular Chat"
                     if not image_understanding_model.get_is_usable()
                     else "Regular Chat, Multi-Modal"
                 )
                 message_embed.set_footer(
-                    text=footer_text, icon_url="https://i.imgur.com/asA13vI.png"
+                    text=footer_text, icon_url="https://i.imgur.com/wpp4TIf.png"
                 )
                 message_thread = await ctx.send(embed=message_embed)
                 thread = await message_thread.create_thread(
