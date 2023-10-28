@@ -2,70 +2,37 @@ import asyncio
 import datetime
 import functools
 import io
-import json
 import os
 import sys
 import tempfile
 import traceback
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Optional, Dict, Any, List
+from typing import List
 
-import aiohttp
 import re
 import discord
 import openai
-from bs4 import BeautifulSoup
 from discord.ext import pages
 from e2b import Session, DataAnalysis
 from e2b.templates.data_analysis import Artifact
-from langchain import (
-    GoogleSearchAPIWrapper,
-    WolframAlphaAPIWrapper,
-    FAISS,
-    InMemoryDocstore,
-    LLMChain,
-    ConversationChain,
-)
+
 from langchain.agents import (
     Tool,
     initialize_agent,
     AgentType,
-    ZeroShotAgent,
-    AgentExecutor,
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory, CombinedMemory
+from langchain.memory import ConversationBufferMemory
 from langchain.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
     MessagesPlaceholder,
-    HumanMessagePromptTemplate,
 )
-from langchain.requests import TextRequestsWrapper, Requests
 from langchain.schema import SystemMessage
-from llama_index import (
-    GPTVectorStoreIndex,
-    Document,
-    SimpleDirectoryReader,
-    ServiceContext,
-    OpenAIEmbedding,
-)
-from llama_index.response_synthesizers import get_response_synthesizer, ResponseMode
-from llama_index.retrievers import VectorIndexRetriever
-from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
-from pydantic import Extra, BaseModel
-import tiktoken
+
 
 from models.embed_statics_model import EmbedStatics
-from models.search_model import Search
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
-from services.text_service import TextService
-from models.openai_model import Models
-
-from contextlib import redirect_stdout
 
 
 class CaptureStdout:
@@ -90,17 +57,14 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 PRE_MODERATE = EnvService.get_premoderate()
-GOOGLE_API_KEY = EnvService.get_google_search_api_key()
-GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
+
 OPENAI_API_KEY = EnvService.get_openai_token()
 # Set the environment
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-WOLFRAM_API_KEY = EnvService.get_wolfram_api_key()
-E2B_API_KEY = EnvService.get_e2b_api_key()
 
-vector_stores = {}
+E2B_API_KEY = EnvService.get_e2b_api_key()
 
 
 class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
