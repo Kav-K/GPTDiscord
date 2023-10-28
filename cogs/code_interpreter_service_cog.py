@@ -279,11 +279,11 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         message_embed = discord.Embed(
             title=embed_title,
             description=f"The agent is able to execute Python code and manipulate its environment.\nModel: {model}\n\nType `end` to stop the conversation",
-            color=0xBA6093,
+            color=0xf82c45,
         )
-        message_embed.set_thumbnail(url="https://i.imgur.com/lt5AYJ9.png")
+        message_embed.set_thumbnail(url="https://i.imgur.com/qua6Bya.png")
         message_embed.set_footer(
-            text="Code Interpreter Chat", icon_url="https://i.imgur.com/lt5AYJ9.png"
+            text="Code Interpreter Chat", icon_url="https://i.imgur.com/qua6Bya.png"
         )
         message_thread = await ctx.send(embed=message_embed)
         thread = await message_thread.create_thread(
@@ -306,7 +306,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
-                content="You are an expert programmer that is able to use the tools to your advantage to execute python code. Help the user iterate on their code and test it through execution. Always respond in the specified JSON format. Always provide the full code output when asked for when you execute code.")
+                content="You are an expert programmer that is able to use the tools to your advantage to execute python code. Help the user iterate on their code and test it through execution. Always respond in the specified JSON format. Always provide the full code output when asked for when you execute code. Ensure that all your code is formatted with backticks followed by the markdown identifier of the language that the code is in. For example ```python3 {code} ```.")
         }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)

@@ -732,7 +732,7 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("index")
     @discord.slash_command(
-        name="talk",
+        name="chat",
         description="Select one of your saved indexes to talk to",
         guild_ids=ALLOWED_GUILDS,
     )

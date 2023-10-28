@@ -448,9 +448,9 @@ class SearchService(discord.Cog, name="SearchService"):
             description=f"The agent will visit and browse **{search_scope}** link(s) every time it needs to access the internet.\nCrawling is enabled, send the bot a link for it to access it!\nModel: {model}\n\nType `end` to stop the conversation",
             color=0xBA6093,
         )
-        message_embed.set_thumbnail(url="https://i.imgur.com/lt5AYJ9.png")
+        message_embed.set_thumbnail(url="https://i.imgur.com/sioynYZ.png")
         message_embed.set_footer(
-            text="Internet Chat", icon_url="https://i.imgur.com/lt5AYJ9.png"
+            text="Internet Chat", icon_url="https://i.imgur.com/sioynYZ.png"
         )
         message_thread = await ctx.send(embed=message_embed)
         thread = await message_thread.create_thread(
