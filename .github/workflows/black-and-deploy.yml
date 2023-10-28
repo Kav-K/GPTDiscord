@@ -1,4 +1,4 @@
-scname: CI
+name: CI
 on:
   push:
     branches:
