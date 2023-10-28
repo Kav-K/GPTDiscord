@@ -51,7 +51,7 @@ Custom indexing and Document Q&A<br>
   
 # Recent Notable Updates  
 
-- **Code-Interpreter / Advanced Data Analysis** - Just like ChatGPT GPTDiscord now has a fully fleged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install python and system packages, and access the internet from the execution environment.
+- **Code-Interpreter / Advanced Data Analysis** - Just like ChatGPT GPTDiscord now has a fully fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install python and system packages, and access the internet from the execution environment.
 
 
 - **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
