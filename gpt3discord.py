@@ -11,6 +11,7 @@ import discord
 import pinecone
 from pycord.multicog import apply_multicog
 
+from cogs.code_interpreter_service_cog import CodeInterpreterService
 from cogs.search_service_cog import SearchService
 from cogs.text_service_cog import GPT3ComCon
 from cogs.image_service_cog import DrawDallEService
@@ -33,7 +34,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "11.8.5"
+__version__ = "11.9.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -193,6 +194,15 @@ async def main():
         )
         print("The Search service is enabled.")
 
+    if EnvService.get_e2b_api_key():
+        bot.add_cog(
+            CodeInterpreterService(
+                bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")
+            )
+        )
+        print("The Code Interpreter service is enabled.")
+
+
     bot.add_cog(
         TranscribeService(
             bot,
@@ -216,6 +226,7 @@ async def main():
             bot.get_cog("TranslationService"),
             bot.get_cog("SearchService"),
             bot.get_cog("TranscribeService"),
+            bot.get_cog("CodeInterpreterService"),
         )
     )
 
