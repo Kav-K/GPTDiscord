@@ -1052,6 +1052,11 @@ class Commands(discord.Cog, name="Commands"):
         ctx: discord.ApplicationContext,
         model: str,
     ):
+        if not self.code_interpreter_cog:
+            await ctx.respond(
+                "Code interpretation is disabled on this server.", ephemeral=True
+            )
+            return
         await self.code_interpreter_cog.code_interpreter_chat_command(
             ctx, model=model
         )

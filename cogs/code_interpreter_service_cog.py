@@ -278,7 +278,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
     class SessionedCodeExecutor:
 
         def __init__(self):
-            self.session = DataAnalysis(api_key=E2B_API_KEY)
+            try:
+                self.session = DataAnalysis(api_key=E2B_API_KEY)
+                self.sessioned = True
+            except:
+                traceback.print_exc()
+                self.sessioned = False
 
         def execute_code_sync(self, code: str):
             """Synchronous wrapper around the async execute_code function."""
@@ -286,14 +291,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
         async def execute_code_async(self, code: str):
             loop = asyncio.get_running_loop()
-            runner = functools.partial(self.session.run_python, code=code, timeout=5)
+            runner = functools.partial(self.session.run_python, code=code, timeout=30)
 
             stdout, stderr, artifacts = await loop.run_in_executor(None, runner)
             artifacts: List[Artifact] = list(artifacts)
+            print("THE ARTIFACTS ARE " + str(artifacts))
 
             if len(stdout) > 12000:
                 stdout = stdout[:12000]
-            return stdout + "\nArtifacts: " + str([artifact.name for artifact in artifacts])
+            return "STDOUT: "+stdout +"\nSTDERR: "+stderr+ "\nArtifacts: " + str([artifact.name for artifact in artifacts])
 
         def close(self):
             self.session.close()
@@ -302,13 +308,16 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return self.session.get_hostname()
 
         def download_file(self, filepath):
-            return self.session.download_file(filepath, timeout=5)
+            return self.session.download_file(filepath, timeout=30)
 
         def install_python_package(self, package):
             return self.session.install_python_packages(package_names=package)
 
         def install_system_package(self, package):
             return self.session.install_system_packages(package_names=package)
+
+        def is_sessioned(self):
+            return self.sessioned
 
     async def code_interpreter_chat_command(
             self, ctx: discord.ApplicationContext, model,
@@ -331,6 +340,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         await ctx.respond("Conversation started.")
 
         self.sessions[thread.id] = self.SessionedCodeExecutor()
+
+        if not self.sessions[thread.id].is_sessioned():
+            await thread.send("Failed to start code interpreter session. This may be an issue with E2B. Please try again later.")
+            await thread.edit(name="Closed-GPT (Error)")
+            await thread.edit(archived=True)
+            return
 
         tools = [
             # The requests tool
@@ -360,7 +375,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                         "python code. Help the user iterate on their code and test it through execution. Always "
                         "respond in the specified JSON format. Always provide the full code output when asked for "
                         "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times.")
+                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code.")
         }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
