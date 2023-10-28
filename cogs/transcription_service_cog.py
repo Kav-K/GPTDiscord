@@ -9,7 +9,6 @@ from yt_dlp import YoutubeDL
 import discord
 from discord.ext import pages
 
-from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
 from models.check_model import UrlCheck
 from services.environment_service import EnvService

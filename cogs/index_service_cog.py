@@ -1,6 +1,5 @@
 import datetime
 import traceback
-from pathlib import Path
 
 import discord
 import os

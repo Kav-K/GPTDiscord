@@ -278,15 +278,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         print("Syncing commands...")
 
-        await self.bot.sync_commands(
-            commands=None,
-            method="individual",
-            force=True,
-            guild_ids=ALLOWED_GUILDS,
-            register_guild_commands=True,
-            check_guilds=[],
-            delete_existing=True,
-        )
+
+        try:
+            await self.bot.sync_commands(
+                commands=None,
+                method="individual",
+                force=True,
+                guild_ids=ALLOWED_GUILDS,
+                register_guild_commands=True,
+                check_guilds=[],
+                delete_existing=True,
+            )
+        except:
+            traceback.print_exc()
+            print("There was a failure during command syncing. This might mean that the bot may not be in a guild that it expects to be in anymore, or it is in guilds without the guild ID being added to ALLOWED_GUILDS.")
         print("Commands synced")
 
         # Start an inline async loop that runs every 10 seconds to save the conversation history to a pickle file
