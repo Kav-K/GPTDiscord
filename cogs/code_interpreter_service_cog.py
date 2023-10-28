@@ -69,12 +69,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
     """Cog containing translation commands and retrieval of translation services"""
 
     def __init__(
-            self,
-            bot,
-            gpt_model,
-            usage_service,
-            deletion_service,
-            converser_cog,
+        self,
+        bot,
+        gpt_model,
+        usage_service,
+        deletion_service,
+        converser_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -93,7 +93,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i: i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
         ]
         pages = []
         first = False
@@ -227,14 +227,20 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     await paginator.respond(message)
                 except:
                     response = [
-                        response[i: i + 1900] for i in range(0, len(response), 1900)
+                        response[i : i + 1900] for i in range(0, len(response), 1900)
                     ]
                     for count, chunk in enumerate(response, start=1):
                         await message.channel.send(chunk)
                     if artifacts_available:
-                        await message.channel.send("Retrieve your artifacts", view=CodeInterpreterDownloadArtifactsView(
-                            message, self, self.sessions[message.channel.id], artifact_names
-                        ))
+                        await message.channel.send(
+                            "Retrieve your artifacts",
+                            view=CodeInterpreterDownloadArtifactsView(
+                                message,
+                                self,
+                                self.sessions[message.channel.id],
+                                artifact_names,
+                            ),
+                        )
 
             else:
                 response = response.replace("\\n", "\n")
@@ -275,17 +281,16 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             stdout, stderr, artifacts = await loop.run_in_executor(None, runner)
             artifacts: List[Artifact] = list(artifacts)
 
-            artifacts_or_no_artifacts = "\nArtifacts: " + str([artifact.name for artifact in artifacts]) if len(
-                artifacts) > 0 else "\nNO__ARTIFACTS"
+            artifacts_or_no_artifacts = (
+                "\nArtifacts: " + str([artifact.name for artifact in artifacts])
+                if len(artifacts) > 0
+                else "\nNO__ARTIFACTS"
+            )
 
             if len(stdout) > 12000:
                 stdout = stdout[:12000]
             return (
-                    "STDOUT: "
-                    + stdout
-                    + "\nSTDERR: "
-                    + stderr
-                    + artifacts_or_no_artifacts
+                "STDOUT: " + stdout + "\nSTDERR: " + stderr + artifacts_or_no_artifacts
             )
 
         def close(self):
@@ -307,9 +312,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return self.sessioned
 
     async def code_interpreter_chat_command(
-            self,
-            ctx: discord.ApplicationContext,
-            model,
+        self,
+        ctx: discord.ApplicationContext,
+        model,
     ):
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
@@ -363,10 +368,10 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
                 content="You are an expert programmer that is able to use the tools to your advantage to execute "
-                        "python code. Help the user iterate on their code and test it through execution. Always "
-                        "respond in the specified JSON format. Always provide the full code output when asked for "
-                        "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code. Never execute code before showing the user the code first."
+                "python code. Help the user iterate on their code and test it through execution. Always "
+                "respond in the specified JSON format. Always provide the full code output when asked for "
+                "when you execute code. Ensure that all your code is formatted with backticks followed by the "
+                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code. Never execute code before showing the user the code first."
             ),
         }
 
@@ -386,11 +391,11 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
 class CodeInterpreterDownloadArtifactsView(discord.ui.View):
     def __init__(
-            self,
-            ctx,
-            code_interpreter_cog,
-            session,
-            artifact_names,
+        self,
+        ctx,
+        code_interpreter_cog,
+        session,
+        artifact_names,
     ):
         super().__init__(timeout=None)  # No timeout
         self.code_interpreter_cog = code_interpreter_cog
