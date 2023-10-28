@@ -37,6 +37,7 @@ from langchain.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain.requests import TextRequestsWrapper, Requests
+from langchain.schema import SystemMessage
 from llama_index import (
     GPTVectorStoreIndex,
     Document,
@@ -207,10 +208,10 @@ class CustomTextRequestWrapper(BaseModel):
         if len(text) < 5:
             return "This website could not be scraped. I cannot answer this question."
         if (
-            model in Models.CHATGPT_MODELS
-            and tokens > Models.get_max_tokens(model) - 1000
+                model in Models.CHATGPT_MODELS
+                and tokens > Models.get_max_tokens(model) - 1000
         ) or (
-            model in Models.GPT4_MODELS and tokens > Models.get_max_tokens(model) - 1000
+                model in Models.GPT4_MODELS and tokens > Models.get_max_tokens(model) - 1000
         ):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 f.write(text)
@@ -243,12 +244,12 @@ class SearchService(discord.Cog, name="SearchService"):
     """Cog containing translation commands and retrieval of translation services"""
 
     def __init__(
-        self,
-        bot,
-        gpt_model,
-        usage_service,
-        deletion_service,
-        converser_cog,
+            self,
+            bot,
+            gpt_model,
+            usage_service,
+            deletion_service,
+            converser_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -262,12 +263,12 @@ class SearchService(discord.Cog, name="SearchService"):
         # Make a mapping of all the country codes and their full country names:
 
     async def paginate_embed(
-        self, response_text, user: discord.Member, original_link=None
+            self, response_text, user: discord.Member, original_link=None
     ):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i : i + self.EMBED_CUTOFF]
+            response_text[i: i + self.EMBED_CUTOFF]
             for i in range(0, len(response_text), self.EMBED_CUTOFF)
         ]
         pages = []
@@ -305,7 +306,7 @@ class SearchService(discord.Cog, name="SearchService"):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i: i + 3500] for i in range(0, len(response_text), 7000)
         ]
         pages = []
         first = False
@@ -440,7 +441,7 @@ class SearchService(discord.Cog, name="SearchService"):
             self.thread_awaiting_responses.remove(message.channel.id)
 
     async def search_chat_command(
-        self, ctx: discord.ApplicationContext, model, search_scope=2
+            self, ctx: discord.ApplicationContext, model, search_scope=2
     ):
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
@@ -498,38 +499,40 @@ class SearchService(discord.Cog, name="SearchService"):
             traceback.print_exc()
             print("Wolfram tool not added to internet-connected conversation agent.")
 
-        memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True
-        )
+        memory = ConversationBufferMemory(memory_key="memory", return_messages=True)
+
+        agent_kwargs = {
+            "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
+            "system_message": SystemMessage(
+                content="You are a superpowered version of GPT-4 that is able to access the internet. You can use google search to browse the web, you can crawl the web to see the content of specific websites, and in some cases you can also use Wolfram Alpha to perform mathematical operations. Use all of these tools to your advantage.")
+        }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
         agent_chain = initialize_agent(
-            tools,
-            llm,
-            agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+            tools=tools,
+            llm=llm,
+            agent=AgentType.OPENAI_FUNCTIONS,
             verbose=True,
+            agent_kwargs=agent_kwargs,
             memory=memory,
-            max_execution_time=120,
-            max_iterations=4,
-            early_stopping_method="generate",
         )
 
         self.chat_agents[thread.id] = agent_chain
 
     async def search_command(
-        self,
-        ctx: discord.ApplicationContext,
-        query,
-        search_scope,
-        nodes,
-        deep,
-        response_mode,
-        model,
-        multistep=False,
-        redo=None,
-        from_followup=None,
-        followup_user=None,
+            self,
+            ctx: discord.ApplicationContext,
+            query,
+            search_scope,
+            nodes,
+            deep,
+            response_mode,
+            model,
+            multistep=False,
+            redo=None,
+            from_followup=None,
+            followup_user=None,
     ):
         """Command handler for the search command"""
         await ctx.defer() if not redo else None
@@ -548,8 +551,8 @@ class SearchService(discord.Cog, name="SearchService"):
                 return
 
         if (
-            not EnvService.get_google_search_api_key()
-            or not EnvService.get_google_search_engine_id()
+                not EnvService.get_google_search_api_key()
+                or not EnvService.get_google_search_engine_id()
         ):
             await ctx.respond(
                 embed=EmbedStatics.get_search_failure_embed(
@@ -636,10 +639,10 @@ class SearchService(discord.Cog, name="SearchService"):
 
 class SearchView(discord.ui.View):
     def __init__(
-        self,
-        ctx,
-        search_cog,
-        response_text,
+            self,
+            ctx,
+            search_cog,
+            response_text,
     ):
         super().__init__(timeout=None)  # No timeout
         self.search_cog = search_cog
@@ -726,14 +729,14 @@ class FollowupModal(discord.ui.Modal):
 
         # Build the context
         context_text = (
-            "Original question: "
-            + query
-            + "\n"
-            + "Answer to original: "
-            + self.response_text
-            + "\n"
-            + "Follow-up question: "
-            + self.children[0].value
+                "Original question: "
+                + query
+                + "\n"
+                + "Answer to original: "
+                + self.response_text
+                + "\n"
+                + "Follow-up question: "
+                + self.children[0].value
         )
 
         # Get the link of the message that the user interacted on

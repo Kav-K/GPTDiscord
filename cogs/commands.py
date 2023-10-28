@@ -753,7 +753,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the conversation",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def talk(
@@ -922,7 +922,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -1168,7 +1168,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     async def chat(
@@ -1224,7 +1224,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-3.5-turbo",
+        default="gpt-4-32k",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
