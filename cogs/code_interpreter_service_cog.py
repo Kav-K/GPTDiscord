@@ -305,6 +305,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         def download_file(self, filepath):
             return self.session.download_file(filepath, timeout=5)
 
+        def install_python_package(self, package):
+            return self.session.install_python_packages(package_names=package)
+
+        def install_system_package(self, package):
+            return self.session.install_system_packages(package_names=package)
+
     async def code_interpreter_chat_command(
             self, ctx: discord.ApplicationContext, model,
     ):
@@ -334,6 +340,16 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 func=self.sessions[thread.id].execute_code_sync,
                 description=f"This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
             ),
+            Tool(
+                name="Install-python-package-tool",
+                func=self.sessions[thread.id].install_python_package,
+                description=f"This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times."
+            ),
+            Tool(
+                name="Install-system-package-tool",
+                func=self.sessions[thread.id].install_python_package,
+                description=f"This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times."
+            ),
         ]
 
         memory = ConversationBufferMemory(memory_key="memory", return_messages=True)
@@ -345,7 +361,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                         "python code. Help the user iterate on their code and test it through execution. Always "
                         "respond in the specified JSON format. Always provide the full code output when asked for "
                         "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt.")
+                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times.")
         }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
