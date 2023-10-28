@@ -8,7 +8,7 @@ import sys
 import tempfile
 import traceback
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 import aiohttp
 import re
@@ -17,6 +17,7 @@ import openai
 from bs4 import BeautifulSoup
 from discord.ext import pages
 from e2b import Session, DataAnalysis
+from e2b.templates.data_analysis import Artifact
 from langchain import (
     GoogleSearchAPIWrapper,
     WolframAlphaAPIWrapper,
@@ -121,8 +122,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self.chat_agents = {}
         self.thread_awaiting_responses = []
         self.converser_cog = converser_cog
-        self.session = DataAnalysis(api_key=E2B_API_KEY)
         self.executor = ThreadPoolExecutor(max_workers=10)
+        self.initial_messages = {}
+        self.sessions = {}
         # Make a mapping of all the country codes and their full country names:
 
     async def paginate_chat_embed(self, response_text):
@@ -192,7 +194,8 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
-                await message.reply("Ending chat session.")
+                await message.reply("Ending chat session. You can access the sandbox of this session at https://"+self.sessions[message.channel.id].get_hostname())
+                self.sessions[message.channel.id].close()
                 self.chat_agents.pop(message.channel.id)
 
                 # close the thread
@@ -231,12 +234,25 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 self.thread_awaiting_responses.remove(message.channel.id)
                 return
 
+            # Determine if we have artifacts in the response
+            artifacts_available = "Artifacts: []" not in stdout_output
+
+
+            # Parse the artifact names. After Artifacts: there should be a list in form [] where the artifact names are inside, comma separated inside stdout_output
+            artifact_names = re.findall(r"Artifacts: \[(.*?)\]", stdout_output)
+            # The artifacts list may be formatted like ["'/home/user/artifacts/test2.txt', '/home/user/artifacts/test.txt'"], where its technically 1 element in the list, so we need to split it by comma and then remove the quotes and spaces
+            if len(artifact_names) > 0:
+                artifact_names = artifact_names[0].split(",")
+                artifact_names = [artifact_name.strip().replace("'", "") for artifact_name in artifact_names]
+                print("The artifact names are: ", artifact_names)
+
             if len(response) > 2000:
                 embed_pages = await self.paginate_chat_embed(response)
                 paginator = pages.Paginator(
                     pages=embed_pages,
                     timeout=None,
                     author_check=False,
+                    custom_view=CodeInterpreterDownloadArtifactsView(message, self, self.sessions[message.channel.id], artifact_names) if artifacts_available else None,
                 )
                 try:
                     await paginator.respond(message)
@@ -255,22 +271,39 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     description=response,
                     color=0x808080,
                 )
-                await message.reply(embed=response_embed)
+                await message.reply(embed=response_embed, view=CodeInterpreterDownloadArtifactsView(message, self, self.sessions[message.channel.id], artifact_names) if artifacts_available else None)
+
 
             self.thread_awaiting_responses.remove(message.channel.id)
 
-    def execute_code_sync(self, code: str):
-        """Synchronous wrapper around the async execute_code function."""
-        return asyncio.run(self.execute_code_async(code))
+    class SessionedCodeExecutor:
 
-    async def execute_code_async(self, code: str):
-        loop = asyncio.get_running_loop()
-        runner = functools.partial(self.session.run_python, code=code, timeout=5)
+        def __init__(self):
+            self.session = DataAnalysis(api_key=E2B_API_KEY)
 
-        stdout, stderr, artifacts = await loop.run_in_executor(None, runner)
-        if len(stdout) > 12000:
-            stdout = stdout[:12000]
-        return stdout
+        def execute_code_sync(self, code: str):
+            """Synchronous wrapper around the async execute_code function."""
+            return asyncio.run(self.execute_code_async(code))
+
+        async def execute_code_async(self, code: str):
+            loop = asyncio.get_running_loop()
+            runner = functools.partial(self.session.run_python, code=code, timeout=5)
+
+            stdout, stderr, artifacts = await loop.run_in_executor(None, runner)
+            artifacts: List[Artifact] = list(artifacts)
+
+            if len(stdout) > 12000:
+                stdout = stdout[:12000]
+            return stdout + "\nArtifacts: " + str([artifact.name for artifact in artifacts])
+
+        def close(self):
+            self.session.close()
+
+        def get_hostname(self):
+            return self.session.get_hostname()
+
+        def download_file(self, filepath):
+            return self.session.download_file(filepath, timeout=5)
 
     async def code_interpreter_chat_command(
             self, ctx: discord.ApplicationContext, model,
@@ -292,11 +325,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         )
         await ctx.respond("Conversation started.")
 
+        self.sessions[thread.id] = self.SessionedCodeExecutor()
+
         tools = [
             # The requests tool
             Tool(
                 name="Code-execution-tool",
-                func=self.execute_code_sync,
+                func=self.sessions[thread.id].execute_code_sync,
                 description=f"This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
             ),
         ]
@@ -306,7 +341,11 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
-                content="You are an expert programmer that is able to use the tools to your advantage to execute python code. Help the user iterate on their code and test it through execution. Always respond in the specified JSON format. Always provide the full code output when asked for when you execute code. Ensure that all your code is formatted with backticks followed by the markdown identifier of the language that the code is in. For example ```python3 {code} ```.")
+                content="You are an expert programmer that is able to use the tools to your advantage to execute "
+                        "python code. Help the user iterate on their code and test it through execution. Always "
+                        "respond in the specified JSON format. Always provide the full code output when asked for "
+                        "when you execute code. Ensure that all your code is formatted with backticks followed by the "
+                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt.")
         }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
@@ -321,3 +360,48 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         )
 
         self.chat_agents[thread.id] = agent_chain
+
+class CodeInterpreterDownloadArtifactsView(discord.ui.View):
+    def __init__(
+            self,
+            ctx,
+            code_interpreter_cog,
+            session,
+            artifact_names,
+    ):
+        super().__init__(timeout=None)  # No timeout
+        self.code_interpreter_cog = code_interpreter_cog
+        self.ctx = ctx
+        self.session = session
+        self.artifact_names = artifact_names
+        self.add_item(DownloadButton(self.ctx, self.code_interpreter_cog, self.session, self.artifact_names))
+
+
+# A view for a follow-up button
+class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
+    def __init__(self, ctx, code_interpreter_cog, session, artifact_names):
+        super().__init__(label="Download Artifacts", style=discord.ButtonStyle.gray)
+        self.code_interpreter_cog = code_interpreter_cog
+        self.ctx = ctx
+        self.session = session
+        self.artifact_names = artifact_names
+
+    async def callback(self, interaction: discord.Interaction):
+        """Send the followup modal"""
+        await interaction.response.send_message("Downloading the artifacts: " + str(self.artifact_names) +". This may take a while.", ephemeral=True, delete_after=120)
+        for artifact in self.artifact_names:
+            try:
+                runner = functools.partial(self.session.download_file, filepath=artifact)
+
+                bytes = await asyncio.get_running_loop().run_in_executor(None, runner)
+                # Save these bytes into a tempfile
+                with tempfile.NamedTemporaryFile(delete=False) as temp:
+                    temp.write(bytes)
+                    temp.flush()
+                    temp.seek(0)
+                    await self.ctx.channel.send(file=discord.File(temp.name, filename=artifact))
+                    os.unlink(temp.name)
+            except:
+                traceback.print_exc()
+                await self.ctx.channel.send("Failed to download artifact: " + artifact, delete_after=120)
+
