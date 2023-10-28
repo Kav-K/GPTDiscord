@@ -107,12 +107,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
     """Cog containing translation commands and retrieval of translation services"""
 
     def __init__(
-            self,
-            bot,
-            gpt_model,
-            usage_service,
-            deletion_service,
-            converser_cog,
+        self,
+        bot,
+        gpt_model,
+        usage_service,
+        deletion_service,
+        converser_cog,
     ):
         super().__init__()
         self.bot = bot
@@ -131,7 +131,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i: i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
         ]
         pages = []
         first = False
@@ -194,7 +194,10 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
-                await message.reply("Ending chat session. You can access the sandbox of this session at https://"+self.sessions[message.channel.id].get_hostname())
+                await message.reply(
+                    "Ending chat session. You can access the sandbox of this session at https://"
+                    + self.sessions[message.channel.id].get_hostname()
+                )
                 self.sessions[message.channel.id].close()
                 self.chat_agents.pop(message.channel.id)
 
@@ -237,13 +240,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             # Determine if we have artifacts in the response
             artifacts_available = "Artifacts: []" not in stdout_output
 
-
             # Parse the artifact names. After Artifacts: there should be a list in form [] where the artifact names are inside, comma separated inside stdout_output
             artifact_names = re.findall(r"Artifacts: \[(.*?)\]", stdout_output)
             # The artifacts list may be formatted like ["'/home/user/artifacts/test2.txt', '/home/user/artifacts/test.txt'"], where its technically 1 element in the list, so we need to split it by comma and then remove the quotes and spaces
             if len(artifact_names) > 0:
                 artifact_names = artifact_names[0].split(",")
-                artifact_names = [artifact_name.strip().replace("'", "") for artifact_name in artifact_names]
+                artifact_names = [
+                    artifact_name.strip().replace("'", "")
+                    for artifact_name in artifact_names
+                ]
 
             if len(response) > 2000:
                 embed_pages = await self.paginate_chat_embed(response)
@@ -251,16 +256,20 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     pages=embed_pages,
                     timeout=None,
                     author_check=False,
-                    custom_view=CodeInterpreterDownloadArtifactsView(message, self, self.sessions[message.channel.id], artifact_names) if artifacts_available else None,
+                    custom_view=CodeInterpreterDownloadArtifactsView(
+                        message, self, self.sessions[message.channel.id], artifact_names
+                    )
+                    if artifacts_available
+                    else None,
                 )
                 try:
                     await paginator.respond(message)
                 except:
                     response = [
-                        response[i: i + 1900] for i in range(0, len(response), 1900)
+                        response[i : i + 1900] for i in range(0, len(response), 1900)
                     ]
                     for count, chunk in enumerate(response, start=1):
-                            await message.channel.send(chunk)
+                        await message.channel.send(chunk)
 
             else:
                 response = response.replace("\\n", "\n")
@@ -270,13 +279,18 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     description=response,
                     color=0x808080,
                 )
-                await message.reply(embed=response_embed, view=CodeInterpreterDownloadArtifactsView(message, self, self.sessions[message.channel.id], artifact_names) if artifacts_available else None)
-
+                await message.reply(
+                    embed=response_embed,
+                    view=CodeInterpreterDownloadArtifactsView(
+                        message, self, self.sessions[message.channel.id], artifact_names
+                    )
+                    if artifacts_available
+                    else None,
+                )
 
             self.thread_awaiting_responses.remove(message.channel.id)
 
     class SessionedCodeExecutor:
-
         def __init__(self):
             try:
                 self.session = DataAnalysis(api_key=E2B_API_KEY)
@@ -299,7 +313,14 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
             if len(stdout) > 12000:
                 stdout = stdout[:12000]
-            return "STDOUT: "+stdout +"\nSTDERR: "+stderr+ "\nArtifacts: " + str([artifact.name for artifact in artifacts])
+            return (
+                "STDOUT: "
+                + stdout
+                + "\nSTDERR: "
+                + stderr
+                + "\nArtifacts: "
+                + str([artifact.name for artifact in artifacts])
+            )
 
         def close(self):
             self.session.close()
@@ -320,13 +341,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return self.sessioned
 
     async def code_interpreter_chat_command(
-            self, ctx: discord.ApplicationContext, model,
+        self,
+        ctx: discord.ApplicationContext,
+        model,
     ):
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
             description=f"The agent is able to execute Python code and manipulate its environment.\nModel: {model}\n\nType `end` to stop the conversation",
-            color=0xf82c45,
+            color=0xF82C45,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/qua6Bya.png")
         message_embed.set_footer(
@@ -342,7 +365,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self.sessions[thread.id] = self.SessionedCodeExecutor()
 
         if not self.sessions[thread.id].is_sessioned():
-            await thread.send("Failed to start code interpreter session. This may be an issue with E2B. Please try again later.")
+            await thread.send(
+                "Failed to start code interpreter session. This may be an issue with E2B. Please try again later."
+            )
             await thread.edit(name="Closed-GPT (Error)")
             await thread.edit(archived=True)
             return
@@ -357,12 +382,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             Tool(
                 name="Install-python-package-tool",
                 func=self.sessions[thread.id].install_python_package,
-                description=f"This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times."
+                description=f"This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times.",
             ),
             Tool(
                 name="Install-system-package-tool",
                 func=self.sessions[thread.id].install_python_package,
-                description=f"This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times."
+                description=f"This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
             ),
         ]
 
@@ -372,10 +397,11 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
                 content="You are an expert programmer that is able to use the tools to your advantage to execute "
-                        "python code. Help the user iterate on their code and test it through execution. Always "
-                        "respond in the specified JSON format. Always provide the full code output when asked for "
-                        "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                        "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code.")
+                "python code. Help the user iterate on their code and test it through execution. Always "
+                "respond in the specified JSON format. Always provide the full code output when asked for "
+                "when you execute code. Ensure that all your code is formatted with backticks followed by the "
+                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code."
+            ),
         }
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
@@ -391,20 +417,25 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
         self.chat_agents[thread.id] = agent_chain
 
+
 class CodeInterpreterDownloadArtifactsView(discord.ui.View):
     def __init__(
-            self,
-            ctx,
-            code_interpreter_cog,
-            session,
-            artifact_names,
+        self,
+        ctx,
+        code_interpreter_cog,
+        session,
+        artifact_names,
     ):
         super().__init__(timeout=None)  # No timeout
         self.code_interpreter_cog = code_interpreter_cog
         self.ctx = ctx
         self.session = session
         self.artifact_names = artifact_names
-        self.add_item(DownloadButton(self.ctx, self.code_interpreter_cog, self.session, self.artifact_names))
+        self.add_item(
+            DownloadButton(
+                self.ctx, self.code_interpreter_cog, self.session, self.artifact_names
+            )
+        )
 
 
 # A view for a follow-up button
@@ -418,10 +449,18 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
 
     async def callback(self, interaction: discord.Interaction):
         """Send the followup modal"""
-        await interaction.response.send_message("Downloading the artifacts: " + str(self.artifact_names) +". This may take a while.", ephemeral=True, delete_after=120)
+        await interaction.response.send_message(
+            "Downloading the artifacts: "
+            + str(self.artifact_names)
+            + ". This may take a while.",
+            ephemeral=True,
+            delete_after=120,
+        )
         for artifact in self.artifact_names:
             try:
-                runner = functools.partial(self.session.download_file, filepath=artifact)
+                runner = functools.partial(
+                    self.session.download_file, filepath=artifact
+                )
 
                 bytes = await asyncio.get_running_loop().run_in_executor(None, runner)
                 # Save these bytes into a tempfile
@@ -429,9 +468,12 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
                     temp.write(bytes)
                     temp.flush()
                     temp.seek(0)
-                    await self.ctx.channel.send(file=discord.File(temp.name, filename=artifact))
+                    await self.ctx.channel.send(
+                        file=discord.File(temp.name, filename=artifact)
+                    )
                     os.unlink(temp.name)
             except:
                 traceback.print_exc()
-                await self.ctx.channel.send("Failed to download artifact: " + artifact, delete_after=120)
-
+                await self.ctx.channel.send(
+                    "Failed to download artifact: " + artifact, delete_after=120
+                )

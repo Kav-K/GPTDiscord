@@ -202,7 +202,6 @@ async def main():
         )
         print("The Code Interpreter service is enabled.")
 
-
     bot.add_cog(
         TranscribeService(
             bot,

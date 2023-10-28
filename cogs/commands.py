@@ -95,7 +95,9 @@ class Commands(discord.Cog, name="Commands"):
         name="code",
         description="Code interpreter functionalities",
         guild_ids=ALLOWED_GUILDS,
-        checks=[Check.check_index_roles()],  # TODO new role checker for code interpreter
+        checks=[
+            Check.check_index_roles()
+        ],  # TODO new role checker for code interpreter
     )
 
     #
@@ -1029,10 +1031,10 @@ class Commands(discord.Cog, name="Commands"):
     async def draw_action(self, ctx, message: discord.Message):
         await self.image_draw_cog.draw_action(ctx, message)
 
-
     """
     Code interpreter commands and actions
     """
+
     @add_to_group("code")
     @discord.slash_command(
         name="chat",
@@ -1057,9 +1059,7 @@ class Commands(discord.Cog, name="Commands"):
                 "Code interpretation is disabled on this server.", ephemeral=True
             )
             return
-        await self.code_interpreter_cog.code_interpreter_chat_command(
-            ctx, model=model
-        )
+        await self.code_interpreter_cog.code_interpreter_chat_command(ctx, model=model)
 
     """
     Translation commands and actions
