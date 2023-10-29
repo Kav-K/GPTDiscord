@@ -517,6 +517,7 @@ class SearchService(discord.Cog, name="SearchService"):
             verbose=True,
             agent_kwargs=agent_kwargs,
             memory=memory,
+            handle_parsing_errors="Check your output and make sure it conforms!",
         )
 
         self.chat_agents[thread.id] = agent_chain
