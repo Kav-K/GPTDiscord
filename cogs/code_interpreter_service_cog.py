@@ -27,6 +27,7 @@ from langchain.prompts import (
     MessagesPlaceholder,
 )
 from langchain.schema import SystemMessage
+from langchain.utilities.google_search import GoogleSearchAPIWrapper
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
@@ -61,6 +62,8 @@ OPENAI_API_KEY = EnvService.get_openai_token()
 # Set the environment
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 openai.api_key = os.environ["OPENAI_API_KEY"]
+GOOGLE_API_KEY = EnvService.get_google_search_api_key()
+GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
 
 E2B_API_KEY = EnvService.get_e2b_api_key()
 
@@ -308,6 +311,23 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         def install_system_package(self, package):
             return self.session.install_system_packages(package_names=package)
 
+        def run_command_sync(self, command):
+            return asyncio.run(self.run_command_async(command))
+
+        async def run_command_async(self, command):
+            loop = asyncio.get_running_loop()
+            runner = functools.partial(
+                self.session.process.start, cmd=command, timeout=30
+            )
+
+            command = await loop.run_in_executor(None, runner)
+
+            runner = functools.partial(command.wait)
+            await loop.run_in_executor(None, runner)
+
+            output = "STDOUT:" + command.stdout + "\nSTDERR:" + command.stderr
+            return output
+
         def is_sessioned(self):
             return self.sessioned
 
@@ -360,7 +380,27 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 func=self.sessions[thread.id].install_python_package,
                 description=f"This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
             ),
+            Tool(
+                name="Run-command-tool",
+                func=self.sessions[thread.id].run_command_sync,
+                description=f"This tool allows you to run terminal commands in the execution environment. The input to the tool is simply the command to run. This is useful especially when asked to work with the file system. An example input can be 'df -h'",
+            ),
         ]
+
+        # Add google search functionality if the user has google keys set up
+        if GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID:
+            search = GoogleSearchAPIWrapper(
+                google_api_key=GOOGLE_API_KEY,
+                google_cse_id=GOOGLE_SEARCH_ENGINE_ID,
+                k=2,
+            )
+            tools.append(
+                Tool(
+                    name="Search-Tool",
+                    func=search.run,
+                    description="This tool is useful when you need to answer questions about current events or retrieve information about a topic that may require the internet. The input to this tool is a search query to ask google. Search queries should be less than 8 words. For example, an input could be 'What is the weather like in New York?' and the tool input would be 'weather new york'.",
+                )
+            )
 
         memory = ConversationBufferMemory(memory_key="memory", return_messages=True)
 
@@ -371,7 +411,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 "python code. Help the user iterate on their code and test it through execution. Always "
                 "respond in the specified JSON format. Always provide the full code output when asked for "
                 "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code. Never execute code before showing the user the code first."
+                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are able to search the internet to find the most up to date algorithms and practices. You are also able to run commands in the execution environment such as to work with files, make curl requests, or etc. The environment is Linux. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code. Never execute code before showing the user the code first."
             ),
         }
 
