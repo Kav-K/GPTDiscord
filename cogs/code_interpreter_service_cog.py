@@ -10,6 +10,8 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from typing import List
 
 import re
+
+import aiofiles
 import discord
 import openai
 from discord.ext import pages
@@ -120,7 +122,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
     @discord.Cog.listener()
     async def on_message(self, message):
         # Check if the message is from a bot.
-        if message.author.id == self.bot.user.id:
+        if message.author == self.bot.user:
             return
 
         # Check if the message is from a guild.
@@ -172,12 +174,67 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 await thread.edit(archived=True)
                 return
 
+            file = message.attachments[0] if len(message.attachments) > 0 else None
+
+            # File operations, allow for user file upload
+            if file:
+                # We will attempt to upload the file to the execution environment
+                thinking_embed = discord.Embed(
+                    title=f"🤖💬 Uploading file to code interpreter environment...",
+                    color=0x808080,
+                )
+
+                thinking_embed.set_footer(text="This may take a few seconds.")
+                try:
+                    thinking_message = await message.reply(embed=thinking_embed)
+                except:
+                    traceback.print_exc()
+                    pass
+
+                try:
+                    await message.channel.trigger_typing()
+                except Exception:
+                    pass
+
+                async with aiofiles.tempfile.NamedTemporaryFile(
+                        delete=False
+                ) as temp_file:
+                    await file.save(temp_file.name)
+
+                    filename = file.filename
+
+                    # Assert that the filename is < 100 characters, if it is greater, truncate to the first 100 characters and keep the original ending
+                    if len(filename) > 100:
+                        filename = filename[:100] + filename[-4:]
+
+                    file_upload_result = await self.sessions[message.channel.id].upload_file_async(filename, await file.read())
+
+                    if filename in str(file_upload_result):
+                        try:
+                            await thinking_message.delete()
+                            prompt += "\n{The user has just uploaded a file to "+f"/home/user/{filename}"+"}"
+                            print("The edited prompt is: "+prompt)
+                        except:
+                            traceback.print_exc()
+                            pass
+                    else:
+                        try:
+                            failed_embed = discord.Embed(
+                                title=f"🤖💬 File upload failed",
+                                color=0x808080)
+                            await message.reply(embed=failed_embed)
+                            return
+                        except:
+                            traceback.print_exc()
+                            pass
+
             self.thread_awaiting_responses.append(message.channel.id)
 
             try:
                 await message.channel.trigger_typing()
             except:
                 pass
+
 
             agent = self.chat_agents[message.channel.id]
             try:
@@ -331,6 +388,26 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         def is_sessioned(self):
             return self.sessioned
 
+        def upload_file_sync(self, path, file):
+            return asyncio.run(self.upload_file_async(path, file))
+
+        async def upload_file_async(self, path, file):
+            loop = asyncio.get_running_loop()
+            runner = functools.partial(
+                self.session.filesystem.write_bytes, path=f"/home/user/{path}", content=file
+            )
+
+            await loop.run_in_executor(None, runner)
+
+            runner = functools.partial(
+                self.session.filesystem.list, path=f"/home/user/"
+            )
+            list_output = await loop.run_in_executor(None, runner)
+
+            return list_output
+
+
+
     async def code_interpreter_chat_command(
         self,
         ctx: discord.ApplicationContext,
@@ -383,7 +460,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             Tool(
                 name="Run-command-tool",
                 func=self.sessions[thread.id].run_command_sync,
-                description=f"This tool allows you to run terminal commands in the execution environment. The input to the tool is simply the command to run. This is useful especially when asked to work with the file system. An example input can be 'df -h'",
+                description=f"This tool allows you to run terminal (bash/unix) commands in the execution environment. The input to the tool is the command to run. An example input can be 'df -h'",
             ),
         ]
 
