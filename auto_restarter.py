@@ -28,7 +28,7 @@ def restart_service():
         "cd /home/kaveen/GPTDiscord",
         "kill -9 $(cat bot.pid)",
         "rm bot.pid",
-        "screen -dmS GPTBot python3.9 gpt3discord.py"
+        "screen -dmS GPTBot python3.9 gpt3discord.py",
     ]
     full_command = "; ".join(commands)
     subprocess.run(full_command, shell=True, check=True)
