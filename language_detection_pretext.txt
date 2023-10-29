@@ -28,7 +28,7 @@ Output: False
 Input: create a basic phyton code
 Output: True
 
-Input: not helping ukraine is nati patriotism, ure actively going agaisnt the idea of being a chad nato country legit walking up to russias borders
+Input: not helping ukraine is nati patriotism, ure actively going against the idea of being a chad nato country legit walking up to Russia borders
 Output: True
 
 Input: torch==1.9.1+cpu torchvision==0.10.1+cpu

@@ -11,7 +11,7 @@
 # Overview
 An all-in-one, robust, OpenAI Integration for Discord. This bot is on feature parity with ChatGPT web, and even does some things slightly better! 
 
-We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, q&a on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
+We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, Q&A on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
 
 SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
 
@@ -51,7 +51,7 @@ Custom indexing and Document Q&A<br>
   
 # Recent Notable Updates  
 
-- **Code-Interpreter / Advanced Data Analysis** - Just like ChatGPT GPTDiscord now has a fully fleged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install python and system packages, and access the internet from the execution environment.
+- **Code-Interpreter / Advanced Data Analysis** - Just like ChatGPT GPTDiscord now has a fully fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install python and system packages, and access the internet from the execution environment.
 
 
 - **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
