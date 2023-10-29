@@ -333,8 +333,12 @@ class Index_handler:
         )
         llm = ChatOpenAI(model=model, temperature=0)
 
-        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm,
-                                                 max_token_limit=29000 if "gpt-4" in model else 7500)
+        memory = ConversationSummaryBufferMemory(
+            memory_key="memory",
+            return_messages=True,
+            llm=llm,
+            max_token_limit=29000 if "gpt-4" in model else 7500,
+        )
 
         agent_chain = create_llama_chat_agent(toolkit, llm, memory=memory, verbose=True)
 

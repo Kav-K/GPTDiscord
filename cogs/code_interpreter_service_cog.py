@@ -486,7 +486,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
-        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm, max_token_limit=29000 if "gpt-4" in model else 7500 )
+        memory = ConversationSummaryBufferMemory(
+            memory_key="memory",
+            return_messages=True,
+            llm=llm,
+            max_token_limit=29000 if "gpt-4" in model else 7500,
+        )
 
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],

@@ -29,7 +29,11 @@ from langchain.agents import (
     AgentExecutor,
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory, CombinedMemory, ConversationSummaryBufferMemory
+from langchain.memory import (
+    ConversationBufferMemory,
+    CombinedMemory,
+    ConversationSummaryBufferMemory,
+)
 from langchain.prompts import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
@@ -501,8 +505,12 @@ class SearchService(discord.Cog, name="SearchService"):
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
-        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm,
-                                                 max_token_limit=29000 if "gpt-4" in model else 7500)
+        memory = ConversationSummaryBufferMemory(
+            memory_key="memory",
+            return_messages=True,
+            llm=llm,
+            max_token_limit=29000 if "gpt-4" in model else 7500,
+        )
 
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
