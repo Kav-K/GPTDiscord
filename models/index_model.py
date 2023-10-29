@@ -21,7 +21,7 @@ from discord.ext import pages
 from langchain import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.schema import NodeRelationship
@@ -331,8 +331,11 @@ class Index_handler:
         toolkit = LlamaToolkit(
             index_configs=[tool_config],
         )
-        memory = ConversationBufferMemory(memory_key="chat_history")
         llm = ChatOpenAI(model=model, temperature=0)
+
+        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm,
+                                                 max_token_limit=29000 if "gpt-4" in model else 7500)
+
         agent_chain = create_llama_chat_agent(toolkit, llm, memory=memory, verbose=True)
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"

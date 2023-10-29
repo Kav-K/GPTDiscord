@@ -24,7 +24,7 @@ from langchain.agents import (
     AgentType,
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
 from langchain.prompts import (
     MessagesPlaceholder,
 )
@@ -484,7 +484,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
             )
 
-        memory = ConversationBufferMemory(memory_key="memory", return_messages=True)
+        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
+
+        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm, max_token_limit=29000 if "gpt-4" in model else 7500 )
 
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
@@ -496,8 +498,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are able to search the internet to find the most up to date algorithms and practices. You are also able to run commands in the execution environment such as to work with files, make curl requests, or etc. The environment is Linux. When asked to write code that saves files, always prefix the file with the artifacts/ folder. For example, if asked to create test.txt, in the function call you make to whatever library that creates the file, you would use artifacts/test.txt. Always show the output of code execution explicitly and separately at the end of the rest of your output. You are also able to install system and python packages using your tools. However, the tools can only install one package at a time, if you need to install multiple packages, call the tools multiple times. Always first display your code to the user BEFORE you execute it using your tools. The user should always explicitly ask you to execute code. Never execute code before showing the user the code first."
             ),
         }
-
-        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
         agent_chain = initialize_agent(
             tools=tools,

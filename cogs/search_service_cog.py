@@ -29,7 +29,7 @@ from langchain.agents import (
     AgentExecutor,
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory, CombinedMemory
+from langchain.memory import ConversationBufferMemory, CombinedMemory, ConversationSummaryBufferMemory
 from langchain.prompts import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
@@ -499,7 +499,10 @@ class SearchService(discord.Cog, name="SearchService"):
             traceback.print_exc()
             print("Wolfram tool not added to internet-connected conversation agent.")
 
-        memory = ConversationBufferMemory(memory_key="memory", return_messages=True)
+        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
+
+        memory = ConversationSummaryBufferMemory(memory_key="memory", return_messages=True, llm=llm,
+                                                 max_token_limit=29000 if "gpt-4" in model else 7500)
 
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
@@ -507,8 +510,6 @@ class SearchService(discord.Cog, name="SearchService"):
                 content="You are a superpowered version of GPT-4 that is able to access the internet. You can use google search to browse the web, you can crawl the web to see the content of specific websites, and in some cases you can also use Wolfram Alpha to perform mathematical operations. Use all of these tools to your advantage."
             ),
         }
-
-        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
         agent_chain = initialize_agent(
             tools=tools,
