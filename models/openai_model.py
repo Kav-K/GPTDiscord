@@ -134,7 +134,7 @@ class ModelLimits:
     MIN_CONVERSATION_LENGTH = 1
     MAX_CONVERSATION_LENGTH = 100000
 
-    MIN_SUMMARIZE_THRESHOLD = 800
+    MIN_SUMMARIZE_THRESHOLD = 1500
     MAX_SUMMARIZE_THRESHOLD = 30000
 
     MIN_NUM_IMAGES = 1
@@ -798,35 +798,45 @@ class Model:
 
         summary_request_text = "".join(summary_request_text)
 
-        tokens = self.usage_service.count_tokens(summary_request_text)
+        messages = []
+        messages.append(
+            {
+                "role": "system",
+                "content": summary_request_text,
+            }
+        )
 
-        async with aiohttp.ClientSession(raise_for_status=False) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             payload = {
-                "model": Models.DAVINCI,
-                "prompt": summary_request_text,
-                "temperature": 0.5,
-                "top_p": 1,
-                "max_tokens": self.max_tokens - tokens,
+                "model": self.model if self.model is not None else Models.GPT4_32,
+                "messages": messages,
+                "temperature": self.temp,
+                "top_p": self.top_p,
                 "presence_penalty": self.presence_penalty,
                 "frequency_penalty": self.frequency_penalty,
-                "best_of": self.best_of,
             }
             headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
             }
             self.use_org = True if "true" in str(self.use_org).lower() else False
             if self.use_org:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
+
             async with session.post(
-                "https://api.openai.com/v1/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
-
-                await self.valid_text_request(response)
-
-                # print(response["choices"][0]["text"])
+                # print(f"Payload -> {payload}")
+                # Parse the total tokens used for this request and response pair from the response
+                await self.valid_text_request(
+                    response, model=self.model if self.model is not None else Models.GPT4_32
+                )
+                print(f"Summary response -> {response}")
 
                 return response
 

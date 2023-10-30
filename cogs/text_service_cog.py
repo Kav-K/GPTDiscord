@@ -608,7 +608,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def summarize_conversation(self, message, prompt):
         """Takes a conversation history filled prompt and summarizes it to then start a new history with it as the base"""
         response = await self.model.send_summary_request(prompt)
-        summarized_text = response["choices"][0]["text"]
+        summarized_text = response["choices"][0]["message"]["content"]
 
         new_conversation_history = []
         new_conversation_history.append(

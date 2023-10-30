@@ -239,12 +239,17 @@ class TextService:
                 # We don't need to worry about the differences between interactions and messages in this block,
                 # because if we are in this block, we can only be using a message object for ctx
                 if converser_cog.model.summarize_conversations:
-                    await ctx.reply(
+                    summarizing_message = await ctx.reply(
                         "I'm currently summarizing our current conversation so we can keep chatting, "
                         "give me one moment!"
                     )
 
                     await converser_cog.summarize_conversation(ctx, new_prompt)
+
+                    try:
+                        await summarizing_message.delete()
+                    except:
+                        pass
 
                     # Check again if the prompt is about to go past the token limit
                     new_prompt = (
