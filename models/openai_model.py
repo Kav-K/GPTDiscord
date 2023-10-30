@@ -834,7 +834,8 @@ class Model:
                 # print(f"Payload -> {payload}")
                 # Parse the total tokens used for this request and response pair from the response
                 await self.valid_text_request(
-                    response, model=self.model if self.model is not None else Models.GPT4_32
+                    response,
+                    model=self.model if self.model is not None else Models.GPT4_32,
                 )
                 print(f"Summary response -> {response}")
 
