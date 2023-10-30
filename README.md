@@ -13,7 +13,7 @@ An all-in-one, robust, OpenAI Integration for Discord. This bot is on feature pa
 
 We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, Q&A on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
 
-SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
+BOT SETUP SUPPORT AND DEMO SERVER: https://discord.gg/WvAHXDMS7Q
 
 # Table of Contents  
 
