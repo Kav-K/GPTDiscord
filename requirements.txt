@@ -21,7 +21,7 @@ sentencepiece==0.1.99
 protobuf==3.20.2
 python-pptx==0.6.21
 sentence-transformers==2.2.2
-langchain==0.0.319
+langchain==0.0.325
 openai-whisper
 unidecode==1.3.6
 tqdm==4.64.1
