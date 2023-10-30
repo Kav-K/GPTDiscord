@@ -191,6 +191,8 @@ class CustomTextRequestWrapper(BaseModel):
             original_query = "No Original Query Provided"
 
         """GET the URL and return the text."""
+        if not url.startswith("http"):
+            return "The website could not be crawled as an invalid URL was input. The input URL was "+url
         text = self.requests.get(url, **kwargs).text
 
         # Load this text into BeautifulSoup, clean it up and only retain text content within <p> and <title> and <h1> type tags, get rid of all javascript and css too.
@@ -484,7 +486,7 @@ class SearchService(discord.Cog, name="SearchService"):
             Tool(
                 name="Web-Crawling-Tool",
                 func=requests.get,
-                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is {model} and is the GPT model used, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', gpt-3.5-turbo, 'What is this webpage?'. This tool should only be used if a direct link is provided and not in conjunction with other tools.",
+                description=f"Useful for when the user provides you with a website link, use this tool to crawl the website and retrieve information from it. The input to this tool is a comma separated list of three values, the first value is the link to crawl for, and the second value is {model} and is the GPT model used, and the third value is the original question that the user asked. For example, an input could be 'https://google.com', gpt-3.5-turbo, 'What is this webpage?'. This tool should only be used if a direct link is provided and not in conjunction with other tools. The link should always start with http or https.",
             ),
         ]
 
