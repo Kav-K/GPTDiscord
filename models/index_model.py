@@ -320,7 +320,8 @@ class Index_handler:
         summary_response = await self.loop.run_in_executor(
             None,
             partial(
-                index.as_query_engine().query, "What is a summary of this document? This summary will be used to identify the document in the future. Make the summary verbose and broad."
+                index.as_query_engine().query,
+                "What is a summary of this document? This summary will be used to identify the document in the future. Make the summary verbose and broad.",
             ),
         )
 
