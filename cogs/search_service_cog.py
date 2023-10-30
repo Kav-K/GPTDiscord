@@ -192,7 +192,10 @@ class CustomTextRequestWrapper(BaseModel):
 
         """GET the URL and return the text."""
         if not url.startswith("http"):
-            return "The website could not be crawled as an invalid URL was input. The input URL was "+url
+            return (
+                "The website could not be crawled as an invalid URL was input. The input URL was "
+                + url
+            )
         text = self.requests.get(url, **kwargs).text
 
         # Load this text into BeautifulSoup, clean it up and only retain text content within <p> and <title> and <h1> type tags, get rid of all javascript and css too.
