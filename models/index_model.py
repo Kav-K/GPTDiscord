@@ -19,9 +19,12 @@ from datetime import date
 from discord import InteractionResponse, Interaction
 from discord.ext import pages
 from langchain import OpenAI
+from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAIChat
 from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
+from langchain.prompts import MessagesPlaceholder
+from langchain.schema import SystemMessage
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.schema import NodeRelationship
@@ -247,7 +250,8 @@ class Index_handler:
         self.loop = asyncio.get_running_loop()
         self.usage_service = usage_service
         self.qaprompt = QuestionAnswerPrompt(
-            "Context information is below. The text '<|endofstatement|>' is used to separate chat entries and make it easier for you to understand the context\n"
+            "Context information is below. The text '<|endofstatement|>' is used to separate chat entries and make it "
+            "easier for you to understand the context\n"
             "---------------------\n"
             "{context_str}"
             "\n---------------------\n"
@@ -316,16 +320,19 @@ class Index_handler:
         summary_response = await self.loop.run_in_executor(
             None,
             partial(
-                index.as_query_engine().query, "What is a summary of this document?"
+                index.as_query_engine().query, "What is a summary of this document? This summary will be used to identify the document in the future. Make the summary verbose and broad."
             ),
         )
 
-        query_engine = index.as_query_engine(similarity_top_k=3)
+        query_engine = index.as_query_engine(similarity_top_k=4)
 
         tool_config = IndexToolConfig(
             query_engine=query_engine,
-            name=f"Vector Index",
-            description=f"useful for when you want to answer queries about the external data you're connected to. The data you're connected to is: {summary_response}",
+            name=f"Data-Answering-Tool",
+            description=f"A tool for when you want to answer queries about the external data you're connected to. The "
+            f"input to the tool is a query string that is similar to the type of data that you want to "
+            f"get back from the storage, in semantic search fashion. The summary of the data you're "
+            f"connected to is: {summary_response}.",
             tool_kwargs={"return_direct": True},
         )
         toolkit = LlamaToolkit(
@@ -340,7 +347,23 @@ class Index_handler:
             max_token_limit=29000 if "gpt-4" in model else 7500,
         )
 
-        agent_chain = create_llama_chat_agent(toolkit, llm, memory=memory, verbose=True)
+        agent_kwargs = {
+            "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
+            "system_message": SystemMessage(
+                content="You are a superpowered version of GPT that is able to answer questions about the data you're "
+                "connected to."
+            ),
+        }
+
+        agent_chain = initialize_agent(
+            tools=toolkit.get_tools(),
+            llm=llm,
+            agent=AgentType.OPENAI_FUNCTIONS,
+            verbose=True,
+            agent_kwargs=agent_kwargs,
+            memory=memory,
+            handle_parsing_errors="Check your output and make sure it conforms!",
+        )
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
         # Get only the last part after the last / of the index_file
