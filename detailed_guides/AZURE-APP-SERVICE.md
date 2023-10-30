@@ -50,7 +50,7 @@ Health:
  3. Of course, set health check to: "on"
  4. Press save.
 
-Last step: go to "deployment center" and turn off "continious deployment". 
+Last step: go to "deployment center" and turn off "continuous deployment". 
 This will make sure we get the latest build from docker hub when we restart the container. 
 
 It's as easy as this. Of course, make sure to follow the other steps settings up the discord bot in the readme.md.

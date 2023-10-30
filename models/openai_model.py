@@ -225,7 +225,7 @@ class Model:
         self.summarize_threshold = (
             SETTINGS_DB["summarize_threshold"]
             if "summarize_threshold" in SETTINGS_DB
-            else 3000
+            else 5000
         )
         self.model_max_tokens = 4024
         self.welcome_message_enabled = (

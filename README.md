@@ -11,9 +11,9 @@
 # Overview
 An all-in-one, robust, OpenAI Integration for Discord. This bot is on feature parity with ChatGPT web, and even does some things slightly better! 
 
-We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, q&a on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
+We support everything from **multi-modality image understanding**, **code-interpreter** / advanced data analysis, Q&A on **your own documents**, **internet connected chat** with wolfram alpha and google access, **AI-moderation**, **image generation** with DALLE, and so much more! 
 
-SUPPORT SERVER FOR BOT SETUP: https://discord.gg/WvAHXDMS7Q
+BOT SETUP SUPPORT AND DEMO SERVER: https://discord.gg/WvAHXDMS7Q
 
 # Table of Contents  
 
@@ -206,3 +206,4 @@ If you follow the link above, you will now get to detailed step-by-step guides t
 <a href="https://github.com/Kav-K/GPTDiscord">
 <img src="https://contrib.rocks/image?repo=Kav-K/GPTDiscord" />
 </a>
+
