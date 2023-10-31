@@ -15,6 +15,8 @@ We support everything from **multi-modality image understanding**, **code-interp
 
 BOT SETUP SUPPORT AND DEMO SERVER: https://discord.gg/WvAHXDMS7Q
 
+Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
+
 # Table of Contents  
 
 - [Screenshots](#Screenshots)
@@ -24,7 +26,7 @@ BOT SETUP SUPPORT AND DEMO SERVER: https://discord.gg/WvAHXDMS7Q
 -- [DigitalOcean Droplet Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/DROPLET-GUIDE.md) 
 -- [OpenAI Token Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OPENAI-GUIDE.md)
 - [Internet Connected Chat](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/INTERNET-CONNECTED-CHAT.md)
-- [Code Interpreter / Advanced Data Analysis](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CODE-INTERPRETER.md)  
+- [Code Interpreter / Advanced Data Analysis](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CODE-INTERPRETER.md)
 - [Permanent Memory](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/PERMANENT-MEMORY.md)    
 - [Multi-Modality](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/MULTI-MODALITY.md)
 - [AI-Search](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-SEARCH.md)  
