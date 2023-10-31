@@ -1,7 +1,9 @@
+<h1 align="center"> GPT Discord</h1>
+<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p>
+
 [![Docker](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml)  
 [![PyPi](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml)  
 [![Build](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml)  
-
 [![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.org/project/gpt3discord)  
 [![Latest release](https://badgen.net/github/release/Kav-K/GPTDiscord)](https://github.com/Kav-K/GPTDiscord/releases)  
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Kav-K/GPTDiscord/graphs/commit-activity)  
