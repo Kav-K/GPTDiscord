@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   gpt3discord:
-    image: ghcr.io/kav-k/gpt3discord:main-full
+    image: ghcr.io/kav-k/gptdiscord:main-full
     container_name: gpt3discord
     volumes:
       #replace left side with the path to your .env if different, this uses the env in the folder the docker-compose.yml is in

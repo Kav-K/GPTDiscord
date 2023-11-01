@@ -86,7 +86,7 @@ token_counter = TokenCountingHandler(
     verbose=False,
 )
 node_parser = SimpleNodeParser.from_defaults(
-    text_splitter=TokenTextSplitter(chunk_size=256, chunk_overlap=20)
+    text_splitter=TokenTextSplitter(chunk_size=256, chunk_overlap=64)
 )
 callback_manager = CallbackManager([token_counter])
 service_context = ServiceContext.from_defaults(
@@ -901,7 +901,7 @@ class Index_handler:
             await ctx.respond(embed=EmbedStatics.get_index_load_failure_embed(str(e)))
 
     async def index_to_docs(
-        self, old_index, chunk_size: int = 4000, chunk_overlap: int = 200
+        self, old_index, chunk_size: int = 256, chunk_overlap: int = 100
     ) -> List[Document]:
         documents = []
         docstore = old_index.docstore
@@ -941,7 +941,7 @@ class Index_handler:
             index_objects.append(index)
 
         llm_predictor = LLMPredictor(
-            llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
+            llm=ChatOpenAI(temperature=0, model_name="gpt-4-32k")
         )
 
         # For each index object, add its documents to a GPTTreeIndex
@@ -1108,8 +1108,8 @@ class Index_handler:
         nodes,
         user_api_key,
         child_branch_factor,
-        model,
-        multistep,
+        model="gpt-4-32k",
+        multistep=False,
     ):
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
