@@ -770,7 +770,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             title="GPTDiscord Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
-            name="/code chat", value="Chat with GPT hooked up to a full execution environment!", inline=False
+            name="/code chat",
+            value="Chat with GPT hooked up to a full execution environment!",
+            inline=False,
         )
         embed.add_field(
             name="/internet chat",
@@ -842,7 +844,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             value="Transcription services (very experimental)",
             inline=False,
         )
-
 
         embed.add_field(name="/help", value="See this help text", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
