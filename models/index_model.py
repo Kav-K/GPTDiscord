@@ -965,6 +965,9 @@ class Index_handler:
                 # replace .
                 link_cleaned = link_cleaned.replace(".", "_")
 
+                # Shorten the link to the first 100 characters
+                link_cleaned = link_cleaned[:50]
+
                 tool_config = IndexToolConfig(
                     query_engine=engine,
                     name=f"{link_cleaned}-index",
