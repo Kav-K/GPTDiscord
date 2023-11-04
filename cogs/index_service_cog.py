@@ -5,6 +5,8 @@ import aiofiles
 import discord
 import os
 
+from discord.ext import pages
+
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
@@ -176,7 +178,34 @@ class IndexService(discord.Cog, name="IndexService"):
             )
 
             if chat_result:
-                await message.reply(chat_result)
+                if len(chat_result) > 2000:
+                    embed_pages = await EmbedStatics.paginate_chat_embed(chat_result)
+                    paginator = pages.Paginator(
+                        pages=embed_pages,
+                        timeout=None,
+                        author_check=False,
+                    )
+                    try:
+                        await paginator.respond(message)
+                    except:
+                        chat_result = [
+                            chat_result[i : i + 1900]
+                            for i in range(0, len(chat_result), 1900)
+                        ]
+                        for count, chunk in enumerate(chat_result, start=1):
+                            await message.channel.send(chunk)
+
+                else:
+                    chat_result = chat_result.replace("\\n", "\n")
+                    # Build a response embed
+                    response_embed = discord.Embed(
+                        title="",
+                        description=chat_result,
+                        color=0x808080,
+                    )
+                    await message.reply(
+                        embed=response_embed,
+                    )
                 self.thread_awaiting_responses.remove(message.channel.id)
 
     async def index_chat_command(self, ctx, model):
