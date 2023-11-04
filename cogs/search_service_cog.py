@@ -311,31 +311,6 @@ class SearchService(discord.Cog, name="SearchService"):
 
         return pages
 
-    async def paginate_chat_embed(self, response_text):
-        """Given a response text make embed pages and return a list of the pages."""
-
-        response_text = [
-            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
-        ]
-        pages = []
-        first = False
-        # Send each chunk as a message
-        for count, chunk in enumerate(response_text, start=1):
-            if not first:
-                page = discord.Embed(
-                    title=f"{count}",
-                    description=chunk,
-                )
-                first = True
-            else:
-                page = discord.Embed(
-                    title=f"{count}",
-                    description=chunk,
-                )
-            pages.append(page)
-
-        return pages
-
     @discord.Cog.listener()
     async def on_message(self, message):
         # Check if the message is from a bot.
@@ -426,7 +401,7 @@ class SearchService(discord.Cog, name="SearchService"):
                 return
 
             if len(response) > 2000:
-                embed_pages = await self.paginate_chat_embed(response)
+                embed_pages = await EmbedStatics.paginate_chat_embed(response)
                 paginator = pages.Paginator(
                     pages=embed_pages,
                     timeout=None,

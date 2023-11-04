@@ -34,7 +34,7 @@ from services.environment_service import EnvService
 from models.openai_model import Model
 
 
-__version__ = "11.9.9"
+__version__ = "12.0.0"
 
 
 PID_FILE = Path("bot.pid")
@@ -94,7 +94,7 @@ asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
 # Settings for the bot
 #
 activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help /gpt, and more!"
+    type=discord.ActivityType.watching, name="for /help, /gpt, and more!"
 )
 bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))

@@ -1,8 +1,11 @@
 import datetime
 import traceback
 
+import aiofiles
 import discord
 import os
+
+from discord.ext import pages
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
@@ -33,6 +36,59 @@ class IndexService(discord.Cog, name="IndexService"):
         self.index_handler = Index_handler(bot, usage_service)
         self.thread_awaiting_responses = []
         self.deletion_queue = deletion_queue
+
+    async def process_indexing(self, message, index_type, content=None, link=None):
+        """
+        Helper method to process indexing for both files and links.
+        - index_type: 'file' or 'link'
+        - content: The file content if index_type is 'file'
+        - link: The link if index_type is 'link'
+        """
+        thinking_embed = discord.Embed(
+            title=f"🤖💬 Indexing {index_type} and saving to agent knowledge",
+            color=0x808080,
+        )
+        thinking_embed.set_footer(text="This may take a few seconds.")
+
+        try:
+            thinking_message = await message.reply(embed=thinking_embed)
+        except:
+            traceback.print_exc()
+
+        if index_type == "file":
+            indexing_result, summary = await self.index_handler.index_chat_file(
+                message, content
+            )
+        else:
+            indexing_result, summary = await self.index_handler.index_link(
+                link, summarize=True, index_chat_ctx=message
+            )
+            print("The summary is " + str(summary))
+
+        try:
+            await thinking_message.delete()
+        except:
+            pass
+
+        if not indexing_result:
+            failure_embed = discord.Embed(
+                title="Indexing Error",
+                description=f"Your {index_type} could not be indexed",
+                color=discord.Color.red(),
+            )
+            failure_embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
+            await message.reply(embed=failure_embed)
+            self.thread_awaiting_responses.remove(message.channel.id)
+            return False
+
+        success_embed = discord.Embed(
+            title=f"{index_type.capitalize()} Interpreted",
+            description=f"The {index_type} you've uploaded has successfully been interpreted. The summary is below:\n`{summary}`",
+            color=discord.Color.green(),
+        )
+        success_embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
+        await message.reply(embed=success_embed)
+        return True
 
     @discord.Cog.listener()
     async def on_message(self, message):
@@ -79,19 +135,81 @@ class IndexService(discord.Cog, name="IndexService"):
             except:
                 pass
 
+            # Handle file uploads
+            file = message.attachments[0] if len(message.attachments) > 0 else None
+
+            # File operations, allow for user file upload
+            if file:
+                indexing_result = await self.process_indexing(
+                    message, "file", content=file
+                )
+
+                if not indexing_result:
+                    self.thread_awaiting_responses.remove(message.channel.id)
+                    return
+
+                prompt += (
+                    "\n{System Message: the user has just uploaded the file "
+                    + str(file.filename)
+                    + "Unless the user asked a specific question, do not use your tools and instead just acknowledge the upload}"
+                )
+
+            # Link operations, allow for user link upload, we connect and download the content at the link.
+            if "http" in prompt:
+                # Extract the entire link
+                link = prompt[prompt.find("http") :]
+
+                indexing_result = await self.process_indexing(
+                    message, "link", link=link
+                )
+
+                if not indexing_result:
+                    self.thread_awaiting_responses.remove(message.channel.id)
+                    return
+
+                prompt += (
+                    "\n{System Message: you have just indexed the link "
+                    + str(link)
+                    + "}"
+                )
+
             chat_result = await self.index_handler.execute_index_chat_message(
                 message, prompt
             )
+
             if chat_result:
-                await message.channel.send(chat_result)
+                if len(chat_result) > 2000:
+                    embed_pages = await EmbedStatics.paginate_chat_embed(chat_result)
+                    paginator = pages.Paginator(
+                        pages=embed_pages,
+                        timeout=None,
+                        author_check=False,
+                    )
+                    try:
+                        await paginator.respond(message)
+                    except:
+                        chat_result = [
+                            chat_result[i : i + 1900]
+                            for i in range(0, len(chat_result), 1900)
+                        ]
+                        for count, chunk in enumerate(chat_result, start=1):
+                            await message.channel.send(chunk)
+
+                else:
+                    chat_result = chat_result.replace("\\n", "\n")
+                    # Build a response embed
+                    response_embed = discord.Embed(
+                        title="",
+                        description=chat_result,
+                        color=0x808080,
+                    )
+                    await message.reply(
+                        embed=response_embed,
+                    )
                 self.thread_awaiting_responses.remove(message.channel.id)
 
-    async def index_chat_command(self, ctx, user_index, search_index, model):
-        if not user_index and not search_index:
-            await ctx.respond("Please provide a valid user index or search index")
-            return
-
-        await self.index_handler.start_index_chat(ctx, search_index, user_index, model)
+    async def index_chat_command(self, ctx, model):
+        await self.index_handler.start_index_chat(ctx, model)
 
         pass
 

@@ -12,7 +12,7 @@ import aiofiles
 import openai
 import tiktoken
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, cast
 from pathlib import Path
 from datetime import date
 
@@ -25,23 +25,36 @@ from langchain.llms import OpenAIChat
 from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
 from langchain.prompts import MessagesPlaceholder
 from langchain.schema import SystemMessage
+from langchain.tools import Tool
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
+from llama_index.evaluation.guideline import DEFAULT_GUIDELINES, GuidelineEvaluator
+from llama_index.indices.query.base import BaseQueryEngine
 from llama_index.node_parser import SimpleNodeParser
+from llama_index.response_synthesizers import ResponseMode
 from llama_index.schema import NodeRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.langchain_helpers.agents import (
     IndexToolConfig,
     LlamaToolkit,
     create_llama_chat_agent,
+    LlamaIndexTool,
 )
-from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
+from llama_index.prompts.chat_prompts import (
+    CHAT_REFINE_PROMPT,
+    CHAT_TREE_SUMMARIZE_PROMPT,
+    TEXT_QA_SYSTEM_PROMPT,
+)
 
 from llama_index.readers import YoutubeTranscriptReader
 from llama_index.readers.schema.base import Document
 from llama_index.langchain_helpers.text_splitter import TokenTextSplitter
 
 from llama_index.retrievers import VectorIndexRetriever, TreeSelectLeafRetriever
-from llama_index.query_engine import RetrieverQueryEngine, MultiStepQueryEngine
+from llama_index.query_engine import (
+    RetrieverQueryEngine,
+    MultiStepQueryEngine,
+    RetryGuidelineQueryEngine,
+)
 
 from llama_index import (
     GPTVectorStoreIndex,
@@ -60,6 +73,7 @@ from llama_index import (
     StorageContext,
     load_index_from_storage,
     get_response_synthesizer,
+    VectorStoreIndex,
 )
 
 from llama_index.schema import TextNode
@@ -67,6 +81,7 @@ from llama_index.storage.docstore.types import RefDocInfo
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
 
 from llama_index.composability import ComposableGraph
+from llama_index.vector_stores import DocArrayInMemoryVectorStore
 
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
@@ -86,7 +101,7 @@ token_counter = TokenCountingHandler(
     verbose=False,
 )
 node_parser = SimpleNodeParser.from_defaults(
-    text_splitter=TokenTextSplitter(chunk_size=256, chunk_overlap=64)
+    text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=128)
 )
 callback_manager = CallbackManager([token_counter])
 service_context = ServiceContext.from_defaults(
@@ -144,6 +159,19 @@ def get_and_query(
         response = query_engine.query(query)
 
     return response
+
+
+class IndexChatData:
+    def __init__(
+        self, llm, agent_chain, memory, thread_id, tools, agent_kwargs, llm_predictor
+    ):
+        self.llm = llm
+        self.agent_chain = agent_chain
+        self.memory = memory
+        self.thread_id = thread_id
+        self.tools = tools
+        self.agent_kwargs = agent_kwargs
+        self.llm_predictor = llm_predictor
 
 
 class IndexData:
@@ -242,6 +270,54 @@ class Index_handler:
         callback_manager=callback_manager,
         node_parser=node_parser,
     )
+    type_to_suffix_mappings = {
+        "text/plain": ".txt",
+        "text/csv": ".csv",
+        "application/pdf": ".pdf",
+        "application/json": ".json",
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/gif": ".gif",
+        "image/svg+xml": ".svg",
+        "image/webp": ".webp",
+        "application/mspowerpoint": ".ppt",
+        "application/vnd.ms-powerpoint": ".ppt",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+        "application/msexcel": ".xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+        "application/msword": ".doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+        "audio/mpeg": ".mp3",
+        "audio/x-wav": ".wav",
+        "audio/ogg": ".ogg",
+        "video/mpeg": ".mpeg",
+        "video/mp4": ".mp4",
+        "application/epub+zip": ".epub",
+        "text/markdown": ".md",
+        "text/html": ".html",
+        "application/rtf": ".rtf",
+        "application/x-msdownload": ".exe",
+        "application/xml": ".xml",
+        "application/vnd.adobe.photoshop": ".psd",
+        "application/x-sql": ".sql",
+        "application/x-latex": ".latex",
+        "application/x-httpd-php": ".php",
+        "application/java-archive": ".jar",
+        "application/x-sh": ".sh",
+        "application/x-csh": ".csh",
+        "text/x-c": ".c",
+        "text/x-c++": ".cpp",
+        "text/x-java-source": ".java",
+        "text/x-python": ".py",
+        "text/x-ruby": ".rb",
+        "text/x-perl": ".pl",
+        "text/x-shellscript": ".sh",
+    }
+
+    # For when content type doesnt get picked up by discord.
+    secondary_mappings = {
+        ".epub": ".epub",
+    }
 
     def __init__(self, bot, usage_service):
         self.bot = bot
@@ -261,6 +337,7 @@ class Index_handler:
         )
         self.EMBED_CUTOFF = 2000
         self.index_chat_chains = {}
+        self.chat_indexes = defaultdict()
 
     async def rename_index(self, ctx, original_path, rename_path):
         """Command handler to rename a user index"""
@@ -278,7 +355,7 @@ class Index_handler:
             return False
 
     async def get_is_in_index_chat(self, ctx):
-        return ctx.channel.id in self.index_chat_chains
+        return ctx.channel.id in self.index_chat_chains.keys()
 
     async def execute_index_chat_message(self, ctx, message):
         if ctx.channel.id not in self.index_chat_chains:
@@ -295,51 +372,121 @@ class Index_handler:
             return "Ended chat session."
 
         agent_output = await self.loop.run_in_executor(
-            None, partial(self.index_chat_chains[ctx.channel.id].run, message)
+            None,
+            partial(self.index_chat_chains[ctx.channel.id].agent_chain.run, message),
         )
         return agent_output
 
-    async def start_index_chat(self, ctx, search, user, model):
-        if search:
-            index_file = EnvService.find_shared_file(
-                f"indexes/{ctx.user.id}_search/{search}"
+    async def index_chat_file(self, message: discord.Message, file: discord.Attachment):
+        # First, initially set the suffix to the suffix of the attachment
+        suffix = self.get_file_suffix(file.content_type, file.filename) or None
+
+        if not suffix:
+            await message.reply(
+                "The file you uploaded is unable to be indexed. It is in an unsupported file format"
             )
-        elif user:
-            index_file = EnvService.find_shared_file(f"indexes/{ctx.user.id}/{user}")
+            return False, None
 
-        assert index_file is not None
+        async with aiofiles.tempfile.TemporaryDirectory() as temp_path:
+            async with aiofiles.tempfile.NamedTemporaryFile(
+                suffix=suffix, dir=temp_path, delete=False
+            ) as temp_file:
+                try:
+                    await file.save(temp_file.name)
 
+                    filename = file.filename
+
+                    # Assert that the filename is < 100 characters, if it is greater, truncate to the first 100 characters and keep the original ending
+                    if len(filename) > 100:
+                        filename = filename[:100] + filename[-4:]
+
+                    index: VectorStoreIndex = await self.loop.run_in_executor(
+                        None,
+                        partial(
+                            self.index_file,
+                            Path(temp_file.name),
+                            service_context,
+                            suffix,
+                        ),
+                    )
+
+                    summary = await index.as_query_engine(
+                        similarity_top_k=10,
+                        child_branch_factor=6,
+                        response_mode="tree_summarize",
+                    ).aquery(
+                        f"What is a summary or general idea of this data? Be detailed in your summary (e.g "
+                        f"extract key names, etc) but not too verbose. Your summary should be under a hundred words. "
+                        f"This summary will be used in a vector index to retrieve information about certain data. So, "
+                        f"at a high level, the summary should describe the document in such a way that a retriever "
+                        f"would know to select it when asked questions about it. The data name was {filename}. Include "
+                        f"the file name in the summary. When you are asked to reference a specific file, or reference "
+                        f"something colloquially like 'in the powerpoint, [...]?', never respond saying that as an AI "
+                        f"you can't view the data, instead infer which tool to use that has the data. Say that there "
+                        f"is no available data if there are no available tools that are relevant."
+                    )
+
+                    engine = self.get_query_engine(index, message, summary)
+
+                    # Get rid of all special characters in the filename
+                    filename = "".join(
+                        [c for c in filename if c.isalpha() or c.isdigit()]
+                    ).rstrip()
+
+                    tool_config = IndexToolConfig(
+                        query_engine=engine,
+                        name=f"{filename}-index",
+                        description=f"Use this tool if the query seems related to this summary: {summary}",
+                        tool_kwargs={
+                            "return_direct": False,
+                        },
+                        max_iterations=5,
+                    )
+
+                    tool = LlamaIndexTool.from_tool_config(tool_config)
+
+                    tools = self.index_chat_chains[message.channel.id].tools
+                    tools.append(tool)
+
+                    agent_chain = initialize_agent(
+                        tools=tools,
+                        llm=self.index_chat_chains[message.channel.id].llm,
+                        agent=AgentType.OPENAI_FUNCTIONS,
+                        verbose=True,
+                        agent_kwargs=self.index_chat_chains[
+                            message.channel.id
+                        ].agent_kwargs,
+                        memory=self.index_chat_chains[message.channel.id].memory,
+                        handle_parsing_errors="Check your output and make sure it conforms!",
+                    )
+
+                    index_chat_data = IndexChatData(
+                        self.index_chat_chains[message.channel.id].llm,
+                        agent_chain,
+                        self.index_chat_chains[message.channel.id].memory,
+                        message.channel.id,
+                        tools,
+                        self.index_chat_chains[message.channel.id].agent_kwargs,
+                        self.index_chat_chains[message.channel.id].llm_predictor,
+                    )
+
+                    self.index_chat_chains[message.channel.id] = index_chat_data
+
+                    return True, summary
+                except Exception as e:
+                    await message.reply(
+                        "There was an error indexing your file: " + str(e)
+                    )
+                    traceback.print_exc()
+                    return False, None
+
+    async def start_index_chat(self, ctx, model):
         preparation_message = await ctx.channel.send(
             embed=EmbedStatics.get_index_chat_preparation_message()
         )
 
-        index = await self.loop.run_in_executor(
-            None, partial(self.index_load_file, index_file)
-        )
-
-        summary_response = await self.loop.run_in_executor(
-            None,
-            partial(
-                index.as_query_engine().query,
-                "What is a summary of this document? This summary will be used to identify the document in the future. Make the summary verbose and broad.",
-            ),
-        )
-
-        query_engine = index.as_query_engine(similarity_top_k=4)
-
-        tool_config = IndexToolConfig(
-            query_engine=query_engine,
-            name=f"Data-Answering-Tool",
-            description=f"A tool for when you want to answer queries about the external data you're connected to. The "
-            f"input to the tool is a query string that is similar to the type of data that you want to "
-            f"get back from the storage, in semantic search fashion. The summary of the data you're "
-            f"connected to is: {summary_response}.",
-            tool_kwargs={"return_direct": True},
-        )
-        toolkit = LlamaToolkit(
-            index_configs=[tool_config],
-        )
         llm = ChatOpenAI(model=model, temperature=0)
+        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
@@ -352,12 +499,26 @@ class Index_handler:
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
                 content="You are a superpowered version of GPT that is able to answer questions about the data you're "
-                "connected to."
+                "connected to. Each different tool you have represents a different dataset to interact with. "
+                "If you are asked to perform a task that spreads across multiple datasets, use multiple tools "
+                "for the same prompt. When the user types links in chat, you will have already been connected "
+                "to the data at the link by the time you respond. When using tools, the input should be "
+                "clearly created based on the request of the user. For example, if a user uploads an invoice "
+                "and asks how many usage hours of X was present in the invoice, a good query is 'X hours'. "
+                "Avoid using single word queries unless the request is very simple."
             ),
         }
 
+        tools = [
+            Tool(
+                name="Dummy-Tool-Do-Not-Use",
+                func=None,
+                description=f"This is a dummy tool that does nothing, do not ever mention this tool or use this tool.",
+            )
+        ]
+
         agent_chain = initialize_agent(
-            tools=toolkit.get_tools(),
+            tools=tools,
             llm=llm,
             agent=AgentType.OPENAI_FUNCTIONS,
             verbose=True,
@@ -367,15 +528,10 @@ class Index_handler:
         )
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
-        # Get only the last part after the last / of the index_file
-        try:
-            index_file_name = str(index_file).split("/")[-1]
-        except:
-            index_file_name = index_file
 
         message_embed = discord.Embed(
             title=embed_title,
-            description=f"The agent is connected to the data index named {index_file_name}\nModel: {model}",
+            description=f"The agent is able to interact with your documents. Simply drag your documents into discord or give the agent a link from where to download the documents.\nModel: {model}",
             color=0x00995B,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/7V6apMT.png")
@@ -394,7 +550,11 @@ class Index_handler:
         except:
             pass
 
-        self.index_chat_chains[thread.id] = agent_chain
+        index_chat_data = IndexChatData(
+            llm, agent_chain, memory, thread.id, tools, agent_kwargs, llm_predictor
+        )
+
+        self.index_chat_chains[thread.id] = index_chat_data
 
     async def paginate_embed(self, response_text):
         """Given a response text make embed pages and return a list of the pages."""
@@ -447,7 +607,18 @@ class Index_handler:
 
     def index_youtube_transcript(self, link, service_context):
         try:
-            documents = YoutubeTranscriptReader().load_data(ytlinks=[link])
+            def convert_shortlink_to_full_link(short_link):
+                # Check if the link is a shortened YouTube link
+                if "youtu.be" in short_link:
+                    # Extract the video ID from the link
+                    video_id = short_link.split('/')[-1].split('?')[0]
+                    # Construct the full YouTube desktop link
+                    desktop_link = f"https://www.youtube.com/watch?v={video_id}"
+                    return desktop_link
+                else:
+                    return short_link
+
+            documents = YoutubeTranscriptReader().load_data(ytlinks=[convert_shortlink_to_full_link(link)])
         except Exception as e:
             raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
 
@@ -558,6 +729,21 @@ class Index_handler:
     def reset_indexes(self, user_id):
         self.index_storage[user_id].reset_indexes(user_id)
 
+    def get_file_suffix(self, content_type, filename):
+        print("The content type is " + content_type)
+        if content_type:
+            # Apply the suffix mappings to the file
+            for key, value in self.type_to_suffix_mappings.items():
+                if key in content_type:
+                    return value
+
+        else:
+            for key, value in self.secondary_mappings.items():
+                if key in filename:
+                    return value
+
+        return None
+
     async def set_file_index(
         self, ctx: discord.ApplicationContext, file: discord.Attachment, user_api_key
     ):
@@ -567,55 +753,15 @@ class Index_handler:
             os.environ["OPENAI_API_KEY"] = user_api_key
         openai.api_key = os.environ["OPENAI_API_KEY"]
 
-        type_to_suffix_mappings = {
-            "text/plain": ".txt",
-            "text/csv": ".csv",
-            "application/pdf": ".pdf",
-            "application/json": ".json",
-            "image/png": ".png",
-            "image/": ".jpg",
-            "ms-powerpoint": ".ppt",
-            "presentationml.presentation": ".pptx",
-            "ms-excel": ".xls",
-            "spreadsheetml.sheet": ".xlsx",
-            "msword": ".doc",
-            "wordprocessingml.document": ".docx",
-            "audio/": ".mp3",
-            "video/": ".mp4",
-            "epub": ".epub",
-            "markdown": ".md",
-            "html": ".html",
-        }
-
-        # For when content type doesnt get picked up by discord.
-        secondary_mappings = {
-            ".epub": ".epub",
-        }
-
         try:
             # First, initially set the suffix to the suffix of the attachment
-            suffix = None
-            if file.content_type:
-                # Apply the suffix mappings to the file
-                for key, value in type_to_suffix_mappings.items():
-                    if key in file.content_type:
-                        suffix = value
-                        break
+            suffix = self.get_file_suffix(file.content_type, file.filename) or None
 
-                if not suffix:
-                    await ctx.send("This file type is not supported.")
-                    return
-
-            else:
-                for key, value in secondary_mappings.items():
-                    if key in file.filename:
-                        suffix = value
-                        break
-                if not suffix:
-                    await ctx.send(
-                        "Could not determine the file type of the attachment, attempting a dirty index.."
-                    )
-                    return
+            if not suffix:
+                await ctx.respond(
+                    embed=EmbedStatics.get_index_set_failure_embed("Unsupported file")
+                )
+                return
 
             # Send indexing message
             response = await ctx.respond(
@@ -748,6 +894,122 @@ class Index_handler:
 
         await response.edit(embed=EmbedStatics.get_index_set_success_embed(price))
 
+    def get_query_engine(self, index, message, summary):
+        retriever = VectorIndexRetriever(
+            index=index, similarity_top_k=10, service_context=service_context
+        )
+
+        response_synthesizer = get_response_synthesizer(
+            response_mode=ResponseMode.COMPACT_ACCUMULATE,
+            use_async=True,
+            refine_template=TEXT_QA_SYSTEM_PROMPT,
+            service_context=service_context,
+        )
+
+        # Guideline eval
+        guideline_eval = GuidelineEvaluator(
+            guidelines=DEFAULT_GUIDELINES
+            + "\nThe response should be verbose and detailed.\n"
+            "The response should not simply just say that the requested information was found in the context information.\n"
+        )  # just for example
+
+        engine = RetrieverQueryEngine(
+            retriever=retriever, response_synthesizer=response_synthesizer
+        )
+
+        retry_guideline_query_engine = RetryGuidelineQueryEngine(
+            engine, guideline_eval, resynthesize_query=True
+        )
+
+        return retry_guideline_query_engine
+
+    async def index_link(self, link, summarize=False, index_chat_ctx=None):
+        try:
+            if await UrlCheck.check_youtube_link(link):
+                index = await self.loop.run_in_executor(
+                    None, partial(self.index_youtube_transcript, link, service_context)
+                )
+            elif "github" in link:
+                index = await self.loop.run_in_executor(
+                    None, partial(self.index_github_repository, link, service_context)
+                )
+            else:
+                index = await self.index_webpage(link, service_context)
+        except Exception as e:
+            if index_chat_ctx:
+                await index_chat_ctx.reply(
+                    "There was an error indexing your link: " + str(e)
+                )
+                return False, None
+            else:
+                raise e
+
+        summary = None
+        if index_chat_ctx:
+            try:
+                summary = await index.as_query_engine(
+                    response_mode="tree_summarize"
+                ).aquery(
+                    "What is a summary or general idea of this document? Be detailed in your summary but not too verbose. Your summary should be under 50 words. This summary will be used in a vector index to retrieve information about certain data. So, at a high level, the summary should describe the document in such a way that a retriever would know to select it when asked questions about it. The link was {link}. Include the an easy identifier derived from the link at the end of the summary."
+                )
+
+                engine = self.get_query_engine(index, index_chat_ctx, summary)
+
+                # Get rid of all special characters in the link, replace periods with _
+                link_cleaned = "".join(
+                    [c for c in link if c.isalpha() or c.isdigit() or c == "."]
+                ).rstrip()
+                # replace .
+                link_cleaned = link_cleaned.replace(".", "_")
+
+                tool_config = IndexToolConfig(
+                    query_engine=engine,
+                    name=f"{link_cleaned}-index",
+                    description=f"Use this tool if the query seems related to this summary: {summary}",
+                    tool_kwargs={
+                        "return_direct": False,
+                    },
+                    max_iterations=5,
+                )
+
+                tool = LlamaIndexTool.from_tool_config(tool_config)
+
+                tools = self.index_chat_chains[index_chat_ctx.channel.id].tools
+                tools.append(tool)
+
+                agent_chain = initialize_agent(
+                    tools=tools,
+                    llm=self.index_chat_chains[index_chat_ctx.channel.id].llm,
+                    agent=AgentType.OPENAI_FUNCTIONS,
+                    verbose=True,
+                    agent_kwargs=self.index_chat_chains[
+                        index_chat_ctx.channel.id
+                    ].agent_kwargs,
+                    memory=self.index_chat_chains[index_chat_ctx.channel.id].memory,
+                    handle_parsing_errors="Check your output and make sure it conforms!",
+                )
+
+                index_chat_data = IndexChatData(
+                    self.index_chat_chains[index_chat_ctx.channel.id].llm,
+                    agent_chain,
+                    self.index_chat_chains[index_chat_ctx.channel.id].memory,
+                    index_chat_ctx.channel.id,
+                    tools,
+                    self.index_chat_chains[index_chat_ctx.channel.id].agent_kwargs,
+                    self.index_chat_chains[index_chat_ctx.channel.id].llm_predictor,
+                )
+
+                self.index_chat_chains[index_chat_ctx.channel.id] = index_chat_data
+
+                return True, summary
+            except Exception as e:
+                await index_chat_ctx.reply(
+                    "There was an error indexing your link: " + str(e)
+                )
+                return False, None
+
+        return index, summary
+
     async def set_link_index(
         self, ctx: discord.ApplicationContext, link: str, user_api_key
     ):
@@ -759,41 +1021,9 @@ class Index_handler:
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
-            # Pre-emptively connect and get the content-type of the response
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(link, timeout=2) as _response:
-                        print(_response.status)
-                        if _response.status == 200:
-                            content_type = _response.headers.get("content-type")
-                        else:
-                            await response.edit(
-                                embed=EmbedStatics.get_index_set_failure_embed(
-                                    "Invalid URL or could not connect to the provided URL."
-                                )
-                            )
-                            return
-            except Exception as e:
-                traceback.print_exc()
-                await response.edit(
-                    embed=EmbedStatics.get_index_set_failure_embed(
-                        "Invalid URL or could not connect to the provided URL. "
-                        + str(e)
-                    )
-                )
-                return
-
             # Check if the link contains youtube in it
-            if await UrlCheck.check_youtube_link(link):
-                index = await self.loop.run_in_executor(
-                    None, partial(self.index_youtube_transcript, link, service_context)
-                )
-            elif "github" in link:
-                index = await self.loop.run_in_executor(
-                    None, partial(self.index_github_repository, link, service_context)
-                )
-            else:
-                index = await self.index_webpage(link, service_context)
+            index = await self.index_link(link)
+
             await self.usage_service.update_usage(
                 token_counter.total_embedding_token_count, "embedding"
             )
@@ -820,11 +1050,6 @@ class Index_handler:
             )
 
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, file_name)
-
-        except ValueError as e:
-            await response.edit(embed=EmbedStatics.get_index_set_failure_embed(str(e)))
-            traceback.print_exc()
-            return
 
         except Exception as e:
             await response.edit(embed=EmbedStatics.get_index_set_failure_embed(str(e)))

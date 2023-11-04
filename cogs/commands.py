@@ -740,18 +740,6 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.guild_only()
     @discord.option(
-        name="user_index",
-        description="Which user file to load the index from",
-        required=False,
-        autocomplete=File_autocompleter.get_user_indexes,
-    )
-    @discord.option(
-        name="search_index",
-        description="Which search index file to load the index from",
-        required=False,
-        autocomplete=File_autocompleter.get_user_search_indexes,
-    )
-    @discord.option(
         name="model",
         description="The model to use for the conversation",
         required=False,
@@ -761,12 +749,10 @@ class Commands(discord.Cog, name="Commands"):
     async def talk(
         self,
         ctx: discord.ApplicationContext,
-        user_index: str,
-        search_index: str,
         model: str,
     ):
         await ctx.defer()
-        await self.index_cog.index_chat_command(ctx, user_index, search_index, model)
+        await self.index_cog.index_chat_command(ctx, model)
 
     @add_to_group("index")
     @discord.slash_command(

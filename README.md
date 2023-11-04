@@ -49,13 +49,18 @@ Internet-connected chat (Google + Wolfram + Link Crawling)<br>
 Code Interpreter / Advanced Data Analysis <br>
 <img src="https://i.imgur.com/Y2VvwHd.png"/><br>
 Custom indexing and Document Q&A<br>
-<img src="https://i.imgur.com/iPGuUt1.png"/><br>
+<img src="https://i.imgur.com/1uKF1ye.png"/><br>
 </p>  
 
-# Recent Notable Updates  
+# Recent Notable Updates
 - **Code Interpreter / Advanced Data Analysis** - Just like ChatGPT, GPTDiscord now has a fully-fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install Python and system packages, and access the internet from the execution environment.
 
+
 - **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
+
+
+- **Drag And Drop Document Chat** - Chat with your documents by simply dragging and dropping files, or even links into discord chat! `/index chat`
+
 
 - **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to Google and Wolfram Alpha and can browse and access links that you send it!
 
