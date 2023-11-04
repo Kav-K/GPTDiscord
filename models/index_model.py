@@ -607,18 +607,21 @@ class Index_handler:
 
     def index_youtube_transcript(self, link, service_context):
         try:
+
             def convert_shortlink_to_full_link(short_link):
                 # Check if the link is a shortened YouTube link
                 if "youtu.be" in short_link:
                     # Extract the video ID from the link
-                    video_id = short_link.split('/')[-1].split('?')[0]
+                    video_id = short_link.split("/")[-1].split("?")[0]
                     # Construct the full YouTube desktop link
                     desktop_link = f"https://www.youtube.com/watch?v={video_id}"
                     return desktop_link
                 else:
                     return short_link
 
-            documents = YoutubeTranscriptReader().load_data(ytlinks=[convert_shortlink_to_full_link(link)])
+            documents = YoutubeTranscriptReader().load_data(
+                ytlinks=[convert_shortlink_to_full_link(link)]
+            )
         except Exception as e:
             raise ValueError(f"The youtube transcript couldn't be loaded: {e}")
 
