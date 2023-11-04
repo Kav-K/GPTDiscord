@@ -94,7 +94,7 @@ asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
 # Settings for the bot
 #
 activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help /gpt, and more!"
+    type=discord.ActivityType.custom, name="Undergoing Maintenance"
 )
 bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))

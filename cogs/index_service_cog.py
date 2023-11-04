@@ -1,6 +1,7 @@
 import datetime
 import traceback
 
+import aiofiles
 import discord
 import os
 
@@ -23,10 +24,10 @@ class IndexService(discord.Cog, name="IndexService"):
     """Cog containing gpt-index commands"""
 
     def __init__(
-        self,
-        bot,
-        usage_service,
-        deletion_queue,
+            self,
+            bot,
+            usage_service,
+            deletion_queue,
     ):
         super().__init__()
         self.bot = bot
@@ -79,19 +80,63 @@ class IndexService(discord.Cog, name="IndexService"):
             except:
                 pass
 
+            # Handle file uploads
+            file = message.attachments[0] if len(message.attachments) > 0 else None
+
+            # File operations, allow for user file upload
+            if file:
+                # We will attempt to upload the file to the execution environment
+                thinking_embed = discord.Embed(
+                    title=f"🤖💬 Indexing file and saving to agent knowledge",
+                    color=0x808080,
+                )
+
+                thinking_embed.set_footer(text="This may take a few seconds.")
+                try:
+                    thinking_message = await message.reply(embed=thinking_embed)
+                except:
+                    traceback.print_exc()
+                    pass
+
+                indexing_result, summary = await self.index_handler.index_chat_file(message, file)
+
+                try:
+                    await thinking_message.delete()
+                except:
+                    pass
+
+                if not indexing_result:
+                    failure_embed = discord.Embed(
+                        title="Indexing Error",
+                        description=f"Your file could not be indexed",
+                        color=discord.Color.red(),
+                    )
+                    failure_embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
+                    await message.reply(failure_embed)
+                    self.thread_awaiting_responses.remove(message.channel.id)
+                    return
+
+                prompt += "\n{System Message: the user has just uploaded the file " + str(file.filename) + "}"
+
+                success_embed = discord.Embed(
+                    title="Document Interpreted",
+                    description=f"The file you've uploaded has successfully been interpreted. The summary is below:\n`{summary}`",
+                    color=discord.Color.green(),
+                )
+                # thumbnail of https://i.imgur.com/I5dIdg6.png
+                success_embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
+                await message.reply(embed=success_embed)
+
             chat_result = await self.index_handler.execute_index_chat_message(
                 message, prompt
             )
+
             if chat_result:
-                await message.channel.send(chat_result)
+                await message.reply(chat_result)
                 self.thread_awaiting_responses.remove(message.channel.id)
 
-    async def index_chat_command(self, ctx, user_index, search_index, model):
-        if not user_index and not search_index:
-            await ctx.respond("Please provide a valid user index or search index")
-            return
-
-        await self.index_handler.start_index_chat(ctx, search_index, user_index, model)
+    async def index_chat_command(self, ctx, model):
+        await self.index_handler.start_index_chat(ctx, model)
 
         pass
 
@@ -109,9 +154,9 @@ class IndexService(discord.Cog, name="IndexService"):
             return
 
         if await self.index_handler.rename_index(
-            ctx,
-            f"indexes/{ctx.user.id}/{user_index}",
-            f"indexes/{ctx.user.id}/{new_name}",
+                ctx,
+                f"indexes/{ctx.user.id}/{user_index}",
+                f"indexes/{ctx.user.id}/{new_name}",
         ):
             await ctx.respond(
                 embed=EmbedStatics.get_index_rename_success_embed(
@@ -141,9 +186,9 @@ class IndexService(discord.Cog, name="IndexService"):
             return
 
         if await self.index_handler.rename_index(
-            ctx,
-            f"indexes/{ctx.guild.id}/{server_index}",
-            f"indexes/{ctx.guild.id}/{new_name}",
+                ctx,
+                f"indexes/{ctx.guild.id}/{server_index}",
+                f"indexes/{ctx.guild.id}/{new_name}",
         ):
             await ctx.respond(
                 embed=EmbedStatics.get_index_rename_success_embed(
@@ -171,9 +216,9 @@ class IndexService(discord.Cog, name="IndexService"):
             return
 
         if await self.index_handler.rename_index(
-            ctx,
-            f"indexes/{ctx.user.id}_search/{search_index}",
-            f"indexes/{ctx.user.id}_search/{new_name}",
+                ctx,
+                f"indexes/{ctx.user.id}_search/{search_index}",
+                f"indexes/{ctx.user.id}_search/{new_name}",
         ):
             await ctx.respond(
                 embed=EmbedStatics.get_index_rename_success_embed(
@@ -190,7 +235,7 @@ class IndexService(discord.Cog, name="IndexService"):
             )
 
     async def set_index_link_recurse_command(
-        self, ctx, link: str = None, depth: int = 1
+            self, ctx, link: str = None, depth: int = 1
     ):
         await ctx.defer()
         """Command handler to set a file as your personal index"""
@@ -211,7 +256,7 @@ class IndexService(discord.Cog, name="IndexService"):
         )
 
     async def set_index_command(
-        self, ctx, file: discord.Attachment = None, link: str = None
+            self, ctx, file: discord.Attachment = None, link: str = None
     ):
         await ctx.defer()
         """Command handler to set a file as your personal index"""
@@ -243,7 +288,7 @@ class IndexService(discord.Cog, name="IndexService"):
             )
 
     async def set_discord_command(
-        self, ctx, channel: discord.TextChannel = None, message_limit: int = 2500
+            self, ctx, channel: discord.TextChannel = None, message_limit: int = 2500
     ):
         """Command handler to set a channel as your personal index"""
         await ctx.defer()
@@ -294,12 +339,12 @@ class IndexService(discord.Cog, name="IndexService"):
             return
 
         if (
-            user_index
-            and server_index
-            or user_index
-            and search_index
-            or server_index
-            and search_index
+                user_index
+                and server_index
+                or user_index
+                and search_index
+                or server_index
+                and search_index
         ):
             await ctx.respond(
                 "Please only try to load one type of index. Either a user index, a server index or a search index."
@@ -328,14 +373,14 @@ class IndexService(discord.Cog, name="IndexService"):
         await self.index_handler.load_index(ctx, index, server, search, user_api_key)
 
     async def query_command(
-        self,
-        ctx,
-        query,
-        nodes,
-        response_mode,
-        child_branch_factor,
-        model,
-        multistep,
+            self,
+            ctx,
+            query,
+            nodes,
+            response_mode,
+            child_branch_factor,
+            model,
+            multistep,
     ):
         """Command handler to query your index"""
 
