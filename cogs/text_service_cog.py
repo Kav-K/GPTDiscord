@@ -767,43 +767,53 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         """Command handler. Generates a help message and sends it to the user"""
         await ctx.defer()
         embed = discord.Embed(
-            title="GPT3Bot Help", description="The current commands", color=0xC730C7
+            title="GPTDiscord Help", description="The current commands", color=0xC730C7
         )
         embed.add_field(
-            name="/search",
-            value="AI-Assisted google search!",
+            name="/code chat", value="Chat with GPT hooked up to a full execution environment!", inline=False
+        )
+        embed.add_field(
+            name="/internet chat",
+            value="AI-Assisted chatting connected to google, wolfram, and a crawler!",
+            inline=False,
+        )
+        embed.add_field(
+            name="/internet search",
+            value="Do a one-off internet search assisted by GPT!",
+            inline=False,
+        )
+        embed.add_field(
+            name="/index chat",
+            value="Chat with your documents",
             inline=False,
         )
         embed.add_field(
             name="/index",
-            value="Indexing commands for document knowledge and querying",
+            value="More indexing/working with documents commands",
+            inline=False,
+        )
+        embed.add_field(
+            name="/gpt converse",
+            value="Have a multi-modal conversation with GPT",
             inline=False,
         )
         embed.add_field(
             name="/gpt ask",
-            value="Ask GPT something. Be clear, long, and concise in your prompt. Don't waste tokens.",
+            value="Ask GPT something. Be clear, long, and concise in your prompt.",
             inline=False,
         )
         embed.add_field(
-            name="/gpt edit",
-            value="Use GPT to edit a piece of text given an instruction",
+            name="/gpt",
+            value="More pure GPT commands",
             inline=False,
         )
         embed.add_field(
-            name="/gpt converse", value="Start a conversation with GPT", inline=False
-        )
-        embed.add_field(
-            name="/gpt end",
-            value="End a conversation with GPT. You can also type `end` in the conversation.",
-            inline=False,
-        )
-        embed.add_field(
-            name="/dalle draw <image prompt>",
+            name="/dalle draw",
             value="Use DALL-E2 to draw an image based on a text prompt",
             inline=False,
         )
         embed.add_field(
-            name="/dalle optimize <image prompt>",
+            name="/dalle optimize",
             value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
             inline=False,
         )
@@ -827,6 +837,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             value="Translate from one language to another",
             inline=False,
         )
+        embed.add_field(
+            name="/transcribe",
+            value="Transcription services (very experimental)",
+            inline=False,
+        )
+
 
         embed.add_field(name="/help", value="See this help text", inline=False)
         await ctx.respond(embed=embed, ephemeral=False)
