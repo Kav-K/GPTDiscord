@@ -1028,7 +1028,7 @@ class Index_handler:
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
             # Check if the link contains youtube in it
-            index = await self.index_link(link)
+            index, _ = await self.index_link(link)
 
             await self.usage_service.update_usage(
                 token_counter.total_embedding_token_count, "embedding"
