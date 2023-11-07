@@ -146,7 +146,7 @@ class ModelLimits:
     MAX_CONVERSATION_LENGTH = 100000
 
     MIN_SUMMARIZE_THRESHOLD = 1500
-    MAX_SUMMARIZE_THRESHOLD = 30000
+    MAX_SUMMARIZE_THRESHOLD = 120000
 
     MIN_NUM_IMAGES = 1
     MAX_NUM_IMAGES = 4
@@ -999,7 +999,7 @@ class Model:
                             for image_url in message.image_urls:
                                 image_info = {
                                     "type": "image_url",
-                                    "image_url": {"url": image_url},
+                                    "image_url": {"url": image_url, "detail": "high"},
                                 }
                                 messages[-1]["content"].append(image_info)
                         else:

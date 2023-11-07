@@ -740,6 +740,8 @@ class TextService:
                     return
 
                 model = converser_cog.conversation_threads[message.channel.id].model
+                print("The model is " + model)
+                print("The files are" + str(files))
                 file_urls = []
 
                 if files:
@@ -822,6 +824,7 @@ class TextService:
                         )
                     elif "-vision" in model:
                         file_urls = [file.url for file in files]
+                        print("The file URLs were found to be" + str(file_urls))
 
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)

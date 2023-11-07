@@ -696,6 +696,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Get the first file in the message if there is one
         file = message.attachments[0] if len(message.attachments) > 0 else None
 
+        print("The file is " + str(file))
+        print("The length of attachments is " + str(len(message.attachments)))
+
         # Process the message if the user is in a conversation
         if await TextService.process_conversation_message(
             self,
