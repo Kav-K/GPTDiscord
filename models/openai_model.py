@@ -1265,8 +1265,8 @@ class Model:
                     raise ValueError(str(response["error"]["message"]))
 
                 return response
-    async def save_image_urls_and_return(self, image_urls, ctx):
 
+    async def save_image_urls_and_return(self, image_urls, ctx):
         # For each image url, open it as an image object using PIL
         images = await asyncio.get_running_loop().run_in_executor(
             None,
@@ -1373,7 +1373,9 @@ class Model:
 
         return discord.File(temp_file.name), image_urls
 
-    async def make_image_request_individual(self, session, url, json_payload, headers) -> dict:
+    async def make_image_request_individual(
+        self, session, url, json_payload, headers
+    ) -> dict:
         async with session.post(url, json=json_payload, headers=headers) as resp:
             return await resp.json()
 
@@ -1385,8 +1387,8 @@ class Model:
         max_tries=4,
         on_backoff=backoff_handler_http,
     )
-    async def   send_image_request(
-            self, ctx, prompt, quality, image_size, style, custom_api_key=None
+    async def send_image_request(
+        self, ctx, prompt, quality, image_size, style, custom_api_key=None
     ) -> tuple[File, List[Any]]:
         words = len(prompt.split(" "))
         if words < 1 or words > 75:
@@ -1398,7 +1400,13 @@ class Model:
 
         image_urls = []
         tasks = []
-        payload = {"prompt": prompt, "quality": quality, "style": style, "model": "dall-e-3", "size": image_size}
+        payload = {
+            "prompt": prompt,
+            "quality": quality,
+            "style": style,
+            "model": "dall-e-3",
+            "size": image_size,
+        }
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
@@ -1408,10 +1416,17 @@ class Model:
             headers["OpenAI-Organization"] = self.openai_organization
 
         # Setup the client session outside of the loop
-        async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
             # Create a coroutine for each image request and store it in the tasks list
             for _ in range(self.num_images):
-                task = self.make_image_request_individual(session, "https://api.openai.com/v1/images/generations", payload, headers)
+                task = self.make_image_request_individual(
+                    session,
+                    "https://api.openai.com/v1/images/generations",
+                    payload,
+                    headers,
+                )
                 tasks.append(task)
 
             # Run all tasks in parallel and wait for them to complete

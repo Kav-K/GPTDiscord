@@ -983,7 +983,14 @@ class Commands(discord.Cog, name="Commands"):
         default="natural",
         autocomplete=Settings_autocompleter.get_dalle3_image_styles,
     )
-    async def draw(self, ctx: discord.ApplicationContext, prompt: str, quality: str, image_size: str, style: str):
+    async def draw(
+        self,
+        ctx: discord.ApplicationContext,
+        prompt: str,
+        quality: str,
+        image_size: str,
+        style: str,
+    ):
         await self.image_draw_cog.draw_command(ctx, prompt, quality, image_size, style)
 
     @add_to_group("dalle")

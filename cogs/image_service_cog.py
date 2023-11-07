@@ -37,7 +37,13 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         self.redo_users = {}
 
     async def draw_command(
-        self, ctx: discord.ApplicationContext, prompt: str, quality: str, image_size: str, style: str, from_action=False
+        self,
+        ctx: discord.ApplicationContext,
+        prompt: str,
+        quality: str,
+        image_size: str,
+        style: str,
+        from_action=False,
     ):
         """With an ApplicationContext and prompt, send a dalle image to the invoked channel. Ephemeral if from an action"""
         user_api_key = None
@@ -63,7 +69,15 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         try:
             asyncio.ensure_future(
                 ImageService.encapsulated_send(
-                    self, user.id, prompt, ctx, custom_api_key=user_api_key, dalle_3=True, quality=quality, image_size=image_size, style=style
+                    self,
+                    user.id,
+                    prompt,
+                    ctx,
+                    custom_api_key=user_api_key,
+                    dalle_3=True,
+                    quality=quality,
+                    image_size=image_size,
+                    style=style,
                 )
             )
 
@@ -116,7 +130,14 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
     async def draw_action(self, ctx, message):
         """decoupler to handle context actions for the draw command"""
-        await self.draw_command(ctx, message.content, quality="hd",image_size="1024x1024", style="natural",  from_action=True)
+        await self.draw_command(
+            ctx,
+            message.content,
+            quality="hd",
+            image_size="1024x1024",
+            style="natural",
+            from_action=True,
+        )
 
     async def local_size_command(self, ctx: discord.ApplicationContext):
         """Get the folder size of the image folder"""

@@ -118,7 +118,7 @@ class ImageService:
                     image_service_cog.converser_cog,
                     result_message,
                     custom_api_key=custom_api_key,
-                    dalle_3=dalle_3
+                    dalle_3=dalle_3,
                 )
             )
 
@@ -158,7 +158,7 @@ class ImageService:
                         image_service_cog.converser_cog,
                         message,
                         custom_api_key=custom_api_key,
-                        dalle_3=dalle_3
+                        dalle_3=dalle_3,
                     )
                 )
             else:  # Varying case
@@ -225,7 +225,7 @@ class SaveView(discord.ui.View):
         no_retry=False,
         only_save=None,
         custom_api_key=None,
-        dalle_3=False
+        dalle_3=False,
     ):
         super().__init__(
             timeout=3600 if not only_save else None
@@ -237,7 +237,7 @@ class SaveView(discord.ui.View):
         self.converser_cog = converser_cog
         self.message = message
         self.custom_api_key = custom_api_key
-        self.dalle_3=dalle_3
+        self.dalle_3 = dalle_3
         for x in range(1, len(image_urls) + 1):
             self.add_item(SaveButton(x, image_urls[x - 1]))
         if not only_save:

@@ -5,7 +5,19 @@ history, message count, and the id of the user in order to track them.
 
 
 class RedoUser:
-    def __init__(self, prompt, instruction, message, ctx, response, paginator, dalle_3=False, quality=None, image_size=None, style=None):
+    def __init__(
+        self,
+        prompt,
+        instruction,
+        message,
+        ctx,
+        response,
+        paginator,
+        dalle_3=False,
+        quality=None,
+        image_size=None,
+        style=None,
+    ):
         self.prompt = prompt
         self.instruction = instruction
         self.message = message
