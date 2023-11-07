@@ -921,7 +921,7 @@ class Index_handler:
         )
 
         retry_guideline_query_engine = RetryGuidelineQueryEngine(
-            engine, guideline_eval, resynthesize_query=True
+            engine, guideline_eval, resynthesize_query=True, max_retries=2
         )
 
         return retry_guideline_query_engine

@@ -69,6 +69,8 @@ class Models:
     GPT4_32 = "gpt-4-32k"
     GPT4_DEV = "gpt-4-0613"
     GPT4_32_DEV = "gpt-4-32k-0613"
+    GPT_4_TURBO = "gpt-4-1106-preview"
+    GPT_4_TURBO_VISION = "gpt-4-vision-preview"
 
     # Model collections
     TEXT_MODELS = [
@@ -82,18 +84,25 @@ class Models:
         GPT4_32,
         GPT4_DEV,
         GPT4_32_DEV,
+        GPT_4_TURBO,
+        GPT_4_TURBO_VISION,
     ]
     CHATGPT_MODELS = [
         TURBO,
         TURBO_16,
         TURBO_DEV,
         TURBO_16_DEV,
+        GPT4_32,
+        GPT_4_TURBO_VISION,
+        GPT_4_TURBO,
     ]
     GPT4_MODELS = [
         GPT4,
         GPT4_32,
         GPT4_DEV,
         GPT4_32_DEV,
+        GPT_4_TURBO_VISION,
+        GPT_4_TURBO,
     ]
     EDIT_MODELS = [EDIT]
 
@@ -112,6 +121,8 @@ class Models:
         GPT4_32: 32768,
         GPT4_DEV: 8192,
         GPT4_32_DEV: 32768,
+        GPT_4_TURBO_VISION: 128000,
+        GPT_4_TURBO: 128000,
     }
 
     @staticmethod
@@ -487,7 +498,9 @@ class Model:
         SETTINGS_DB["model"] = model
 
         # Set the summarize threshold if the model was set to gpt-4
-        if "gpt-4" in self._model:
+        if "4-turbo" in self._model or "4-vision" in self._model:
+            self._summarize_threshold = 125000
+        elif "gpt-4" in self._model:
             self._summarize_threshold = 28000
         elif "gpt-3" in self._model:
             self._summarize_threshold = 6000
@@ -923,6 +936,7 @@ class Model:
         Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
+        model_selection = self.model if not model else model
 
         # Clean up the bot name
         bot_name_clean = self.cleanse_username(bot_name)
@@ -948,7 +962,7 @@ class Model:
                     {
                         "role": "assistant",
                         "content": text,
-                    }  # TODO add back the assistant's name when the API is fixed..
+                    }
                 )
             else:
                 try:
@@ -965,9 +979,37 @@ class Model:
                     # Strip whitespace just from the right side of the string
                     text = text.rstrip()
                     text = text.replace("<|endofstatement|>", "")
-                    messages.append(
-                        {"role": "user", "name": username_clean, "content": text}
-                    )
+
+                    if "4-vision" not in model_selection:
+                        messages.append(
+                            {"role": "user", "name": username_clean, "content": text}
+                        )
+
+                    else:
+                        if message.image_url:
+                            messages.append(
+                                {
+                                    "role": "user",
+                                    "name": username_clean,
+                                    "content": [
+                                        {"type": "text", "text": text},
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {"url": message.image_url},
+                                        },
+                                    ],
+                                }
+                            )
+                        else:
+                            messages.append(
+                                {
+                                    "role": "user",
+                                    "name": username_clean,
+                                    "content": [
+                                        {"type": "text", "text": text},
+                                    ],
+                                }
+                            )
                 except Exception:
                     text = message.text.replace("<|endofstatement|>", "")
                     messages.append({"role": "system", "content": text})
@@ -977,7 +1019,7 @@ class Model:
             raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
         ) as session:
             payload = {
-                "model": self.model if not model else model,
+                "model": model_selection,
                 "messages": messages,
                 "stop": "" if stop is None else stop,
                 "temperature": self.temp if temp_override is None else temp_override,
@@ -989,6 +1031,9 @@ class Model:
                 if frequency_penalty_override is None
                 else frequency_penalty_override,
             }
+            if "4-vision" in model_selection:
+                payload["max_tokens"] = 4096 # TODO Not sure if this needs to be subtracted from a token count..
+
             headers = {
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
             }
