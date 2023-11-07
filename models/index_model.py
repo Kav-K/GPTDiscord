@@ -505,7 +505,7 @@ class Index_handler:
                 "to the data at the link by the time you respond. When using tools, the input should be "
                 "clearly created based on the request of the user. For example, if a user uploads an invoice "
                 "and asks how many usage hours of X was present in the invoice, a good query is 'X hours'. "
-                "Avoid using single word queries unless the request is very simple."
+                "Avoid using single word queries unless the request is very simple. You can query multiple times to break down complex requests and retrieve more information."
             ),
         }
 
@@ -993,6 +993,7 @@ class Index_handler:
                     ].agent_kwargs,
                     memory=self.index_chat_chains[index_chat_ctx.channel.id].memory,
                     handle_parsing_errors="Check your output and make sure it conforms!",
+                    max_iterations=5,
                 )
 
                 index_chat_data = IndexChatData(

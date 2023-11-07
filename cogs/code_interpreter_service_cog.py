@@ -500,6 +500,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             agent_kwargs=agent_kwargs,
             memory=memory,
             handle_parsing_errors="Check your output and make sure it conforms!",
+            max_iterations=5,
         )
 
         self.chat_agents[thread.id] = agent_chain

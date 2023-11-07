@@ -1034,7 +1034,9 @@ class Model:
                 else frequency_penalty_override,
             }
             if "4-vision" in model_selection:
-                payload["max_tokens"] = 4096 # TODO Not sure if this needs to be subtracted from a token count..
+                payload[
+                    "max_tokens"
+                ] = 4096  # TODO Not sure if this needs to be subtracted from a token count..
 
             headers = {
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"

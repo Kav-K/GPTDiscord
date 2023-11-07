@@ -443,7 +443,6 @@ class SearchService(discord.Cog, name="SearchService"):
             auto_archive_duration=60,
         )
         await ctx.respond("Conversation started.")
-        print("The search scope is " + str(search_scope) + ".")
 
         # Make a new agent for this user to chat.
         search = GoogleSearchAPIWrapper(
@@ -495,7 +494,7 @@ class SearchService(discord.Cog, name="SearchService"):
         agent_kwargs = {
             "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
             "system_message": SystemMessage(
-                content="You are a superpowered version of GPT-4 that is able to access the internet. You can use google search to browse the web, you can crawl the web to see the content of specific websites, and in some cases you can also use Wolfram Alpha to perform mathematical operations. Use all of these tools to your advantage."
+                content="You are a superpowered version of GPT-4 that is able to access the internet. You can use google search to browse the web, you can crawl the web to see the content of specific websites, and in some cases you can also use Wolfram Alpha to perform mathematical operations. Use all of these tools to your advantage. You can use tools multiple times, for example if asked a complex question, search multiple times for different pieces of info until you achieve your goal."
             ),
         }
 
@@ -507,6 +506,7 @@ class SearchService(discord.Cog, name="SearchService"):
             agent_kwargs=agent_kwargs,
             memory=memory,
             handle_parsing_errors="Check your output and make sure it conforms!",
+            max_iterations=5,
         )
 
         self.chat_agents[thread.id] = agent_chain
