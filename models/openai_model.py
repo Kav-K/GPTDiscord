@@ -980,7 +980,7 @@ class Model:
                     text = text.rstrip()
                     text = text.replace("<|endofstatement|>", "")
 
-                    if "4-vision" not in model_selection:
+                    if "-vision" not in model_selection:
                         messages.append(
                             {"role": "user", "name": username_clean, "content": text}
                         )
@@ -1033,7 +1033,7 @@ class Model:
                 if frequency_penalty_override is None
                 else frequency_penalty_override,
             }
-            if "4-vision" in model_selection:
+            if "-vision" in model_selection:
                 payload[
                     "max_tokens"
                 ] = 4096  # TODO Not sure if this needs to be subtracted from a token count..

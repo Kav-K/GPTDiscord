@@ -744,7 +744,7 @@ class TextService:
 
                 if files:
                     if (
-                        "4-vision" not in model
+                        "-vision" not in model
                         and image_understanding_model.get_is_usable()
                     ):
                         add_prompts = []
@@ -820,7 +820,7 @@ class TextService:
                             + f"is given below, use the image understanding data to answer the question but don't "
                             f"refer directly to the data. Original Prompt: " + prompt
                         )
-                    elif "4-vision" in model:
+                    elif "-vision" in model:
                         file_urls = [file.url for file in files]
 
                 converser_cog.awaiting_responses.append(message.author.id)

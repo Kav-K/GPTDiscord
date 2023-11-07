@@ -473,11 +473,13 @@ class SearchService(discord.Cog, name="SearchService"):
 
         llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
+        max_token_limit = 29000 if "gpt-4" in model else 7500
+
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=29000 if "gpt-4" in model else 7500,
+            max_token_limit=100000 if "preview" in model else max_token_limit,
         )
 
         agent_kwargs = {

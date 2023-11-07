@@ -26,6 +26,7 @@ from langchain.schema import SystemMessage
 from langchain.tools import Tool
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.evaluation.guideline import DEFAULT_GUIDELINES, GuidelineEvaluator
+from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.response_synthesizers import ResponseMode
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
@@ -484,11 +485,13 @@ class Index_handler:
         llm = ChatOpenAI(model=model, temperature=0)
         llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
 
+        max_token_limit = 29000 if "gpt-4" in model else 7500
+
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=29000 if "gpt-4" in model else 7500,
+            max_token_limit=100000 if "preview" in model else max_token_limit,
         )
 
         agent_kwargs = {
