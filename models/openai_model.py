@@ -6,7 +6,7 @@ import re
 import tempfile
 import traceback
 import uuid
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 
 import aiohttp
 import backoff
@@ -1265,78 +1265,7 @@ class Model:
                     raise ValueError(str(response["error"]["message"]))
 
                 return response
-
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_http,
-    )
-    async def send_image_request(
-        self, ctx, prompt, vary=None, custom_api_key=None
-    ) -> tuple[File, list[Any]]:
-        # Validate that  all the parameters are in a good state before we send the request
-        words = len(prompt.split(" "))
-        if words < 1 or words > 75:
-            raise ValueError(
-                "Prompt must be greater than 1 word and less than 75, it is currently "
-                + str(words)
-            )
-
-        # print("The prompt about to be sent is " + prompt)
-        await self.usage_service.update_usage_image(self.image_size)
-
-        response = None
-
-        if not vary:
-            payload = {"prompt": prompt, "n": self.num_images, "size": self.image_size}
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-
-            async with aiohttp.ClientSession(
-                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                async with session.post(
-                    "https://api.openai.com/v1/images/generations",
-                    json=payload,
-                    headers=headers,
-                ) as resp:
-                    response = await resp.json()
-
-        else:
-            async with aiohttp.ClientSession(
-                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                data = aiohttp.FormData()
-                data.add_field("n", str(self.num_images))
-                data.add_field("size", self.image_size)
-                with open(vary, "rb") as f:
-                    data.add_field(
-                        "image", f, filename="file.png", content_type="image/png"
-                    )
-
-                    async with session.post(
-                        "https://api.openai.com/v1/images/variations",
-                        headers={
-                            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-                        },
-                        data=data,
-                    ) as resp:
-                        response = await resp.json()
-
-        print(response)
-
-        image_urls = []
-        for result in response["data"]:
-            image_urls.append(result["url"])
+    async def save_image_urls_and_return(self, image_urls, ctx):
 
         # For each image url, open it as an image object using PIL
         images = await asyncio.get_running_loop().run_in_executor(
@@ -1442,4 +1371,129 @@ class Model:
             image_size = os.path.getsize(temp_file.name) / 1000000
             print(f"New image size is {image_size}MB")
 
-        return (discord.File(temp_file.name), image_urls)
+        return discord.File(temp_file.name), image_urls
+
+    async def make_image_request_individual(self, session, url, json_payload, headers) -> dict:
+        async with session.post(url, json=json_payload, headers=headers) as resp:
+            return await resp.json()
+
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_http,
+    )
+    async def   send_image_request(
+            self, ctx, prompt, quality, image_size, style, custom_api_key=None
+    ) -> tuple[File, List[Any]]:
+        words = len(prompt.split(" "))
+        if words < 1 or words > 75:
+            raise ValueError(
+                f"Prompt must be greater than 1 word and less than 75, it is currently {words}"
+            )
+
+        await self.usage_service.update_usage_image(image_size)
+
+        image_urls = []
+        tasks = []
+        payload = {"prompt": prompt, "quality": quality, "style": style, "model": "dall-e-3", "size": image_size}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+        }
+        self.use_org = "true" in str(self.use_org).lower()
+        if self.use_org and self.openai_organization:
+            headers["OpenAI-Organization"] = self.openai_organization
+
+        # Setup the client session outside of the loop
+        async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)) as session:
+            # Create a coroutine for each image request and store it in the tasks list
+            for _ in range(self.num_images):
+                task = self.make_image_request_individual(session, "https://api.openai.com/v1/images/generations", payload, headers)
+                tasks.append(task)
+
+            # Run all tasks in parallel and wait for them to complete
+            responses = await asyncio.gather(*tasks)
+
+            # Process the results
+            for response in responses:
+                print(response)
+                for result in response["data"]:
+                    image_urls.append(result["url"])
+
+        # Now all the requests are done, we can save the URLs
+        return await self.save_image_urls_and_return(image_urls, ctx)
+
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_http,
+    )
+    async def send_image_request_old(
+        self, ctx, prompt, vary=None, custom_api_key=None
+    ) -> tuple[File, list[Any]]:
+        # Validate that  all the parameters are in a good state before we send the request
+        words = len(prompt.split(" "))
+        if words < 1 or words > 75:
+            raise ValueError(
+                "Prompt must be greater than 1 word and less than 75, it is currently "
+                + str(words)
+            )
+
+        # print("The prompt about to be sent is " + prompt)
+        await self.usage_service.update_usage_image(self.image_size)
+
+        response = None
+
+        if not vary:
+            payload = {"prompt": prompt, "n": self.num_images, "size": self.image_size}
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+            }
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
+
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
+                async with session.post(
+                    "https://api.openai.com/v1/images/generations",
+                    json=payload,
+                    headers=headers,
+                ) as resp:
+                    response = await resp.json()
+
+        else:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
+                data = aiohttp.FormData()
+                data.add_field("n", str(self.num_images))
+                data.add_field("size", self.image_size)
+                with open(vary, "rb") as f:
+                    data.add_field(
+                        "image", f, filename="file.png", content_type="image/png"
+                    )
+
+                    async with session.post(
+                        "https://api.openai.com/v1/images/variations",
+                        headers={
+                            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+                        },
+                        data=data,
+                    ) as resp:
+                        response = await resp.json()
+
+        image_urls = []
+        for result in response["data"]:
+            image_urls.append(result["url"])
+
+        return await self.save_image_urls_and_return(image_urls, ctx)

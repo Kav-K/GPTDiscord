@@ -19,6 +19,8 @@ We support everything from **multi-modality image understanding**, **code interp
 
 Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
 
+# Overview of Capabilities
+![Overview of Features](https://i.imgur.com/BZdORTL.png)
 # Table of Contents  
 
 - [Screenshots](#Screenshots)
@@ -53,6 +55,9 @@ Custom indexing and Document Q&A<br>
 </p>  
 
 # Recent Notable Updates
+- **GPT-4-Vision support, GPT-4-Turbo, DALLE-3 Support** - Assistant support also coming soon!
+- 
+
 - **Code Interpreter / Advanced Data Analysis** - Just like ChatGPT, GPTDiscord now has a fully-fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install Python and system packages, and access the internet from the execution environment.
 
 

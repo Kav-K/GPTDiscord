@@ -92,16 +92,17 @@ class UsageService:
         return len(res)
 
     async def update_usage_image(self, image_size):
-        # 1024×1024    $0.020 / image
-        # 512×512    $0.018 / image
-        # 256×256    $0.016 / image
-
+        image_size = image_size.split(" ")[0]
         if image_size == "1024x1024":
-            price = 0.02
+            price = 0.04
         elif image_size == "512x512":
             price = 0.018
         elif image_size == "256x256":
             price = 0.016
+        elif image_size == "1792x1024":
+            price = 0.08
+        elif image_size == "1024x1792":
+            price = 0.08
         else:
             raise ValueError("Invalid image size")
 

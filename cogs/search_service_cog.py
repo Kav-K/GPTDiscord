@@ -13,34 +13,23 @@ import discord
 import openai
 from bs4 import BeautifulSoup
 from discord.ext import pages
-from langchain import (
+from langchain.utilities import (
     GoogleSearchAPIWrapper,
-    WolframAlphaAPIWrapper,
-    FAISS,
-    InMemoryDocstore,
-    LLMChain,
-    ConversationChain,
 )
+from langchain.utilities import WolframAlphaAPIWrapper
 from langchain.agents import (
     Tool,
     initialize_agent,
     AgentType,
-    ZeroShotAgent,
-    AgentExecutor,
 )
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import (
-    ConversationBufferMemory,
-    CombinedMemory,
     ConversationSummaryBufferMemory,
 )
 from langchain.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
     MessagesPlaceholder,
-    HumanMessagePromptTemplate,
 )
-from langchain.requests import TextRequestsWrapper, Requests
+from langchain.requests import Requests
 from langchain.schema import SystemMessage
 from llama_index import (
     GPTVectorStoreIndex,

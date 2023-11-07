@@ -31,7 +31,7 @@ from llama_index.query_engine import RetrieverQueryEngine, MultiStepQueryEngine
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
-from langchain import OpenAI
+from langchain.llms import OpenAI
 
 from models.openai_model import Models
 from services.environment_service import EnvService

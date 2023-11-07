@@ -947,13 +947,44 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("dalle")
     @discord.slash_command(
-        name="draw",
-        description="Draw an image from a prompt",
+        name="draw_old",
+        description="Draw an image from a prompt using the old DALLE-2 Model",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
-    async def draw(self, ctx: discord.ApplicationContext, prompt: str):
-        await self.image_draw_cog.draw_command(ctx, prompt)
+    async def draw_old(self, ctx: discord.ApplicationContext, prompt: str):
+        await self.image_draw_cog.draw_old_command(ctx, prompt)
+
+    @add_to_group("dalle")
+    @discord.slash_command(
+        name="draw",
+        description="Draw an image from a prompt using the new DALLE-3 Model. Does not support Variations.",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(name="prompt", description="The prompt to draw from", required=True)
+    @discord.option(
+        name="quality",
+        description="Image quality",
+        required=False,
+        default="hd",
+        autocomplete=Settings_autocompleter.get_dalle3_image_qualities,
+    )
+    @discord.option(
+        name="image_size",
+        description="How big you want the generated image to be",
+        required=False,
+        default="1024x1024",
+        autocomplete=Settings_autocompleter.get_dalle3_image_sizes,
+    )
+    @discord.option(
+        name="style",
+        description="The style of the generated images, choose between realism/vivid",
+        required=False,
+        default="natural",
+        autocomplete=Settings_autocompleter.get_dalle3_image_styles,
+    )
+    async def draw(self, ctx: discord.ApplicationContext, prompt: str, quality: str, image_size: str, style: str):
+        await self.image_draw_cog.draw_command(ctx, prompt, quality, image_size, style)
 
     @add_to_group("dalle")
     @discord.slash_command(

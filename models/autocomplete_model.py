@@ -111,6 +111,15 @@ class Settings_autocompleter:
         ]
         return models
 
+    async def get_dalle3_image_qualities(ctx: discord.AutocompleteContext):
+        return ["hd", "standard"]
+
+    async def get_dalle3_image_sizes(ctx: discord.AutocompleteContext):
+        return ["1024x1024", "1792x1024", "1024x1792"]
+
+    async def get_dalle3_image_styles(ctx: discord.AutocompleteContext):
+        return ["natural", "vivid"]
+
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,
     ):  # Behaves a bit weird if you go back and edit the parameter without typing in a new command

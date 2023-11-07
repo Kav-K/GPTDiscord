@@ -29,7 +29,7 @@ from langchain.prompts import (
     MessagesPlaceholder,
 )
 from langchain.schema import SystemMessage
-from langchain.utilities.google_search import GoogleSearchAPIWrapper
+from langchain.utilities import GoogleSearchAPIWrapper
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion

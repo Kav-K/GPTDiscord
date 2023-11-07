@@ -16,22 +16,18 @@ from typing import List, Optional, cast
 from pathlib import Path
 from datetime import date
 
-from discord import InteractionResponse, Interaction
+from discord import Interaction
 from discord.ext import pages
-from langchain import OpenAI
 from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
-from langchain.llms import OpenAIChat
-from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
+from langchain.memory import ConversationSummaryBufferMemory
 from langchain.prompts import MessagesPlaceholder
 from langchain.schema import SystemMessage
 from langchain.tools import Tool
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.evaluation.guideline import DEFAULT_GUIDELINES, GuidelineEvaluator
-from llama_index.indices.query.base import BaseQueryEngine
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.response_synthesizers import ResponseMode
-from llama_index.schema import NodeRelationship
 from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
 from llama_index.langchain_helpers.agents import (
     IndexToolConfig,
