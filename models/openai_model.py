@@ -986,20 +986,22 @@ class Model:
                         )
 
                     else:
-                        if message.image_url:
+                        if len(message.image_urls) > 0:
                             messages.append(
                                 {
                                     "role": "user",
                                     "name": username_clean,
                                     "content": [
                                         {"type": "text", "text": text},
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {"url": message.image_url},
-                                        },
                                     ],
                                 }
                             )
+                            for image_url in message.image_urls:
+                                image_info = {
+                                    "type": "image_url",
+                                    "image_url": {"url": image_url},
+                                }
+                                messages[-1]["content"].append(image_info)
                         else:
                             messages.append(
                                 {

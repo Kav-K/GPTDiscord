@@ -121,13 +121,13 @@ class Thread:
 
 
 class EmbeddedConversationItem:
-    def __init__(self, text, timestamp, image_url=None):
+    def __init__(self, text, timestamp, image_urls=None):
         self.text = text
         self.timestamp = int(timestamp)
-        self.image_url = image_url
+        self.image_urls = image_urls
 
     def has_image(self):
-        return self.image_url is not None
+        return self.image_urls is not None
 
     def __repr__(self):
         return self.text

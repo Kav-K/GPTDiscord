@@ -651,7 +651,7 @@ class TextService:
 
     @staticmethod
     async def process_conversation_message(
-        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB, file=None
+        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB, files=None
     ):
         content = message.content.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
@@ -740,78 +740,81 @@ class TextService:
                     return
 
                 model = converser_cog.conversation_threads[message.channel.id].model
-                file_url = None
+                file_urls = []
 
-                if file:
+                if files:
                     if (
                         "4-vision" not in model
                         and image_understanding_model.get_is_usable()
                     ):
-                        thinking_embed = discord.Embed(
-                            title=f"🤖💬 Interpreting attachment without GPT-Vision...",
-                            color=0x808080,
-                        )
+                        add_prompts = []
+                        for num, file in enumerate(files):
+                            thinking_embed = discord.Embed(
+                                title=f"🤖💬 Interpreting attachment without GPT-Vision...",
+                                color=0x808080,
+                            )
 
-                        thinking_embed.set_footer(text="This may take a few seconds.")
-                        try:
-                            thinking_message = await message.reply(embed=thinking_embed)
-                        except:
-                            traceback.print_exc()
-                            pass
-
-                        try:
-                            await message.channel.trigger_typing()
-                        except Exception:
-                            pass
-                        async with aiofiles.tempfile.NamedTemporaryFile(
-                            delete=False
-                        ) as temp_file:
-                            await file.save(temp_file.name)
+                            thinking_embed.set_footer(text="This may take a few seconds.")
                             try:
-                                (
-                                    image_caption,
-                                    image_qa,
-                                    minigpt_output,
-                                    image_ocr,
-                                ) = await asyncio.gather(
-                                    asyncio.to_thread(
-                                        image_understanding_model.get_image_caption,
-                                        temp_file.name,
-                                    ),
-                                    asyncio.to_thread(
-                                        image_understanding_model.ask_image_question,
-                                        prompt,
-                                        temp_file.name,
-                                    ),
-                                    asyncio.to_thread(
-                                        image_understanding_model.get_minigpt_answer,
-                                        prompt,
-                                        temp_file.name,
-                                    ),
-                                    image_understanding_model.do_image_ocr(
-                                        temp_file.name
-                                    ),
-                                )
-                                prompt = (
-                                    f"Image Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
-                                    f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\n\nNow, the original prompt "
-                                    f"is given below, use the image understanding data to answer the question but don't "
-                                    f"refer directly to the data. Original Prompt: "
-                                    + prompt
-                                )
-                                try:
-                                    await thinking_message.delete()
-                                except:
-                                    pass
-                            except Exception:
+                                thinking_message = await message.reply(embed=thinking_embed)
+                            except:
                                 traceback.print_exc()
-                                await message.reply(
-                                    "I wasn't able to understand the file you gave me."
-                                )
-                                await thinking_message.delete()
-                                return
+                                pass
+
+                            try:
+                                await message.channel.trigger_typing()
+                            except Exception:
+                                pass
+                            async with aiofiles.tempfile.NamedTemporaryFile(
+                                delete=False
+                            ) as temp_file:
+                                await file.save(temp_file.name)
+                                try:
+                                    (
+                                        image_caption,
+                                        image_qa,
+                                        minigpt_output,
+                                        image_ocr,
+                                    ) = await asyncio.gather(
+                                        asyncio.to_thread(
+                                            image_understanding_model.get_image_caption,
+                                            temp_file.name,
+                                        ),
+                                        asyncio.to_thread(
+                                            image_understanding_model.ask_image_question,
+                                            prompt,
+                                            temp_file.name,
+                                        ),
+                                        asyncio.to_thread(
+                                            image_understanding_model.get_minigpt_answer,
+                                            prompt,
+                                            temp_file.name,
+                                        ),
+                                        image_understanding_model.do_image_ocr(
+                                            temp_file.name
+                                        ),
+                                    )
+                                    add_prompt = (
+                                        f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
+                                        f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\nEND IMAGE {num} DATA\n"
+                                    )
+                                    add_prompts.append(add_prompt)
+                                    try:
+                                        await thinking_message.delete()
+                                    except:
+                                        pass
+                                except Exception:
+                                    traceback.print_exc()
+                                    await message.reply(
+                                        "I wasn't able to understand the file you gave me."
+                                    )
+                                    await thinking_message.delete()
+                                    return
+                        prompt = "".join(add_prompts) + f"Now, the original prompt "+\
+                                    f"is given below, use the image understanding data to answer the question but don't "\
+                                    f"refer directly to the data. Original Prompt: " + prompt
                     elif "4-vision" in model:
-                        file_url = file.url
+                        file_urls = [file.url for file in files]
 
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
@@ -823,7 +826,7 @@ class TextService:
                         EmbeddedConversationItem(
                             f"\n{message.author.display_name}: {prompt} <|endofstatement|>\n",
                             0,
-                            image_url=file_url,
+                            image_urls=file_urls,
                         )
                     )
 

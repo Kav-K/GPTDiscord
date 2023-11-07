@@ -698,7 +698,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Process the message if the user is in a conversation
         if await TextService.process_conversation_message(
-            self, message, USER_INPUT_API_KEYS, USER_KEY_DB, file=file
+            self, message, USER_INPUT_API_KEYS, USER_KEY_DB, files=None if not file else message.attachments
         ):
             original_message[message.author.id] = message.id
 
