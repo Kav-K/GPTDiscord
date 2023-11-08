@@ -52,6 +52,7 @@ from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.openai_model import Models
+from utils.safe_ctx_respond import safe_ctx_respond
 
 from contextlib import redirect_stdout
 
@@ -431,7 +432,7 @@ class SearchService(discord.Cog, name="SearchService"):
             name=ctx.user.name + "'s internet-connected conversation with GPT",
             auto_archive_duration=60,
         )
-        await ctx.respond("Conversation started.")
+        await safe_ctx_respond(ctx=ctx, content="Conversation started.")
 
         # Make a new agent for this user to chat.
         search = GoogleSearchAPIWrapper(

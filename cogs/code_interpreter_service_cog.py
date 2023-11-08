@@ -35,6 +35,7 @@ from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
+from utils.safe_ctx_respond import safe_ctx_respond
 
 
 class CaptureStdout:
@@ -408,7 +409,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             name=ctx.user.name + "'s code interpreter conversation with GPT",
             auto_archive_duration=60,
         )
-        await ctx.respond("Conversation started.")
+        await safe_ctx_respond(ctx=ctx, content="Conversation started.")
 
         self.sessions[thread.id] = self.SessionedCodeExecutor()
 

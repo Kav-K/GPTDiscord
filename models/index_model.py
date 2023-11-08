@@ -84,6 +84,7 @@ from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
 from models.check_model import UrlCheck
 from services.environment_service import EnvService
+from utils.safe_ctx_respond import safe_ctx_respond
 
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
@@ -542,7 +543,7 @@ class Index_handler:
             name=ctx.user.name + "'s data-connected conversation with GPT",
             auto_archive_duration=60,
         )
-        await ctx.respond("Conversation started.")
+        await safe_ctx_respond(ctx=ctx, content="Conversation started.")
 
         try:
             await preparation_message.delete()
