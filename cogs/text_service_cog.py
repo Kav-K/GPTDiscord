@@ -705,6 +705,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             files=None if not file else message.attachments,
         ):
             print("Processing a conversation message in server", message.guild.name)
+            self.usage_service.update_usage_memory(message.guild.name, "conversation_message", 1)
             original_message[message.author.id] = message.id
 
         # If the user tagged the bot and the tag wasn't an @here or @everyone, retrieve the message

@@ -743,7 +743,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the conversation",
         required=False,
-        default="gpt-4-32k",
+        default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def talk(
@@ -1026,6 +1026,34 @@ class Commands(discord.Cog, name="Commands"):
     async def help(self, ctx: discord.ApplicationContext):
         await self.converser_cog.help_command(ctx)
 
+    @add_to_group("system")
+    @discord.slash_command(
+        name="usage_metrics", description="Usage count by functionality", guild_ids=ALLOWED_GUILDS
+    )
+    @discord.guild_only()
+    async def usage_metrics(self, ctx: discord.ApplicationContext):
+        memory = self.usage_service.get_usage_memory_all()
+
+        embed_list = []
+        for key in memory.keys():
+            usage_string = "**Usage Details:**\n\n"
+            for key2 in memory[key].keys():
+                usage_string += f"*{key2}*: {memory[key][key2]}\n"
+
+            embed = discord.Embed(
+                title=f"{key}",
+                description=usage_string,
+                color=0x311432,
+            )
+            embed_list.append(embed)
+        if len(embed_list) < 1:
+            await ctx.respond("No metrics")
+        else:
+            await ctx.respond("Displaying per-server metrics for current uptime..")
+            for embed in embed_list:
+                await ctx.channel.send(embed=embed)
+
+
     @discord.slash_command(
         name="setup",
         description="Setup your API key for use with GPT3Discord",
@@ -1070,7 +1098,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-32k",
+        default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def chat_code(
@@ -1197,7 +1225,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-32k",
+        default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def chat(

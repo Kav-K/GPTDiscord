@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 
 import aiofiles
@@ -14,15 +15,18 @@ class UsageService:
                 f.write("0.00")
                 f.close()
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.usage = defaultdict()
 
     COST_MAPPING = {
-        "gpt4": 0.05,
-        "gpt4-32": 0.1,
-        "turbo": 0.0019,
-        "turbo-16": 0.0038,
+        "gpt4": 0.06,
+        "gpt4-32": 0.12,
+        "turbo": 0.002,
+        "turbo-16": 0.002,
         "davinci": 0.02,
         "curie": 0.002,
         "embedding": 0.0001,
+        "gpt-turbo": 0.03,
+
     }
 
     MODEL_COST_MAP = {
@@ -36,6 +40,8 @@ class UsageService:
         "gpt-3.5-turbo-16k-0613": "turbo",
         "text-davinci-003": "davinci",
         "text-curie-001": "curie",
+        "gpt-4-1106-preview": "gpt-turbo",
+        "gpt-4-1106-vision-preview": "gpt-turbo",
     }
 
     ModeType = Literal["gpt4", "gpt4-32k", "turbo", "turbo-16k", "davinci", "embedding"]
@@ -111,6 +117,22 @@ class UsageService:
         async with aiofiles.open(self.usage_file_path, "w") as f:
             await f.write(str(usage + float(price)))
             await f.close()
+
+    def update_usage_memory(self, guild_name, functionality, usage):
+        if guild_name in self.usage:
+            if functionality in self.usage[guild_name]:
+                self.usage[guild_name][functionality] += usage
+            else:
+                self.usage[guild_name][functionality] = usage
+        else:
+            self.usage[guild_name] = {functionality: usage}
+
+    def get_usage_memory(self, guild_name):
+        return self.usage[guild_name] if guild_name in self.usage else {}
+
+    def get_usage_memory_all(self):
+        return self.usage
+
 
     @staticmethod
     def count_tokens_static(text):
