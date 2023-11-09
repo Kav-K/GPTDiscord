@@ -937,7 +937,7 @@ class Model:
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
         model_selection = self.model if not model else model
-        print("The model selection is "+model_selection)
+        print("The model selection is " + model_selection)
 
         # Clean up the bot name
         bot_name_clean = self.cleanse_username(bot_name)
@@ -1225,7 +1225,9 @@ class Model:
                     else frequency_penalty_override,
                 }
                 if "preview":
-                    payload["max_tokens"] = 4096 # Temporary workaround while 4-turbo and vision are in preview.
+                    payload[
+                        "max_tokens"
+                    ] = 4096  # Temporary workaround while 4-turbo and vision are in preview.
 
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
