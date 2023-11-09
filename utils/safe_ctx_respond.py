@@ -1,6 +1,6 @@
 import discord
 
-async def safe_ctx_respond(*args: discord.ApplicationContext.respond.args, **kwargs: discord.ApplicationContext.respond.kwargs) -> None:
+async def safe_ctx_respond(*args, **kwargs) -> None:
     """
     Safely responds to a Discord interaction.
 
