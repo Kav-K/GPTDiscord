@@ -429,8 +429,6 @@ class Index_handler:
                     print("Done Indexing")
 
                     summary = await index.as_query_engine(
-                        similarity_top_k=10,
-                        child_branch_factor=3,
                         response_mode="tree_summarize",
                         service_context=get_service_context_with_llm(
                             self.index_chat_chains[message.channel.id].llm
