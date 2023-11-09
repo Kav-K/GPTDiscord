@@ -110,12 +110,12 @@ service_context_no_llm = ServiceContext.from_defaults(
 timeout = httpx.Timeout(1, read=1, write=1, connect=1)
 
 
-def get_service_context_with_llm(llm):
+def get_service_context_with_llm(model):
     service_context = ServiceContext.from_defaults(
         embed_model=embedding_model,
         callback_manager=callback_manager,
         node_parser=node_parser,
-        llm=llm,
+        llm=OpenAI(model=model, temperature=0, max_retries=2, additional_kwargs={"timeout": timeout}),
     )
     return service_context
 
@@ -278,11 +278,7 @@ class Index_handler:
         text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=20)
     )
     callback_manager = CallbackManager([token_counter])
-    service_context = ServiceContext.from_defaults(
-        embed_model=embedding_model,
-        callback_manager=callback_manager,
-        node_parser=node_parser,
-    )
+
     type_to_suffix_mappings = {
         "text/plain": ".txt",
         "text/csv": ".csv",
@@ -421,17 +417,18 @@ class Index_handler:
                             self.index_file,
                             Path(temp_file.name),
                             get_service_context_with_llm(
-                                self.index_chat_chains[message.channel.id].llm
+                                self.index_chat_chains[message.channel.id].llm.model_name
                             ),
                             suffix,
                         ),
                     )
                     print("Done Indexing")
+                    print("THE MODEL NAME TO USE IS "+ self.index_chat_chains[message.channel.id].llm.model_name)
 
                     summary = await index.as_query_engine(
                         response_mode="tree_summarize",
                         service_context=get_service_context_with_llm(
-                            self.index_chat_chains[message.channel.id].llm
+                            self.index_chat_chains[message.channel.id].llm.model_name
                         ),
                     ).aquery(
                         f"What is a summary or general idea of this data? Be detailed in your summary (e.g "
@@ -444,6 +441,7 @@ class Index_handler:
                         f"you can't view the data, instead infer which tool to use that has the data. Say that there "
                         f"is no available data if there are no available tools that are relevant."
                     )
+                    print("Got a summary")
 
                     engine = self.get_query_engine(
                         index, self.index_chat_chains[message.channel.id].llm
@@ -549,6 +547,7 @@ class Index_handler:
             agent_kwargs=agent_kwargs,
             memory=memory,
             handle_parsing_errors="Check your output and make sure it conforms!",
+            request_timeout=1,
         )
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
@@ -925,14 +924,14 @@ class Index_handler:
         retriever = VectorIndexRetriever(
             index=index,
             similarity_top_k=6,
-            service_context=get_service_context_with_llm(llm),
+            service_context=get_service_context_with_llm(llm.model_name),
         )
 
         response_synthesizer = get_response_synthesizer(
             response_mode=ResponseMode.COMPACT_ACCUMULATE,
             use_async=True,
             refine_template=TEXT_QA_SYSTEM_PROMPT,
-            service_context=get_service_context_with_llm(llm),
+            service_context=get_service_context_with_llm(llm.model_name),
             verbose=True,
         )
 
@@ -976,7 +975,7 @@ class Index_handler:
                 summary = await index.as_query_engine(
                     response_mode="tree_summarize",
                     service_context=get_service_context_with_llm(
-                        self.index_chat_chains[index_chat_ctx.channel.id].llm
+                        self.index_chat_chains[index_chat_ctx.channel.id].llm.model_name
                     ),
                 ).aquery(
                     "What is a summary or general idea of this document? Be detailed in your summary but not too verbose. Your summary should be under 50 words. This summary will be used in a vector index to retrieve information about certain data. So, at a high level, the summary should describe the document in such a way that a retriever would know to select it when asked questions about it. The link was {link}. Include the an easy identifier derived from the link at the end of the summary."
