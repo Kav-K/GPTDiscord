@@ -904,7 +904,7 @@ class Index_handler:
 
     def get_query_engine(self, index, message, summary):
         retriever = VectorIndexRetriever(
-            index=index, similarity_top_k=2, service_context=service_context
+            index=index, similarity_top_k=6, service_context=service_context
         )
 
         response_synthesizer = get_response_synthesizer(
