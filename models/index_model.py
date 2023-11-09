@@ -429,7 +429,9 @@ class Index_handler:
                         ),
                     )
                     print("Done Indexing")
-                    self.usage_service.update_usage_memory(message.guild.name, "index_chat_file", 1)
+                    self.usage_service.update_usage_memory(
+                        message.guild.name, "index_chat_file", 1
+                    )
 
                     summary = await index.as_query_engine(
                         response_mode="tree_summarize",
@@ -976,7 +978,9 @@ class Index_handler:
         if index_chat_ctx:
             try:
                 print("Getting transcript summary")
-                self.usage_service.update_usage_memory(index_chat_ctx.guild.name, "index_chat_link", 1)
+                self.usage_service.update_usage_memory(
+                    index_chat_ctx.guild.name, "index_chat_link", 1
+                )
                 summary = await index.as_query_engine(
                     response_mode="tree_summarize",
                     service_context=get_service_context_with_llm(

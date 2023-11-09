@@ -1028,7 +1028,9 @@ class Commands(discord.Cog, name="Commands"):
 
     @add_to_group("system")
     @discord.slash_command(
-        name="usage_metrics", description="Usage count by functionality", guild_ids=ALLOWED_GUILDS
+        name="usage_metrics",
+        description="Usage count by functionality",
+        guild_ids=ALLOWED_GUILDS,
     )
     @discord.guild_only()
     async def usage_metrics(self, ctx: discord.ApplicationContext):
@@ -1052,7 +1054,6 @@ class Commands(discord.Cog, name="Commands"):
             await ctx.respond("Displaying per-server metrics for current uptime..")
             for embed in embed_list:
                 await ctx.channel.send(embed=embed)
-
 
     @discord.slash_command(
         name="setup",

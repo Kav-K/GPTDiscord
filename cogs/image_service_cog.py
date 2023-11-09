@@ -82,7 +82,6 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             )
             self.usage_service.update_usage_memory(ctx.guild.name, "image_drawn", 1)
 
-
         except Exception as e:
             print(e)
             traceback.print_exc()

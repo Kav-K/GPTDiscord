@@ -219,7 +219,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             agent = self.chat_agents[message.channel.id]
             try:
                 # Start listening to STDOUT before this call. We wanna track all the output for this specific call below
-                self.usage_service.update_usage_memory(message.guild.name, "code_interpreter_message", 1)
+                self.usage_service.update_usage_memory(
+                    message.guild.name, "code_interpreter_message", 1
+                )
                 response, stdout_output = await capture_stdout(
                     self.bot.loop.run_in_executor, None, agent.run, prompt
                 )

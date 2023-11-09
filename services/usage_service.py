@@ -26,7 +26,6 @@ class UsageService:
         "curie": 0.002,
         "embedding": 0.0001,
         "gpt-turbo": 0.03,
-
     }
 
     MODEL_COST_MAP = {
@@ -132,7 +131,6 @@ class UsageService:
 
     def get_usage_memory_all(self):
         return self.usage
-
 
     @staticmethod
     def count_tokens_static(text):
