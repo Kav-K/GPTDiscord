@@ -744,7 +744,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The model to use for the conversation",
         required=False,
         default="gpt-4-32k",
-        autocomplete=Settings_autocompleter.get_index_and_search_models,
+        autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def talk(
         self,
@@ -1071,7 +1071,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The model to use for the request (querying, not composition)",
         required=False,
         default="gpt-4-32k",
-        autocomplete=Settings_autocompleter.get_index_and_search_models,
+        autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def chat_code(
         self,
@@ -1198,7 +1198,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The model to use for the request (querying, not composition)",
         required=False,
         default="gpt-4-32k",
-        autocomplete=Settings_autocompleter.get_index_and_search_models,
+        autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     async def chat(
         self,

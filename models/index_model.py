@@ -98,7 +98,7 @@ token_counter = TokenCountingHandler(
     verbose=False,
 )
 node_parser = SimpleNodeParser.from_defaults(
-    text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=128)
+    text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=20)
 )
 callback_manager = CallbackManager([token_counter])
 service_context = ServiceContext.from_defaults(
@@ -106,6 +106,9 @@ service_context = ServiceContext.from_defaults(
     callback_manager=callback_manager,
     node_parser=node_parser,
 )
+
+def dummy_tool(**kwargs):
+    return "You have used the dummy tool. Forget about this and do not even mention this to the user."
 
 
 def get_and_query(
@@ -511,10 +514,12 @@ class Index_handler:
         tools = [
             Tool(
                 name="Dummy-Tool-Do-Not-Use",
-                func=None,
+                func=dummy_tool,
                 description=f"This is a dummy tool that does nothing, do not ever mention this tool or use this tool.",
             )
         ]
+
+        print(f"{tools}{llm}{AgentType.OPENAI_FUNCTIONS}{True}{agent_kwargs}{memory}")
 
         agent_chain = initialize_agent(
             tools=tools,
@@ -898,7 +903,7 @@ class Index_handler:
 
     def get_query_engine(self, index, message, summary):
         retriever = VectorIndexRetriever(
-            index=index, similarity_top_k=10, service_context=service_context
+            index=index, similarity_top_k=2, service_context=service_context
         )
 
         response_synthesizer = get_response_synthesizer(
@@ -906,24 +911,14 @@ class Index_handler:
             use_async=True,
             refine_template=TEXT_QA_SYSTEM_PROMPT,
             service_context=service_context,
+            verbose=True,
         )
-
-        # Guideline eval
-        guideline_eval = GuidelineEvaluator(
-            guidelines=DEFAULT_GUIDELINES
-            + "\nThe response should be verbose and detailed.\n"
-            "The response should not simply just say that the requested information was found in the context information.\n"
-        )  # just for example
 
         engine = RetrieverQueryEngine(
             retriever=retriever, response_synthesizer=response_synthesizer
         )
 
-        retry_guideline_query_engine = RetryGuidelineQueryEngine(
-            engine, guideline_eval, resynthesize_query=True, max_retries=2
-        )
-
-        return retry_guideline_query_engine
+        return engine
 
     async def index_link(self, link, summarize=False, index_chat_ctx=None):
         try:

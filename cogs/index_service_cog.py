@@ -5,6 +5,7 @@ import aiofiles
 import discord
 import os
 
+import openai
 from discord.ext import pages
 
 from models.embed_statics_model import EmbedStatics
@@ -172,10 +173,15 @@ class IndexService(discord.Cog, name="IndexService"):
                     + str(link)
                     + "}"
                 )
+            try:
+                chat_result = await self.index_handler.execute_index_chat_message(
+                    message, prompt
+                )
+            except openai.BadRequestError as e:
+                traceback.print_exc()
+                await message.reply("This model is not supported with connected conversations.")
 
-            chat_result = await self.index_handler.execute_index_chat_message(
-                message, prompt
-            )
+
 
             if chat_result:
                 if len(chat_result) > 2000:
