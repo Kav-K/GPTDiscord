@@ -85,6 +85,7 @@ from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
 from models.check_model import UrlCheck
 from services.environment_service import EnvService
+
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
 EpubReader = download_loader("EpubReader")
@@ -107,6 +108,7 @@ service_context_no_llm = ServiceContext.from_defaults(
     node_parser=node_parser,
 )
 timeout = httpx.Timeout(1, read=1, write=1, connect=1)
+
 
 def get_service_context_with_llm(llm):
     service_context = ServiceContext.from_defaults(
@@ -418,7 +420,9 @@ class Index_handler:
                         partial(
                             self.index_file,
                             Path(temp_file.name),
-                            get_service_context_with_llm(self.index_chat_chains[message.channel.id].llm),
+                            get_service_context_with_llm(
+                                self.index_chat_chains[message.channel.id].llm
+                            ),
                             suffix,
                         ),
                     )
@@ -428,7 +432,9 @@ class Index_handler:
                         similarity_top_k=10,
                         child_branch_factor=3,
                         response_mode="tree_summarize",
-                        service_context=get_service_context_with_llm(self.index_chat_chains[message.channel.id].llm)
+                        service_context=get_service_context_with_llm(
+                            self.index_chat_chains[message.channel.id].llm
+                        ),
                     ).aquery(
                         f"What is a summary or general idea of this data? Be detailed in your summary (e.g "
                         f"extract key names, etc) but not too verbose. Your summary should be under a hundred words. "
@@ -441,7 +447,9 @@ class Index_handler:
                         f"is no available data if there are no available tools that are relevant."
                     )
 
-                    engine = self.get_query_engine(index, self.index_chat_chains[message.channel.id].llm)
+                    engine = self.get_query_engine(
+                        index, self.index_chat_chains[message.channel.id].llm
+                    )
 
                     # Get rid of all special characters in the filename
                     filename = "".join(
@@ -917,7 +925,9 @@ class Index_handler:
 
     def get_query_engine(self, index, llm):
         retriever = VectorIndexRetriever(
-            index=index, similarity_top_k=6, service_context=get_service_context_with_llm(llm)
+            index=index,
+            similarity_top_k=6,
+            service_context=get_service_context_with_llm(llm),
         )
 
         response_synthesizer = get_response_synthesizer(
@@ -939,12 +949,16 @@ class Index_handler:
             if await UrlCheck.check_youtube_link(link):
                 print("Indexing youtube transcript")
                 index = await self.loop.run_in_executor(
-                    None, partial(self.index_youtube_transcript, link, service_context_no_llm)
+                    None,
+                    partial(
+                        self.index_youtube_transcript, link, service_context_no_llm
+                    ),
                 )
                 print("Indexed youtube transcript")
             elif "github" in link:
                 index = await self.loop.run_in_executor(
-                    None, partial(self.index_github_repository, link, service_context_no_llm)
+                    None,
+                    partial(self.index_github_repository, link, service_context_no_llm),
                 )
             else:
                 index = await self.index_webpage(link, service_context_no_llm)
@@ -963,13 +977,17 @@ class Index_handler:
                 print("Getting transcript summary")
                 summary = await index.as_query_engine(
                     response_mode="tree_summarize",
-                    service_context=get_service_context_with_llm(self.index_chat_chains[index_chat_ctx.channel.id].llm)
+                    service_context=get_service_context_with_llm(
+                        self.index_chat_chains[index_chat_ctx.channel.id].llm
+                    ),
                 ).aquery(
                     "What is a summary or general idea of this document? Be detailed in your summary but not too verbose. Your summary should be under 50 words. This summary will be used in a vector index to retrieve information about certain data. So, at a high level, the summary should describe the document in such a way that a retriever would know to select it when asked questions about it. The link was {link}. Include the an easy identifier derived from the link at the end of the summary."
                 )
                 print("Got transcript summary")
 
-                engine = self.get_query_engine(index, self.index_chat_chains[index_chat_ctx.channel.id].llm)
+                engine = self.get_query_engine(
+                    index, self.index_chat_chains[index_chat_ctx.channel.id].llm
+                )
 
                 # Get rid of all special characters in the link, replace periods with _
                 link_cleaned = "".join(
