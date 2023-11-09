@@ -254,7 +254,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             if len(response) > 2000:
                 embed_pages = EmbedStatics.paginate_chat_embed(response)
 
-                for x,page in enumerate(embed_pages):
+                for x, page in enumerate(embed_pages):
                     if x == 0:
                         previous_message = await message.reply(embed=page)
                     else:
