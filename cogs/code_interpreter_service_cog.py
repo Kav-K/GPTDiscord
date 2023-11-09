@@ -15,7 +15,7 @@ import aiofiles
 import discord
 import openai
 from discord.ext import pages
-from e2b import Session, DataAnalysis
+from e2b import DataAnalysis
 from e2b.templates.data_analysis import Artifact
 
 from langchain.agents import (
