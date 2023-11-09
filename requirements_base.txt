@@ -1,5 +1,5 @@
 Pillow==9.3.0
-openai==1.1.0
+openai==1.2.0
 yt-dlp==2023.3.4
 ffmpeg==1.4
 py-cord==2.4.1
@@ -20,7 +20,7 @@ youtube_transcript_api==0.5.0
 sentencepiece==0.1.99
 protobuf==3.20.2
 python-pptx==0.6.21
-langchain==0.0.332
+langchain==0.0.333
 unidecode==1.3.6
 tqdm==4.64.1
 docx2txt==0.8
