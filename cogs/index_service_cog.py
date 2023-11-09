@@ -179,9 +179,9 @@ class IndexService(discord.Cog, name="IndexService"):
                 )
             except openai.BadRequestError as e:
                 traceback.print_exc()
-                await message.reply("This model is not supported with connected conversations.")
-
-
+                await message.reply(
+                    "This model is not supported with connected conversations."
+                )
 
             if chat_result:
                 if len(chat_result) > 2000:

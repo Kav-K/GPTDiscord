@@ -88,7 +88,15 @@ class Settings_autocompleter:
         return []
 
     async def get_function_calling_models(ctx: discord.AutocompleteContext):
-        return ["gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-0613","gpt-3.5-turbo","gpt-3.5-turbo-1106","gpt-3.5-turbo-0613"]
+        return [
+            "gpt-4",
+            "gpt-4-32k",
+            "gpt-4-1106-preview",
+            "gpt-4-0613",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-1106",
+            "gpt-3.5-turbo-0613",
+        ]
 
     async def get_models(
         ctx: discord.AutocompleteContext,
