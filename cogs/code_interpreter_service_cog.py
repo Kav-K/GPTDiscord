@@ -252,35 +252,24 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             artifacts_available = len(artifact_names) > 0
 
             if len(response) > 2000:
-                embed_pages = await EmbedStatics.paginate_chat_embed(response)
-                paginator = pages.Paginator(
-                    pages=embed_pages,
-                    timeout=None,
-                    author_check=False,
-                    custom_view=CodeInterpreterDownloadArtifactsView(
-                        message, self, self.sessions[message.channel.id], artifact_names
+                embed_pages = EmbedStatics.paginate_chat_embed(response)
+
+                for x,page in enumerate(embed_pages):
+                    if x == 0:
+                        previous_message = await message.reply(embed=page)
+                    else:
+                        previous_message = previous_message.reply(embed=page)
+
+                if artifacts_available:
+                    await previous_message.reply(
+                        "Retrieve your artifacts",
+                        view=CodeInterpreterDownloadArtifactsView(
+                            message,
+                            self,
+                            self.sessions[message.channel.id],
+                            artifact_names,
+                        ),
                     )
-                    if artifacts_available
-                    else None,
-                )
-                try:
-                    await paginator.respond(message)
-                except:
-                    response = [
-                        response[i : i + 1900] for i in range(0, len(response), 1900)
-                    ]
-                    for count, chunk in enumerate(response, start=1):
-                        await message.channel.send(chunk)
-                    if artifacts_available:
-                        await message.channel.send(
-                            "Retrieve your artifacts",
-                            view=CodeInterpreterDownloadArtifactsView(
-                                message,
-                                self,
-                                self.sessions[message.channel.id],
-                                artifact_names,
-                            ),
-                        )
 
             else:
                 response = response.replace("\\n", "\n")

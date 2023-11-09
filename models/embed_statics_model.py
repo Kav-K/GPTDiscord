@@ -14,7 +14,7 @@ class EmbedStatics:
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i: i + 3500] for i in range(0, len(response_text), 7000)
         ]
         pages = []
         first = False
@@ -22,7 +22,7 @@ class EmbedStatics:
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title=f"{count}",
+                    title=f"{count}" if len(response_text) > 1 else "",
                     description=chunk,
                 )
                 first = True
@@ -98,7 +98,7 @@ class EmbedStatics:
         embed.add_field(
             name="Overrides",
             value=f"**temp={overrides['temperature']}**, **top_p={overrides['top_p']}**"
-            f", **freq. penalty={overrides['frequency_penalty']}**, **pres. penalty={overrides['presence_penalty']}**\n",
+                  f", **freq. penalty={overrides['frequency_penalty']}**, **pres. penalty={overrides['presence_penalty']}**\n",
         )
         embed.add_field(
             name="End the conversation",

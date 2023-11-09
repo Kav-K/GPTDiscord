@@ -179,21 +179,13 @@ class IndexService(discord.Cog, name="IndexService"):
 
             if chat_result:
                 if len(chat_result) > 2000:
-                    embed_pages = await EmbedStatics.paginate_chat_embed(chat_result)
-                    paginator = pages.Paginator(
-                        pages=embed_pages,
-                        timeout=None,
-                        author_check=False,
-                    )
-                    try:
-                        await paginator.respond(message)
-                    except:
-                        chat_result = [
-                            chat_result[i : i + 1900]
-                            for i in range(0, len(chat_result), 1900)
-                        ]
-                        for count, chunk in enumerate(chat_result, start=1):
-                            await message.channel.send(chunk)
+                    embed_pages = EmbedStatics.paginate_chat_embed(chat_result)
+
+                    for x, page in enumerate(embed_pages):
+                        if x == 0:
+                            previous_message = await message.reply(embed=page)
+                        else:
+                            previous_message = previous_message.reply(embed=page)
 
                 else:
                     chat_result = chat_result.replace("\\n", "\n")

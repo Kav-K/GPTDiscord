@@ -390,13 +390,14 @@ class SearchService(discord.Cog, name="SearchService"):
                 return
 
             if len(response) > 2000:
-                embed_pages = await EmbedStatics.paginate_chat_embed(response)
-                paginator = pages.Paginator(
-                    pages=embed_pages,
-                    timeout=None,
-                    author_check=False,
-                )
-                await paginator.respond(message)
+                embed_pages = EmbedStatics.paginate_chat_embed(response)
+
+                for x,page in enumerate(embed_pages):
+                    if x == 0:
+                        previous_message = await message.reply(embed=page)
+                    else:
+                        previous_message = previous_message.reply(embed=page)
+
             else:
                 response = response.replace("\\n", "\n")
                 # Build a response embed
