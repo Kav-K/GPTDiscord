@@ -34,4 +34,4 @@ nltk==3.8.1
 replicate==0.15.4
 tiktoken==0.4.0
 pydantic==2.4.2
-e2b==0.9.6
+e2b==0.10.6
