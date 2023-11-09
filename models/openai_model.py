@@ -937,6 +937,7 @@ class Model:
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
         model_selection = self.model if not model else model
+        print("The model selection is "+model_selection)
 
         # Clean up the bot name
         bot_name_clean = self.cleanse_username(bot_name)
@@ -1033,7 +1034,7 @@ class Model:
                 if frequency_penalty_override is None
                 else frequency_penalty_override,
             }
-            if "-vision" in model_selection:
+            if "-preview" in model_selection:
                 payload[
                     "max_tokens"
                 ] = 4096  # TODO Not sure if this needs to be subtracted from a token count..
@@ -1207,8 +1208,9 @@ class Model:
             async with aiohttp.ClientSession(
                 raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
             ) as session:
+                model_selection = self.model if not model else model
                 payload = {
-                    "model": self.model if not model else model,
+                    "model": model_selection,
                     "messages": messages,
                     "stop": "" if stop is None else stop,
                     "temperature": self.temp
@@ -1222,6 +1224,9 @@ class Model:
                     if frequency_penalty_override is None
                     else frequency_penalty_override,
                 }
+                if "preview":
+                    payload["max_tokens"] = 4096 # Temporary workaround while 4-turbo and vision are in preview.
+
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
                 }

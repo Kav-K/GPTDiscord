@@ -696,9 +696,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Get the first file in the message if there is one
         file = message.attachments[0] if len(message.attachments) > 0 else None
 
-        print("The file is " + str(file))
-        print("The length of attachments is " + str(len(message.attachments)))
-
         # Process the message if the user is in a conversation
         if await TextService.process_conversation_message(
             self,
@@ -707,6 +704,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             USER_KEY_DB,
             files=None if not file else message.attachments,
         ):
+            print("Processing a conversation message in server", message.guild.name)
             original_message[message.author.id] = message.id
 
         # If the user tagged the bot and the tag wasn't an @here or @everyone, retrieve the message
