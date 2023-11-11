@@ -8,7 +8,7 @@ def safe_remove_list(remove_from, element):
         pass
 
 
-async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str) -> None:
+async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str, ephemeral=False) -> None:
     """
     Safely responds to a Discord interaction.
 
@@ -28,7 +28,7 @@ async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str) -> Non
     """
     try:
         # Try to respond to the interaction
-        await ctx.respond(content)
+        await ctx.respond(content, ephemeral=ephemeral)
     except discord.NotFound:  # NotFound is raised when the interaction is not found
         try:
             await ctx.message.reply(content)
