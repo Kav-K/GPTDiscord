@@ -250,6 +250,10 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
             True,
             True,
             custom_api_key=self.custom_api_key,
+            dalle_3=True,
+            image_size="1024x1024",
+            style="vivid",
+            quality="hd",
         )
 
 
