@@ -11,6 +11,7 @@ from services.environment_service import EnvService
 from services.image_service import ImageService
 from services.moderations_service import Moderation
 from services.text_service import TextService
+from utils.safe_ctx_respond import safe_ctx_respond
 
 users_to_interactions = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
@@ -85,9 +86,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         except Exception as e:
             print(e)
             traceback.print_exc()
-            await ctx.respond(
-                "Something went wrong. Please try again later.", ephemeral=from_action
-            )
+            await safe_ctx_respond(ctx=ctx, content="Something went wrong. Please try again later.", ephemeral=from_action)
             await ctx.send_followup(e, ephemeral=from_action)
 
     async def draw_old_command(
@@ -124,9 +123,8 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         except Exception as e:
             print(e)
             traceback.print_exc()
-            await ctx.respond(
-                "Something went wrong. Please try again later.", ephemeral=from_action
-            )
+            await safe_ctx_respond(ctx=ctx, content="Something went wrong. Please try again later.", ephemeral=from_action)
+
             await ctx.send_followup(e, ephemeral=from_action)
 
     async def draw_action(self, ctx, message):
@@ -153,7 +151,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
 
         # Format the size to be in MB and send.
         total_size = total_size / 1000000
-        await ctx.respond(f"The size of the local images folder is {total_size} MB.")
+        await safe_ctx_respond(ctx=ctx, content=f"The size of the local images folder is {total_size} MB.")
 
     async def clear_local_command(self, ctx):
         """Delete all local images"""

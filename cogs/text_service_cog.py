@@ -27,6 +27,7 @@ from sqlitedict import SqliteDict
 from services.pickle_service import Pickler
 from services.sharegpt_service import ShareGPTService
 from services.text_service import SetupModal, TextService
+from utils.safe_ctx_respond import safe_ctx_respond
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
@@ -1208,7 +1209,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     name=user.name + "'s conversation with GPT",
                     auto_archive_duration=60,
                 )
-                await ctx.respond("Conversation started.")
+                await safe_ctx_respond(ctx=ctx, content="Conversation started.")
                 target = thread
         else:
             # Check if this current channel is already in a conversation
