@@ -421,6 +421,7 @@ class SearchService(discord.Cog, name="SearchService"):
     async def search_chat_command(
         self, ctx: discord.ApplicationContext, model, search_scope=2
     ):
+        await ctx.defer()
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,

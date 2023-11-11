@@ -1158,7 +1158,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             frequency_penalty (float): Sets the frequency penalty override
             presence_penalty (float): Sets the presence penalty override
         """
-
+        await ctx.defer(ephemeral=private)
         user = ctx.user
 
         # If we are in user input api keys mode, check if the user has entered their api key before letting them continue
