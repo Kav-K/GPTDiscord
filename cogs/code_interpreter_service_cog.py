@@ -386,6 +386,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         ctx: discord.ApplicationContext,
         model,
     ):
+        await ctx.defer()
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
