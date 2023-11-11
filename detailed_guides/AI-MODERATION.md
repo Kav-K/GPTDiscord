@@ -18,8 +18,6 @@ The bot uses numerical thresholds to determine whether a message is toxic or not
   
 There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).  
   
-If you'd like to help us test and fine tune our thresholds for the moderation service, please join this test server: https://discord.gg/CWhsSgNdrP. You can let off some steam in a controlled environment ;)  
-  
 To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.  
 
 If you want to have the bot pre-moderate things sent to commands like /gpt ask, /gpt edit, /dalle draw, etc, you can set `PRE_MODERATE="True"` in the `.env` file.
