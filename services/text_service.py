@@ -740,8 +740,6 @@ class TextService:
                     return
 
                 model = converser_cog.conversation_threads[message.channel.id].model
-                print("The model is " + model)
-                print("The files are" + str(files))
                 file_urls = []
 
                 if files:
