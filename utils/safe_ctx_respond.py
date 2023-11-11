@@ -19,7 +19,7 @@ async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str) -> Non
 
     Raises:
         ValueError: If `ctx` is not provided in the `kwargs`.
-    
+
     Examples:
         ```py
         # Respond to an interaction
@@ -33,8 +33,8 @@ async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str) -> Non
         try:
             await ctx.message.reply(content)
         except (
-                discord.NotFound,
-                AttributeError,
+            discord.NotFound,
+            AttributeError,
         ):  # AttributeError is raised when ctx.message is None, NotFound is raised when the message is not found
             # If the message is not found, send a new message to the channel
             content = f"**{ctx.message.author.mention}** \n{content}".strip(
