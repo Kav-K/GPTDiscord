@@ -14,6 +14,7 @@ from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.index_model import Index_handler
+from utils.safe_ctx_respond import safe_remove_list
 
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
@@ -79,7 +80,7 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             failure_embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
             await message.reply(embed=failure_embed)
-            self.thread_awaiting_responses.remove(message.channel.id)
+            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
             return False
 
         success_embed = discord.Embed(
@@ -146,7 +147,7 @@ class IndexService(discord.Cog, name="IndexService"):
                 )
 
                 if not indexing_result:
-                    self.thread_awaiting_responses.remove(message.channel.id)
+                    safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                     return
 
                 prompt += (
@@ -165,7 +166,7 @@ class IndexService(discord.Cog, name="IndexService"):
                 )
 
                 if not indexing_result:
-                    self.thread_awaiting_responses.remove(message.channel.id)
+                    safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                     return
 
                 prompt += (
@@ -204,7 +205,7 @@ class IndexService(discord.Cog, name="IndexService"):
                     await message.reply(
                         embed=response_embed,
                     )
-                self.thread_awaiting_responses.remove(message.channel.id)
+                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def index_chat_command(self, ctx, model):
         await self.index_handler.start_index_chat(ctx, model)

@@ -52,7 +52,7 @@ from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.openai_model import Models
-from utils.safe_ctx_respond import safe_ctx_respond
+from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
 from contextlib import redirect_stdout
 
@@ -390,7 +390,7 @@ class SearchService(discord.Cog, name="SearchService"):
                 await message.reply(
                     embed=EmbedStatics.get_internet_chat_failure_embed(response)
                 )
-                self.thread_awaiting_responses.remove(message.channel.id)
+                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 return
 
             if len(response) > 2000:
@@ -416,7 +416,7 @@ class SearchService(discord.Cog, name="SearchService"):
                     )
                 await message.reply(embed=response_embed)
 
-            self.thread_awaiting_responses.remove(message.channel.id)
+            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def search_chat_command(
         self, ctx: discord.ApplicationContext, model, search_scope=2

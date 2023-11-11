@@ -1,6 +1,14 @@
 import discord
 
-async def safe_ctx_respond(*args, **kwargs) -> None:
+
+def safe_remove_list(remove_from, element):
+    try:
+        remove_from.remove(element)
+    except ValueError:
+        pass
+
+
+async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str) -> None:
     """
     Safely responds to a Discord interaction.
 
@@ -18,35 +26,18 @@ async def safe_ctx_respond(*args, **kwargs) -> None:
         await safe_ctx_respond(ctx=ctx, content="Hello World!")
         ```
     """
-    # Get the context from the kwargs
-    ctx: discord.ApplicationContext = kwargs.get("ctx", None)
-    kwargs.pop("ctx", None)
-    
-    # Raise an error if context is not provided
-    if ctx is None:
-        raise ValueError("ctx is a required keyword argument")
-    
     try:
         # Try to respond to the interaction
-        await ctx.respond(*args, **kwargs)
+        await ctx.respond(content)
     except discord.NotFound:  # NotFound is raised when the interaction is not found
         try:
-            # If the interaction is not found, try to reply to the message
-            if kwargs.get("ephemeral", False):
-                kwargs.pop("ephemeral")
-                kwargs["delete_after"] = 5
-            await ctx.message.reply(*args, **kwargs)
+            await ctx.message.reply(content)
         except (
-            discord.NotFound,
-            AttributeError,
+                discord.NotFound,
+                AttributeError,
         ):  # AttributeError is raised when ctx.message is None, NotFound is raised when the message is not found
             # If the message is not found, send a new message to the channel
-            if len(args) > 0:
-                content = args[0] or ""
-                args = args[1:]
-            else:
-                content = kwargs.get("content", "")
-            kwargs["content"] = f"**{ctx.author.mention}** \n{content}".strip(
+            content = f"**{ctx.message.author.mention}** \n{content}".strip(
                 "\n"
             ).strip()
-            await ctx.channel.send(*args, **kwargs)
+            await ctx.channel.send(content)

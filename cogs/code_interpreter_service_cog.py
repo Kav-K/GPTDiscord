@@ -35,7 +35,7 @@ from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
-from utils.safe_ctx_respond import safe_ctx_respond
+from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
 
 class CaptureStdout:
@@ -240,7 +240,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 await message.reply(
                     embed=EmbedStatics.get_code_chat_failure_embed(response)
                 )
-                self.thread_awaiting_responses.remove(message.channel.id)
+                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 return
 
             # Parse the artifact names. After Artifacts: there should be a list in form [] where the artifact names are inside, comma separated inside stdout_output
@@ -292,7 +292,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     else None,
                 )
 
-            self.thread_awaiting_responses.remove(message.channel.id)
+            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     class SessionedCodeExecutor:
         def __init__(self):

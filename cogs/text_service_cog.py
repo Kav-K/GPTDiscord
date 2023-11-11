@@ -27,7 +27,7 @@ from sqlitedict import SqliteDict
 from services.pickle_service import Pickler
 from services.sharegpt_service import ShareGPTService
 from services.text_service import SetupModal, TextService
-from utils.safe_ctx_respond import safe_ctx_respond
+from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
@@ -764,11 +764,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self, author_id, channel_id, from_ask_command, from_edit_command
     ):
         """Remove user from ask/edit command response wait, if not any of those then process the id to remove user from thread response wait"""
-        if author_id in self.awaiting_responses:
-            self.awaiting_responses.remove(author_id)
+        safe_remove_list(self.awaiting_responses, author_id)
         if not from_ask_command and not from_edit_command:
-            if channel_id in self.awaiting_thread_responses:
-                self.awaiting_thread_responses.remove(channel_id)
+            safe_remove_list(self.awaiting_thread_responses, channel_id)
 
     async def mention_to_username(self, ctx, message):
         """replaces discord mentions with their server nickname in text, if the user is not found keep the mention as is"""
@@ -1358,9 +1356,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 model=self.conversation_threads[target.id].model,
                 custom_api_key=user_api_key,
             )
-            self.awaiting_responses.remove(user_id_normalized)
-            if target.id in self.awaiting_thread_responses:
-                self.awaiting_thread_responses.remove(target.id)
+            safe_remove_list(self.awaiting_responses, user_id_normalized)
+            safe_remove_list(self.awaiting_thread_responses, target.id)
 
     async def end_command(self, ctx: discord.ApplicationContext):
         """Command handler. Gets the user's thread and ends it"""
