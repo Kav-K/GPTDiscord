@@ -8,7 +8,9 @@ def safe_remove_list(remove_from, element):
         pass
 
 
-async def safe_ctx_respond(ctx: discord.ApplicationContext, content: str, ephemeral=False) -> None:
+async def safe_ctx_respond(
+    ctx: discord.ApplicationContext, content: str, ephemeral=False
+) -> None:
     """
     Safely responds to a Discord interaction.
 
