@@ -693,12 +693,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await message.delete()
                 return
 
+        amended_message = message.content
+
         # Retain only image attachments
         attachments = message.attachments
         for _file in message.attachments:
             _file: discord.Attachment
+
             if not _file.content_type.startswith("image"):
                 attachments.remove(_file)
+            if _file.content_type.startswith("text/"):
+                # Decoding a text file to use in the prompt
+                text = (await _file.read()).decode('utf-8')
+                amended_message += text
+
 
 
         # Process the message if the user is in a conversation
@@ -708,6 +716,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             USER_INPUT_API_KEYS,
             USER_KEY_DB,
             files=None if len(attachments) < 1 else attachments,
+            amended_message=amended_message
         ):
             print("Processing a conversation message in server", message.guild.name)
             self.usage_service.update_usage_memory(

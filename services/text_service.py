@@ -651,9 +651,9 @@ class TextService:
 
     @staticmethod
     async def process_conversation_message(
-        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB, files=None
+        converser_cog, message, USER_INPUT_API_KEYS, USER_KEY_DB, files=None, amended_message=None
     ):
-        content = message.content.strip()
+        content = message.content.strip() if not amended_message else amended_message.strip()
         conversing = converser_cog.check_conversing(message.channel.id, content)
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
