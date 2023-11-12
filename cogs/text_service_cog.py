@@ -708,17 +708,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         amended_message = message.content
 
-        # Retain only image attachments
-        attachments = message.attachments
-        for _file in message.attachments:
-            _file: discord.Attachment
+        # Retain only image attachments if in a regular conversation
+        attachments = []
+        if self.check_conversing(message.channel.id, message.content):
+            attachments = message.attachments
+            for _file in message.attachments:
+                _file: discord.Attachment
 
-            if not _file.content_type.startswith("image"):
-                attachments.remove(_file)
-            if _file.content_type.startswith("text/"):
-                # Decoding a text file to use in the prompt
-                text = (await _file.read()).decode("utf-8")
-                amended_message += text
+                if not _file.content_type.startswith("image"):
+                    attachments.remove(_file)
+                if _file.content_type.startswith("text/"):
+                    # Decoding a text file to use in the prompt
+                    text = (await _file.read()).decode("utf-8")
+                    amended_message += text
 
         # Process the message if the user is in a conversation
         if await TextService.process_conversation_message(
@@ -729,7 +731,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             files=None if len(attachments) < 1 else attachments,
             amended_message=amended_message,
         ):
-            print("Processing a conversation message in server", message.guild.name)
+            print("Processed a conversation message in server", message.guild.name)
             self.usage_service.update_usage_memory(
                 message.guild.name, "conversation_message", 1
             )
