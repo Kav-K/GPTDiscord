@@ -165,8 +165,18 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
             assert self.CONVERSATION_STARTER_TEXT_MINIMAL is not None
 
+            conversation_file_path_vision = EnvService.find_shared_file(
+                "conversation_starter_pretext_vision.txt"
+            )
+            with conversation_file_path_vision.open("r") as f:
+                self.CONVERSATION_STARTER_TEXT_VISION = f.read()
+                print(
+                    f"Conversation starter text loaded from {conversation_file_path_vision}."
+                )
+            assert self.CONVERSATION_STARTER_TEXT_VISION is not None
+
         except Exception:
-            self.CONVERSATION_STARTER_TEXT = self.CONVERSATION_STARTER_TEXT_MINIMAL = (
+            self.CONVERSATION_STARTER_TEXT = self.CONVERSATION_STARTER_TEXT_MINIMAL = self.CONVERSATION_STARTER_TEXT_VISION = (
                 "You are an artificial intelligence that is able to do anything, and answer any question,"
                 "I want you to be my personal assistant and help me with some tasks. "
                 "and I want you to make well-informed decisions using the data that you have been trained on, "
@@ -1237,9 +1247,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             embed = discord.Embed(title=embed_title, color=0x808080)
             await ctx.respond(embed=embed)
 
+        model_selection = self.model.model if not model else model
+
         self.conversation_threads[target.id] = Thread(target.id)
         self.conversation_threads[target.id].model = (
-            self.model.model if not model else model
+            model_selection
         )
 
         # Set the overrides for the conversation
@@ -1298,9 +1310,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
             )
-        elif not minimal:
+        elif not minimal and not "-vision" in model_selection:
             self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
+            )
+        else: # Vision case, dont add the image-ocr image-caption, etc helpers here.
+            self.conversation_threads[target.id].history.append(
+                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_VISION, 0)
             )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
