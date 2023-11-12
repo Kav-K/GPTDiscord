@@ -176,7 +176,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             assert self.CONVERSATION_STARTER_TEXT_VISION is not None
 
         except Exception:
-            self.CONVERSATION_STARTER_TEXT = self.CONVERSATION_STARTER_TEXT_MINIMAL = self.CONVERSATION_STARTER_TEXT_VISION = (
+            self.CONVERSATION_STARTER_TEXT = (
+                self.CONVERSATION_STARTER_TEXT_MINIMAL
+            ) = self.CONVERSATION_STARTER_TEXT_VISION = (
                 "You are an artificial intelligence that is able to do anything, and answer any question,"
                 "I want you to be my personal assistant and help me with some tasks. "
                 "and I want you to make well-informed decisions using the data that you have been trained on, "
@@ -1250,9 +1252,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         model_selection = self.model.model if not model else model
 
         self.conversation_threads[target.id] = Thread(target.id)
-        self.conversation_threads[target.id].model = (
-            model_selection
-        )
+        self.conversation_threads[target.id].model = model_selection
 
         # Set the overrides for the conversation
         self.conversation_threads[target.id].set_overrides(
@@ -1314,7 +1314,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
             )
-        else: # Vision case, dont add the image-ocr image-caption, etc helpers here.
+        else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
             self.conversation_threads[target.id].history.append(
                 EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_VISION, 0)
             )
