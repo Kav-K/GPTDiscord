@@ -41,6 +41,7 @@ COPY README.md /src
 COPY cogs /src/cogs
 COPY models /src/models
 COPY services /src/services
+COPY utils /src/utils
 COPY gpt3discord.py /src
 COPY pyproject.toml /src
 
