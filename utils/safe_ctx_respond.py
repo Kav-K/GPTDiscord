@@ -15,9 +15,9 @@ async def safe_ctx_respond(
     Safely responds to a Discord interaction.
 
     Args:
-        *args: Positional arguments to be passed to the `respond` or `reply` method of the context.
-        **kwargs: Keyword arguments to be passed to the `respond` or `reply` method of the context.
-            `ctx` is a required keyword argument.
+        ctx (discord.ApplicationContext): The interaction context.
+        content (str): The content to send.
+        ephemeral (bool, optional): Whether the response should be ephemeral. Defaults to False.
 
     Raises:
         ValueError: If `ctx` is not provided in the `kwargs`.
