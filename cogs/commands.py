@@ -320,6 +320,93 @@ class Commands(discord.Cog, name="Commands"):
             violence_graphic,
         )
 
+    @add_to_group("mod")
+    @discord.slash_command(
+        name="perspective_config",
+        description="Configure the moderations service for the current guild. Lower # = more strict",
+        guild_ids=ALLOWED_GUILDS,
+    )
+    @discord.option(
+        name="type",
+        description="The type of moderation to configure",
+        required=True,
+        autocomplete=Settings_autocompleter.get_value_moderations,
+    )
+    @discord.option(
+        name="toxicity",
+        description="The threshold for toxicity",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="severe_toxicity",
+        description="The threshold for severe toxicity",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="identity_attack",
+        description="The threshold for identity attack",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="insult",
+        description="The threshold for insult",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="profanity",
+        description="The threshold for profanity",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="threat",
+        description="The threshold for threat",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.option(
+        name="sexually_explicit",
+        description="The threshold for sexually explicit",
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    @discord.guild_only()
+    async def perspective_config(
+        self,
+        ctx: discord.ApplicationContext,
+        type: str,
+        toxicity: float,
+        severe_toxicity: float,
+        identity_attack: float,
+        insult: float,
+        profanity: float,
+        threat: float,
+        sexually_explicit: float,
+    ):
+
+        await self.moderations_cog.perspective_config_command(
+            ctx,
+            type,
+            toxicity,
+            severe_toxicity,
+            identity_attack,
+            insult,
+            profanity,
+            threat,
+            sexually_explicit,
+        )
+
     #
     # GPT commands
     #
