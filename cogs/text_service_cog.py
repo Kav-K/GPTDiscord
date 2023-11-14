@@ -43,7 +43,7 @@ USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 CHAT_BYPASS_ROLES = EnvService.get_bypass_roles()
 PRE_MODERATE = EnvService.get_premoderate()
-FORCE_ENGLISH = EnvService.get_force_english()
+FORCE_LANGUAGE = EnvService.get_force_language()
 BOT_TAGGABLE = EnvService.get_bot_is_taggable()
 CHANNEL_CHAT_ROLES = EnvService.get_channel_chat_roles()
 BOT_TAGGABLE_ROLES = EnvService.get_gpt_roles()
@@ -667,7 +667,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await TextService.process_conversation_edit(self, after, original_message)
 
     @discord.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         """On a new message check if it should be moderated then process it for conversation"""
         if message.author == self.bot.user:
             return
@@ -675,6 +675,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Check if the message is a discord system message
         if message.type != discord.MessageType.default:
             return
+
+        # Language check
+        if FORCE_LANGUAGE and len(message.content.split(" ")) > 3:
+            if not await Moderation.force_language_and_respond(
+                message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message, language=FORCE_LANGUAGE
+            ):
+                await message.delete()
+                return
 
         # Moderations service is done here.
         if (
@@ -697,14 +705,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 await Moderation.moderation_queues[message.guild.id].put(
                     Moderation(message, timestamp)
                 )
-
-        # Language check
-        if FORCE_ENGLISH and len(message.content.split(" ")) > 3:
-            if not await Moderation.force_english_and_respond(
-                message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message
-            ):
-                await message.delete()
-                return
 
         amended_message = message.content
 
