@@ -508,7 +508,6 @@ class Index_handler:
                     return False, None
 
     async def start_index_chat(self, ctx, model):
-        await ctx.defer()
         preparation_message = await ctx.channel.send(
             embed=EmbedStatics.get_index_chat_preparation_message()
         )
