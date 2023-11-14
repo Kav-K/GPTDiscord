@@ -8,7 +8,10 @@ from pathlib import Path
 import discord
 
 from models.openai_model import Model as OpenAIModel
-from models.perspective_model import Model as PerspectiveModel, languageNotSupportedByAttribute
+from models.perspective_model import (
+    Model as PerspectiveModel,
+    languageNotSupportedByAttribute,
+)
 from services.environment_service import EnvService
 from services.usage_service import UsageService
 
@@ -26,6 +29,7 @@ class ModerationModel:
             self.openaiModel = OpenAIModel(usage_service)
         if self.type == "perspective" or language_detect_type == "perspective":
             self.perspectiveModel = PerspectiveModel()
+
     async def send_language_detect_request(self, text, pretext, language) -> bool:
         # false is not in language
         # true is in language
@@ -34,16 +38,15 @@ class ModerationModel:
                 text, pretext
             )
             content: str = response["choices"][0]["text"]
-            return not "false" in content.lower().strip() and language == "en"
+            return ((not "false" in content.lower().strip() and language == "en"), None)
         elif self.language_detect_type == "perspective":
             try:
-                response = await self.perspectiveModel.send_language_detect_request(text)
+                response = await self.perspectiveModel.send_language_detect_request(
+                    text
+                )
             except languageNotSupportedByAttribute:
-                return False
-            return (
-                len(response) == 1
-                and response[0] == language
-            )
+                return False, None
+            return ((len(response) == 1 and response[0] == language), response[0])
 
     async def send_moderations_request(self, text, override_model=None):
         if self.type == "openai" or override_model == "openai":
@@ -57,6 +60,102 @@ class ModerationModel:
 moderation_model_type = EnvService.get_moderation_service()
 language_detect_model_type = EnvService.get_language_detect_service()
 model = ModerationModel(moderation_model_type)
+
+LANGUAGE_MATCHING_DICT = {
+    "ar": "Arabic",
+    "zh": "Chinese",
+    "cs": "Czech",
+    "nl": "Dutch",
+    "en": "English",
+    "fr": "French",
+    "de": "German",
+    "hi": "Hindi",
+    "hi-Latn": "Hinglish",
+    "id": "Indonesian",
+    "it": "Italian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "pl": "Polish",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "es": "Spanish",
+    "sv": "Swedish",
+}
+
+LANGUAGE_MODERATED_MESSAGES = {
+    "ar": {
+        "title": "تم تعديل رسالتك",
+        "description": "اكتشفت أنظمة الإشراف التلقائية لدينا أن رسالتك لم تكن باللغة {lang} وتم حذفها. يرجى مراجعة القواعد.",
+    },
+    "zh": {
+        "title": "您的消息已被审查",
+        "description": "我们的自动审查系统检测到您的消息不是用{lang}撰写的，已被删除。请检查规则。",
+    },
+    "cs": {
+        "title": "Vaše zpráva byla moderována",
+        "description": "Naše automatické moderační systémy zjistily, že vaše zpráva nebyla v {lang} a byla smazána. Přečtěte si prosím pravidla.",
+    },
+    "nl": {
+        "title": "Uw bericht is gemodereerd",
+        "description": "Onze automatische moderatiesystemen hebben gedetecteerd dat uw bericht niet in {lang} was en is verwijderd. Gelieve de regels te herzien.",
+    },
+    "en": {
+        "title": "Your message was moderated",
+        "description": "Our automatic moderation systems detected that your message was not in {lang} and has been deleted. Please review the rules.",
+    },
+    "fr": {
+        "title": "Votre message a été modéré",
+        "description": "Nos systèmes de modération automatiques ont détecté que votre message n'était pas en {lang} et a été supprimé. Veuillez consulter les règles.",
+    },
+    "de": {
+        "title": "Ihre Nachricht wurde moderiert",
+        "description": "Unsere automatischen Moderationssysteme haben festgestellt, dass Ihre Nachricht nicht in {lang} war und wurde gelöscht. Bitte überprüfen Sie die Regeln.",
+    },
+    "hi": {
+        "title": "आपका संदेश मॉडरेट किया गया है",
+        "description": "हमारी स्वचालित मॉडरेशन प्रणालियों ने पाया कि आपका संदेश {lang} में नहीं था और इसे हटा दिया गया है। कृपया नियमों की समीक्षा करें।",
+    },
+    "hi-Latn": {
+        "title": "Aapka sandesh moderated kiya gaya hai",
+        "description": "Hamari swachalit moderation pranaliyon ne paya ki aapka sandesh {lang} mein nahi tha aur ise hata diya gaya hai. Kripya niyamon ki samiksha karen.",
+    },
+    "id": {
+        "title": "Pesan Anda telah dimoderasi",
+        "description": "Sistem moderasi otomatis kami mendeteksi bahwa pesan Anda tidak dalam {lang} dan telah dihapus. Silakan tinjau aturan-aturan tersebut.",
+    },
+    "it": {
+        "title": "Il tuo messaggio è stato moderato",
+        "description": "I nostri sistemi di moderazione automatica hanno rilevato che il tuo messaggio non era in {lang} ed è stato eliminato. Si prega di rivedere le regole.",
+    },
+    "ja": {
+        "title": "あなたのメッセージはモデレートされました",
+        "description": "当社の自動モデレーションシステムは、あなたのメッセージが{lang}ではないことを検出し、削除されました。ルールを確認してください。",
+    },
+    "ko": {
+        "title": "귀하의 메시지가 조정되었습니다",
+        "description": "우리의 자동 조정 시스템은 귀하의 메시지가 {lang}이 아니라고 감지하여 삭제되었습니다. 규칙을 검토하십시오.",
+    },
+    "pl": {
+        "title": "Twoja wiadomość została zmodyfikowana",
+        "description": "Nasze automatyczne systemy moderacji wykryły, że Twoja wiadomość nie była w {lang} i została usunięta. Proszę zapoznać się z zasadami.",
+    },
+    "pt": {
+        "title": "Sua mensagem foi moderada",
+        "description": "Nossos sistemas de moderação automáticos detectaram que sua mensagem não estava em {lang} e foi excluída. Por favor, revise as regras.",
+    },
+    "ru": {
+        "title": "Ваше сообщение было отмодерировано",
+        "description": "Наши автоматические системы модерации обнаружили, что ваше сообщение не на {lang} и было удалено. Пожалуйста, ознакомьтесь с правилами.",
+    },
+    "es": {
+        "title": "Tu mensaje ha sido moderado",
+        "description": "Nuestros sistemas de moderación automáticos detectaron que tu mensaje no estaba en {lang} y ha sido eliminado. Por favor, revisa las reglas.",
+    },
+    "sv": {
+        "title": "Ditt meddelande har modererats",
+        "description": "Våra automatiska modereringssystem upptäckte att ditt meddelande inte var på {lang} och har tagits bort. Vänligen se över reglerna.",
+    },
+}
 
 
 class ModerationResult:
@@ -162,17 +261,21 @@ class PerspectiveThresholdSet:
         """ "key": value format"""
         # "key": value format
         return ", ".join([f"{k}: {v}" for k, v in zip(self.keys, self.thresholds)])
-    
+
     def moderate(self, text, response_message):
         attribute_scores = response_message["attributeScores"]
-        flagged = False #not applicable for perspective
+        flagged = False  # not applicable for perspective
 
         for category, threshold in zip(self.keys, self.thresholds):
             threshold = float(threshold)
-#            if attribute_scores[category]["summaryScore"]["value"] > threshold:
-            if attribute_scores.get(category) and attribute_scores[category]["summaryScore"]["value"] > threshold:
+            #            if attribute_scores[category]["summaryScore"]["value"] > threshold:
+            if (
+                attribute_scores.get(category)
+                and attribute_scores[category]["summaryScore"]["value"] > threshold
+            ):
                 return (True, flagged)
         return (False, flagged)
+
 
 class Moderation:
     # Moderation service data
@@ -195,7 +298,11 @@ class Moderation:
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
-        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png" if model.type == "openai" else "https://i.imgur.com/MLi8bOn.png")
+        embed.set_thumbnail(
+            url="https://i.imgur.com/2oL8JSp.png"
+            if model.type == "openai"
+            else "https://i.imgur.com/MLi8bOn.png"
+        )
         embed.set_footer(
             text="If you think this was a mistake, please contact the server admins."
         )
@@ -217,35 +324,22 @@ class Moderation:
         return embed
 
     @staticmethod
-    def build_non_language_message(language):
+    def build_non_language_message(language, detected_language=None):
         # Create a discord embed to send to the user when their message gets moderated
-        matching = {
-            "ar": "Arabic",
-            "zh": "Chinese",
-            "cs": "Czech",
-            "nl": "Dutch",
-            "en": "English",
-            "fr": "French",
-            "de": "German",
-            "hi": "Hindi",
-            "hi-Latn": "Hinglish",
-            "id": "Indonesian",
-            "it": "Italian",
-            "ja": "Japanese",
-            "ko": "Korean",
-            "pl": "Polish",
-            "pt": "Portuguese",
-            "ru": "Russian",
-            "es": "Spanish",
-            "sv": "Swedish",
-        }
+        title = LANGUAGE_MODERATED_MESSAGES.get(detected_language, LANGUAGE_MODERATED_MESSAGES["en"])["title"]
+        description = LANGUAGE_MODERATED_MESSAGES.get(detected_language, LANGUAGE_MODERATED_MESSAGES["en"])["description"]
+        description = description.format(lang=LANGUAGE_MATCHING_DICT.get(language, "English"))
         embed = discord.Embed(
-            title="Your message was moderated",
-            description=f"Our automatic moderation systems detected that your message was not in {matching.get(language, 'a supported language')} and has been deleted. Please review the rules.",
+            title=title,
+            description=description,
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
-        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png" if model.language_detect_type == "openai" else "https://i.imgur.com/MLi8bOn.png")
+        embed.set_thumbnail(
+            url="https://i.imgur.com/2oL8JSp.png"
+            if model.language_detect_type == "openai"
+            else "https://i.imgur.com/MLi8bOn.png"
+        )
         embed.set_footer(
             text="If you think this was a mistake, please contact the server admins."
         )
@@ -253,13 +347,13 @@ class Moderation:
 
     @staticmethod
     async def force_language_and_respond(text, pretext, ctx, language: str):
-        response = await model.send_language_detect_request(text, pretext, language)
+        response, detected_language = await model.send_language_detect_request(text, pretext, language)
 
         if not response:
             if isinstance(ctx, discord.Message):
-                await ctx.reply(embed=Moderation.build_non_language_message(language))
+                await ctx.reply(embed=Moderation.build_non_language_message(language, detected_language))
             else:
-                await ctx.respond(embed=Moderation.build_non_language_message(language))
+                await ctx.respond(embed=Moderation.build_non_language_message(language, detected_language))
             return False
         return True
 
