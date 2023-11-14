@@ -7,12 +7,56 @@ from pathlib import Path
 
 import discord
 
-from models.openai_model import Model
+from models.openai_model import Model as OpenAIModel
+from models.perspective_model import Model as PerspectiveModel, languageNotSupportedByAttribute
 from services.environment_service import EnvService
 from services.usage_service import UsageService
 
-usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
-model = Model(usage_service)
+
+class ModerationModel:
+    def __init__(self, type: str, language_detect_type=None):
+        if type not in ["openai", "perspective"]:
+            raise ValueError("Invalid model type")
+        self.type = type
+        usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
+
+        if language_detect_type == None:
+            self.language_detect_type = self.type
+        if self.type == "openai" or language_detect_type == "openai":
+            self.openaiModel = OpenAIModel(usage_service)
+        if self.type == "perspective" or language_detect_type == "perspective":
+            self.perspectiveModel = PerspectiveModel()
+    async def send_language_detect_request(self, text, pretext, language) -> bool:
+        # false is not in language
+        # true is in language
+        if self.language_detect_type == "openai":
+            response = await self.openaiModel.send_language_detect_request(
+                text, pretext
+            )
+            content: str = response["choices"][0]["text"]
+            return not "false" in content.lower().strip() and language == "en"
+        elif self.language_detect_type == "perspective":
+            try:
+                response = await self.perspectiveModel.send_language_detect_request(text)
+            except languageNotSupportedByAttribute:
+                return False
+            return (
+                len(response) == 1
+                and response[0] == language
+            )
+
+    async def send_moderations_request(self, text):
+        if self.type == "openai":
+            result = await self.openaiModel.send_moderations_request(text)
+            return result
+        elif self.type == "perspective":
+            result = await self.perspectiveModel.send_moderations_request(text)
+            return result
+
+
+moderation_model_type = EnvService.get_moderation_service()
+language_detect_model_type = EnvService.get_language_detect_service()
+model = ModerationModel(moderation_model_type)
 
 
 class ModerationResult:
@@ -79,6 +123,57 @@ class ThresholdSet:
         return (False, flagged)
 
 
+class PerspectiveThresholdSet:
+    def __init__(self, tx, s_tx, i_a, i, p, tr, s_e):
+        """A set of thresholds for the Perspective moderation endpoint
+
+        Args:
+            tx (float): toxicity
+            s_tx (float): severe toxicity
+            i_a (float): identity attack
+            i (float): insult
+            p (float): profanity
+            tr (float): threat
+            s_e (float): sexually explicit
+        """
+
+        self.keys = [
+            "TOXICITY",
+            "SEVERE_TOXICITY",
+            "IDENTITY_ATTACK",
+            "INSULT",
+            "PROFANITY",
+            "THREAT",
+            "SEXUALLY_EXPLICIT",
+        ]
+        self.thresholds = [
+            tx,
+            s_tx,
+            i_a,
+            i,
+            p,
+            tr,
+            s_e,
+        ]
+
+    # The string representation is just the keys alongside the threshold values
+
+    def __str__(self):
+        """ "key": value format"""
+        # "key": value format
+        return ", ".join([f"{k}: {v}" for k, v in zip(self.keys, self.thresholds)])
+    
+    def moderate(self, text, response_message):
+        attribute_scores = response_message["attributeScores"]
+        flagged = False #not applicable for perspective
+
+        for category, threshold in zip(self.keys, self.thresholds):
+            threshold = float(threshold)
+#            if attribute_scores[category]["summaryScore"]["value"] > threshold:
+            if attribute_scores.get(category) and attribute_scores[category]["summaryScore"]["value"] > threshold:
+                return (True, flagged)
+        return (False, flagged)
+
 class Moderation:
     # Moderation service data
     moderation_queues = {}
@@ -122,11 +217,31 @@ class Moderation:
         return embed
 
     @staticmethod
-    def build_non_english_message():
+    def build_non_language_message(language):
         # Create a discord embed to send to the user when their message gets moderated
+        matching = {
+            "ar": "Arabic",
+            "zh": "Chinese",
+            "cs": "Czech",
+            "nl": "Dutch",
+            "en": "English",
+            "fr": "French",
+            "de": "German",
+            "hi": "Hindi",
+            "hi-Latn": "Hinglish",
+            "id": "Indonesian",
+            "it": "Italian",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "pl": "Polish",
+            "pt": "Portuguese",
+            "ru": "Russian",
+            "es": "Spanish",
+            "sv": "Swedish",
+        }
         embed = discord.Embed(
             title="Your message was moderated",
-            description="Our automatic moderation systems detected that your message was not in English and has been deleted. Please review the rules.",
+            description=f"Our automatic moderation systems detected that your message was not in {matching.get(language, 'a supported language')} and has been deleted. Please review the rules.",
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
@@ -137,15 +252,14 @@ class Moderation:
         return embed
 
     @staticmethod
-    async def force_english_and_respond(text, pretext, ctx):
-        response = await model.send_language_detect_request(text, pretext)
-        response_text = response["choices"][0]["text"]
+    async def force_language_and_respond(text, pretext, ctx, language: str):
+        response = await model.send_language_detect_request(text, pretext, language)
 
-        if "false" in response_text.lower().strip():
+        if not response:
             if isinstance(ctx, discord.Message):
-                await ctx.reply(embed=Moderation.build_non_english_message())
+                await ctx.reply(embed=Moderation.build_non_language_message(language))
             else:
-                await ctx.respond(embed=Moderation.build_non_english_message())
+                await ctx.respond(embed=Moderation.build_non_language_message(language))
             return False
         return True
 
@@ -158,7 +272,6 @@ class Moderation:
         pre_mod_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.95, 0.4)
 
         response = await Moderation.simple_moderate(text)
-        print(response)
         flagged = (
             True
             if Moderation.determine_moderation_result(
@@ -187,6 +300,7 @@ class Moderation:
             description=f"**Message from {moderated_message.author.mention}:** {moderated_message.content}",
             colour=discord.Colour.yellow(),
         )
+        embed.set_footer(text=f"Used service {moderation_model_type}")
         link = f"https://discord.com/channels/{moderated_message.guild.id}/{moderated_message.channel.id}/{moderated_message.id}"
         embed.add_field(name="Message link", value=link, inline=False)
         if deleted_message:
@@ -214,6 +328,7 @@ class Moderation:
             description=f"Message from {moderated_message.author.mention} was moderated: {moderated_message.content}",
             colour=discord.Colour.red(),
         )
+        embed.set_footer(text=f"Used service {moderation_model_type}")
         # Get the link to the moderated message
         link = f"https://discord.com/channels/{response_message.guild.id}/{response_message.channel.id}/{response_message.id}"
         # set the link of the embed
@@ -235,7 +350,6 @@ class Moderation:
             return ModerationResult.WARN
         return ModerationResult.NONE
 
-    # This function will be called by the bot to process the message queue
     @staticmethod
     async def process_moderation_queue(
         moderation_queue,
@@ -247,7 +361,6 @@ class Moderation:
     ):
         while True:
             try:
-                # If the queue is empty, sleep for a short time before checking again
                 if moderation_queue.empty():
                     await asyncio.sleep(EMPTY_WAIT_TIME)
                     continue

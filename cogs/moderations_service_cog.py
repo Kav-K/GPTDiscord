@@ -4,14 +4,19 @@ import discord
 from sqlitedict import SqliteDict
 
 from services.environment_service import EnvService
-from services.moderations_service import Moderation, ThresholdSet
+from services.moderations_service import (
+    Moderation,
+    ThresholdSet,
+    PerspectiveThresholdSet,
+)
 
+moderation_service = EnvService.get_moderation_service()
 MOD_DB = None
 try:
     print("Attempting to retrieve the General and Moderations DB")
     MOD_DB = SqliteDict(
         EnvService.find_shared_file("main_db.sqlite"),
-        tablename="moderations",
+        tablename="moderations" if moderation_service == "openai" else "perspective",
         autocommit=True,
     )
 except Exception as e:
@@ -29,7 +34,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         model,
     ):
         super().__init__()
-        self.bot = bot
+        self.bot: discord.bot = bot
         self.usage_service = usage_service
         self.model = model
 
@@ -41,8 +46,18 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self.moderations_launched = []
 
         # Defaults
-        self.default_warn_set = ThresholdSet(0.01, 0.05, 0.05, 0.91, 0.1, 0.45, 0.1)
-        self.default_delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
+        if moderation_service == "openai":
+            self.default_warn_set = ThresholdSet(0.01, 0.05, 0.05, 0.91, 0.1, 0.45, 0.1)
+            self.default_delete_set = ThresholdSet(
+                0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4
+            )
+        else:
+            self.default_warn_set = PerspectiveThresholdSet(
+                0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6
+            )
+            self.default_delete_set = PerspectiveThresholdSet(
+                0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8
+            )
 
     @discord.Cog.listener()
     async def on_ready(self):
@@ -51,7 +66,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             self.get_or_set_warn_set(guild.id)
             self.get_or_set_delete_set(guild.id)
             await self.check_and_launch_moderations(guild.id)
-        print("The moderation service is ready.")
+        print(f"The moderation service is ready, using {moderation_service}")
 
     def check_guild_moderated(self, guild_id):
         """Given guild id, return bool of moderation status"""
@@ -126,9 +141,12 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             )
             warn_set_nums = self.get_or_set_warn_set(guild_id).values()
             delete_set_nums = self.get_or_set_delete_set(guild_id).values()
-            warn_set = ThresholdSet(*warn_set_nums)
-            delete_set = ThresholdSet(*delete_set_nums)
-
+            if moderation_service == "openai":
+                warn_set = ThresholdSet(*warn_set_nums)
+                delete_set = ThresholdSet(*delete_set_nums)
+            else:
+                warn_set = PerspectiveThresholdSet(*warn_set_nums)
+                delete_set = PerspectiveThresholdSet(*delete_set_nums)
             Moderation.moderation_tasks[guild_id] = asyncio.ensure_future(
                 Moderation.process_moderation_queue(
                     Moderation.moderation_queues[guild_id],
@@ -262,7 +280,11 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             violence_graphic,
         ]
         await ctx.defer(ephemeral=True)
-
+        if moderation_service != "openai":
+            return await ctx.respond(
+                "This command is not available for the perspective moderation service, please use /mod perspective_config instead",
+                ephemeral=True,
+            )
         # Case for printing the current config
         if not any(all_args) and config_type != "reset":
             await ctx.respond(
@@ -315,6 +337,89 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             self.set_delete_set(ctx.guild_id, self.default_delete_set)
             self.set_warn_set(ctx.guild_id, self.default_warn_set)
             await self.restart_moderations_service(ctx)
+        
+    async def perspective_config_command(
+        self,
+        ctx: discord.ApplicationContext,
+        config_type: str,
+        toxicity,
+        severe_toxicity,
+        identity_attack,
+        insult,
+        profanity,
+        threat,
+        sexually_explicit,
+    ):
+        """command handler for assigning threshold values for warn or delete"""
+        all_args = [
+            toxicity,
+            severe_toxicity,
+            identity_attack,
+            insult,
+            profanity,
+            threat,
+            sexually_explicit,
+        ]
+        await ctx.defer(ephemeral=True)
+        if moderation_service != "perspective":
+            return await ctx.respond(
+                "This command is not available for the openai moderation service, please use /mod config instead",
+                ephemeral=True,
+            )
+        # Case for printing the current config
+        if not any(all_args) and config_type != "reset":
+            await ctx.respond(
+                ephemeral=True,
+                embed=await self.build_moderation_settings_embed(
+                    config_type,
+                    self.get_or_set_warn_set(ctx.guild_id)
+                    if config_type == "warn"
+                    else self.get_or_set_delete_set(ctx.guild_id),
+                ),
+            )
+            return
+
+        if config_type == "warn":
+            # Check if no args were
+            warn_set = self.get_or_set_warn_set(ctx.guild_id)
+
+            new_warn_set = PerspectiveThresholdSet(
+                toxicity if toxicity else warn_set["toxicity"],
+                severe_toxicity if severe_toxicity else warn_set["severe_toxicity"],
+                identity_attack if identity_attack else warn_set["identity_attack"],
+                insult if insult else warn_set["insult"],
+                profanity if profanity else warn_set["profanity"],
+                threat if threat else warn_set["threat"],
+                sexually_explicit if sexually_explicit else warn_set["sexually_explicit"],
+            )
+            self.set_warn_set(ctx.guild_id, new_warn_set)
+            await self.restart_moderations_service(ctx)
+
+        elif config_type == "delete":
+            delete_set = self.get_or_set_delete_set(ctx.guild_id)
+
+            new_delete_set = ThresholdSet(
+                toxicity if toxicity else delete_set["toxicity"],
+                severe_toxicity
+                if severe_toxicity
+                else delete_set["severe_toxicity"],
+                identity_attack if identity_attack else delete_set["identity_attack"],
+                insult if insult else delete_set["insult"],
+                profanity if profanity else delete_set["profanity"],
+                threat if threat else delete_set["threat"],
+                sexually_explicit
+                if sexually_explicit
+                else delete_set["sexually_explicit"],
+            )
+            self.set_delete_set(ctx.guild_id, new_delete_set)
+            await self.restart_moderations_service(ctx)
+
+        elif config_type == "reset":
+            self.set_delete_set(ctx.guild_id, self.default_delete_set)
+            self.set_warn_set(ctx.guild_id, self.default_warn_set)
+            await self.restart_moderations_service(ctx)
+
+
 
     async def moderations_test_command(
         self, ctx: discord.ApplicationContext, prompt: str
