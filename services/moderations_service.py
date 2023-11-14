@@ -325,7 +325,7 @@ class Moderation:
             title="A message was moderated in the "
             + moderated_message.guild.name
             + " server",
-            description=f"Message from {moderated_message.author.mention} was moderated: {moderated_message.content}",
+            description=f"Message from {moderated_message.author.mention} was moderated: ||{moderated_message.content}||",
             colour=discord.Colour.red(),
         )
         embed.set_footer(text=f"Used service {moderation_model_type}")
