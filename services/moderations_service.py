@@ -45,11 +45,11 @@ class ModerationModel:
                 and response[0] == language
             )
 
-    async def send_moderations_request(self, text):
-        if self.type == "openai":
+    async def send_moderations_request(self, text, override_model=None):
+        if self.type == "openai" or override_model == "openai":
             result = await self.openaiModel.send_moderations_request(text)
             return result
-        elif self.type == "perspective":
+        elif self.type == "perspective" or override_model == "perspective":
             result = await self.perspectiveModel.send_moderations_request(text)
             return result
 
@@ -195,7 +195,7 @@ class Moderation:
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
-        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png")
+        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png" if model.type == "openai" else "https://i.imgur.com/MLi8bOn.png")
         embed.set_footer(
             text="If you think this was a mistake, please contact the server admins."
         )
@@ -245,7 +245,7 @@ class Moderation:
             colour=discord.Colour.red(),
         )
         # Set the embed thumbnail
-        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png")
+        embed.set_thumbnail(url="https://i.imgur.com/2oL8JSp.png" if model.language_detect_type == "openai" else "https://i.imgur.com/MLi8bOn.png")
         embed.set_footer(
             text="If you think this was a mistake, please contact the server admins."
         )
@@ -265,7 +265,7 @@ class Moderation:
 
     @staticmethod
     async def simple_moderate(text):
-        return await model.send_moderations_request(text)
+        return await model.send_moderations_request(text, override_model="openai")
 
     @staticmethod
     async def simple_moderate_and_respond(text, ctx):
