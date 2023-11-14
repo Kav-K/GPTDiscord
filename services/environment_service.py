@@ -350,6 +350,26 @@ class EnvService:
             return False
 
     @staticmethod
+    def get_force_language():
+        languages = "Arabic (ar), Chinese (zh), Czech (cs), Dutch (nl), English (en), French (fr), German (de), Hindi (hi), Hinglish (hi-Latn), Indonesian (id), Italian (it), Japanese (ja), Korean (ko), Polish (pl), Portuguese (pt), Russian (ru), Spanish (es), Swedish (sv)"
+        available_languages = ["ar", "zh", "cs", "nl", "en", "fr", "de", "hi", "hi-Latn", "id", "it", "ja", "ko", "pl", "pt", "ru", "es", "sv"]
+        try:
+            force_language = os.getenv("FORCE_LANGUAGE", "none").lower().strip()
+            if force_language in available_languages:
+                if force_language != "en" and EnvService.get_language_detect_service() == "openai":
+                    print(f"FORCE_LANGUAGE is set to {force_language} but the language detection service service is set to OpenAI. OpenAI does not support language detection for {force_language}. Language detection will be disabled. You can change the language detection service witht he LANGUAGE_DETECT_SERVICE environment variable.")
+                    return None
+                return force_language
+            elif force_language.lower().strip() not in available_languages and force_language != "none":
+                print(f"FORCE_LANGUAGE is not defined properly in the environment file! The language {force_language} is not supported. The available languages are: {languages} if you use perspective, and English (en) if you use openai.")
+                return None
+            elif force_language == "none" and EnvService.get_force_english():
+                return "en"
+            return None
+        except Exception:
+            return None
+
+    @staticmethod
     def get_force_english():
         try:
             force_english = os.getenv("FORCE_ENGLISH")
@@ -557,3 +577,37 @@ class EnvService:
             return google_cloud_project_id
         except Exception:
             return None
+    
+    @staticmethod
+    def get_moderation_service():
+        try:
+            moderation_service = os.getenv("MODERATION_SERVICE", "openai")
+            return moderation_service
+        except Exception:
+            return "openai"
+    
+    @staticmethod
+    def get_language_detect_service():
+        try:
+            moderation_model = os.getenv("LANGUAGE_DETECT_SERVICE", EnvService.get_moderation_service())
+            return moderation_model
+        except Exception:
+            return EnvService.get_moderation_service()
+
+    @staticmethod
+    def get_perspective_api_key() -> Union[str, None]:
+        try:
+            perspective_api_key = os.getenv("PERSPECTIVE_API_KEY")
+            if perspective_api_key is None:
+                raise ValueError("PERSPECTIVE_API_KEY is not defined properly in the environment file! The bot cannot start without this token.")
+            return perspective_api_key
+        except Exception:
+            return None
+    
+    @staticmethod
+    def get_max_perspective_requests_per_second() -> float:
+        try:
+            max_perspective_requests_per_second = float(os.getenv("MAX_PERSPECTIVE_REQUESTS_PER_SECOND"), 1.0)
+            return max_perspective_requests_per_second
+        except Exception:
+            return 1.0
