@@ -209,7 +209,6 @@ class IndexService(discord.Cog, name="IndexService"):
 
     async def index_chat_command(self, ctx, model):
         await self.index_handler.start_index_chat(ctx, model)
-
         pass
 
     async def rename_user_index_command(self, ctx, user_index, new_name):
