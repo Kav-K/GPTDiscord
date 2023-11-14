@@ -32,7 +32,7 @@ dependencies = [
 "pinecone-client==2.1.0",
 "sqlitedict==2.1.0",
 "backoff==2.2.1",
-"flask==2.2.3",
+"flask==3.0.0",
 "werkzeug==2.2.2",
 "llama-index==0.8.69.post1",
 "pypdf==3.11.1",
