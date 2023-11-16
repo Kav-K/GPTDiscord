@@ -484,7 +484,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 "using your tools. However, the tools can only install one package at a time, if you need to "
                 "install multiple packages, call the tools multiple times. Always first display your code to "
                 "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
-                "to execute code. Never execute code before showing the user the code first."
+                "to execute code. Never execute code before showing the user the code first. Your environment has 4GB RAM, 4vCPU, 2.5GB disk storage, keep this in mind when writing code."
             ),
         }
 
