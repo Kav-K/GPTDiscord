@@ -1224,7 +1224,7 @@ class Model:
                     if frequency_penalty_override is None
                     else frequency_penalty_override,
                 }
-                if "preview":
+                if "preview" in model_selection:
                     payload[
                         "max_tokens"
                     ] = 4096  # Temporary workaround while 4-turbo and vision are in preview.
