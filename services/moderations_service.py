@@ -17,6 +17,15 @@ from services.usage_service import UsageService
 
 
 class ModerationModel:
+    """
+    A class representing a moderation model.
+
+    Attributes:
+        type (str): The type of the model, either "openai" or "perspective".
+        language_detect_type (str): The type of language detection to use, either "openai" or "perspective".
+        openaiModel (OpenAIModel): The OpenAI model used for moderation.
+        perspectiveModel (PerspectiveModel): The Perspective model used for moderation.
+    """
     def __init__(self, type: str, language_detect_type=None):
         if type not in ["openai", "perspective"]:
             raise ValueError("Invalid model type")
