@@ -31,6 +31,17 @@ class ModerationModel:
             self.perspectiveModel = PerspectiveModel()
 
     async def send_language_detect_request(self, text, pretext, language) -> bool:
+        """
+        Sends a language detection request using either the OpenAI or Perspective API.
+
+        Args:
+            text (str): The text to analyze.
+            pretext (str): The pretext to analyze.
+            language (str): The language to detect.
+
+        Returns:
+            A tuple containing a boolean indicating whether the language was detected, and the first detected language (if any).
+        """
         # false is not in language
         # true is in language
         if self.language_detect_type == "openai":
@@ -44,11 +55,21 @@ class ModerationModel:
                 response = await self.perspectiveModel.send_language_detect_request(
                     text
                 )
-            except languageNotSupportedByAttribute:
+            except languageNotSupportedByAttribute: # perspective doesn't support this language
                 return False, None
             return ((len(response) == 1 and response[0] == language), response[0])
 
-    async def send_moderations_request(self, text, override_model=None):
+    async def send_moderations_request(self, text, override_model=None) -> dict:
+        """
+        Sends a moderation request for the given text to the appropriate model.
+
+        Args:
+            text (str): The text to moderate.
+            override_model (str, optional): Overrides the default model for moderation. Defaults to None.
+
+        Returns:
+            dict: The moderation results.
+        """
         if self.type == "openai" or override_model == "openai":
             result = await self.openaiModel.send_moderations_request(text)
             return result
@@ -464,9 +485,13 @@ class Moderation:
 
                 # Check if the current timestamp is greater than the deletion timestamp
                 if datetime.now().timestamp() > to_moderate.timestamp:
-                    response = await model.send_moderations_request(
-                        to_moderate.message.content
-                    )
+                    try:
+                        response = await model.send_moderations_request(
+                            to_moderate.message.content
+                        )
+                    except languageNotSupportedByAttribute:
+                        # If the language is not supported, just ignore the message
+                        continue
                     moderation_result = Moderation.determine_moderation_result(
                         to_moderate.message.content, response, warn_set, delete_set
                     )

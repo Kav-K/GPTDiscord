@@ -74,7 +74,7 @@ ANALYZE_REQUEST = {
         "THREAT": {},
         "SEXUALLY_EXPLICIT": {},
     },
-    "languages": ["en"],
+    "languages": [],
     "doNotStore": "true",
 }
 
@@ -88,7 +88,7 @@ ANALYZE_REQUEST_NOT_EN = {
         "PROFANITY": {},
         "THREAT": {},
     },
-    "languages": ["en"],
+    "languages": [],
     "doNotStore": "true",
 }
 
@@ -104,11 +104,13 @@ class Model:
             response = await self.client.analyze_comment(request)
             return response
         except languageNotSupportedByAttribute:
-            request = ANALYZE_REQUEST_NOT_EN.copy()
-            request["comment"]["text"] = text
-            response = await self.client.analyze_comment(request)
-            return response
-
+            try:
+                request = ANALYZE_REQUEST_NOT_EN.copy()
+                request["comment"]["text"] = text
+                response = await self.client.analyze_comment(request)
+                return response
+            except languageNotSupportedByAttribute:
+                raise
     def value_to_openai_format(self, value, field) -> float:
         # TODO: fix the formula
         return value / 3.5
