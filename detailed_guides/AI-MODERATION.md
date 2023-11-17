@@ -1,26 +1,43 @@
-### Automatic AI Moderation  
-  
-`/mod set status:on` - Turn on automatic chat moderations.   
-  
-`/mod set status:off` - Turn off automatic chat moderations  
-  
-`/mod set status:on alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.  
-  
-`/mod config type:<warn/delete> hate:# hate_threatening:# self_harm:# sexual:# sexual_minors:# violence:# violence_graphic:#`  
-- Set the moderation thresholds of the bot for the specific type of moderation (`warn` or `delete`). You can view the thresholds by typing just `/mod config type:<warn/delete>` without any other parameters. You don't have to set all of them, you can just set one or two items if you want. For example, to set the hate threshold for warns, you can type `/mod config type:warn hate:0.2`  
-- Lower values are more strict, higher values are more lenient. There are default values that I've fine tuned the service with for a general server.  
-  
-The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.  
-  
-This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability.   
-  
-The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!  
-  
-There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).  
-  
-To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.  
+# Automatic AI Moderation
 
-If you want to have the bot pre-moderate things sent to commands like /gpt ask, /gpt edit, /dalle draw, etc, you can set `PRE_MODERATE="True"` in the `.env` file.
+`/mod set status:on` - Turn on automatic chat moderations.
 
-**The above server is NOT for support or discussions about GPT3Discord**  
-  
+`/mod set status:off` - Turn off automatic chat moderations.
+
+`/mod set status:on alert_channel_id:<CHANNEL ID>` - Turn on moderations and set the alert channel to the channel ID you specify in the command.
+
+## Moderation Service Configuration
+
+You can choose between two moderation services: `OpenAI` and `PerspectiveAPI`. Each service has its own set of commands and thresholds for moderation.
+
+**OpenAI Service:**
+- `/mod config type:<warn/delete> hate:# hate_threatening:# self_harm:# sexual:# sexual_minors:# violence:# violence_graphic:#`
+  - Configure the moderation thresholds using openai's content filter.
+  - Example: `/mod config type:warn hate:0.2` sets the hate threshold for warnings.
+  - Thresholds: Lower values are more strict, higher values are more lenient.
+
+**PerspectiveAPI Service:**
+- `/mod perspective_config toxicity:# severe_toxicity:# identity_attack:# insult:# profanity:# threat:# sexual_explicit:#`
+  - Use this command to set thresholds using PerspectiveAPI's language analysis tools.
+  - Example: `/mod perspective_config toxicity:0.7` sets the toxicity threshold for warnings.
+  - Thresholds: Lower values are more strict, higher values are more lenient.
+
+**Choosing the Moderation Service:**
+- `MODERATION_SERVICE`: Set to either `openai` or `perspective`. Defaults to `openai`.
+
+## Language Detection and Force Language Feature
+
+Language detection is managed separately from the moderation service.
+- `FORCE_LANGUAGE`: Set this to force the chat to speak in a specific language. Any messages that are not in the specified language will be deleted. Use a language code from the list below.
+Supported languages include Arabic (ar), Chinese (zh), Czech (cs), Dutch (nl), English (en), French (fr), German (de), Hindi (hi), Hinglish (hi-Latn), Indonesian (id), Italian (it), Japanese (ja), Korean (ko), Polish (pl), Portuguese (pt), Russian (ru), Spanish (es), Swedish (sv).
+- `LANGUAGE_DETECT_SERVICE`: This overrides the default language detection service. It can be set to either the `MODERATION_SERVICE` or a different one. Choose from `openai`, `perspective`. **Please note that `openai` only supports English and `perspective` supports all languages listed above.**
+- `FORCE_ENGLISH`: An alias for setting `FORCE_LANGUAGE="en"`.
+
+## Additional Configuration
+
+- The bot requires Administrative permissions for full functionality.
+- Set `MODERATIONS_ALERT_CHANNEL` in your `.env` file to the channel ID where you want to receive alerts about moderated messages.
+- Requests to the moderation endpoint are sent at a MINIMUM gap of 0.5 seconds for reliability and to avoid blocking.
+- To exempt certain roles from moderation, add `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env` file.
+- Enable pre-moderation for commands like /gpt ask, /gpt edit, /dalle draw, etc., with `PRE_MODERATE="True"` in the `.env` file. This will use `openai` no matter what the `MODERATION_SERVICE` is set to for the feature.
+- `MAX_PERSPECTIVE_REQUESTS_PER_SECOND`: Adjust only if you receive a rate limit increase from Google.
