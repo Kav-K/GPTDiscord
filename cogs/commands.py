@@ -966,7 +966,7 @@ class Commands(discord.Cog, name="Commands"):
         name="quality",
         description="Image quality",
         required=False,
-        default="hd",
+        default="standard",
         autocomplete=Settings_autocompleter.get_dalle3_image_qualities,
     )
     @discord.option(
@@ -980,7 +980,7 @@ class Commands(discord.Cog, name="Commands"):
         name="style",
         description="The style of the generated images, choose between realism/vivid",
         required=False,
-        default="natural",
+        default="vivid",
         autocomplete=Settings_autocompleter.get_dalle3_image_styles,
     )
     async def draw(

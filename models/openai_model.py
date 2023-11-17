@@ -1405,6 +1405,8 @@ class Model:
 
         await self.usage_service.update_usage_image(image_size)
 
+        print("Inside a dalle-3 request")
+
         image_urls = []
         tasks = []
         payload = {
