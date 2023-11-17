@@ -502,6 +502,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
+        name="draw",
+        description="Allow GPT to draw images with DALL-E",
+        required=False,
+        default=False,
+    )
+    @discord.option(
         name="opener",
         description="Which sentence to start with, added after the file",
         required=False,
@@ -573,6 +579,7 @@ class Commands(discord.Cog, name="Commands"):
     async def converse(
         self,
         ctx: discord.ApplicationContext,
+        draw: bool,
         opener: str,
         opener_file: str,
         private: bool,
@@ -586,6 +593,7 @@ class Commands(discord.Cog, name="Commands"):
     ):
         await self.converser_cog.converse_command(
             ctx,
+            draw,
             opener,
             opener_file,
             private,

@@ -1147,6 +1147,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def converse_command(
         self,
         ctx: discord.ApplicationContext,
+        draw: bool,
         opener: str,
         opener_file: str,
         private: bool,
@@ -1156,7 +1157,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
-        use_threads: bool = True,  # Add this parameter
+        use_threads: bool = True,
     ):
         """Command handler. Starts a conversation with the bot
 
@@ -1255,6 +1256,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         self.conversation_threads[target.id] = Thread(target.id)
         self.conversation_threads[target.id].model = model_selection
+        if draw:
+            self.conversation_threads[target.id].drawable = True
 
         # Set the overrides for the conversation
         self.conversation_threads[target.id].set_overrides(
@@ -1373,6 +1376,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 user=user,
                 model=self.conversation_threads[target.id].model,
                 custom_api_key=user_api_key,
+                is_drawable=draw,
             )
             safe_remove_list(self.awaiting_responses, user_id_normalized)
             safe_remove_list(self.awaiting_thread_responses, target.id)

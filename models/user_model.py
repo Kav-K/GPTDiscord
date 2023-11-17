@@ -99,6 +99,7 @@ class Thread:
         self.top_p = None
         self.frequency_penalty = None
         self.presence_penalty = None
+        self.drawable = False
 
     def set_overrides(
         self,
