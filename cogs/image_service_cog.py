@@ -142,7 +142,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             message.content,
             quality="hd",
             image_size="1024x1024",
-            style="natural",
+            style="vivid",
             from_action=True,
         )
 

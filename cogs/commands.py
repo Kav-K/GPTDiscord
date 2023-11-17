@@ -966,7 +966,7 @@ class Commands(discord.Cog, name="Commands"):
         name="quality",
         description="Image quality",
         required=False,
-        default="standard",
+        default="hd",
         autocomplete=Settings_autocompleter.get_dalle3_image_qualities,
     )
     @discord.option(
