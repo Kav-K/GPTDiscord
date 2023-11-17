@@ -1002,7 +1002,9 @@ class Model:
                     messages.append(
                         {
                             "role": role,
-                            "name": username_clean if role == "user" else bot_name_clean,
+                            "name": username_clean
+                            if role == "user"
+                            else bot_name_clean,
                             "content": text,
                         }
                     )
@@ -1012,7 +1014,9 @@ class Model:
                         messages.append(
                             {
                                 "role": role,
-                                "name": username_clean if role == "user" else bot_name_clean,
+                                "name": username_clean
+                                if role == "user"
+                                else bot_name_clean,
                                 "content": [
                                     {"type": "text", "text": text},
                                 ],
@@ -1028,7 +1032,9 @@ class Model:
                         messages.append(
                             {
                                 "role": role,
-                                "name": username_clean if role == "user" else bot_name_clean,
+                                "name": username_clean
+                                if role == "user"
+                                else bot_name_clean,
                                 "content": [
                                     {"type": "text", "text": text},
                                 ],
@@ -1096,7 +1102,6 @@ class Model:
                         return response_text
                     except Exception:
                         raise ValueError("Could not decode JSON response from the API")
-
 
                 return response
 

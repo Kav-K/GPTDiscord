@@ -910,7 +910,9 @@ class TextService:
                 """
                 last_messages = converser_cog.conversation_threads[
                     message.channel.id
-                ].history[-6:] # Get the last 6 messages to determine context on whether we should draw
+                ].history[
+                    -6:
+                ]  # Get the last 6 messages to determine context on whether we should draw
                 last_messages = last_messages[1:]
                 try:
                     thinking_message = await TextService.trigger_thinking(message)
@@ -927,7 +929,9 @@ class TextService:
                     await TextService.stop_thinking(thinking_message)
                     # This validation is only until we figure out what's wrong with the json response mode for vision.
                     if response_json["intent_to_draw"]:
-                        thinking_message = await TextService.trigger_thinking(message,is_drawing=True)
+                        thinking_message = await TextService.trigger_thinking(
+                            message, is_drawing=True
+                        )
 
                         links = await converser_cog.model.send_image_request_within_conversation(
                             response_json["prompt"],
@@ -954,7 +958,9 @@ class TextService:
                         )
                 except:
                     try:
-                        await message.reply("I encountered an error while trying to draw..")
+                        await message.reply(
+                            "I encountered an error while trying to draw.."
+                        )
                         await thinking_message.delete()
                         converser_cog.conversation_threads[
                             message.channel.id
