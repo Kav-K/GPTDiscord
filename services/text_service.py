@@ -353,16 +353,19 @@ class TextService:
                 usage_message = None
 
             if is_chatgpt_conversation:
-
                 if is_drawable:
-                    converser_cog.conversation_threads[
-                        ctx.channel.id
-                    ].history[0].text += "\nYou are able to draw images in this conversation. Only draw when EXPLICITLY asked to do so, otherwise, work on a prompt with the user and ask them if they'd like to draw, if you're discussing drawing in the first place."
+                    converser_cog.conversation_threads[ctx.channel.id].history[
+                        0
+                    ].text += ("\nYou are able to draw images in this conversation. Only draw when EXPLICITLY asked to "
+                               "do so, otherwise, work on a prompt with the user and ask them if they'd like to draw, "
+                               "if you're discussing drawing in the first place. Images that you draw will "
+                               "automatically be sent in chat to the user so you don't need to name the file or "
+                               "provide the file yourself, you will already have knowledge of what is drawn and will "
+                               "simply describe it.")
                 else:
-                    converser_cog.conversation_threads[
-                        ctx.channel.id
-                    ].history[
-                        0].text += "\nYou are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
+                    converser_cog.conversation_threads[ctx.channel.id].history[
+                        0
+                    ].text += "\nYou are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
 
                 _prompt_with_history = converser_cog.conversation_threads[
                     ctx.channel.id
@@ -890,7 +893,11 @@ class TextService:
 
             # Determine if we should draw an image and determine what to draw, and handle the drawing itself
             # TODO: This should be encapsulated better into some other service or function so we're not cluttering this text service file, this text service file is gross right now..
-            if "-vision" in model and not converser_cog.pinecone_service and converser_cog.conversation_threads[message.channel.id].drawable:
+            if (
+                "-vision" in model
+                and not converser_cog.pinecone_service
+                and converser_cog.conversation_threads[message.channel.id].drawable
+            ):
                 print("Checking for if the user asked to draw")
                 draw_check_prompt = """
                 You will be given a set of conversation items and you will determine if the intent of the user(s) are to draw/create a picture or not, if the intent is to
@@ -1029,6 +1036,9 @@ class TextService:
                 overrides=overrides,
                 model=converser_cog.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
+                is_drawable=converser_cog.conversation_threads[
+                    message.channel.id
+                ].drawable,
             )
 
             # Delete the thinking embed
