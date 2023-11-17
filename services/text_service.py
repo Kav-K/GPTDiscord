@@ -1,5 +1,6 @@
 import asyncio.exceptions
 import datetime
+import json
 import re
 import traceback
 from collections import defaultdict
@@ -847,6 +848,88 @@ class TextService:
 
                 # increment the conversation counter for the user
                 converser_cog.conversation_threads[message.channel.id].count += 1
+
+            # Determine if we should draw an image and determine what to draw, and handle the drawing itself
+            # TODO: This should be encapsulated better into some other service or function so we're not cluttering this text service file, this text service file is gross right now..
+            if "-vision" in model and not converser_cog.pinecone_service:
+                print("Checking for if the user asked to draw")
+                draw_check_prompt = """
+                You will be given a set of conversation items and you will determine if the intent of the user(s) are to draw/create a picture or not, if the intent is to
+                draw a picture, extract a prompt for the image to draw for use in systems like DALL-E. Respond with JSON after you determine intent to draw or not. In this format:
+                
+                {
+                    "intent_to_draw": true/false,
+                    "prompt": "prompt to draw"
+                }
+                
+                For example, you determined intent to draw a cat sitting on a chair:
+                {
+                    "intent_to_draw": true,
+                    "prompt": "A cat sitting on a chair"
+                }
+                For example, you determined no intent:
+                {
+                    "intent_to_draw": false,
+                    "prompt": ""
+                }
+                Only signify an intent to draw when the user has explicitly asked you to draw, sometimes there may be situations where the user is asking you to brainstorm a prompt
+                but not neccessarily draw it, if you are unsure, ask the user explicitly.
+                """
+                last_messages = converser_cog.conversation_threads[
+                    message.channel.id
+                ].history[-6:] # Get the last 6 messages to determine context on whether we should draw
+                last_messages = last_messages[1:]
+                try:
+                    response = await converser_cog.model.send_chatgpt_chat_request(
+                        last_messages,
+                        "gpt-4-vision-preview",
+                        temp_override=0,
+                        user_displayname=message.author.display_name,
+                        bot_name=BOT_NAME,
+                        system_prompt_override=draw_check_prompt,
+                        respond_json=True,
+                    )
+                    response_text = response["choices"][0]["message"]["content"].strip()
+                    response_text = response_text.replace("```json", "")
+                    response_text = response_text.replace("```", "")
+                    # This validation is only until we figure out what's wrong with the json response mode for vision.
+                    response_json = json.loads(response_text)
+                    if response_json["intent_to_draw"]:
+                        thinking_embed = discord.Embed(
+                            title=f"🤖💬 Drawing...",
+                            color=0x808080,
+                        )
+
+                        thinking_embed.set_footer(text="This may take a few seconds.")
+                        try:
+                            thinking_message = await message.reply(embed=thinking_embed)
+                        except:
+                            pass
+                        links = await converser_cog.model.send_image_request_within_conversation(
+                            response_json["prompt"],
+                            quality="hd",
+                            image_size="1024x1024",
+                            style="vivid",
+                        )
+                        try:
+                            thinking_message = await thinking_message.delete()
+                        except:
+                            pass
+
+                        for num, link in enumerate(links):
+                            await message.reply(f"[image{num}]({link})")
+
+                        converser_cog.conversation_threads[
+                            message.channel.id
+                        ].history.append(
+                            EmbeddedConversationItem(
+                                f"\n{BOT_NAME}: [I have just drawn the following images for the user, briefly describe the image and acknowledge that you've drawn it] <|endofstatement|>\n",
+                                0,
+                                image_urls=links,
+                            )
+                        )
+                except:
+                    traceback.print_exc()
 
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt

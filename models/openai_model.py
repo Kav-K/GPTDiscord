@@ -932,6 +932,8 @@ class Model:
         max_tokens_override=None,
         stop=None,
         custom_api_key=None,
+        system_prompt_override=None,
+        respond_json=None,
     ) -> (
         Tuple[dict, bool]
     ):  # The response, and a boolean indicating whether or not the context limit was reached.
@@ -947,33 +949,47 @@ class Model:
         messages = []
         for number, message in enumerate(prompt_history):
             if number == 0:
-                # If this is the first message, it is the context prompt.
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": message.text,
-                    }
-                )
-                continue
+                if not system_prompt_override:
+                    # If this is the first message, it is the context prompt.
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": message.text,
+                        }
+                    )
+                    continue
+                else:
+                    # When we have a system prompt override, we're trying to do a one-off chatcompletion WITH VISION. So we use the override
+                    # param as the new system prompt and the first message as the user message. This is messy, and I'll clean it up soon
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": system_prompt_override,
+                        }
+                    )
+                    messages.append(
+                        {
+                            "role": "user",
+                            "name": user_displayname,
+                            "content": message.text,
+                        }
+                    )
+                    continue
 
-            if message.text.startswith(f"\n{bot_name}"):
-                text = message.text.replace(bot_name, "")
-                text = text.replace("<|endofstatement|>", "")
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": text,
-                    }
-                )
-            else:
-                try:
-                    if (
-                        message.text.strip()
-                        .lower()
-                        .startswith("this conversation has some context from earlier")
-                    ):
-                        raise Exception("This is a context message")
+            try:
+                if (
+                    message.text.strip()
+                    .lower()
+                    .startswith("this conversation has some context from earlier")
+                ):
+                    raise Exception("This is a context message")
 
+                if message.text.startswith(f"\n{bot_name}"):
+                    role = "assistant"
+                    text = message.text.replace(bot_name, "")
+                    text = text.replace("<|endofstatement|>", "")
+                else:
+                    role = "user"
                     username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
                     username_clean = self.cleanse_username(username)
                     text = message.text.replace(f"{username}:", "")
@@ -981,41 +997,45 @@ class Model:
                     text = text.rstrip()
                     text = text.replace("<|endofstatement|>", "")
 
-                    if "-vision" not in model_selection:
-                        messages.append(
-                            {"role": "user", "name": username_clean, "content": text}
-                        )
+                if "-vision" not in model_selection:
+                    messages.append(
+                        {
+                            "role": role,
+                            "name": username_clean if role == "user" else bot_name,
+                            "content": text,
+                        }
+                    )
 
+                else:
+                    if len(message.image_urls) > 0:
+                        messages.append(
+                            {
+                                "role": role,
+                                "name": username_clean if role == "user" else bot_name,
+                                "content": [
+                                    {"type": "text", "text": text},
+                                ],
+                            }
+                        )
+                        for image_url in message.image_urls:
+                            image_info = {
+                                "type": "image_url",
+                                "image_url": {"url": image_url, "detail": "high"},
+                            }
+                            messages[-1]["content"].append(image_info)
                     else:
-                        if len(message.image_urls) > 0:
-                            messages.append(
-                                {
-                                    "role": "user",
-                                    "name": username_clean,
-                                    "content": [
-                                        {"type": "text", "text": text},
-                                    ],
-                                }
-                            )
-                            for image_url in message.image_urls:
-                                image_info = {
-                                    "type": "image_url",
-                                    "image_url": {"url": image_url, "detail": "high"},
-                                }
-                                messages[-1]["content"].append(image_info)
-                        else:
-                            messages.append(
-                                {
-                                    "role": "user",
-                                    "name": username_clean,
-                                    "content": [
-                                        {"type": "text", "text": text},
-                                    ],
-                                }
-                            )
-                except Exception:
-                    text = message.text.replace("<|endofstatement|>", "")
-                    messages.append({"role": "system", "content": text})
+                        messages.append(
+                            {
+                                "role": role,
+                                "name": username_clean if role == "user" else bot_name,
+                                "content": [
+                                    {"type": "text", "text": text},
+                                ],
+                            }
+                        )
+            except Exception:
+                text = message.text.replace("<|endofstatement|>", "")
+                messages.append({"role": "system", "content": text})
 
         print(f"Messages -> {messages}")
         async with aiohttp.ClientSession(
@@ -1038,6 +1058,10 @@ class Model:
                 payload[
                     "max_tokens"
                 ] = 4096  # TODO Not sure if this needs to be subtracted from a token count..
+            if respond_json:
+                # payload["response_format"] = { "type": "json_object" }
+                # TODO The above needs to be fixed, doesn't work for some reason?
+                pass
 
             headers = {
                 "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
@@ -1449,6 +1473,64 @@ class Model:
 
         # Now all the requests are done, we can save the URLs
         return await self.save_image_urls_and_return(image_urls, ctx)
+
+    @backoff.on_exception(
+        backoff.expo,
+        aiohttp.ClientResponseError,
+        factor=3,
+        base=5,
+        max_tries=4,
+        on_backoff=backoff_handler_http,
+    )
+    async def send_image_request_within_conversation(
+        self, prompt, quality, image_size, style, custom_api_key=None, num_images=1
+    ) -> List[str]:
+        await self.usage_service.update_usage_image(image_size)
+
+        print("Inside a dalle-3 request")
+
+        image_urls = []
+        tasks = []
+        payload = {
+            "prompt": prompt,
+            "quality": quality,
+            "style": style,
+            "model": "dall-e-3",
+            "size": image_size,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
+        }
+        self.use_org = "true" in str(self.use_org).lower()
+        if self.use_org and self.openai_organization:
+            headers["OpenAI-Organization"] = self.openai_organization
+
+        # Setup the client session outside of the loop
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
+            # Create a coroutine for each image request and store it in the tasks list
+            for _ in range(num_images):
+                task = self.make_image_request_individual(
+                    session,
+                    "https://api.openai.com/v1/images/generations",
+                    payload,
+                    headers,
+                )
+                tasks.append(task)
+
+            # Run all tasks in parallel and wait for them to complete
+            responses = await asyncio.gather(*tasks)
+
+            # Process the results
+            for response in responses:
+                print(response)
+                for result in response["data"]:
+                    image_urls.append(result["url"])
+
+        # Now all the requests are done, we can save the URLs
+        return image_urls
 
     @backoff.on_exception(
         backoff.expo,
