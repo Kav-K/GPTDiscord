@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import json
 import math
 import os
 import re
@@ -1001,7 +1002,7 @@ class Model:
                     messages.append(
                         {
                             "role": role,
-                            "name": username_clean if role == "user" else bot_name,
+                            "name": username_clean if role == "user" else bot_name_clean,
                             "content": text,
                         }
                     )
@@ -1011,7 +1012,7 @@ class Model:
                         messages.append(
                             {
                                 "role": role,
-                                "name": username_clean if role == "user" else bot_name,
+                                "name": username_clean if role == "user" else bot_name_clean,
                                 "content": [
                                     {"type": "text", "text": text},
                                 ],
@@ -1027,7 +1028,7 @@ class Model:
                         messages.append(
                             {
                                 "role": role,
-                                "name": username_clean if role == "user" else bot_name,
+                                "name": username_clean if role == "user" else bot_name_clean,
                                 "content": [
                                     {"type": "text", "text": text},
                                 ],
@@ -1083,6 +1084,19 @@ class Model:
                     response, model=self.model if model is None else model
                 )
                 print(f"Response -> {response}")
+
+                # Temporary until we can ensure json response via the API, for some reason upstream pydantic complains when
+                # we pass response_format in the request..
+                if respond_json:
+                    response_text = response["choices"][0]["message"]["content"].strip()
+                    response_text = response_text.replace("```json", "")
+                    response_text = response_text.replace("```", "")
+                    try:
+                        response_text = json.loads(response_text)
+                        return response_text
+                    except Exception:
+                        raise ValueError("Could not decode JSON response from the API")
+
 
                 return response
 

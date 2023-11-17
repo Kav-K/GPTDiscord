@@ -30,6 +30,33 @@ class TextService:
         pass
 
     @staticmethod
+    async def trigger_thinking(message: discord.Message, is_drawing=None):
+        thinking_embed = discord.Embed(
+            title=f"🤖💬 Thinking..." if not is_drawing else f"🤖🎨 Drawing...",
+            color=0x808080,
+        )
+
+        thinking_embed.set_footer(text="This may take a few seconds.")
+        try:
+            thinking_message = await message.reply(embed=thinking_embed)
+        except:
+            thinking_message = None
+
+        try:
+            await message.channel.trigger_typing()
+        except Exception:
+            thinking_message = None
+
+        return thinking_message
+
+    @staticmethod
+    async def stop_thinking(thinking_message: discord.Message):
+        try:
+            await thinking_message.delete()
+        except:
+            pass
+
+    @staticmethod
     async def encapsulated_send(
         converser_cog,
         id,
@@ -859,28 +886,36 @@ class TextService:
                 
                 {
                     "intent_to_draw": true/false,
-                    "prompt": "prompt to draw"
+                    "prompt": "prompt to draw",
+                    "amount": 1
                 }
                 
                 For example, you determined intent to draw a cat sitting on a chair:
                 {
                     "intent_to_draw": true,
-                    "prompt": "A cat sitting on a chair"
+                    "prompt": "A cat sitting on a chair",
+                    "amount": 1
+
                 }
                 For example, you determined no intent:
                 {
                     "intent_to_draw": false,
-                    "prompt": ""
+                    "prompt": "",
+                    "amount": 1
                 }
+                Make sure you use double quotes around all keys and values. Ensure to OMIT trailing commas.
+                As you can see, the default amount should always be one, but a user can draw up to 4 images. Be hesitant to draw more than 3 images.
                 Only signify an intent to draw when the user has explicitly asked you to draw, sometimes there may be situations where the user is asking you to brainstorm a prompt
-                but not neccessarily draw it, if you are unsure, ask the user explicitly.
+                but not neccessarily draw it, if you are unsure, ask the user explicitly. Ensure your JSON strictly confirms, only output the raw json. no other text.
                 """
                 last_messages = converser_cog.conversation_threads[
                     message.channel.id
                 ].history[-6:] # Get the last 6 messages to determine context on whether we should draw
                 last_messages = last_messages[1:]
                 try:
-                    response = await converser_cog.model.send_chatgpt_chat_request(
+                    thinking_message = await TextService.trigger_thinking(message)
+
+                    response_json = await converser_cog.model.send_chatgpt_chat_request(
                         last_messages,
                         "gpt-4-vision-preview",
                         temp_override=0,
@@ -889,46 +924,48 @@ class TextService:
                         system_prompt_override=draw_check_prompt,
                         respond_json=True,
                     )
-                    response_text = response["choices"][0]["message"]["content"].strip()
-                    response_text = response_text.replace("```json", "")
-                    response_text = response_text.replace("```", "")
+                    await TextService.stop_thinking(thinking_message)
                     # This validation is only until we figure out what's wrong with the json response mode for vision.
-                    response_json = json.loads(response_text)
                     if response_json["intent_to_draw"]:
-                        thinking_embed = discord.Embed(
-                            title=f"🤖💬 Drawing...",
-                            color=0x808080,
-                        )
+                        thinking_message = await TextService.trigger_thinking(message,is_drawing=True)
 
-                        thinking_embed.set_footer(text="This may take a few seconds.")
-                        try:
-                            thinking_message = await message.reply(embed=thinking_embed)
-                        except:
-                            pass
                         links = await converser_cog.model.send_image_request_within_conversation(
                             response_json["prompt"],
                             quality="hd",
                             image_size="1024x1024",
                             style="vivid",
+                            num_images=response_json["amount"],
                         )
-                        try:
-                            thinking_message = await thinking_message.delete()
-                        except:
-                            pass
+                        await TextService.stop_thinking(thinking_message)
 
+                        image_markdowns = []
                         for num, link in enumerate(links):
-                            await message.reply(f"[image{num}]({link})")
+                            image_markdowns.append(f"[image{num}]({link})")
+                        await message.reply(" ".join(image_markdowns))
 
                         converser_cog.conversation_threads[
                             message.channel.id
                         ].history.append(
                             EmbeddedConversationItem(
-                                f"\n{BOT_NAME}: [I have just drawn the following images for the user, briefly describe the image and acknowledge that you've drawn it] <|endofstatement|>\n",
+                                f"\nYou have just generated images for the user, notify the user about what you've drawn\n",
                                 0,
                                 image_urls=links,
                             )
                         )
                 except:
+                    try:
+                        await message.reply("I encountered an error while trying to draw..")
+                        await thinking_message.delete()
+                        converser_cog.conversation_threads[
+                            message.channel.id
+                        ].history.append(
+                            EmbeddedConversationItem(
+                                f"\nYou just tried to generate an image but the generation failed. Notify the user of this now.>\n",
+                                0,
+                            )
+                        )
+                    except:
+                        pass
                     traceback.print_exc()
 
             # Send the request to the model
@@ -960,21 +997,7 @@ class TextService:
             )
 
             # Send an embed that tells the user that the bot is thinking
-            thinking_embed = discord.Embed(
-                title=f"🤖💬 Thinking...",
-                color=0x808080,
-            )
-
-            thinking_embed.set_footer(text="This may take a few seconds.")
-            try:
-                thinking_message = await message.reply(embed=thinking_embed)
-            except:
-                pass
-
-            try:
-                await message.channel.trigger_typing()
-            except Exception:
-                pass
+            thinking_message = await TextService.trigger_thinking(message)
             converser_cog.full_conversation_history[message.channel.id].append(prompt)
 
             if not converser_cog.pinecone_service:
@@ -991,7 +1014,7 @@ class TextService:
             )
 
             # Delete the thinking embed
-            await thinking_message.delete()
+            await TextService.stop_thinking(thinking_message)
 
             return True
 
