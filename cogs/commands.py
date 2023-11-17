@@ -394,7 +394,6 @@ class Commands(discord.Cog, name="Commands"):
         threat: float,
         sexually_explicit: float,
     ):
-
         await self.moderations_cog.perspective_config_command(
             ctx,
             type,

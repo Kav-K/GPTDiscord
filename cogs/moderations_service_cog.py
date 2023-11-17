@@ -337,7 +337,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             self.set_delete_set(ctx.guild_id, self.default_delete_set)
             self.set_warn_set(ctx.guild_id, self.default_warn_set)
             await self.restart_moderations_service(ctx)
-        
+
     async def perspective_config_command(
         self,
         ctx: discord.ApplicationContext,
@@ -390,7 +390,9 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
                 insult if insult else warn_set["insult"],
                 profanity if profanity else warn_set["profanity"],
                 threat if threat else warn_set["threat"],
-                sexually_explicit if sexually_explicit else warn_set["sexually_explicit"],
+                sexually_explicit
+                if sexually_explicit
+                else warn_set["sexually_explicit"],
             )
             self.set_warn_set(ctx.guild_id, new_warn_set)
             await self.restart_moderations_service(ctx)
@@ -400,9 +402,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
 
             new_delete_set = ThresholdSet(
                 toxicity if toxicity else delete_set["toxicity"],
-                severe_toxicity
-                if severe_toxicity
-                else delete_set["severe_toxicity"],
+                severe_toxicity if severe_toxicity else delete_set["severe_toxicity"],
                 identity_attack if identity_attack else delete_set["identity_attack"],
                 insult if insult else delete_set["insult"],
                 profanity if profanity else delete_set["profanity"],
@@ -418,8 +418,6 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             self.set_delete_set(ctx.guild_id, self.default_delete_set)
             self.set_warn_set(ctx.guild_id, self.default_warn_set)
             await self.restart_moderations_service(ctx)
-
-
 
     async def moderations_test_command(
         self, ctx: discord.ApplicationContext, prompt: str

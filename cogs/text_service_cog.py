@@ -679,7 +679,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Language check
         if FORCE_LANGUAGE and len(message.content.split(" ")) > 3:
             if not await Moderation.force_language_and_respond(
-                message.content, self.LANGUAGE_DETECT_STARTER_TEXT, message, language=FORCE_LANGUAGE
+                message.content,
+                self.LANGUAGE_DETECT_STARTER_TEXT,
+                message,
+                language=FORCE_LANGUAGE,
             ):
                 await message.delete()
                 return

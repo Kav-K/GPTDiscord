@@ -26,6 +26,7 @@ class ModerationModel:
         openaiModel (OpenAIModel): The OpenAI model used for moderation.
         perspectiveModel (PerspectiveModel): The Perspective model used for moderation.
     """
+
     def __init__(self, type: str, language_detect_type=None):
         if type not in ["openai", "perspective"]:
             raise ValueError("Invalid model type")
@@ -64,7 +65,9 @@ class ModerationModel:
                 response = await self.perspectiveModel.send_language_detect_request(
                     text
                 )
-            except languageNotSupportedByAttribute: # perspective doesn't support this language
+            except (
+                languageNotSupportedByAttribute
+            ):  # perspective doesn't support this language
                 return False, None
             return ((len(response) == 1 and response[0] == language), response[0])
 
@@ -356,9 +359,15 @@ class Moderation:
     @staticmethod
     def build_non_language_message(language, detected_language=None):
         # Create a discord embed to send to the user when their message gets moderated
-        title = LANGUAGE_MODERATED_MESSAGES.get(detected_language, LANGUAGE_MODERATED_MESSAGES["en"])["title"]
-        description = LANGUAGE_MODERATED_MESSAGES.get(detected_language, LANGUAGE_MODERATED_MESSAGES["en"])["description"]
-        description = description.format(lang=LANGUAGE_MATCHING_DICT.get(language, "English"))
+        title = LANGUAGE_MODERATED_MESSAGES.get(
+            detected_language, LANGUAGE_MODERATED_MESSAGES["en"]
+        )["title"]
+        description = LANGUAGE_MODERATED_MESSAGES.get(
+            detected_language, LANGUAGE_MODERATED_MESSAGES["en"]
+        )["description"]
+        description = description.format(
+            lang=LANGUAGE_MATCHING_DICT.get(language, "English")
+        )
         embed = discord.Embed(
             title=title,
             description=description,
@@ -377,13 +386,23 @@ class Moderation:
 
     @staticmethod
     async def force_language_and_respond(text, pretext, ctx, language: str):
-        response, detected_language = await model.send_language_detect_request(text, pretext, language)
+        response, detected_language = await model.send_language_detect_request(
+            text, pretext, language
+        )
 
         if not response:
             if isinstance(ctx, discord.Message):
-                await ctx.reply(embed=Moderation.build_non_language_message(language, detected_language))
+                await ctx.reply(
+                    embed=Moderation.build_non_language_message(
+                        language, detected_language
+                    )
+                )
             else:
-                await ctx.respond(embed=Moderation.build_non_language_message(language, detected_language))
+                await ctx.respond(
+                    embed=Moderation.build_non_language_message(
+                        language, detected_language
+                    )
+                )
             return False
         return True
 
