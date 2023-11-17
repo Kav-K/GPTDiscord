@@ -111,80 +111,9 @@ class Model:
                 return response
             except languageNotSupportedByAttribute:
                 raise
-    def value_to_openai_format(self, value, field) -> float:
-        # TODO: fix the formula
-        return value / 3.5
 
     async def send_language_detect_request(self, text):
         request = SIMPLEST_ANALYZE_REQUEST.copy()
         request["comment"]["text"] = text
         response = await self.client.analyze_comment(request)
         return response["detectedLanguages"]
-
-    def to_openai_format(self, perspective_response: dict[dict, list]):
-        matching_dict = {
-            "TOXICITY": ["hate", "harassment", "violence"],
-            "SEVERE_TOXICITY": ["hate", "harassment", "violence"],
-            "IDENTITY_ATTACK": ["hate", "harassment"],
-            "INSULT": ["hate", "harassment"],
-            "PROFANITY": ["hate", "harassment"],
-            "THREAT": ["hate", "harassment"],
-            "SEXUALLY_EXPLICIT": ["sexual", "sexual/minors"],
-        }
-        openai_categories = [
-            "sexual",
-            "hate",
-            "harassment",
-            "self-harm",
-            "sexual/minors",
-            "hate/threatening",
-            "violence/graphic",
-            "self-harm/intent",
-            "self-harm/instructions",
-            "harassment/threatening",
-            "violence",
-        ]
-        formatted_openai_response = {
-            "id": "",
-            "model": "perspective",
-            "results": [
-                {
-                    "flagged": False,
-                    "categories": {category: [False] for category in openai_categories},
-                    "category_scores": {category: [] for category in openai_categories},
-                }
-            ],
-        }
-        for category, result in perspective_response["attributeScores"].items():
-            value = result["summaryScore"]["value"]
-            for openai_cateogry in matching_dict[category]:
-                transformed_value = self.value_to_openai_format(value, category)
-                formatted_openai_response["results"][0]["category_scores"][
-                    openai_cateogry
-                ].append(transformed_value)
-                formatted_openai_response["results"][0]["categories"][
-                    openai_cateogry
-                ].append(transformed_value > 0.65)
-
-        for category in openai_categories:
-            if (
-                formatted_openai_response["results"][0]["category_scores"][category]
-                == []
-            ):
-                formatted_openai_response["results"][0]["category_scores"][
-                    category
-                ].append(0)
-                formatted_openai_response["results"][0]["categories"][category].append(
-                    False
-                )
-        for category in openai_categories:
-            formatted_openai_response["results"][0]["category_scores"][category] = max(
-                formatted_openai_response["results"][0]["category_scores"][category]
-            )
-            formatted_openai_response["results"][0]["categories"][category] = any(
-                formatted_openai_response["results"][0]["categories"][category]
-            )
-        formatted_openai_response["results"][0]["flagged"] = any(
-            formatted_openai_response["results"][0]["categories"].values()
-        )
-        return formatted_openai_response
