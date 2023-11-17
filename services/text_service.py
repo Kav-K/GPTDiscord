@@ -356,12 +356,14 @@ class TextService:
                 if is_drawable:
                     converser_cog.conversation_threads[ctx.channel.id].history[
                         0
-                    ].text += ("\nYou are able to draw images in this conversation. Only draw when EXPLICITLY asked to "
-                               "do so, otherwise, work on a prompt with the user and ask them if they'd like to draw, "
-                               "if you're discussing drawing in the first place. Images that you draw will "
-                               "automatically be sent in chat to the user so you don't need to name the file or "
-                               "provide the file yourself, you will already have knowledge of what is drawn and will "
-                               "simply describe it.")
+                    ].text += (
+                        "\nYou are able to draw images in this conversation. Only draw when EXPLICITLY asked to "
+                        "do so, otherwise, work on a prompt with the user and ask them if they'd like to draw, "
+                        "if you're discussing drawing in the first place. Images that you draw will "
+                        "automatically be sent in chat to the user so you don't need to name the file or "
+                        "provide the file yourself, you will already have knowledge of what is drawn and will "
+                        "simply describe it."
+                    )
                 else:
                     converser_cog.conversation_threads[ctx.channel.id].history[
                         0
