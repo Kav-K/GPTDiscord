@@ -1398,9 +1398,9 @@ class Model:
         self, ctx, prompt, quality, image_size, style, custom_api_key=None
     ) -> tuple[File, List[Any]]:
         words = len(prompt.split(" "))
-        if words < 1 or words > 75:
+        if words < 1 or words > 150:
             raise ValueError(
-                f"Prompt must be greater than 1 word and less than 75, it is currently {words}"
+                f"Prompt must be greater than 1 word and less than 150, it is currently {words}"
             )
 
         await self.usage_service.update_usage_image(image_size)
