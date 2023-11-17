@@ -19,6 +19,8 @@ We support everything from **multi-modality image understanding**, **code interp
 
 Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
 
+We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone.  
+
 # Overview of Capabilities
 ![Overview of Features](https://i.imgur.com/BZdORTL.png)
 # Table of Contents  
