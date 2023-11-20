@@ -68,7 +68,7 @@ Source = "https://github.com/Kav-K/GPT3Discord"
 
 [project.optional-dependencies]
 full = [
-  "torch==1.13.1",
+  "torch==2.1.1",
   "torchvision==1.14.1",
   "tokenizers==0.13.3",
   "numpy==1.24.2",
