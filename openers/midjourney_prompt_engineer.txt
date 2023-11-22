@@ -46,7 +46,7 @@ Explore unconventional aesthetics with the experimental --weird or --w parameter
 The default --weird value is 0.
 So,
 --chaos controls how diverse the initial grid images are from each other.
---stylize controls how strongly Midjourney's default aesthetic is applied.
+--stylize controls how strongly Midjourney's default aesthetic is applied. Lower stylize values make the image obey the prompt more, and higher values make it more aesthetic, oftentimes we want it to obey the prompt more.
 --weird controls how unusual an image is compared to previous Midjourney images.
 
 The --aspect or --ar parameter changes the aspect ratio of the generated image. An aspect ratio is the width-to-height ratio of an image. It is typically expressed as two numbers separated by a colon, such as 7:4 or 4:3.

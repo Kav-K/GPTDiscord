@@ -152,8 +152,7 @@ class IndexService(discord.Cog, name="IndexService"):
 
                 prompt += (
                     "\n{System Message: the user has just uploaded the file "
-                    + str(file.filename)
-                    + "Unless the user asked a specific question, do not use your tools and instead just acknowledge the upload}"
+                    + str(file.filename) + "\n"
                 )
 
             # Link operations, allow for user link upload, we connect and download the content at the link.
@@ -180,9 +179,11 @@ class IndexService(discord.Cog, name="IndexService"):
                 )
             except openai.BadRequestError as e:
                 traceback.print_exc()
+                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 await message.reply(
                     "This model is not supported with connected conversations."
                 )
+                return
 
             if chat_result:
                 if len(chat_result) > 2000:
@@ -207,8 +208,8 @@ class IndexService(discord.Cog, name="IndexService"):
                     )
                 safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
-    async def index_chat_command(self, ctx, model):
-        await self.index_handler.start_index_chat(ctx, model)
+    async def index_chat_command(self, ctx, model, temperature, top_p):
+        await self.index_handler.start_index_chat(ctx, model, temperature, top_p)
         pass
 
     async def rename_user_index_command(self, ctx, user_index, new_name):
