@@ -667,9 +667,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await TextService.process_conversation_edit(self, after, original_message)
 
     @discord.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         """On a new message check if it should be moderated then process it for conversation"""
         if message.author == self.bot.user:
+            return
+
+        if message.author.bot:
             return
 
         # Check if the message is a discord system message
@@ -1340,9 +1343,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if opener:
             self.conversation_threads[target.id].has_opener = True
             opener = await self.mention_to_username(ctx, opener)
-            target_message = await target.send(
-                embed=EmbedStatics.generate_opener_embed(opener)
-            )
+            try:
+                target_message = await target.send(
+                    embed=EmbedStatics.generate_opener_embed(opener)
+                )
+            except:
+                target_message = await target.send(
+                    embed=EmbedStatics.generate_opener_embed(opener[:1900] + " [...]")
+                )
             if target.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 if not self.pinecone_service:
