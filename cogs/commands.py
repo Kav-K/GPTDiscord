@@ -761,7 +761,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=0
+        default=0,
     )
     @discord.option(
         name="top_p",
@@ -770,7 +770,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=1
+        default=1,
     )
     async def talk(
         self,
@@ -1137,7 +1137,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=0
+        default=0,
     )
     @discord.option(
         name="top_p",
@@ -1146,7 +1146,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=1
+        default=1,
     )
     async def chat_code(
         self,
@@ -1160,7 +1160,9 @@ class Commands(discord.Cog, name="Commands"):
                 "Code interpretation is disabled on this server.", ephemeral=True
             )
             return
-        await self.code_interpreter_cog.code_interpreter_chat_command(ctx, model=model, temperature=temperature, top_p=top_p)
+        await self.code_interpreter_cog.code_interpreter_chat_command(
+            ctx, model=model, temperature=temperature, top_p=top_p
+        )
 
     """
     Translation commands and actions
@@ -1284,7 +1286,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=0
+        default=0,
     )
     @discord.option(
         name="top_p",
@@ -1293,7 +1295,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.number,
         max_value=1,
         min_value=0,
-        default=1
+        default=1,
     )
     async def chat(
         self,
@@ -1304,7 +1306,11 @@ class Commands(discord.Cog, name="Commands"):
         top_p: float = 1,
     ):
         await self.search_cog.search_chat_command(
-            ctx, search_scope=search_scope, model=model, temperature=temperature, top_p=top_p,
+            ctx,
+            search_scope=search_scope,
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
         )
 
     # Search slash commands
@@ -1371,7 +1377,7 @@ class Commands(discord.Cog, name="Commands"):
         nodes: int = 4,
         deep: bool = False,
         response_mode: str = "refine",
-        model: str ="gpt-4-1106-preview",
+        model: str = "gpt-4-1106-preview",
         multistep: bool = False,
     ):
         await self.search_cog.search_command(

@@ -228,7 +228,6 @@ class Search:
             os.environ["OPENAI_API_KEY"] = user_api_key
         openai.api_key = os.environ["OPENAI_API_KEY"]
 
-
         # Initialize the search cost
         price = 0
 
@@ -340,7 +339,9 @@ class Search:
         embedding_model = OpenAIEmbedding()
 
         if "vision" in model:
-            llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model=model, max_tokens=4096))
+            llm_predictor = LLMPredictor(
+                llm=ChatOpenAI(temperature=0, model=model, max_tokens=4096)
+            )
         else:
             llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model=model))
 

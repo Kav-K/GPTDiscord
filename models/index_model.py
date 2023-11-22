@@ -511,8 +511,12 @@ class Index_handler:
         preparation_message = await ctx.channel.send(
             embed=EmbedStatics.get_index_chat_preparation_message()
         )
-        llm = ChatOpenAI(model=model, temperature=temperature, top_p=top_p, max_retries=2)
-        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=temperature, top_p=top_p, model_name=model))
+        llm = ChatOpenAI(
+            model=model, temperature=temperature, top_p=top_p, max_retries=2
+        )
+        llm_predictor = LLMPredictor(
+            llm=ChatOpenAI(temperature=temperature, top_p=top_p, model_name=model)
+        )
 
         max_token_limit = 29000 if "gpt-4" in model else 7500
 

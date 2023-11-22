@@ -419,7 +419,12 @@ class SearchService(discord.Cog, name="SearchService"):
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def search_chat_command(
-        self, ctx: discord.ApplicationContext, model, search_scope=2, temperature=0, top_p=1,
+        self,
+        ctx: discord.ApplicationContext,
+        model,
+        search_scope=2,
+        temperature=0,
+        top_p=1,
     ):
         await ctx.defer()
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
@@ -477,7 +482,12 @@ class SearchService(discord.Cog, name="SearchService"):
             traceback.print_exc()
             print("Wolfram tool not added to internet-connected conversation agent.")
 
-        llm = ChatOpenAI(model=model, temperature=temperature, top_p=top_p, openai_api_key=OPENAI_API_KEY)
+        llm = ChatOpenAI(
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
+            openai_api_key=OPENAI_API_KEY,
+        )
 
         max_token_limit = 29000 if "gpt-4" in model else 7500
 

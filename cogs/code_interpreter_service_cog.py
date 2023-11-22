@@ -455,7 +455,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
             )
 
-        llm = ChatOpenAI(model=model, temperature=temperature, top_p=top_p, openai_api_key=OPENAI_API_KEY)
+        llm = ChatOpenAI(
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
+            openai_api_key=OPENAI_API_KEY,
+        )
 
         max_token_limit = 29000 if "gpt-4" in model else 7500
 

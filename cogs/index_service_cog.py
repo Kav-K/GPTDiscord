@@ -152,7 +152,8 @@ class IndexService(discord.Cog, name="IndexService"):
 
                 prompt += (
                     "\n{System Message: the user has just uploaded the file "
-                    + str(file.filename) + "\n"
+                    + str(file.filename)
+                    + "\n"
                 )
 
             # Link operations, allow for user link upload, we connect and download the content at the link.
