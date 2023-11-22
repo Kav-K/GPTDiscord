@@ -1323,6 +1323,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
         max_value=16,
         min_value=1,
+        default=3,
     )
     @discord.option(
         name="nodes",
@@ -1331,6 +1332,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
         max_value=8,
         min_value=1,
+        default=4,
     )
     @discord.option(
         name="deep",
@@ -1343,14 +1345,14 @@ class Commands(discord.Cog, name="Commands"):
         description="Response mode, doesn't work on deep searches",
         guild_ids=ALLOWED_GUILDS,
         required=False,
-        default="refine",
+        default="compact",
         choices=["refine", "compact", "tree_summarize"],
     )
     @discord.option(
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-32k",
+        default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -1365,12 +1367,12 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         query: str,
-        scope: int,
-        nodes: int,
-        deep: bool,
-        response_mode: str,
-        model: str,
-        multistep: bool,
+        scope: int = 3,
+        nodes: int = 4,
+        deep: bool = False,
+        response_mode: str = "refine",
+        model: str ="gpt-4-1106-preview",
+        multistep: bool = False,
     ):
         await self.search_cog.search_command(
             ctx,

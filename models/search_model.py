@@ -221,12 +221,13 @@ class Search:
         multistep=False,
         redo=None,
     ):
-        DEFAULT_SEARCH_NODES = 1
+        DEFAULT_SEARCH_NODES = 4
         if not user_api_key:
             os.environ["OPENAI_API_KEY"] = self.openai_key
         else:
             os.environ["OPENAI_API_KEY"] = user_api_key
         openai.api_key = os.environ["OPENAI_API_KEY"]
+
 
         # Initialize the search cost
         price = 0
@@ -239,28 +240,21 @@ class Search:
             )
 
         try:
-            llm_predictor_presearch = OpenAI(
-                max_tokens=50,
-                temperature=0.4,
+            llm_predictor_presearch = ChatOpenAI(
+                max_tokens=100,
+                temperature=0,
                 presence_penalty=0.65,
-                model_name="text-davinci-003",
+                model_name=model,
             )
 
             # Refine a query to send to google custom search API
             prompt = f"You are to be given a search query for google. Change the query such that putting it into the Google Custom Search API will return the most relevant websites to assist in answering the original query. If the original query is inferring knowledge about the current day, insert the current day into the refined prompt. If the original query is inferring knowledge about the current month, insert the current month and year into the refined prompt. If the original query is inferring knowledge about the current year, insert the current year into the refined prompt. Generally, if the original query is inferring knowledge about something that happened recently, insert the current month into the refined query. Avoid inserting a day, month, or year for queries that purely ask about facts and about things that don't have much time-relevance. The current date is {str(datetime.now().date())}. Do not insert the current date if not neccessary. Respond with only the refined query for the original query. Don’t use punctuation or quotation marks.\n\nExamples:\n---\nOriginal Query: ‘Who is Harald Baldr?’\nRefined Query: ‘Harald Baldr biography’\n---\nOriginal Query: ‘What happened today with the Ohio train derailment?’\nRefined Query: ‘Ohio train derailment details {str(datetime.now().date())}’\n---\nOriginal Query: ‘Is copper in drinking water bad for you?’\nRefined Query: ‘copper in drinking water adverse effects’\n---\nOriginal Query: What's the current time in Mississauga?\nRefined Query: current time Mississauga\nNow, refine the user input query.\nOriginal Query: {query}\nRefined Query:"
-            query_refined = await llm_predictor_presearch.agenerate(
-                prompts=[prompt],
+            query_refined = await llm_predictor_presearch.apredict(
+                text=prompt,
             )
-            query_refined_text = query_refined.generations[0][0].text
+            query_refined_text = query_refined
 
-            await self.usage_service.update_usage(
-                query_refined.llm_output.get("token_usage").get("total_tokens"),
-                "davinci",
-            )
-            price += await self.usage_service.get_price(
-                query_refined.llm_output.get("token_usage").get("total_tokens"),
-                "davinci",
-            )
+            print("The query refined text is: " + query_refined_text)
 
         except Exception as e:
             traceback.print_exc()
@@ -345,7 +339,10 @@ class Search:
 
         embedding_model = OpenAIEmbedding()
 
-        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
+        if "vision" in model:
+            llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model=model, max_tokens=4096))
+        else:
+            llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model=model))
 
         token_counter = TokenCountingHandler(
             tokenizer=tiktoken.encoding_for_model(model).encode, verbose=False
