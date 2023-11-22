@@ -279,7 +279,10 @@ class SaveView(discord.ui.View):
         )
 
         # Set the view of the message to the new view
-        await self.ctx.edit(view=new_view)
+        try:
+            await self.ctx.edit(view=new_view)
+        except:
+            pass
 
 
 class VaryButton(discord.ui.Button):
