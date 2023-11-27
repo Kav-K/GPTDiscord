@@ -1,5 +1,5 @@
 <h1 align="center"> GPT Discord</h1>
-<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p>
+<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p> 
 
 [![Docker](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml)  
 [![PyPi](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml)  
