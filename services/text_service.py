@@ -353,22 +353,6 @@ class TextService:
                 usage_message = None
 
             if is_chatgpt_conversation:
-                if is_drawable:
-                    converser_cog.conversation_threads[ctx.channel.id].history[
-                        0
-                    ].text += (
-                        "\nYou are able to draw images in this conversation. Only draw when EXPLICITLY asked to "
-                        "do so, otherwise, work on a prompt with the user and ask them if they'd like to draw, "
-                        "if you're discussing drawing in the first place. Images that you draw will "
-                        "automatically be sent in chat to the user so you don't need to name the file or "
-                        "provide the file yourself, you will already have knowledge of what is drawn and will "
-                        "simply describe it."
-                    )
-                else:
-                    converser_cog.conversation_threads[ctx.channel.id].history[
-                        0
-                    ].text += "\nYou are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
-
                 _prompt_with_history = converser_cog.conversation_threads[
                     ctx.channel.id
                 ].history
@@ -902,6 +886,25 @@ class TextService:
             ):
                 print("Checking for if the user asked to draw")
                 draw_check_prompt = """
+                Here are some good prompting tips:
+                Describe the Image Content: Start your prompt with the type of image you want, such as "A photograph of...", "A 3D rendering of...", "A sketch of...", or "An illustration of...".
+                Describe the Subject: Clearly state the subject of your image. It could be anything from a person or animal to an abstract concept. Be specific to guide the AI, e.g., "An illustration of an owl...", "A photograph of a president...", "A 3D rendering of a chair...".
+                Add Relevant Details: Include details like colors, shapes, sizes, and textures. Rather than just saying "bear", specify the type (e.g., "brown and black, grizzly or polar"), surroundings (e.g., "a forest or mountain range"), and other details.
+                Describe the Form and Style: Provide details about the form and style, using keywords like "abstract", "minimalist", or "surreal". You can also mention specific artists or artworks to mimic their style, e.g., "Like Salvador Dali" or "Like Andy Warhol’s Shot Marilyns painting".
+                Define the Composition: Use keywords to define the composition, such as resolution, lighting style, aspect ratio, and camera view.
+                Additional Tips:
+                Use understandable keywords; avoid overly complicated or uncommon words.
+                Keep prompts concise; aim for 3 to 7 words, but avoid being overly descriptive.
+                Use multiple adjectives to describe your art’s subject, style, and composition.
+                Avoid conflicting terms with opposite meanings.
+                Use AI copywriting tools like ChatGPT for prompt generation.
+                Research the specific AI art tool you’re using for recognized keywords.
+                Examples:
+                "A 3D rendering of a tree with bright yellow leaves and an abstract style."
+                "An illustration of a mountain in the style of Impressionism with a wide aspect ratio."
+                "A photograph of a steampunk alien taken from a low-angle viewpoint."
+                "A sketch of a raccoon in bright colors and minimalist composition."       
+                
                 You will be given a set of conversation items and you will determine if the intent of the user(s) are to draw/create a picture or not, if the intent is to
                 draw a picture, extract a prompt for the image to draw for use in systems like DALL-E. Respond with JSON after you determine intent to draw or not. In this format:
                 

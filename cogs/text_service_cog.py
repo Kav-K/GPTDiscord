@@ -132,7 +132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Sharing service
         self.sharegpt_service = ShareGPTService()
 
-        try:
+        try: # TODO Clean this up, this is gross
             conversation_file_path = EnvService.find_shared_file(
                 "conversation_starter_pretext.txt"
             )
@@ -174,6 +174,26 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     f"Conversation starter text loaded from {conversation_file_path_vision}."
                 )
             assert self.CONVERSATION_STARTER_TEXT_VISION is not None
+
+            conversation_drawing_ability_snippet = EnvService.find_shared_file(
+                "conversation_drawing_ability_snippet.txt"
+            )
+            with conversation_drawing_ability_snippet.open("r") as f:
+                self.CONVERSATION_DRAWING_ABILITY_SNIPPET = f.read()
+                print(
+                    f"Conversation starter text loaded from {conversation_drawing_ability_snippet}."
+                )
+            assert self.CONVERSATION_DRAWING_ABILITY_SNIPPET is not None
+
+            conversation_drawing_ability_extraction_snippet = EnvService.find_shared_file(
+                "conversation_drawing_ability_extraction_snippet.txt"
+            )
+            with conversation_drawing_ability_extraction_snippet.open("r") as f:
+                self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET = f.read()
+                print(
+                    f"Conversation starter text loaded from {conversation_drawing_ability_extraction_snippet}."
+                )
+            assert self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET is not None
 
         except Exception:
             self.CONVERSATION_STARTER_TEXT = (
@@ -1315,17 +1335,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
         elif not minimal and not "-vision" in model_selection:
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT
         else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_VISION, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT_VISION
+
+        if draw:
+            starting_text += self.CONVERSATION_DRAWING_ABILITY_SNIPPET
+        else:
+            starting_text += "You are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
+        self.conversation_threads[target.id].history.append(
+            EmbeddedConversationItem(starting_text, 0)
+        )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
         self.conversation_thread_owners[user_id_normalized].append(target.id)
