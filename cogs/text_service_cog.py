@@ -132,7 +132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Sharing service
         self.sharegpt_service = ShareGPTService()
 
-        try: # TODO Clean this up, this is gross
+        try:  # TODO Clean this up, this is gross
             conversation_file_path = EnvService.find_shared_file(
                 "conversation_starter_pretext.txt"
             )
@@ -185,8 +185,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
             assert self.CONVERSATION_DRAWING_ABILITY_SNIPPET is not None
 
-            conversation_drawing_ability_extraction_snippet = EnvService.find_shared_file(
-                "conversation_drawing_ability_extraction_snippet.txt"
+            conversation_drawing_ability_extraction_snippet = (
+                EnvService.find_shared_file(
+                    "conversation_drawing_ability_extraction_snippet.txt"
+                )
             )
             with conversation_drawing_ability_extraction_snippet.open("r") as f:
                 self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET = f.read()
