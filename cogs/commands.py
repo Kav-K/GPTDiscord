@@ -588,6 +588,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
+        name="draw",
+        description="Allow GPT to draw images with DALL-E",
+        required=False,
+        default=False,
+    )
+    @discord.option(
         name="opener",
         description="Which sentence to start with, added after the file",
         required=False,
@@ -659,6 +665,7 @@ class Commands(discord.Cog, name="Commands"):
     async def converse(
         self,
         ctx: discord.ApplicationContext,
+        draw: bool,
         opener: str,
         opener_file: str,
         private: bool,
@@ -672,6 +679,7 @@ class Commands(discord.Cog, name="Commands"):
     ):
         await self.converser_cog.converse_command(
             ctx,
+            draw,
             opener,
             opener_file,
             private,
@@ -832,13 +840,33 @@ class Commands(discord.Cog, name="Commands"):
         default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
+    @discord.option(
+        name="temperature",
+        description="The higher the value, the riskier the model will be",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=0,
+    )
+    @discord.option(
+        name="top_p",
+        description="An alternative sampling distribution to temperature",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=1,
+    )
     async def talk(
         self,
         ctx: discord.ApplicationContext,
         model: str,
+        temperature: float = 0,
+        top_p: float = 1,
     ):
         await ctx.defer()
-        await self.index_cog.index_chat_command(ctx, model)
+        await self.index_cog.index_chat_command(ctx, model, temperature, top_p)
 
     @add_to_group("index")
     @discord.slash_command(
@@ -1066,7 +1094,7 @@ class Commands(discord.Cog, name="Commands"):
         name="style",
         description="The style of the generated images, choose between realism/vivid",
         required=False,
-        default="natural",
+        default="vivid",
         autocomplete=Settings_autocompleter.get_dalle3_image_styles,
     )
     async def draw(
@@ -1188,17 +1216,39 @@ class Commands(discord.Cog, name="Commands"):
         default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
+    @discord.option(
+        name="temperature",
+        description="The higher the value, the riskier the model will be",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=0,
+    )
+    @discord.option(
+        name="top_p",
+        description="An alternative sampling distribution to temperature",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=1,
+    )
     async def chat_code(
         self,
         ctx: discord.ApplicationContext,
         model: str,
+        temperature: float = 0,
+        top_p: float = 1,
     ):
         if not self.code_interpreter_cog:
             await ctx.respond(
                 "Code interpretation is disabled on this server.", ephemeral=True
             )
             return
-        await self.code_interpreter_cog.code_interpreter_chat_command(ctx, model=model)
+        await self.code_interpreter_cog.code_interpreter_chat_command(
+            ctx, model=model, temperature=temperature, top_p=top_p
+        )
 
     """
     Translation commands and actions
@@ -1315,14 +1365,38 @@ class Commands(discord.Cog, name="Commands"):
         default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
+    @discord.option(
+        name="temperature",
+        description="The higher the value, the riskier the model will be",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=0,
+    )
+    @discord.option(
+        name="top_p",
+        description="An alternative sampling distribution to temperature",
+        required=False,
+        input_type=discord.SlashCommandOptionType.number,
+        max_value=1,
+        min_value=0,
+        default=1,
+    )
     async def chat(
         self,
         ctx: discord.ApplicationContext,
         model: str,
         search_scope: int = 2,
+        temperature: float = 0,
+        top_p: float = 1,
     ):
         await self.search_cog.search_chat_command(
-            ctx, search_scope=search_scope, model=model
+            ctx,
+            search_scope=search_scope,
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
         )
 
     # Search slash commands
@@ -1341,6 +1415,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
         max_value=16,
         min_value=1,
+        default=3,
     )
     @discord.option(
         name="nodes",
@@ -1349,6 +1424,7 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
         max_value=8,
         min_value=1,
+        default=4,
     )
     @discord.option(
         name="deep",
@@ -1361,14 +1437,14 @@ class Commands(discord.Cog, name="Commands"):
         description="Response mode, doesn't work on deep searches",
         guild_ids=ALLOWED_GUILDS,
         required=False,
-        default="refine",
+        default="compact",
         choices=["refine", "compact", "tree_summarize"],
     )
     @discord.option(
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-32k",
+        default="gpt-4-1106-preview",
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -1383,12 +1459,12 @@ class Commands(discord.Cog, name="Commands"):
         self,
         ctx: discord.ApplicationContext,
         query: str,
-        scope: int,
-        nodes: int,
-        deep: bool,
-        response_mode: str,
-        model: str,
-        multistep: bool,
+        scope: int = 3,
+        nodes: int = 4,
+        deep: bool = False,
+        response_mode: str = "refine",
+        model: str = "gpt-4-1106-preview",
+        multistep: bool = False,
     ):
         await self.search_cog.search_command(
             ctx,

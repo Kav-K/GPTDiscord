@@ -385,6 +385,8 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self,
         ctx: discord.ApplicationContext,
         model,
+        temperature,
+        top_p,
     ):
         await ctx.defer()
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
@@ -453,7 +455,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
             )
 
-        llm = ChatOpenAI(model=model, temperature=0, openai_api_key=OPENAI_API_KEY)
+        llm = ChatOpenAI(
+            model=model,
+            temperature=temperature,
+            top_p=top_p,
+            openai_api_key=OPENAI_API_KEY,
+        )
 
         max_token_limit = 29000 if "gpt-4" in model else 7500
 
@@ -484,7 +491,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 "using your tools. However, the tools can only install one package at a time, if you need to "
                 "install multiple packages, call the tools multiple times. Always first display your code to "
                 "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
-                "to execute code. Never execute code before showing the user the code first."
+                "to execute code. Never execute code before showing the user the code first. Your environment has 4GB RAM, 4vCPU, 2.5GB disk storage, keep this in mind when writing code."
             ),
         }
 

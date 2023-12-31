@@ -17,7 +17,7 @@ python3.9 -m pip install -r requirements.txt
 ```
 **We recommend using python 3.9.**  
   
-OpenAI API Key (https://beta.openai.com/docs/api-reference/introduction)  
+OpenAI API Key (https://platform.openai.com/docs/api-reference/introduction)  
   
 Discord Bot Token (https://discord.com/developers/applications)  
 

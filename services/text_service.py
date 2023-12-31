@@ -1,5 +1,6 @@
 import asyncio.exceptions
 import datetime
+import json
 import re
 import traceback
 from collections import defaultdict
@@ -29,6 +30,33 @@ class TextService:
         pass
 
     @staticmethod
+    async def trigger_thinking(message: discord.Message, is_drawing=None):
+        thinking_embed = discord.Embed(
+            title=f"🤖💬 Thinking..." if not is_drawing else f"🤖🎨 Drawing...",
+            color=0x808080,
+        )
+
+        thinking_embed.set_footer(text="This may take a few seconds.")
+        try:
+            thinking_message = await message.reply(embed=thinking_embed)
+        except:
+            thinking_message = None
+
+        try:
+            await message.channel.trigger_typing()
+        except Exception:
+            thinking_message = None
+
+        return thinking_message
+
+    @staticmethod
+    async def stop_thinking(thinking_message: discord.Message):
+        try:
+            await thinking_message.delete()
+        except:
+            pass
+
+    @staticmethod
     async def encapsulated_send(
         converser_cog,
         id,
@@ -47,6 +75,7 @@ class TextService:
         from_ask_action=False,
         from_other_action=None,
         from_message_context=None,
+        is_drawable=False,
     ):
         """General service function for sending and receiving gpt generations
 
@@ -783,8 +812,7 @@ class TextService:
                                 try:
                                     (
                                         image_caption,
-                                        image_qa,
-                                        minigpt_output,
+                                        llava_output,
                                         image_ocr,
                                     ) = await asyncio.gather(
                                         asyncio.to_thread(
@@ -792,12 +820,7 @@ class TextService:
                                             temp_file.name,
                                         ),
                                         asyncio.to_thread(
-                                            image_understanding_model.ask_image_question,
-                                            prompt,
-                                            temp_file.name,
-                                        ),
-                                        asyncio.to_thread(
-                                            image_understanding_model.get_minigpt_answer,
+                                            image_understanding_model.get_llava_answer,
                                             prompt,
                                             temp_file.name,
                                         ),
@@ -805,9 +828,11 @@ class TextService:
                                             temp_file.name
                                         ),
                                     )
+                                    llava_output = "".join(list(llava_output))
+
                                     add_prompt = (
-                                        f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
-                                        f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\nEND IMAGE {num} DATA\n"
+                                        f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage "
+                                        f"Info-QA: {llava_output}\nImage Info-OCR: {image_ocr}\nEND IMAGE {num}\n DATA\n"
                                     )
                                     add_prompts.append(add_prompt)
                                     try:
@@ -848,6 +873,127 @@ class TextService:
                 # increment the conversation counter for the user
                 converser_cog.conversation_threads[message.channel.id].count += 1
 
+            # Determine if we should draw an image and determine what to draw, and handle the drawing itself
+            # TODO: This should be encapsulated better into some other service or function so we're not cluttering this text service file, this text service file is gross right now..
+            if (
+                "-vision" in model
+                and not converser_cog.pinecone_service
+                and converser_cog.conversation_threads[message.channel.id].drawable
+            ):
+                print("Checking for if the user asked to draw")
+                draw_check_prompt = """
+                Here are some good prompting tips:
+                Describe the Image Content: Start your prompt with the type of image you want, such as "A photograph of...", "A 3D rendering of...", "A sketch of...", or "An illustration of...".
+                Describe the Subject: Clearly state the subject of your image. It could be anything from a person or animal to an abstract concept. Be specific to guide the AI, e.g., "An illustration of an owl...", "A photograph of a president...", "A 3D rendering of a chair...".
+                Add Relevant Details: Include details like colors, shapes, sizes, and textures. Rather than just saying "bear", specify the type (e.g., "brown and black, grizzly or polar"), surroundings (e.g., "a forest or mountain range"), and other details.
+                Describe the Form and Style: Provide details about the form and style, using keywords like "abstract", "minimalist", or "surreal". You can also mention specific artists or artworks to mimic their style, e.g., "Like Salvador Dali" or "Like Andy Warhol’s Shot Marilyns painting".
+                Define the Composition: Use keywords to define the composition, such as resolution, lighting style, aspect ratio, and camera view.
+                Additional Tips:
+                Use understandable keywords; avoid overly complicated or uncommon words.
+                Keep prompts concise; aim for 3 to 7 words, but avoid being overly descriptive.
+                Use multiple adjectives to describe your art’s subject, style, and composition.
+                Avoid conflicting terms with opposite meanings.
+                Use AI copywriting tools like ChatGPT for prompt generation.
+                Research the specific AI art tool you’re using for recognized keywords.
+                Examples:
+                "A 3D rendering of a tree with bright yellow leaves and an abstract style."
+                "An illustration of a mountain in the style of Impressionism with a wide aspect ratio."
+                "A photograph of a steampunk alien taken from a low-angle viewpoint."
+                "A sketch of a raccoon in bright colors and minimalist composition."       
+                
+                You will be given a set of conversation items and you will determine if the intent of the user(s) are to draw/create a picture or not, if the intent is to
+                draw a picture, extract a prompt for the image to draw for use in systems like DALL-E. Respond with JSON after you determine intent to draw or not. In this format:
+                
+                {
+                    "intent_to_draw": true/false,
+                    "prompt": "prompt to draw",
+                    "amount": 1
+                }
+                
+                For example, you determined intent to draw a cat sitting on a chair:
+                {
+                    "intent_to_draw": true,
+                    "prompt": "A cat sitting on a chair",
+                    "amount": 1
+
+                }
+                For example, you determined no intent:
+                {
+                    "intent_to_draw": false,
+                    "prompt": "",
+                    "amount": 1
+                }
+                Make sure you use double quotes around all keys and values. Ensure to OMIT trailing commas.
+                As you can see, the default amount should always be one, but a user can draw up to 4 images. Be hesitant to draw more than 3 images.
+                Only signify an intent to draw when the user has explicitly asked you to draw, sometimes there may be situations where the user is asking you to brainstorm a prompt
+                but not neccessarily draw it, if you are unsure, ask the user explicitly. Ensure your JSON strictly confirms, only output the raw json. no other text.
+                """
+                last_messages = converser_cog.conversation_threads[
+                    message.channel.id
+                ].history[
+                    -6:
+                ]  # Get the last 6 messages to determine context on whether we should draw
+                last_messages = last_messages[1:]
+                try:
+                    thinking_message = await TextService.trigger_thinking(message)
+
+                    response_json = await converser_cog.model.send_chatgpt_chat_request(
+                        last_messages,
+                        "gpt-4-vision-preview",
+                        temp_override=0,
+                        user_displayname=message.author.display_name,
+                        bot_name=BOT_NAME,
+                        system_prompt_override=draw_check_prompt,
+                        respond_json=True,
+                    )
+                    await TextService.stop_thinking(thinking_message)
+                    # This validation is only until we figure out what's wrong with the json response mode for vision.
+                    if response_json["intent_to_draw"]:
+                        thinking_message = await TextService.trigger_thinking(
+                            message, is_drawing=True
+                        )
+
+                        links = await converser_cog.model.send_image_request_within_conversation(
+                            response_json["prompt"],
+                            quality="hd",
+                            image_size="1024x1024",
+                            style="vivid",
+                            num_images=response_json["amount"],
+                        )
+                        await TextService.stop_thinking(thinking_message)
+
+                        image_markdowns = []
+                        for num, link in enumerate(links):
+                            image_markdowns.append(f"[image{num}]({link})")
+                        await message.reply(" ".join(image_markdowns))
+
+                        converser_cog.conversation_threads[
+                            message.channel.id
+                        ].history.append(
+                            EmbeddedConversationItem(
+                                f"\nYou have just generated images for the user, notify the user about what you've drawn\n",
+                                0,
+                                image_urls=links,
+                            )
+                        )
+                except:
+                    try:
+                        await message.reply(
+                            "I encountered an error while trying to draw.."
+                        )
+                        await thinking_message.delete()
+                        converser_cog.conversation_threads[
+                            message.channel.id
+                        ].history.append(
+                            EmbeddedConversationItem(
+                                f"\nYou just tried to generate an image but the generation failed. Notify the user of this now.>\n",
+                                0,
+                            )
+                        )
+                    except:
+                        pass
+                    traceback.print_exc()
+
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
             if (
@@ -877,21 +1023,7 @@ class TextService:
             )
 
             # Send an embed that tells the user that the bot is thinking
-            thinking_embed = discord.Embed(
-                title=f"🤖💬 Thinking...",
-                color=0x808080,
-            )
-
-            thinking_embed.set_footer(text="This may take a few seconds.")
-            try:
-                thinking_message = await message.reply(embed=thinking_embed)
-            except:
-                pass
-
-            try:
-                await message.channel.trigger_typing()
-            except Exception:
-                pass
+            thinking_message = await TextService.trigger_thinking(message)
             converser_cog.full_conversation_history[message.channel.id].append(prompt)
 
             if not converser_cog.pinecone_service:
@@ -905,10 +1037,13 @@ class TextService:
                 overrides=overrides,
                 model=converser_cog.conversation_threads[message.channel.id].model,
                 custom_api_key=user_api_key,
+                is_drawable=converser_cog.conversation_threads[
+                    message.channel.id
+                ].drawable,
             )
 
             # Delete the thinking embed
-            await thinking_message.delete()
+            await TextService.stop_thinking(thinking_message)
 
             return True
 

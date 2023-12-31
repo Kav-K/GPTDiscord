@@ -132,7 +132,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Sharing service
         self.sharegpt_service = ShareGPTService()
 
-        try:
+        try:  # TODO Clean this up, this is gross
             conversation_file_path = EnvService.find_shared_file(
                 "conversation_starter_pretext.txt"
             )
@@ -174,6 +174,28 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     f"Conversation starter text loaded from {conversation_file_path_vision}."
                 )
             assert self.CONVERSATION_STARTER_TEXT_VISION is not None
+
+            conversation_drawing_ability_snippet = EnvService.find_shared_file(
+                "conversation_drawing_ability_snippet.txt"
+            )
+            with conversation_drawing_ability_snippet.open("r") as f:
+                self.CONVERSATION_DRAWING_ABILITY_SNIPPET = f.read()
+                print(
+                    f"Conversation starter text loaded from {conversation_drawing_ability_snippet}."
+                )
+            assert self.CONVERSATION_DRAWING_ABILITY_SNIPPET is not None
+
+            conversation_drawing_ability_extraction_snippet = (
+                EnvService.find_shared_file(
+                    "conversation_drawing_ability_extraction_snippet.txt"
+                )
+            )
+            with conversation_drawing_ability_extraction_snippet.open("r") as f:
+                self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET = f.read()
+                print(
+                    f"Conversation starter text loaded from {conversation_drawing_ability_extraction_snippet}."
+                )
+            assert self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET is not None
 
         except Exception:
             self.CONVERSATION_STARTER_TEXT = (
@@ -672,6 +694,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if message.author == self.bot.user:
             return
 
+        if message.author.bot:
+            return
+
         # Check if the message is a discord system message
         if message.type != discord.MessageType.default:
             return
@@ -726,14 +751,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     amended_message += text
 
         # Process the message if the user is in a conversation
-        if await TextService.process_conversation_message(
+        conversation_processed = await TextService.process_conversation_message(
             self,
             message,
             USER_INPUT_API_KEYS,
             USER_KEY_DB,
             files=None if len(attachments) < 1 else attachments,
             amended_message=amended_message,
-        ):
+        )
+        if conversation_processed:
             print("Processed a conversation message in server", message.guild.name)
             self.usage_service.update_usage_memory(
                 message.guild.name, "conversation_message", 1
@@ -744,7 +770,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if f"<@{self.bot.user.id}>" in message.content and not (
             "@everyone" in message.content or "@here" in message.content
         ):
-            if not BOT_TAGGABLE:
+            if (
+                not BOT_TAGGABLE or conversation_processed
+            ):  # Don't go through the tagging system if we're in a conversation
                 return
 
             # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
@@ -1150,6 +1178,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def converse_command(
         self,
         ctx: discord.ApplicationContext,
+        draw: bool,
         opener: str,
         opener_file: str,
         private: bool,
@@ -1159,7 +1188,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         top_p: float,
         frequency_penalty: float,
         presence_penalty: float,
-        use_threads: bool = True,  # Add this parameter
+        use_threads: bool = True,
     ):
         """Command handler. Starts a conversation with the bot
 
@@ -1258,6 +1287,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         self.conversation_threads[target.id] = Thread(target.id)
         self.conversation_threads[target.id].model = model_selection
+        if draw:
+            self.conversation_threads[target.id].drawable = True
 
         # Set the overrides for the conversation
         self.conversation_threads[target.id].set_overrides(
@@ -1312,17 +1343,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_MINIMAL, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
         elif not minimal and not "-vision" in model_selection:
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT
         else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
-            self.conversation_threads[target.id].history.append(
-                EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT_VISION, 0)
-            )
+            starting_text = self.CONVERSATION_STARTER_TEXT_VISION
+
+        if draw:
+            starting_text += self.CONVERSATION_DRAWING_ABILITY_SNIPPET
+        else:
+            starting_text += "You are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
+        self.conversation_threads[target.id].history.append(
+            EmbeddedConversationItem(starting_text, 0)
+        )
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
         self.conversation_thread_owners[user_id_normalized].append(target.id)
@@ -1340,9 +1373,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if opener:
             self.conversation_threads[target.id].has_opener = True
             opener = await self.mention_to_username(ctx, opener)
-            target_message = await target.send(
-                embed=EmbedStatics.generate_opener_embed(opener)
-            )
+            try:
+                target_message = await target.send(
+                    embed=EmbedStatics.generate_opener_embed(opener)
+                )
+            except:
+                target_message = await target.send(
+                    embed=EmbedStatics.generate_opener_embed(opener[:1900] + " [...]")
+                )
             if target.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
                 if not self.pinecone_service:
@@ -1376,6 +1414,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 user=user,
                 model=self.conversation_threads[target.id].model,
                 custom_api_key=user_api_key,
+                is_drawable=draw,
             )
             safe_remove_list(self.awaiting_responses, user_id_normalized)
             safe_remove_list(self.awaiting_thread_responses, target.id)

@@ -1,5 +1,5 @@
 <h1 align="center"> GPT Discord</h1>
-<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p>
+<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p> 
 
 [![Docker](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml)  
 [![PyPi](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml)  
@@ -18,6 +18,8 @@ We support everything from **multi-modality image understanding**, **code interp
 **BOT SETUP SUPPORT AND DEMO SERVER:** [Join Here](https://discord.gg/WvAHXDMS7Q)
 
 Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
+
+We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone.  
 
 # Overview of Capabilities
 ![Overview of Features](https://i.imgur.com/BZdORTL.png)
@@ -55,13 +57,13 @@ Custom indexing and Document Q&A<br>
 </p>  
 
 # Recent Notable Updates
+- **Multi-modality + Drawing** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`, and the bot can draw images for you and work with you on them!
+
+
 - **GPT-4-Vision support, GPT-4-Turbo, DALLE-3 Support** - Assistant support also coming soon!
-- 
+
 
 - **Code Interpreter / Advanced Data Analysis** - Just like ChatGPT, GPTDiscord now has a fully-fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install Python and system packages, and access the internet from the execution environment.
-
-
-- **Multi-modality** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`!
 
 
 - **Drag And Drop Document Chat** - Chat with your documents by simply dragging and dropping files, or even links into discord chat! `/index chat`
@@ -70,7 +72,7 @@ Custom indexing and Document Q&A<br>
 - **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to Google and Wolfram Alpha and can browse and access links that you send it!
 
 # Features
-- **Multi-modal** with image understanding
+- **Multi-modal** with image understanding, you can generate images with DALL-E within multi-modal conversations!
 - **Code Interpreter / Advanced Data Analysis**
 - Long-term, **permanent conversations** with GPT models
 - **Use your own files**, PDFs, text files, websites, Discord channel content as context when asking GPT questions!  
