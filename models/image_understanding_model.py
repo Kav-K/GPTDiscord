@@ -35,7 +35,13 @@ class ImageUnderstandingModel:
     def get_llava_answer(self, prompt, filepath):
         output = replicate.run(
             "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
-            input={"image": open(filepath, "rb"), "prompt": prompt, "temperature": 0.2, "top_p": 1, "max_tokens": 1024},
+            input={
+                "image": open(filepath, "rb"),
+                "prompt": prompt,
+                "temperature": 0.2,
+                "top_p": 1,
+                "max_tokens": 1024,
+            },
         )
         return output
 

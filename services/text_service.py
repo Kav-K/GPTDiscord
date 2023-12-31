@@ -828,7 +828,7 @@ class TextService:
                                             temp_file.name
                                         ),
                                     )
-                                    llava_output = ''.join(list(llava_output))
+                                    llava_output = "".join(list(llava_output))
 
                                     add_prompt = (
                                         f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage "
