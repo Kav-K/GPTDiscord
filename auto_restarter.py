@@ -25,7 +25,7 @@ def restart_service():
     Restarts the service by running a series of system commands.
     """
     commands = [
-        "cd /home/kaveen/GPTDiscord",
+        "cd /home/GPTDiscord",
         "kill -9 $(cat bot.pid)",
         "rm bot.pid",
         "screen -dmS GPTBot python3.9 gpt3discord.py",

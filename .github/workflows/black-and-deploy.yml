@@ -38,7 +38,7 @@ jobs:
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: gpt3discord.py
-          target: /home/kaveen/GPTDiscord
+          target: /home/GPTDiscord
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
@@ -47,7 +47,7 @@ jobs:
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: conversation_starter_pretext.txt
-          target: /home/kaveen/GPTDiscord
+          target: /home/GPTDiscord
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
@@ -56,12 +56,12 @@ jobs:
           password: ${{ secrets.SSH_PASS }}
           port: 22
           source: image_optimizer_pretext.txt
-          target: /home/kaveen/GPTDiscord/
+          target: /home/GPTDiscord/
       - name: Copy via ssh
         uses: garygrossgarten/github-action-scp@release
         with:
           local: cogs
-          remote: /home/kaveen/GPTDiscord/cogs
+          remote: /home/GPTDiscord/cogs
           host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
@@ -69,7 +69,7 @@ jobs:
         uses: garygrossgarten/github-action-scp@release
         with:
           local: models
-          remote: /home/kaveen/GPTDiscord/models
+          remote: /home/GPTDiscord/models
           host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
@@ -77,7 +77,7 @@ jobs:
         uses: garygrossgarten/github-action-scp@release
         with:
           local: openers
-          remote: /home/kaveen/GPTDiscord/openers
+          remote: /home/GPTDiscord/openers
           host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
@@ -85,7 +85,7 @@ jobs:
         uses: garygrossgarten/github-action-scp@release
         with:
           local: services
-          remote: /home/kaveen/GPTDiscord/services
+          remote: /home/GPTDiscord/services
           host: lab.kaveenk.dev
           username: root
           password: ${{ secrets.SSH_PASS }}
@@ -93,7 +93,7 @@ jobs:
         uses: fifsky/ssh-action@master
         with:
           command: |
-            cd /home/kaveen/GPTDiscord
+            cd /home/GPTDiscord
             kill -9 $(cat bot.pid)
             rm bot.pid
             screen -dmS GPTBot python3.9 gpt3discord.py

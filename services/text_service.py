@@ -812,8 +812,7 @@ class TextService:
                                 try:
                                     (
                                         image_caption,
-                                        image_qa,
-                                        minigpt_output,
+                                        llava_output,
                                         image_ocr,
                                     ) = await asyncio.gather(
                                         asyncio.to_thread(
@@ -821,12 +820,7 @@ class TextService:
                                             temp_file.name,
                                         ),
                                         asyncio.to_thread(
-                                            image_understanding_model.ask_image_question,
-                                            prompt,
-                                            temp_file.name,
-                                        ),
-                                        asyncio.to_thread(
-                                            image_understanding_model.get_minigpt_answer,
+                                            image_understanding_model.get_llava_answer,
                                             prompt,
                                             temp_file.name,
                                         ),
@@ -834,9 +828,11 @@ class TextService:
                                             temp_file.name
                                         ),
                                     )
+                                    llava_output = ''.join(list(llava_output))
+
                                     add_prompt = (
-                                        f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage Info-QA: {image_qa}\nRevised Image "
-                                        f"Info-QA: {minigpt_output}\nImage Info-OCR: {image_ocr}\nEND IMAGE {num} DATA\n"
+                                        f"BEGIN IMAGE {num} DATA\nImage Info-Caption: {image_caption}\nImage "
+                                        f"Info-QA: {llava_output}\nImage Info-OCR: {image_ocr}\nEND IMAGE {num}\n DATA\n"
                                     )
                                     add_prompts.append(add_prompt)
                                     try:

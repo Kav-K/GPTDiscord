@@ -32,6 +32,13 @@ class ImageUnderstandingModel:
         )
         return output
 
+    def get_llava_answer(self, prompt, filepath):
+        output = replicate.run(
+            "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
+            input={"image": open(filepath, "rb"), "prompt": prompt, "temperature": 0.2, "top_p": 1, "max_tokens": 1024},
+        )
+        return output
+
     def get_minigpt_answer(self, prompt, filepath):
         output = replicate.run(
             "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
