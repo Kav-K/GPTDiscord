@@ -748,14 +748,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     amended_message += text
 
         # Process the message if the user is in a conversation
-        if await TextService.process_conversation_message(
+        conversation_processed = await TextService.process_conversation_message(
             self,
             message,
             USER_INPUT_API_KEYS,
             USER_KEY_DB,
             files=None if len(attachments) < 1 else attachments,
             amended_message=amended_message,
-        ):
+        )
+        if conversation_processed:
             print("Processed a conversation message in server", message.guild.name)
             self.usage_service.update_usage_memory(
                 message.guild.name, "conversation_message", 1
@@ -766,7 +767,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if f"<@{self.bot.user.id}>" in message.content and not (
             "@everyone" in message.content or "@here" in message.content
         ):
-            if not BOT_TAGGABLE:
+            if not BOT_TAGGABLE or conversation_processed: # Don't go through the tagging system if we're in a conversation
                 return
 
             # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
