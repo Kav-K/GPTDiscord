@@ -767,7 +767,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if f"<@{self.bot.user.id}>" in message.content and not (
             "@everyone" in message.content or "@here" in message.content
         ):
-            if not BOT_TAGGABLE or conversation_processed: # Don't go through the tagging system if we're in a conversation
+            if (
+                not BOT_TAGGABLE or conversation_processed
+            ):  # Don't go through the tagging system if we're in a conversation
                 return
 
             # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
