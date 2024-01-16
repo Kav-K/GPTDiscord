@@ -86,8 +86,8 @@ class IndexService(discord.Cog, name="IndexService"):
             await message.reply(embed=failure_embed)
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
             return False
-
-        self.full_conversation_history[message.channel.id].append(summary)
+        # summary is type casted to string because it might be a Response object
+        self.full_conversation_history[message.channel.id].append(str(summary))
 
         success_embed = discord.Embed(
             title=f"{index_type.capitalize()} Interpreted",
