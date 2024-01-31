@@ -72,6 +72,7 @@ class Models:
     GPT4_32_DEV = "gpt-4-32k-0613"
     GPT_4_TURBO = "gpt-4-1106-preview"
     GPT_4_TURBO_VISION = "gpt-4-vision-preview"
+    GPT_4_TURBO_CATCHALL = "gpt-4-turbo-preview"
 
     # Model collections
     TEXT_MODELS = [
@@ -87,6 +88,7 @@ class Models:
         GPT4_32_DEV,
         GPT_4_TURBO,
         GPT_4_TURBO_VISION,
+        GPT_4_TURBO_CATCHALL
     ]
     CHATGPT_MODELS = [
         TURBO,
@@ -96,6 +98,7 @@ class Models:
         GPT4_32,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
+        GPT_4_TURBO_CATCHALL
     ]
     GPT4_MODELS = [
         GPT4,
@@ -104,6 +107,7 @@ class Models:
         GPT4_32_DEV,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
+        GPT_4_TURBO_CATCHALL
     ]
     EDIT_MODELS = [EDIT]
 
@@ -124,6 +128,7 @@ class Models:
         GPT4_32_DEV: 32768,
         GPT_4_TURBO_VISION: 128000,
         GPT_4_TURBO: 128000,
+        GPT_4_TURBO_CATCHALL: 128000,
     }
 
     @staticmethod
