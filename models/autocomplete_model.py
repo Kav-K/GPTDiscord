@@ -96,6 +96,7 @@ class Settings_autocompleter:
             "gpt-3.5-turbo",
             "gpt-3.5-turbo-1106",
             "gpt-3.5-turbo-0613",
+            "gpt-4-turbo-preview",
         ]
 
     async def get_models(
