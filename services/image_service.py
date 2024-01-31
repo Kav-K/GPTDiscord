@@ -86,11 +86,15 @@ class ImageService:
 
         # Start building an embed to send to the user with the results of the image generation
         embed = discord.Embed(
-            title="Image Generation Results"
-            if not vary
-            else "Image Generation Results (Varying)"
-            if not draw_from_optimizer
-            else "Image Generation Results (Drawing from Optimizer)",
+            title=(
+                "Image Generation Results"
+                if not vary
+                else (
+                    "Image Generation Results (Varying)"
+                    if not draw_from_optimizer
+                    else "Image Generation Results (Drawing from Optimizer)"
+                )
+            ),
             description=f"{prompt}",
             color=0xC730C7,
         )

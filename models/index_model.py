@@ -1688,10 +1688,12 @@ class ComposeModal(discord.ui.View):
                         self.user_id,
                         indexes,
                         self.name,
-                        False
-                        if not self.deep_select.values
-                        or self.deep_select.values[0] == "no"
-                        else True,
+                        (
+                            False
+                            if not self.deep_select.values
+                            or self.deep_select.values[0] == "no"
+                            else True
+                        ),
                     )
                 except ValueError as e:
                     await interaction.followup.send(

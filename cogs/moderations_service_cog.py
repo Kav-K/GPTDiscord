@@ -191,9 +191,11 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self.set_guild_moderated(guild_id)
         moderations_channel = await self.check_and_launch_moderations(
             guild_id,
-            Moderation.moderation_alerts_channel
-            if not alert_channel_id
-            else alert_channel_id,
+            (
+                Moderation.moderation_alerts_channel
+                if not alert_channel_id
+                else alert_channel_id
+            ),
         )
         self.set_moderated_alert_channel(guild_id, moderations_channel.id)
 
@@ -269,9 +271,11 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
                 ephemeral=True,
                 embed=await self.build_moderation_settings_embed(
                     config_type,
-                    self.get_or_set_warn_set(ctx.guild_id)
-                    if config_type == "warn"
-                    else self.get_or_set_delete_set(ctx.guild_id),
+                    (
+                        self.get_or_set_warn_set(ctx.guild_id)
+                        if config_type == "warn"
+                        else self.get_or_set_delete_set(ctx.guild_id)
+                    ),
                 ),
             )
             return
@@ -297,16 +301,20 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
 
             new_delete_set = ThresholdSet(
                 hate if hate else delete_set["hate"],
-                hate_threatening
-                if hate_threatening
-                else delete_set["hate/threatening"],
+                (
+                    hate_threatening
+                    if hate_threatening
+                    else delete_set["hate/threatening"]
+                ),
                 self_harm if self_harm else delete_set["self-harm"],
                 sexual if sexual else delete_set["sexual"],
                 sexual_minors if sexual_minors else delete_set["sexual/minors"],
                 violence if violence else delete_set["violence"],
-                violence_graphic
-                if violence_graphic
-                else delete_set["violence/graphic"],
+                (
+                    violence_graphic
+                    if violence_graphic
+                    else delete_set["violence/graphic"]
+                ),
             )
             self.set_delete_set(ctx.guild_id, new_delete_set)
             await self.restart_moderations_service(ctx)

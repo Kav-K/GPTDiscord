@@ -198,9 +198,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             assert self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET is not None
 
         except Exception:
-            self.CONVERSATION_STARTER_TEXT = (
-                self.CONVERSATION_STARTER_TEXT_MINIMAL
-            ) = self.CONVERSATION_STARTER_TEXT_VISION = (
+            self.CONVERSATION_STARTER_TEXT = self.CONVERSATION_STARTER_TEXT_MINIMAL = (
+                self.CONVERSATION_STARTER_TEXT_VISION
+            ) = (
                 "You are an artificial intelligence that is able to do anything, and answer any question,"
                 "I want you to be my personal assistant and help me with some tasks. "
                 "and I want you to make well-informed decisions using the data that you have been trained on, "
@@ -239,9 +239,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 welcome_message_response = await self.model.send_request(
                     query,
                     tokens=self.usage_service.count_tokens(query),
-                    is_chatgpt_request=True
-                    if "turbo" in str(self.model.model)
-                    else False,
+                    is_chatgpt_request=(
+                        True if "turbo" in str(self.model.model) else False
+                    ),
                 )
                 welcome_message = str(welcome_message_response["choices"][0]["text"])
             except Exception:
@@ -1401,10 +1401,16 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             await TextService.encapsulated_send(
                 self,
                 target.id,
-                opener
-                if target.id not in self.conversation_threads or self.pinecone_service
-                else "".join(
-                    [item.text for item in self.conversation_threads[target.id].history]
+                (
+                    opener
+                    if target.id not in self.conversation_threads
+                    or self.pinecone_service
+                    else "".join(
+                        [
+                            item.text
+                            for item in self.conversation_threads[target.id].history
+                        ]
+                    )
                 ),
                 target_message,
                 overrides=overrides,
@@ -1594,9 +1600,11 @@ class ShareButton(discord.ui.Button["ShareView"]):
         try:
             id = await self.converser_cog.sharegpt_service.format_and_share(
                 self.converser_cog.full_conversation_history[self.conversation_id],
-                self.converser_cog.bot.user.default_avatar.url
-                if not self.converser_cog.bot.user.avatar
-                else self.converser_cog.bot.user.avatar.url,
+                (
+                    self.converser_cog.bot.user.default_avatar.url
+                    if not self.converser_cog.bot.user.avatar
+                    else self.converser_cog.bot.user.avatar.url
+                ),
             )
             url = f"https://shareg.pt/{id}"
             await interaction.response.send_message(
