@@ -111,11 +111,20 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.9 get-pip.py  
 ```
 
+#### Create a Python Virtual Enviroment
+```shell
+pip install virtualenv
+python3.9 -m venv venv
+source venv/bin/activate
+```
+
+
 #### Install project dependencies  
 ```
 python3.9 -m pip install --ignore-installed PyYAML
 python3.9 -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
 python3.9 -m pip install urllib3==1.26.7
+python3.9 -m pip install git+https://github.com/openai/whisper.git
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .  
 ```
