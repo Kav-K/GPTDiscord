@@ -111,18 +111,27 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.9 get-pip.py  
 ```
 
+#### Create a Python Virtual Enviroment
+```shell
+pip install virtualenv
+python3.9 -m venv venv
+source venv/bin/activate
+```
+
+
 #### Install project dependencies  
 ```
 python3.9 -m pip install --ignore-installed PyYAML
 python3.9 -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
 python3.9 -m pip install urllib3==1.26.7
+python3.9 -m pip install git+https://github.com/openai/whisper.git
 python3.9 -m pip install -r requirements.txt
 python3.9 -m pip install .  
 ```
 
 #### Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
 ```shell 
-cp .env .env  
+cp sample.env .env  
 ```
 
 #### The command below is used to edit the .env file and to put in your API keys. You can right click within the editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.  

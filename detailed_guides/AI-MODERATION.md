@@ -1,5 +1,5 @@
 ### Automatic AI Moderation  
-  
+***
 `/mod set status:on` - Turn on automatic chat moderations.   
   
 `/mod set status:off` - Turn off automatic chat moderations  
@@ -12,15 +12,12 @@
   
 The bot needs Administrative permissions for this, and you need to set `MODERATIONS_ALERT_CHANNEL` to the channel ID of a desired channel in your .env file if you want to receive alerts about moderated messages.  
   
-This uses the OpenAI Moderations endpoint to check for messages, requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability.   
+This uses the OpenAI Moderations endpoint to check for messages; requests are only sent to the moderations endpoint at a MINIMUM request gap of 0.5 seconds, to ensure you don't get blocked and to ensure reliability.   
   
 The bot uses numerical thresholds to determine whether a message is toxic or not, and I have manually tested and fine tuned these thresholds to a point that I think is good, please open an issue if you have any suggestions for the thresholds!  
   
-There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user (check out the screenshots at the beginning of the README to see this).  
+There are two thresholds for the bot, there are instances in which the bot will outright delete a message and an instance where the bot will send a message to the alert channel notifying admins and giving them quick options to delete and timeout the user.  
   
 To set a certain role immune to moderations, add the line `CHAT_BYPASS_ROLES="Role1,Role2,etc"` to your `.env file.  
 
 If you want to have the bot pre-moderate things sent to commands like /gpt ask, /gpt edit, /dalle draw, etc, you can set `PRE_MODERATE="True"` in the `.env` file.
-
-**The above server is NOT for support or discussions about GPT3Discord**  
-  

@@ -30,23 +30,21 @@ Follow the on-screen instructions to register a new account.
 ![image](https://user-images.githubusercontent.com/23362597/232921997-1c6ed4dc-7aea-459b-8d76-95fdf86ee108.png)
 
 
-4\. Access the Wolfram Developer Portal
+4\. Access the [Wolfram Developer Portal](https://developer.wolframalpha.com/access)
 ------------------------------
 
-After successful registration, you will be redirected to the Developer Portal:
+After successful registration, you will be redirected to the Developer Portal, or follow the link above:
 
-![image](https://user-images.githubusercontent.com/23362597/232922409-92af9237-1230-43dc-836a-7425f31b4f56.png)
+![image](https://github.com/Raecaug/GPTDiscord/assets/23362597/a32542c8-7060-4411-a92e-e3eb5ae06433)
 
 
 5\. Click on "Get an AppID"
 --------------------------
 
-![image](https://user-images.githubusercontent.com/23362597/232922639-919f6d5a-da05-4f2c-af4b-5c517a926e78.png)
-
-6\. Fill in a name and description:
+6\. Fill in a name and description and select "Full Results API" from the dropdown:
 -------------------------------------------------
 
-![image](https://user-images.githubusercontent.com/23362597/232922798-25b21534-4452-4851-ae72-940b9f9d1fae.png)
+![image](https://github.com/Raecaug/GPTDiscord/assets/23362597/173de276-74d9-472c-a513-2420a14e34a7)
 
 
 8\. Copy the newly generated AppID to your ".env" file
