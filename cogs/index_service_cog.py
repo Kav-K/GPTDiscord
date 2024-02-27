@@ -13,7 +13,9 @@ from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
 from services.text_service import TextService
+from services.sharegpt_service import ShareGPTService
 from models.index_model import Index_handler
+from collections import defaultdict
 from utils.safe_ctx_respond import safe_remove_list
 
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
@@ -36,8 +38,10 @@ class IndexService(discord.Cog, name="IndexService"):
         super().__init__()
         self.bot = bot
         self.index_handler = Index_handler(bot, usage_service)
+        self.full_conversation_history = defaultdict(list)
         self.thread_awaiting_responses = []
         self.deletion_queue = deletion_queue
+        self.sharegpt_service = ShareGPTService()
 
     async def process_indexing(self, message, index_type, content=None, link=None):
         """
@@ -82,6 +86,8 @@ class IndexService(discord.Cog, name="IndexService"):
             await message.reply(embed=failure_embed)
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
             return False
+        # summary is type casted to string because it might be a Response object
+        self.full_conversation_history[message.channel.id].append(str(summary))
 
         success_embed = discord.Embed(
             title=f"{index_type.capitalize()} Interpreted",
@@ -129,6 +135,8 @@ class IndexService(discord.Cog, name="IndexService"):
 
         prompt = message.content.strip()
 
+        self.full_conversation_history[message.channel.id].append(prompt)
+
         if await self.index_handler.get_is_in_index_chat(message):
             self.thread_awaiting_responses.append(message.channel.id)
 
@@ -139,6 +147,19 @@ class IndexService(discord.Cog, name="IndexService"):
 
             # Handle file uploads
             file = message.attachments[0] if len(message.attachments) > 0 else None
+            
+            if prompt.lower() in ["stop", "end", "quit", "exit"]:
+                await message.reply(
+                view = ShareView(self, message.channel.id) if isinstance(message.channel, discord.Thread) else None
+                )
+                await message.reply("Ending chat session.")
+                self.index_handler.index_chat_chains.pop(message.channel.id)
+
+                # close the thread
+                thread = await self.bot.fetch_channel(message.channel.id)
+                await thread.edit(name="Closed-GPT")
+                await thread.edit(archived=True)
+                return "Ended chat session."
 
             # File operations, allow for user file upload
             if file:
@@ -185,6 +206,8 @@ class IndexService(discord.Cog, name="IndexService"):
                     "This model is not supported with connected conversations."
                 )
                 return
+
+            self.full_conversation_history[message.channel.id].append(chat_result)
 
             if chat_result:
                 if len(chat_result) > 2000:
@@ -492,3 +515,61 @@ class IndexService(discord.Cog, name="IndexService"):
                 return
 
         await self.index_handler.compose(ctx, name, user_api_key)
+    
+class ShareView(discord.ui.View):
+    def __init__(
+        self,
+        converser_cog,
+        conversation_id,
+    ):
+        super().__init__(timeout=3600)  # 1 hour interval to share the conversation.
+        self.converser_cog = converser_cog
+        self.conversation_id = conversation_id
+        self.add_item(ShareButton(converser_cog, conversation_id))
+
+    async def on_timeout(self):
+        # Remove the button from the view/message
+        self.clear_items()
+
+
+class ShareButton(discord.ui.Button["ShareView"]):
+    def __init__(self, indexer_cog, conversation_id):
+        super().__init__(
+            style=discord.ButtonStyle.green,
+            label="Share Conversation",
+            custom_id="share_conversation",
+        )
+        self.indexer_cog = indexer_cog
+        self.conversation_id = conversation_id
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get the user
+        try:
+            id = await self.indexer_cog.sharegpt_service.format_and_share(
+                self.indexer_cog.full_conversation_history[self.conversation_id],
+                self.indexer_cog.bot.user.default_avatar.url
+                if not self.indexer_cog.bot.user.avatar
+                else self.indexer_cog.bot.user.avatar.url,
+            )
+            url = f"https://shareg.pt/{id}"
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_shared_embed(url)
+            )
+        except ValueError as e:
+            traceback.print_exc()
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_share_failed_embed(
+                    "The ShareGPT API returned an error: " + str(e)
+                ),
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+        except Exception as e:
+            traceback.print_exc()
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_share_failed_embed(str(e)),
+                ephemeral=True,
+                delete_after=15,
+            )
+            return

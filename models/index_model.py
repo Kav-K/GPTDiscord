@@ -375,6 +375,7 @@ class Index_handler:
         if ctx.channel.id not in self.index_chat_chains:
             return None
 
+        '''Moved this logic to index_service_cog.py
         if message.lower() in ["stop", "end", "quit", "exit"]:
             await ctx.reply("Ending chat session.")
             self.index_chat_chains.pop(ctx.channel.id)
@@ -384,6 +385,7 @@ class Index_handler:
             await thread.edit(name="Closed-GPT")
             await thread.edit(archived=True)
             return "Ended chat session."
+        '''
 
         self.usage_service.update_usage_memory(ctx.guild.name, "index_chat_message", 1)
 
