@@ -236,9 +236,9 @@ class TextService:
                     if redo_request:
                         _prompt_with_history = _prompt_with_history[:-2]
 
-                    converser_cog.conversation_threads[
-                        ctx.channel.id
-                    ].history = _prompt_with_history
+                    converser_cog.conversation_threads[ctx.channel.id].history = (
+                        _prompt_with_history
+                    )
 
                     # Ensure that the last prompt in this list is the prompt we just sent (new_prompt_item)
                     if _prompt_with_history[-1].text != new_prompt_item.text:
@@ -1077,13 +1077,11 @@ class TextService:
 
                 if after.channel.id in converser_cog.conversation_threads:
                     # Remove the last two elements from the history array and add the new <username>: prompt
-                    converser_cog.conversation_threads[
-                        after.channel.id
-                    ].history = converser_cog.conversation_threads[
-                        after.channel.id
-                    ].history[
-                        :-2
-                    ]
+                    converser_cog.conversation_threads[after.channel.id].history = (
+                        converser_cog.conversation_threads[after.channel.id].history[
+                            :-2
+                        ]
+                    )
 
                     pinecone_dont_reinsert = None
                     if not converser_cog.pinecone_service:

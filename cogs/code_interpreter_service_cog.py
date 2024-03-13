@@ -285,11 +285,16 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
                 await message.reply(
                     embed=response_embed,
-                    view=CodeInterpreterDownloadArtifactsView(
-                        message, self, self.sessions[message.channel.id], artifact_names
-                    )
-                    if artifacts_available
-                    else None,
+                    view=(
+                        CodeInterpreterDownloadArtifactsView(
+                            message,
+                            self,
+                            self.sessions[message.channel.id],
+                            artifact_names,
+                        )
+                        if artifacts_available
+                        else None
+                    ),
                 )
 
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)

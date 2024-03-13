@@ -19,7 +19,10 @@ We support everything from **multi-modality image understanding**, **code interp
 
 Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
 
-We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone.  
+We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone. Qdrant is an excellent vector database choice, and in fact the best one that we've tested and used so far.
+<p align="center">
+<img src="https://i.imgur.com/4g1tQ91.png" width="64px" height="64px" />
+</p>
 
 # Overview of Capabilities
 ![Overview of Features](https://i.imgur.com/BZdORTL.png)
@@ -122,8 +125,9 @@ These commands are grouped, so each group has a prefix, but you can easily tab c
 - `/index discord_backup` - Use the last 3000 messages of every channel on your Discord server as an index. Needs both an admin and an index role.
 - `/index chat user_index:<user_index> search_index:<search_index>` - Chat with your documents that you've indexed previously!
 
-### DALL-E2 Commands  
-- `/dalle draw <prompt>` - Have DALL-E generate images based on a prompt.
+### DALL-E Commands  
+- `/dalle draw <prompt>` - Have DALL-E 3 generate images based on a prompt.
+- `/dalle draw_old <prompt>` - Have DALL-E 2 generate images based on a prompt.
 - `/dalle optimize <image prompt text>` - Optimize a given prompt text for DALL-E image generation.
 
 ### System and Settings  
@@ -132,8 +136,8 @@ These commands are grouped, so each group has a prefix, but you can easily tab c
 - `/system usage` - Estimate current usage details (based on Davinci).
 - `/system settings low_usage_mode True/False` - Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the Davinci-003 model.
 - `/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
-- `/system local-size` - Get the size of the local dalleimages folder.
-- `/system clear-local` - Clear all the local dalleimages.
+- `/system local-size` - Get the size of the local `/dalleimages` folder.
+- `/system clear-local` - Delete all the contents of `/dalleimages`.
 
 # Step-by-Step Guides for GPTDiscord  
 [**GPTDiscord Guides**](https://github.com/Kav-K/GPTDiscord/tree/main/detailed_guides)  

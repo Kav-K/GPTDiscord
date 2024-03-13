@@ -276,9 +276,9 @@ class SearchService(discord.Cog, name="SearchService"):
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title="Search Results"
-                    if not original_link
-                    else "Follow-up results",
+                    title=(
+                        "Search Results" if not original_link else "Follow-up results"
+                    ),
                     description=chunk,
                     url=original_link,
                 )
