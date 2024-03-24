@@ -87,7 +87,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         DEBUG_GUILD,
         DEBUG_CHANNEL,
         data_path: Path,
-        pinecone_service,
+        qdrant_service,
         pickle_queue,
     ):
         super().__init__()
@@ -126,8 +126,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.instructions = defaultdict(list)
         self.summarize = self.model.summarize_conversations
 
+        
         # Pinecone data
-        self.pinecone_service = pinecone_service
+        # self.pinecone_service = pinecone_service
+        
+        self.qdrant_service = qdrant_service
 
         # Sharing service
         self.sharegpt_service = ShareGPTService()
@@ -1380,7 +1383,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
             if target.id in self.conversation_threads:
                 self.awaiting_responses.append(user_id_normalized)
-                if not self.pinecone_service:
+                if not self.qdrant_service:
                     self.conversation_threads[target.id].history.append(
                         EmbeddedConversationItem(
                             f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
@@ -1404,7 +1407,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 (
                     opener
                     if target.id not in self.conversation_threads
-                    or self.pinecone_service
+                    or self.qdrant_service
                     else "".join(
                         [
                             item.text

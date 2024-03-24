@@ -121,9 +121,9 @@ class TextService:
                 ctx.author.display_name if not user else user.display_name
             )
 
-            # Pinecone is enabled, we will create embeddings for this conversation.
+            # qdrant is enabled, we will create embeddings for this conversation.
             if (
-                converser_cog.pinecone_service
+                converser_cog.qdrant_service
                 and ctx.channel.id in converser_cog.conversation_threads
             ):
                 for item in converser_cog.conversation_threads[ctx.channel.id].history:
@@ -168,7 +168,7 @@ class TextService:
                     converser_cog.redo_users[ctx.author.id].prompt = new_prompt
                 else:
                     # Create and upsert the embedding for  the conversation id, prompt, timestamp
-                    await converser_cog.pinecone_service.upsert_conversation_embedding(
+                    await converser_cog.qdrant_service.upsert_conversation_embedding(
                         converser_cog.model,
                         conversation_id,
                         new_prompt,
@@ -181,8 +181,8 @@ class TextService:
                         prompt_less_author, custom_api_key=custom_api_key
                     )  # Use the version of the prompt without the author's name for better clarity on retrieval.
 
-                    # Now, build the new prompt by getting the X most similar with pinecone
-                    similar_prompts = converser_cog.pinecone_service.get_n_similar(
+                    # Now, build the new prompt by getting the X most similar with qdrant
+                    similar_prompts = converser_cog.qdrant_service.get_n_similar(
                         conversation_id,
                         embedding_prompt_less_author,
                         n=converser_cog.model.num_conversation_lookback,
@@ -228,8 +228,8 @@ class TextService:
                     # remove duplicates from prompt_with_history and set the conversation history
                     _prompt_with_history = list(dict.fromkeys(_prompt_with_history))
 
-                    # Sort the prompt_with_history by increasing timestamp if pinecone is enabled
-                    if converser_cog.pinecone_service:
+                    # Sort the prompt_with_history by increasing timestamp if qdrant is enabled
+                    if converser_cog.qdrant_service:
                         _prompt_with_history.sort(key=lambda x: x.timestamp)
 
                     # Remove the last two entries after sort, this is from the end of the list as prompt(redo), answer, prompt(original), leaving only prompt(original) and further history
@@ -256,13 +256,13 @@ class TextService:
 
                 tokens = converser_cog.usage_service.count_tokens(new_prompt)
 
-            # No pinecone, we do conversation summarization for long term memory instead
+            # No qdrant, we do conversation summarization for long term memory instead
             elif (
                 id in converser_cog.conversation_threads
                 and tokens > converser_cog.model.summarize_threshold
                 and not from_ask_command
                 and not from_edit_command
-                and not converser_cog.pinecone_service
+                and not converser_cog.qdrant_service
                 # This should only happen if we are not doing summarizations.
             ):
                 # We don't need to worry about the differences between interactions and messages in this block,
@@ -443,7 +443,7 @@ class TextService:
             if (
                 ctx.channel.id in converser_cog.conversation_threads
                 and not from_ask_command
-                and not converser_cog.pinecone_service
+                and not converser_cog.qdrant_service
             ):
                 if not redo_request:
                     converser_cog.conversation_threads[ctx.channel.id].history.append(
@@ -461,7 +461,7 @@ class TextService:
                 ctx.channel.id in converser_cog.conversation_threads
                 and not from_ask_command
                 and not from_edit_command
-                and converser_cog.pinecone_service
+                and converser_cog.qdrant_service
             ):
                 conversation_id = ctx.channel.id
 
@@ -486,7 +486,7 @@ class TextService:
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
                 embedding = (
-                    await converser_cog.pinecone_service.upsert_conversation_embedding(
+                    await converser_cog.qdrant_service.upsert_conversation_embedding(
                         converser_cog.model,
                         conversation_id,
                         response_text,
@@ -574,7 +574,7 @@ class TextService:
                             ),
                         )
                 converser_cog.redo_users[ctx.author.id] = RedoUser(
-                    prompt=new_prompt if not converser_cog.pinecone_service else prompt,
+                    prompt=new_prompt if not converser_cog.qdrant_service else prompt,
                     instruction=instruction,
                     ctx=ctx,
                     message=ctx,
@@ -859,7 +859,7 @@ class TextService:
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
 
-                if not converser_cog.pinecone_service:
+                if not converser_cog.qdrant_service:
                     converser_cog.conversation_threads[
                         message.channel.id
                     ].history.append(
@@ -877,7 +877,7 @@ class TextService:
             # TODO: This should be encapsulated better into some other service or function so we're not cluttering this text service file, this text service file is gross right now..
             if (
                 "-vision" in model
-                and not converser_cog.pinecone_service
+                and not converser_cog.qdrant_service
                 and converser_cog.conversation_threads[message.channel.id].drawable
             ):
                 print("Checking for if the user asked to draw")
@@ -997,7 +997,7 @@ class TextService:
             # Send the request to the model
             # If conversing, the prompt to send is the history, otherwise, it's just the prompt
             if (
-                converser_cog.pinecone_service
+                converser_cog.qdrant_service
                 or message.channel.id not in converser_cog.conversation_threads
             ):
                 primary_prompt = prompt
@@ -1026,7 +1026,7 @@ class TextService:
             thinking_message = await TextService.trigger_thinking(message)
             converser_cog.full_conversation_history[message.channel.id].append(prompt)
 
-            if not converser_cog.pinecone_service:
+            if not converser_cog.qdrant_service:
                 primary_prompt += BOT_NAME
 
             await TextService.encapsulated_send(
@@ -1083,8 +1083,8 @@ class TextService:
                         ]
                     )
 
-                    pinecone_dont_reinsert = None
-                    if not converser_cog.pinecone_service:
+                    qdrant_dont_reinsert = None
+                    if not converser_cog.qdrant_service:
                         converser_cog.conversation_threads[
                             after.channel.id
                         ].history.append(
@@ -1118,7 +1118,7 @@ class TextService:
                     edited_request=True,
                 )
 
-                if not converser_cog.pinecone_service:
+                if not converser_cog.qdrant_service:
                     converser_cog.redo_users[after.author.id].prompt = edited_content
 
 
