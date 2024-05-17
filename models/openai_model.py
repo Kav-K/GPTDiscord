@@ -78,6 +78,8 @@ class Models:
 
     # Model collections
     TEXT_MODELS = [
+        GPT_4_TURBO_REGULAR,
+        GPT_4_OMEGA,
         DAVINCI,
         CURIE,
         TURBO,
@@ -91,10 +93,10 @@ class Models:
         GPT_4_TURBO,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO_CATCHALL,
-        GPT_4_TURBO_REGULAR,
-        GPT_4_OMEGA,
     ]
     CHATGPT_MODELS = [
+        GPT_4_TURBO_REGULAR,
+        GPT_4_OMEGA,
         TURBO,
         TURBO_16,
         TURBO_DEV,
@@ -103,10 +105,10 @@ class Models:
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
         GPT_4_TURBO_CATCHALL,
-        GPT_4_TURBO_REGULAR,
-        GPT_4_OMEGA,
     ]
     GPT4_MODELS = [
+        GPT_4_TURBO_REGULAR,
+        GPT_4_OMEGA,
         GPT4,
         GPT4_32,
         GPT4_DEV,
@@ -114,12 +116,10 @@ class Models:
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
         GPT_4_TURBO_CATCHALL,
-        GPT_4_TURBO_REGULAR,
-        GPT_4_OMEGA,
     ]
     EDIT_MODELS = [EDIT]
 
-    DEFAULT = TURBO
+    DEFAULT = GPT_4_OMEGA
     LOW_USAGE_MODEL = CURIE
 
     # Tokens Mapping
