@@ -33,6 +33,9 @@ from services.environment_service import EnvService
 
 from models.openai_model import Model
 
+from qdrant_client import QdrantClient
+from services.qdrant_service import QdrantService
+
 
 __version__ = "12.3.9"
 
@@ -70,6 +73,26 @@ if PINECONE_TOKEN:
     pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
     print("Got the pinecone service")
 
+try: 
+    QDRANT_TOKEN = os.getenv("QDRANT_TOKEN")
+    QDRANT_URL = os.getenv("QDRANT_CLUSTER_URL")
+except Exception:
+    QDRANT_TOKEN = None
+    QDRANT_URL = None
+
+qdrant_service = None
+if QDRANT_TOKEN and QDRANT_URL:
+    qdrant_client = QdrantClient(
+    url= QDRANT_URL, 
+    api_key=QDRANT_TOKEN,
+    )
+    qdrant_service = QdrantService(qdrant_client)
+    # Check if conversation-embeddings collection already exists, else make one
+    collections = qdrant_client.get_collections().collections
+    if not any(collection.name == "conversation-embeddings" for collection in collections):
+        qdrant_service.make_collection()
+    print("Got the Qdrant service")
+    
 #
 # Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
 #
@@ -143,7 +166,7 @@ async def main():
             debug_guild,
             debug_channel,
             data_path,
-            pinecone_service=pinecone_service,
+            qdrant_service = qdrant_service,
             pickle_queue=pickle_queue,
         )
     )
