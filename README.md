@@ -117,8 +117,8 @@ These commands are grouped, so each group has a prefix, but you can easily tab c
 
 ### Custom Indexes Commands  
 - `/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes.
-- `/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index.
 - `/index load user_index:<index> or server_index:<index>` - Load a previously created index you own yourself or an index for the whole server.
+- `/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index.
 - `/index compose` - Combine multiple saved indexes into one or upgrade existing indexes into Deep Compositions.
 - `/index reset` - Reset and delete all of your saved indexes.
 - `/index add_discord channel:<discord channel>` - Create an add an index based on a Discord channel.
