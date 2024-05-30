@@ -123,7 +123,7 @@ These commands are grouped, so each group has a prefix, but you can easily tab c
 - `/index reset` - Reset and delete all of your saved indexes.
 - `/index add_discord channel:<discord channel>` - Create an add an index based on a Discord channel.
 - `/index discord_backup` - Use the last 3000 messages of every channel on your Discord server as an index. Needs both an admin and an index role.
-- `/index chat user_index:<user_index> search_index:<search_index>` - Chat with your documents that you've indexed previously!
+- `/index chat model:<model_alias> temperature:<temp_value> top_p:<top_p_value>` - Drag files into a conversation thread to chat with them!
 
 ### DALL-E Commands  
 - `/dalle draw <prompt>` - Have DALL-E 3 generate images based on a prompt.
