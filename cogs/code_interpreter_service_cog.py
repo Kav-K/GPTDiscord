@@ -133,13 +133,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 return
 
         prompt = message.content.strip()
-
+        self.converser_cog.full_conversation_history[message.channel.id].append(prompt)
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
                 await message.reply(
-                    "Ending chat session. You can access the sandbox of this session at https://"
-                    + self.sessions[message.channel.id].get_hostname()
+                    content = "Ending chat session. You can access the sandbox of this session at https://"
+                    + self.sessions[message.channel.id].get_hostname(),
+                    view = ShareView(self.converser_cog, message.channel.id) 
+                    if isinstance(message.channel, discord.Thread) else None
                 )
                 self.sessions[message.channel.id].close()
                 self.chat_agents.pop(message.channel.id)
@@ -233,7 +235,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     print(stdout_output)
                 except:
                     pass
-
             except Exception as e:
                 response = f"Error: {e}"
                 traceback.print_exc()
@@ -242,7 +243,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
                 safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 return
-
+            self.converser_cog.full_conversation_history[message.channel.id].append(response)
             # Parse the artifact names. After Artifacts: there should be a list in form [] where the artifact names are inside, comma separated inside stdout_output
             artifact_names = re.findall(r"Artifacts: \[(.*?)\]", stdout_output)
             # The artifacts list may be formatted like ["'/home/user/artifacts/test2.txt', '/home/user/artifacts/test.txt'"], where its technically 1 element in the list, so we need to split it by comma and then remove the quotes and spaces
@@ -573,3 +574,61 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
                 await self.ctx.channel.send(
                     "Failed to download artifact: " + artifact, delete_after=120
                 )
+
+class ShareView(discord.ui.View):
+    def __init__(
+        self,
+        converser_cog,
+        conversation_id,
+    ):
+        super().__init__(timeout=3600)  # 1 hour interval to share the conversation.
+        self.converser_cog = converser_cog
+        self.conversation_id = conversation_id
+        self.add_item(ShareButton(converser_cog, conversation_id))
+
+    async def on_timeout(self):
+        # Remove the button from the view/message
+        self.clear_items()
+
+
+class ShareButton(discord.ui.Button["ShareView"]):
+    def __init__(self, converser_cog, conversation_id):
+        super().__init__(
+            style=discord.ButtonStyle.green,
+            label="Share Conversation",
+            custom_id="share_conversation",
+        )
+        self.converser_cog = converser_cog
+        self.conversation_id = conversation_id
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get the user
+        try:
+            id = await self.converser_cog.sharegpt_service.format_and_share(
+                self.converser_cog.full_conversation_history[self.conversation_id],
+                self.converser_cog.bot.user.default_avatar.url
+                if not self.converser_cog.bot.user.avatar
+                else self.converser_cog.bot.user.avatar.url,
+            )
+            url = f"https://shareg.pt/{id}"
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_shared_embed(url)
+            )
+        except ValueError as e:
+            traceback.print_exc()
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_share_failed_embed(
+                    "The ShareGPT API returned an error: " + str(e)
+                ),
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+        except Exception as e:
+            traceback.print_exc()
+            await interaction.response.send_message(
+                embed=EmbedStatics.get_conversation_share_failed_embed(str(e)),
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
