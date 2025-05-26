@@ -32,6 +32,7 @@ from langchain.schema import SystemMessage
 from langchain.utilities import GoogleSearchAPIWrapper
 
 from models.embed_statics_model import EmbedStatics
+from models.openai_model import Models
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
@@ -467,13 +468,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             openai_api_key=OPENAI_API_KEY,
         )
 
-        max_token_limit = 29000 if "gpt-4" in model else 7500
+        # Ensure all GPT-4 models (including GPT-4o variants) are treated correctly for token limit settings
+        is_gpt4_model = Models.is_gpt4_model(model)
+        max_token_limit = 29000 if is_gpt4_model else 7500
 
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=100000 if "preview" in model else max_token_limit,
+            max_token_limit=100000 if Models.is_high_context_model(model) else max_token_limit,
         )
 
         agent_kwargs = {

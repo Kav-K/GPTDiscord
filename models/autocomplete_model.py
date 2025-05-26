@@ -88,17 +88,22 @@ class Settings_autocompleter:
         return []
 
     async def get_function_calling_models(ctx: discord.AutocompleteContext):
+        # Use centralized model definitions for function calling models
         return [
-            "gpt-4",
-            "gpt-4-32k",
-            "gpt-4-1106-preview",
-            "gpt-4-0613",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-            "gpt-3.5-turbo-0613",
-            "gpt-4-turbo-preview",
-            "gpt-4-turbo",
-            "gpt-4o",
+            Models.GPT4,
+            Models.GPT4_32,
+            Models.GPT_4_TURBO_REGULAR,
+            Models.GPT4_DEV,
+            Models.TURBO,
+            Models.TURBO_0125,
+            Models.TURBO_DEV,
+            Models.GPT_4_TURBO,
+            Models.GPT_4_TURBO_2024_04_09,
+            Models.GPT_4_OMEGA,
+            Models.GPT_4_OMEGA_2024_05_13,
+            Models.GPT_4_OMEGA_2024_08_06,
+            Models.GPT_4_OMEGA_MINI,
+            Models.GPT_4_OMEGA_MINI_2024_07_18,
         ]
 
     async def get_models(

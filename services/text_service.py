@@ -322,11 +322,11 @@ class TextService:
                 and not from_edit_command
                 and (
                     (
-                        model is not None
-                        and (
-                            model in Models.CHATGPT_MODELS
-                            or (model == "chatgpt" or "gpt-4" in model)
-                        )
+                        model is not None                    and (
+                        model in Models.CHATGPT_MODELS
+                        or model == "chatgpt" 
+                        or Models.is_gpt4_model(model)
+                    )
                     )
                     or (
                         model is None
@@ -420,7 +420,8 @@ class TextService:
                 )
             elif from_ask_command or from_ask_action:
                 response_model = response["model"]
-                if "gpt-3.5" in response_model or "gpt-4" in response_model:
+                # Use helper function to check for ChatGPT models (GPT-3.5 and GPT-4 variants)
+                if response_model in Models.CHATGPT_MODELS:
                     response_text = (
                         f"\n\n{response_text}"
                         if not response_text.startswith("\n\n")
