@@ -489,13 +489,15 @@ class SearchService(discord.Cog, name="SearchService"):
             openai_api_key=OPENAI_API_KEY,
         )
 
-        max_token_limit = 29000 if "gpt-4" in model else 7500
+        # Ensure all GPT-4 models (including GPT-4o variants) are treated correctly for token limit settings
+        is_gpt4_model = Models.is_gpt4_model(model)
+        max_token_limit = 29000 if is_gpt4_model else 7500
 
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=100000 if "preview" in model else max_token_limit,
+            max_token_limit=100000 if Models.is_high_context_model(model) else max_token_limit,
         )
 
         agent_kwargs = {

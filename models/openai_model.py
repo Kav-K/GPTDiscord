@@ -57,13 +57,12 @@ class Models:
     EMBEDDINGS = "text-embedding-ada-002"
 
     # Edit models
-    EDIT = "text-davinci-edit-001"
-
-    # ChatGPT Models
+    EDIT = "text-davinci-edit-001"    # ChatGPT Models
     TURBO = "gpt-3.5-turbo"
     TURBO_16 = "gpt-3.5-turbo-16k"
     TURBO_DEV = "gpt-3.5-turbo-0613"
     TURBO_16_DEV = "gpt-3.5-turbo-16k-0613"
+    TURBO_0125 = "gpt-3.5-turbo-0125"
 
     # GPT4 Models
     GPT4 = "gpt-4"
@@ -74,18 +73,27 @@ class Models:
     GPT_4_TURBO_VISION = "gpt-4-vision-preview"
     GPT_4_TURBO_CATCHALL = "gpt-4-turbo-preview"
     GPT_4_TURBO_REGULAR = "gpt-4-turbo"
+    GPT_4_TURBO_2024_04_09 = "gpt-4-turbo-2024-04-09"
     GPT_4_OMEGA = "gpt-4o"
-
-    # Model collections
+    GPT_4_OMEGA_2024_05_13 = "gpt-4o-2024-05-13"
+    GPT_4_OMEGA_2024_08_06 = "gpt-4o-2024-08-06"
+    GPT_4_OMEGA_MINI = "gpt-4o-mini"
+    GPT_4_OMEGA_MINI_2024_07_18 = "gpt-4o-mini-2024-07-18"    # Model collections
     TEXT_MODELS = [
         GPT_4_TURBO_REGULAR,
+        GPT_4_TURBO_2024_04_09,
         GPT_4_OMEGA,
+        GPT_4_OMEGA_2024_05_13,
+        GPT_4_OMEGA_2024_08_06,
+        GPT_4_OMEGA_MINI,
+        GPT_4_OMEGA_MINI_2024_07_18,
         DAVINCI,
         CURIE,
         TURBO,
+        TURBO_0125,
         TURBO_16,
         TURBO_DEV,
-        TURBO_16_DEV,
+                TURBO_16_DEV,
         GPT4,
         GPT4_32,
         GPT4_DEV,
@@ -96,27 +104,37 @@ class Models:
     ]
     CHATGPT_MODELS = [
         GPT_4_TURBO_REGULAR,
+        GPT_4_TURBO_2024_04_09,
         GPT_4_OMEGA,
+        GPT_4_OMEGA_2024_05_13,
+        GPT_4_OMEGA_2024_08_06,
+        GPT_4_OMEGA_MINI,
+        GPT_4_OMEGA_MINI_2024_07_18,
         TURBO,
+        TURBO_0125,
         TURBO_16,
         TURBO_DEV,
         TURBO_16_DEV,
         GPT4_32,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
-        GPT_4_TURBO_CATCHALL,
+                GPT_4_TURBO_CATCHALL,
     ]
     GPT4_MODELS = [
         GPT_4_TURBO_REGULAR,
+        GPT_4_TURBO_2024_04_09,
         GPT_4_OMEGA,
+        GPT_4_OMEGA_2024_05_13,
+        GPT_4_OMEGA_2024_08_06,
+        GPT_4_OMEGA_MINI,
+        GPT_4_OMEGA_MINI_2024_07_18,
         GPT4,
         GPT4_32,
         GPT4_DEV,
         GPT4_32_DEV,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
-        GPT_4_TURBO_CATCHALL,
-    ]
+        GPT_4_TURBO_CATCHALL,    ]
     EDIT_MODELS = [EDIT]
 
     DEFAULT = GPT_4_OMEGA
@@ -127,6 +145,7 @@ class Models:
         DAVINCI: 4024,
         CURIE: 2024,
         TURBO: 4096,
+        TURBO_0125: 16384,
         TURBO_16: 16384,
         TURBO_DEV: 4096,
         TURBO_16_DEV: 16384,
@@ -138,12 +157,37 @@ class Models:
         GPT_4_TURBO: 128000,
         GPT_4_TURBO_CATCHALL: 128000,
         GPT_4_TURBO_REGULAR: 128000,
+        GPT_4_TURBO_2024_04_09: 128000,
         GPT_4_OMEGA: 128000,
+        GPT_4_OMEGA_2024_05_13: 128000,
+        GPT_4_OMEGA_2024_08_06: 128000,
+        GPT_4_OMEGA_MINI: 128000,
+        GPT_4_OMEGA_MINI_2024_07_18: 128000,
     }
 
     @staticmethod
     def get_max_tokens(model: str) -> int:
         return Models.TOKEN_MAPPING.get(model, 2024)
+
+    @staticmethod
+    def is_gpt4_model(model: str) -> bool:
+        """Check if the model is any GPT-4 variant (including GPT-4o)"""
+        return (
+            "gpt-4" in model or 
+            model.startswith("gpt-4o") or
+            model in Models.GPT4_MODELS
+        )
+
+    @staticmethod
+    def is_high_context_model(model: str) -> bool:
+        """Check if the model supports high context (> 8K tokens)"""
+        return (
+            "preview" in model or
+            "turbo" in model or
+            model.startswith("gpt-4o") or
+            "2024" in model or
+            Models.get_max_tokens(model) >= 16000
+        )
 
 
 class ImageSize:
@@ -511,12 +555,10 @@ class Model:
 
         # Set the token count
         self._max_tokens = Models.get_max_tokens(self._model)
-        SETTINGS_DB["model"] = model
-
-        # Set the summarize threshold if the model was set to gpt-4
-        if "4-turbo" in self._model or "4-vision" in self._model:
+        SETTINGS_DB["model"] = model        # Set the summarize threshold based on model capabilities
+        if Models.is_high_context_model(self._model):
             self._summarize_threshold = 125000
-        elif "gpt-4" in self._model:
+        elif Models.is_gpt4_model(self._model):
             self._summarize_threshold = 28000
         elif "gpt-3" in self._model:
             self._summarize_threshold = 6000
@@ -1122,9 +1164,7 @@ class Model:
                     except Exception:
                         raise ValueError("Could not decode JSON response from the API")
 
-                return response
-
-    @backoff.on_exception(
+                return response    @backoff.on_exception(
         backoff.expo,
         ValueError,
         factor=3,
@@ -1134,7 +1174,7 @@ class Model:
     )
     async def send_transcription_request(
         self,
-        file: [discord.Attachment, discord.File],
+        file: discord.Attachment | discord.File,
         temperature_override=None,
         custom_api_key=None,
     ):
@@ -1298,12 +1338,10 @@ class Model:
                         self.frequency_penalty
                         if frequency_penalty_override is None
                         else frequency_penalty_override
-                    ),
-                }
-                if "preview" in model_selection:
-                    payload["max_tokens"] = (
-                        4096  # Temporary workaround while 4-turbo and vision are in preview.
-                    )
+                    ),                }
+                # Handle newer models with larger context windows
+                if Models.is_high_context_model(model_selection):
+                    payload["max_tokens"] = 4096  # Temporary workaround for newer models
 
                 headers = {
                     "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"

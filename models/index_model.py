@@ -135,7 +135,7 @@ def get_and_query(
     service_context,
     multistep,
 ):
-    index: [GPTVectorStoreIndex, GPTTreeIndex] = index_storage[
+    index: GPTVectorStoreIndex | GPTTreeIndex = index_storage[
         user_id
     ].get_index_or_throw()
 
@@ -518,13 +518,15 @@ class Index_handler:
             llm=ChatOpenAI(temperature=temperature, top_p=top_p, model_name=model)
         )
 
-        max_token_limit = 29000 if "gpt-4" in model else 7500
+        # Ensure GPT-4o and other GPT-4 models are treated correctly for token limit settings
+        is_gpt4_model = Models.is_gpt4_model(model)
+        max_token_limit = 29000 if is_gpt4_model else 7500
 
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=100000 if "preview" in model else max_token_limit,
+            max_token_limit=100000 if Models.is_high_context_model(model) else max_token_limit,
         )
 
         agent_kwargs = {
@@ -687,7 +689,7 @@ class Index_handler:
         )
         return index
 
-    def index_load_file(self, file_path) -> [GPTVectorStoreIndex, ComposableGraph]:
+    def index_load_file(self, file_path) -> GPTVectorStoreIndex | ComposableGraph:
         storage_context = StorageContext.from_defaults(persist_dir=file_path)
         index = load_index_from_storage(storage_context)
         return index
