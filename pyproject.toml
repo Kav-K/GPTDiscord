@@ -17,7 +17,6 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
 "Pillow==9.3.0",
@@ -101,4 +100,4 @@ include = [
 #packages = ["cogs", "gpt3discord.py", "models", "services"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["310", "311", "312"]
+python = ["310", "311"]
