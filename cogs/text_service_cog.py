@@ -243,7 +243,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                         True if "turbo" in str(self.model.model) else False
                     ),
                 )
-                welcome_message = str(welcome_message_response["choices"][0]["text"])
+                welcome_message = str(welcome_message_response["choices"][0]["message"]["content"])
             except Exception:
                 welcome_message = None
 

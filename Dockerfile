@@ -1,4 +1,4 @@
-ARG PY_VERSION=3.10
+ARG PY_VERSION=3.11
 
 # Build container
 FROM python:${PY_VERSION} as base
