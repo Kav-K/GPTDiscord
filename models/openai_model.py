@@ -776,7 +776,9 @@ class Model:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
-                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
                 await self.valid_text_request(response, model=Models.GPT_4_OMEGA_MINI)
@@ -908,7 +910,9 @@ class Model:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
-                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
 
@@ -1240,9 +1244,7 @@ class Model:
                 "model": model_selection,
                 "messages": messages,
                 "stop": "" if stop is None else stop,
-                "temperature": (
-                    self.temp if temp_override is None else temp_override
-                ),
+                "temperature": (self.temp if temp_override is None else temp_override),
                 "top_p": self.top_p if top_p_override is None else top_p_override,
                 "presence_penalty": (
                     self.presence_penalty
@@ -1290,7 +1292,9 @@ class Model:
             }
             headers = {"Authorization": f"Bearer {api_key}"}
             async with session.post(
-                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
             ) as resp:
                 response = await resp.json()
                 try:

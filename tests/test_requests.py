@@ -39,7 +39,9 @@ async def test_send_req_gpt(model):
 @pytest.mark.asyncio
 async def test_send_req_gpt4(model):
     prompt = "how many hours are in a day?"
-    res = await model.send_request(prompt, None, is_chatgpt_request=True, model="gpt-4o")
+    res = await model.send_request(
+        prompt, None, is_chatgpt_request=True, model="gpt-4o"
+    )
     assert "24" in res["choices"][0]["message"]["content"]
 
 

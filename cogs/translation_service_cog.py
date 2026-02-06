@@ -6,7 +6,6 @@ import discord
 from models.deepl_model import TranslationModel
 from services.environment_service import EnvService
 
-
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 
