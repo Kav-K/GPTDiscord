@@ -1,50 +1,52 @@
 from pathlib import Path
+import tempfile
 
 import pytest
 from models.openai_model import Model
-from transformers import GPT2TokenizerFast
 
 from services.usage_service import UsageService
 
 
-# Non-ChatGPT -> TODO: make generic test and loop through text models
+@pytest.fixture
+def usage_service(tmp_path):
+    return UsageService(tmp_path)
+
+
+@pytest.fixture
+def model(usage_service):
+    return Model(usage_service)
+
+
+# All requests now use chat completions format
 @pytest.mark.asyncio
-async def test_send_req():
-    usage_service = UsageService(Path("../tests"))
-    model = Model(usage_service)
+async def test_send_req(model):
     prompt = "how many hours are in a day?"
-    tokens = len(GPT2TokenizerFast.from_pretrained("gpt2")(prompt)["input_ids"])
-    res = await model.send_request(prompt, tokens)
-    assert "24" in res["choices"][0]["text"]
+    res = await model.send_request(prompt, None, model="gpt-4o-mini")
+    assert "24" in res["choices"][0]["message"]["content"]
 
 
 # ChatGPT version
 @pytest.mark.asyncio
-async def test_send_req_gpt():
-    usage_service = UsageService(Path("../tests"))
-    model = Model(usage_service)
+async def test_send_req_gpt(model):
     prompt = "how many hours are in a day?"
     res = await model.send_request(
-        prompt, None, is_chatgpt_request=True, model="gpt-3.5-turbo"
+        prompt, None, is_chatgpt_request=True, model="gpt-4o-mini"
     )
     assert "24" in res["choices"][0]["message"]["content"]
 
 
 # GPT4 version
 @pytest.mark.asyncio
-async def test_send_req_gpt4():
-    usage_service = UsageService(Path("../tests"))
-    model = Model(usage_service)
+async def test_send_req_gpt4(model):
     prompt = "how many hours are in a day?"
-    res = await model.send_request(prompt, None, is_chatgpt_request=True, model="gpt-4")
+    res = await model.send_request(prompt, None, is_chatgpt_request=True, model="gpt-4o")
     assert "24" in res["choices"][0]["message"]["content"]
 
 
-# Edit request -> currently broken due to endpoint
-# @pytest.mark.asyncio
-# async def test_send_edit_req():
-#     usage_service = UsageService(Path("../tests"))
-#     model = Model(usage_service)
-#     text = 'how many hours are in a day?'
-#     res = await model.send_edit_request(text)
-#     assert '24' in res['choices'][0]['text']
+# Edit request - now uses chat completions
+@pytest.mark.asyncio
+async def test_send_edit_req(model):
+    instruction = "Fix the spelling"
+    text = "Ther are tweny four hours in a day"
+    res = await model.send_edit_request(instruction=instruction, text=text)
+    assert "choices" in res

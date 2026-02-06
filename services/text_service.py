@@ -394,14 +394,9 @@ class TextService:
 
             # Clean the request response
 
-            response_text = (
-                converser_cog.cleanse_response(str(response["choices"][0]["text"]))
-                if not is_chatgpt_request
-                and not is_chatgpt_conversation
-                or from_edit_command
-                else converser_cog.cleanse_response(
-                    str(response["choices"][0]["message"]["content"])
-                )
+            # All responses now use chat completions format
+            response_text = converser_cog.cleanse_response(
+                str(response["choices"][0]["message"]["content"])
             )
 
             if from_message_context:

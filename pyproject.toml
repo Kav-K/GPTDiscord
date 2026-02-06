@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "gpt3discord"
 description = "A Chat GPT Discord bot"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = []
 authors = [
@@ -15,15 +15,16 @@ authors = [
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
 "Pillow==9.3.0",
-"openai==1.2.0",
+"openai==2.17.0",
 "yt-dlp==2023.3.4",
 "ffmpeg==1.4",
 "beautifulsoup4==4.11.2",
-"py-cord==2.4.1",
+"py-cord==2.7.0",
 "python-dotenv==1.0.0",
 "requests==2.31.0",
 "transformers==4.25.1",
@@ -50,7 +51,7 @@ dependencies = [
 "wolframalpha==5.0.0",
 "nltk==3.8.1",
 "replicate==0.15.4",
-"tiktoken==0.4.0",
+"tiktoken==0.12.0",
 "pydantic==2.4.2",
 "e2b==0.10.6"
 ]
@@ -99,4 +100,4 @@ include = [
 #packages = ["cogs", "gpt3discord.py", "models", "services"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["39"]
+python = ["310", "311"]

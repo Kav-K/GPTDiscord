@@ -104,14 +104,8 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             # twice because of the best_of_override=2 parameter. This is to ensure that the model does a lot of analysis, but is
             # also relatively cost-effective
 
-            response_text = (
-                str(response["choices"][0]["text"])
-                if not (
-                    self.model.model in Models.CHATGPT_MODELS
-                    or self.model.model in Models.GPT4_MODELS
-                )
-                else response["choices"][0]["message"]["content"]
-            )
+            # All responses now use chat completions format
+            response_text = str(response["choices"][0]["message"]["content"])
 
             # escape any mentions
             response_text = discord.utils.escape_mentions(response_text)

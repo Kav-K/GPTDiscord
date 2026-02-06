@@ -49,101 +49,95 @@ class Override:
 
 
 class Models:
-    # Text models
-    DAVINCI = "text-davinci-003"
-    CURIE = "text-curie-001"
-
     # Embedding models
     EMBEDDINGS = "text-embedding-ada-002"
-
-    # Edit models
-    EDIT = "text-davinci-edit-001"
 
     # ChatGPT Models
     TURBO = "gpt-3.5-turbo"
     TURBO_16 = "gpt-3.5-turbo-16k"
-    TURBO_DEV = "gpt-3.5-turbo-0613"
-    TURBO_16_DEV = "gpt-3.5-turbo-16k-0613"
 
     # GPT4 Models
     GPT4 = "gpt-4"
     GPT4_32 = "gpt-4-32k"
-    GPT4_DEV = "gpt-4-0613"
-    GPT4_32_DEV = "gpt-4-32k-0613"
     GPT_4_TURBO = "gpt-4-1106-preview"
     GPT_4_TURBO_VISION = "gpt-4-vision-preview"
     GPT_4_TURBO_CATCHALL = "gpt-4-turbo-preview"
     GPT_4_TURBO_REGULAR = "gpt-4-turbo"
     GPT_4_OMEGA = "gpt-4o"
+    GPT_4_OMEGA_MINI = "gpt-4o-mini"
+
+    # O-series reasoning models
+    O1 = "o1"
+    O1_MINI = "o1-mini"
+    O3_MINI = "o3-mini"
 
     # Model collections
     TEXT_MODELS = [
-        GPT_4_TURBO_REGULAR,
         GPT_4_OMEGA,
-        DAVINCI,
-        CURIE,
+        GPT_4_OMEGA_MINI,
+        GPT_4_TURBO_REGULAR,
         TURBO,
         TURBO_16,
-        TURBO_DEV,
-        TURBO_16_DEV,
         GPT4,
         GPT4_32,
-        GPT4_DEV,
-        GPT4_32_DEV,
         GPT_4_TURBO,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO_CATCHALL,
+        O1,
+        O1_MINI,
+        O3_MINI,
     ]
     CHATGPT_MODELS = [
-        GPT_4_TURBO_REGULAR,
         GPT_4_OMEGA,
+        GPT_4_OMEGA_MINI,
+        GPT_4_TURBO_REGULAR,
         TURBO,
         TURBO_16,
-        TURBO_DEV,
-        TURBO_16_DEV,
         GPT4_32,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
         GPT_4_TURBO_CATCHALL,
+        O1,
+        O1_MINI,
+        O3_MINI,
     ]
     GPT4_MODELS = [
-        GPT_4_TURBO_REGULAR,
         GPT_4_OMEGA,
+        GPT_4_OMEGA_MINI,
+        GPT_4_TURBO_REGULAR,
         GPT4,
         GPT4_32,
-        GPT4_DEV,
-        GPT4_32_DEV,
         GPT_4_TURBO_VISION,
         GPT_4_TURBO,
         GPT_4_TURBO_CATCHALL,
+        O1,
+        O1_MINI,
+        O3_MINI,
     ]
-    EDIT_MODELS = [EDIT]
 
     DEFAULT = GPT_4_OMEGA
-    LOW_USAGE_MODEL = CURIE
+    LOW_USAGE_MODEL = GPT_4_OMEGA_MINI
 
     # Tokens Mapping
     TOKEN_MAPPING = {
-        DAVINCI: 4024,
-        CURIE: 2024,
         TURBO: 4096,
         TURBO_16: 16384,
-        TURBO_DEV: 4096,
-        TURBO_16_DEV: 16384,
         GPT4: 8192,
         GPT4_32: 32768,
-        GPT4_DEV: 8192,
-        GPT4_32_DEV: 32768,
         GPT_4_TURBO_VISION: 128000,
         GPT_4_TURBO: 128000,
         GPT_4_TURBO_CATCHALL: 128000,
         GPT_4_TURBO_REGULAR: 128000,
         GPT_4_OMEGA: 128000,
+        GPT_4_OMEGA_MINI: 128000,
+        O1: 200000,
+        O1_MINI: 128000,
+        O3_MINI: 200000,
     }
 
     @staticmethod
     def get_max_tokens(model: str) -> int:
-        return Models.TOKEN_MAPPING.get(model, 2024)
+        return Models.TOKEN_MAPPING.get(model, 4096)
 
 
 class ImageSize:
@@ -683,12 +677,9 @@ class Model:
     async def valid_text_request(self, response, model=None):
         try:
             tokens_used = int(response["usage"]["total_tokens"])
-            if model and model in Models.EDIT_MODELS:
-                pass
-            else:
-                await self.usage_service.update_usage(
-                    tokens_used, await self.usage_service.get_cost_name(model)
-                )
+            await self.usage_service.update_usage(
+                tokens_used, await self.usage_service.get_cost_name(model)
+            )
         except Exception as e:
             traceback.print_exc()
             if "error" in response:
@@ -756,13 +747,23 @@ class Model:
         )
         print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
+        # The /v1/edits endpoint was removed by OpenAI. Use chat completions instead.
         async with aiohttp.ClientSession(
             raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
         ) as session:
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"You are a helpful assistant that edits text according to instructions. Apply the following instruction to the given text and return only the edited result.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Instruction: {instruction}\n\nText to edit: {'' if text is None else text}",
+                },
+            ]
             payload = {
-                "model": Models.EDIT,
-                "input": "" if text is None else text,
-                "instruction": instruction,
+                "model": Models.GPT_4_OMEGA_MINI,
+                "messages": messages,
                 "temperature": self.temp if temp_override is None else temp_override,
                 "top_p": self.top_p if top_p_override is None else top_p_override,
             }
@@ -775,10 +776,10 @@ class Model:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
-                "https://api.openai.com/v1/edits", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
-                await self.valid_text_request(response, model=Models.EDIT)
+                await self.valid_text_request(response, model=Models.GPT_4_OMEGA_MINI)
                 return response
 
     @backoff.on_exception(
@@ -887,21 +888,19 @@ class Model:
     ]:  # The response, and a boolean indicating whether or not the context limit was reached.
         # Validate that  all the parameters are in a good state before we send the request
 
-        prompt = f"{pretext}{text}\nOutput:"
-
-        max_tokens = Models.get_max_tokens(
-            Models.DAVINCI
-        ) - self.usage_service.count_tokens(prompt)
-
         print(f"Language detection request for {text}")
 
+        # Use chat completions instead of the deprecated /v1/completions endpoint
         async with aiohttp.ClientSession(raise_for_status=False) as session:
+            messages = [
+                {"role": "system", "content": pretext},
+                {"role": "user", "content": text},
+            ]
             payload = {
-                "model": Models.DAVINCI,
-                "prompt": prompt,
+                "model": Models.GPT_4_OMEGA_MINI,
+                "messages": messages,
                 "temperature": 0,
                 "top_p": 1,
-                "max_tokens": max_tokens,
             }
             headers = {"Authorization": f"Bearer {self.openai_key}"}
             self.use_org = True if "true" in str(self.use_org).lower() else False
@@ -909,11 +908,11 @@ class Model:
                 if self.openai_organization:
                     headers["OpenAI-Organization"] = self.openai_organization
             async with session.post(
-                "https://api.openai.com/v1/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
 
-                await self.valid_text_request(response)
+                await self.valid_text_request(response, model=Models.GPT_4_OMEGA_MINI)
                 print(f"Response -> {response}")
 
                 return response
@@ -1222,124 +1221,76 @@ class Model:
             f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}, model:{model if model else 'none'}, stop:{stop}"
         )
 
-        # Non-ChatGPT simple completion models.
+        # All requests now use chat completions (the /v1/completions endpoint is deprecated)
         if not is_chatgpt_request:
-            async with aiohttp.ClientSession(
-                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                payload = {
-                    "model": self.model if model is None else model,
-                    "prompt": prompt,
-                    "stop": "" if stop is None else stop,
-                    "temperature": (
-                        self.temp if temp_override is None else temp_override
-                    ),
-                    "top_p": self.top_p if top_p_override is None else top_p_override,
-                    "max_tokens": (
-                        self.max_tokens - tokens
-                        if max_tokens_override is None
-                        else max_tokens_override
-                    ),
-                    "presence_penalty": (
-                        self.presence_penalty
-                        if presence_penalty_override is None
-                        else presence_penalty_override
-                    ),
-                    "frequency_penalty": (
-                        self.frequency_penalty
-                        if frequency_penalty_override is None
-                        else frequency_penalty_override
-                    ),
-                    "best_of": (
-                        self.best_of if not best_of_override else best_of_override
-                    ),
-                }
-                headers = {
-                    "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
-                }
-                self.use_org = True if "true" in str(self.use_org).lower() else False
-                if self.use_org:
-                    if self.openai_organization:
-                        headers["OpenAI-Organization"] = self.openai_organization
+            # Convert prompt-style request to chat completion format
+            if system_instruction:
+                messages = [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ]
+            else:
+                messages = [{"role": "user", "content": prompt}]
 
-                async with session.post(
-                    "https://api.openai.com/v1/completions",
-                    json=payload,
-                    headers=headers,
-                ) as resp:
-                    response = await resp.json()
-                    # print(f"Payload -> {payload}")
-                    # Parse the total tokens used for this request and response pair from the response
-                    await self.valid_text_request(
-                        response, model=self.model if model is None else model
-                    )
-                    print(f"Response -> {response}")
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
+            model_selection = self.model if not model else model
+            payload = {
+                "model": model_selection,
+                "messages": messages,
+                "stop": "" if stop is None else stop,
+                "temperature": (
+                    self.temp if temp_override is None else temp_override
+                ),
+                "top_p": self.top_p if top_p_override is None else top_p_override,
+                "presence_penalty": (
+                    self.presence_penalty
+                    if presence_penalty_override is None
+                    else presence_penalty_override
+                ),
+                "frequency_penalty": (
+                    self.frequency_penalty
+                    if frequency_penalty_override is None
+                    else frequency_penalty_override
+                ),
+            }
+            if "preview" in model_selection:
+                payload["max_tokens"] = 4096
 
-                    return response
-        else:  # ChatGPT/GPT4 Simple completion
-            async with aiohttp.ClientSession(
-                raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                model_selection = self.model if not model else model
-                payload = {
-                    "model": model_selection,
-                    "messages": messages,
-                    "stop": "" if stop is None else stop,
-                    "temperature": (
-                        self.temp if temp_override is None else temp_override
-                    ),
-                    "top_p": self.top_p if top_p_override is None else top_p_override,
-                    "presence_penalty": (
-                        self.presence_penalty
-                        if presence_penalty_override is None
-                        else presence_penalty_override
-                    ),
-                    "frequency_penalty": (
-                        self.frequency_penalty
-                        if frequency_penalty_override is None
-                        else frequency_penalty_override
-                    ),
-                }
-                if "preview" in model_selection:
-                    payload["max_tokens"] = (
-                        4096  # Temporary workaround while 4-turbo and vision are in preview.
-                    )
+            headers = {
+                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
+            }
+            self.use_org = True if "true" in str(self.use_org).lower() else False
+            if self.use_org:
+                if self.openai_organization:
+                    headers["OpenAI-Organization"] = self.openai_organization
+            async with session.post(
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as resp:
+                response = await resp.json()
+                await self.valid_text_request(
+                    response, model=self.model if model is None else model
+                )
+                print(f"Response -> {response}")
 
-                headers = {
-                    "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
-                }
-                self.use_org = True if "true" in str(self.use_org).lower() else False
-                if self.use_org:
-                    if self.openai_organization:
-                        headers["OpenAI-Organization"] = self.openai_organization
-                async with session.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    json=payload,
-                    headers=headers,
-                ) as resp:
-                    response = await resp.json()
-                    # print(f"Payload -> {payload}")
-                    # Parse the total tokens used for this request and response pair from the response
-                    await self.valid_text_request(
-                        response, model=self.model if model is None else model
-                    )
-                    print(f"Response -> {response}")
-
-                    return response
+                return response
 
     @staticmethod
     async def send_test_request(api_key):
         async with aiohttp.ClientSession() as session:
             payload = {
                 "model": Models.LOW_USAGE_MODEL,
-                "prompt": "test.",
+                "messages": [{"role": "user", "content": "test."}],
                 "temperature": 1,
                 "top_p": 1,
                 "max_tokens": 10,
             }
             headers = {"Authorization": f"Bearer {api_key}"}
             async with session.post(
-                "https://api.openai.com/v1/completions", json=payload, headers=headers
+                "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
             ) as resp:
                 response = await resp.json()
                 try:

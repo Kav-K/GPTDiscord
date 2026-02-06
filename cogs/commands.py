@@ -122,7 +122,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         autocomplete=Settings_autocompleter.get_value,
     )
-    @discord.guild_only()
+
     async def settings(
         self, ctx: discord.ApplicationContext, parameter: str = None, value: str = None
     ):
@@ -134,7 +134,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Reset all settings for GPT3Discord",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def settings_reset(self, ctx: discord.ApplicationContext):
         await self.converser_cog.settings_reset_command(ctx)
 
@@ -144,7 +144,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Get the size of the dall-e images folder that we have on the current system",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def local_size(self, ctx: discord.ApplicationContext):
         await self.image_draw_cog.local_size_command(ctx)
 
@@ -154,7 +154,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Clear the local dalleimages folder on system.",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def clear_local(self, ctx: discord.ApplicationContext):
         await self.image_draw_cog.clear_local_command(ctx)
 
@@ -164,7 +164,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Get usage statistics for GPT3Discord",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def usage(self, ctx: discord.ApplicationContext):
         await self.converser_cog.usage_command(ctx)
 
@@ -206,7 +206,7 @@ class Commands(discord.Cog, name="Commands"):
         description="The prompt to test",
         required=True,
     )
-    @discord.guild_only()
+
     async def moderations_test(self, ctx: discord.ApplicationContext, prompt: str):
         await self.moderations_cog.moderations_test_command(ctx, prompt)
 
@@ -228,7 +228,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         autocomplete=Settings_autocompleter.get_value_alert_id_channel,
     )
-    @discord.guild_only()
+
     async def moderations(
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
@@ -295,7 +295,7 @@ class Commands(discord.Cog, name="Commands"):
         min_value=0,
         max_value=1,
     )
-    @discord.guild_only()
+
     async def config(
         self,
         ctx: discord.ApplicationContext,
@@ -354,7 +354,7 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="private", description="Will only be visible to you", required=False
     )
-    @discord.guild_only()
+
     async def instruction(
         self,
         ctx: discord.ApplicationContext,
@@ -420,7 +420,7 @@ class Commands(discord.Cog, name="Commands"):
         min_value=-2,
         max_value=2,
     )
-    @discord.guild_only()
+
     async def ask(
         self,
         ctx: discord.ApplicationContext,
@@ -481,7 +481,7 @@ class Commands(discord.Cog, name="Commands"):
         min_value=0,
         max_value=1,
     )
-    @discord.guild_only()
+
     async def edit(
         self,
         ctx: discord.ApplicationContext,
@@ -575,7 +575,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         default=True,
     )
-    @discord.guild_only()
+
     async def converse(
         self,
         ctx: discord.ApplicationContext,
@@ -612,7 +612,7 @@ class Commands(discord.Cog, name="Commands"):
         description="End a conversation with GPT",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def end(self, ctx: discord.ApplicationContext):
         await self.converser_cog.end_command(ctx)
 
@@ -625,7 +625,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Select one of your saved indexes to rename",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="user_index",
         description="Which user index to rename",
@@ -653,7 +653,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Select one of your saved server indexes to rename",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="server_index",
         description="Which server index to rename",
@@ -681,7 +681,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Select one of your saved search indexes to rename",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="search_index",
         description="Which search index to rename",
@@ -709,7 +709,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Select one of your saved indexes to query from",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="user_index",
         description="Which user file to load the index from",
@@ -746,7 +746,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Select one of your saved indexes to talk to",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="model",
         description="The model to use for the conversation",
@@ -786,7 +786,7 @@ class Commands(discord.Cog, name="Commands"):
     @discord.slash_command(
         name="add", description="Add an index to query from", guild_ids=ALLOWED_GUILDS
     )
-    @discord.guild_only()
+
     @discord.option(
         name="file",
         description="A file to create the index from",
@@ -810,7 +810,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Recursively index a link",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="link",
         description="A link to create the index from",
@@ -836,7 +836,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Reset (delete) all of your saved indexes",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def reset(self, ctx: discord.ApplicationContext):
         await self.index_cog.reset_command(ctx)
 
@@ -852,7 +852,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=discord.SlashCommandOptionType.string,
     )
-    @discord.guild_only()
+
     async def compose(self, ctx: discord.ApplicationContext, name: str):
         await self.index_cog.compose_command(ctx, name)
 
@@ -862,7 +862,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Set a index from a discord channel",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="channel",
         description="A channel to create the index from",
@@ -898,7 +898,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
     )
-    @discord.guild_only()
+
     async def discord_backup(self, ctx: discord.ApplicationContext, message_limit: int):
         await self.index_cog.discord_backup_command(ctx, message_limit=message_limit)
 
@@ -906,7 +906,7 @@ class Commands(discord.Cog, name="Commands"):
     @discord.slash_command(
         name="query", description="Query from your index", guild_ids=ALLOWED_GUILDS
     )
-    @discord.guild_only()
+
     @discord.option(name="query", description="What to query the index", required=True)
     @discord.option(
         name="nodes",
@@ -1030,7 +1030,7 @@ class Commands(discord.Cog, name="Commands"):
     @discord.option(
         name="prompt", description="The text prompt to optimize.", required=True
     )
-    @discord.guild_only()
+
     async def optimize(self, ctx: discord.ApplicationContext, prompt: str):
         await self.image_service_cog.optimize_command(ctx, prompt)
 
@@ -1043,14 +1043,14 @@ class Commands(discord.Cog, name="Commands"):
         description="Private thread for testing. Only visible to you and server admins.",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def private_test(self, ctx: discord.ApplicationContext):
         await self.converser_cog.private_test_command(ctx)
 
     @discord.slash_command(
         name="help", description="Get help for GPT3Discord", guild_ids=ALLOWED_GUILDS
     )
-    @discord.guild_only()
+
     async def help(self, ctx: discord.ApplicationContext):
         await self.converser_cog.help_command(ctx)
 
@@ -1060,7 +1060,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Usage count by functionality",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def usage_metrics(self, ctx: discord.ApplicationContext):
         memory = self.usage_service.get_usage_memory_all()
 
@@ -1088,7 +1088,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Setup your API key for use with GPT3Discord",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     async def setup(self, ctx: discord.ApplicationContext):
         await self.converser_cog.setup_command(ctx)
 
@@ -1187,7 +1187,7 @@ class Commands(discord.Cog, name="Commands"):
         required=False,
         autocomplete=Translations_autocompleter.get_formality_values,
     )
-    @discord.guild_only()
+
     async def translate(
         self,
         ctx: discord.ApplicationContext,
@@ -1210,7 +1210,7 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_translator_roles()],
     )
-    @discord.guild_only()
+
     async def languages(self, ctx: discord.ApplicationContext):
         if self.translations_cog:
             await self.translations_cog.languages_command(ctx)
@@ -1368,7 +1368,7 @@ class Commands(discord.Cog, name="Commands"):
         default=False,
         input_type=discord.SlashCommandOptionType.boolean,
     )
-    @discord.guild_only()
+
     async def search(
         self,
         ctx: discord.ApplicationContext,
@@ -1398,7 +1398,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Transcribe an audio or video file",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="file",
         description="A file to transcribe",
@@ -1427,7 +1427,7 @@ class Commands(discord.Cog, name="Commands"):
         description="Transcribe a file link or youtube link",
         guild_ids=ALLOWED_GUILDS,
     )
-    @discord.guild_only()
+
     @discord.option(
         name="link",
         description="A link to transcribe",

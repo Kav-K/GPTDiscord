@@ -139,7 +139,7 @@ class Moderation:
     @staticmethod
     async def force_english_and_respond(text, pretext, ctx):
         response = await model.send_language_detect_request(text, pretext)
-        response_text = response["choices"][0]["text"]
+        response_text = response["choices"][0]["message"]["content"]
 
         if "false" in response_text.lower().strip():
             if isinstance(ctx, discord.Message):
