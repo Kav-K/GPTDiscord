@@ -34,7 +34,7 @@ class HealthService:
         self.port = port
 
         print("Starting the health check service..")
-        self.process = Process(target=lambda: run_target(self.host, self.port))
+        self.process = Process(target=run_target, args=(self.host, self.port))
         self.process.start()
         print("Health check service started!")
 

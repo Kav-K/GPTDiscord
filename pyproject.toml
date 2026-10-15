@@ -1,103 +1,119 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.32,<2"]
 build-backend = "hatchling.build"
 
 [project]
 name = "gpt3discord"
-description = "A Chat GPT Discord bot"
+description = "A Discord bot for current OpenAI chat, images, audio, and moderation APIs"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.14"
 license = "MIT"
-keywords = []
 authors = [
   { name = "Kaveen Kumarasinghe", email = "contact@kaveenk.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-"Pillow==9.3.0",
-"openai==2.17.0",
-"yt-dlp==2023.3.4",
-"ffmpeg==1.4",
-"beautifulsoup4==4.11.2",
-"py-cord==2.7.0",
-"python-dotenv==1.0.0",
-"requests==2.31.0",
-"transformers==4.25.1",
-"pycord-multicog==1.0.2",
-"aiofiles==22.1.0",
-"pinecone-client==2.1.0",
-"sqlitedict==2.1.0",
-"backoff==2.2.1",
-"flask==3.0.0",
-"werkzeug==3.0.1",
-"llama-index==0.8.69.post1",
-"pypdf==3.11.1",
-"youtube_transcript_api==0.5.0",
-"sentencepiece==0.1.99",
-"protobuf==3.20.2",
-"python-pptx==0.6.21",
-"langchain==0.0.335",
-"unidecode==1.3.6",
-"tqdm==4.64.1",
-"docx2txt==0.8",
-"pytest-asyncio==0.21.0",
-"pytest~=7.2.2",
-"google-api-python-client==2.85.0",
-"wolframalpha==5.0.0",
-"nltk==3.8.1",
-"replicate==0.15.4",
-"tiktoken==0.12.0",
-"pydantic==2.4.2",
-"e2b==0.10.6"
+  "aiofiles>=25.1,<26",
+  "aiohttp>=3.14.5,<4",
+  "backoff>=2.2.1,<3",
+  "Flask>=3.1.3,<4",
+  "openai>=2.45,<4",
+  "Pillow>=12.3,<13",
+  "py-cord>=2.8.1,<3",
+  "pycord-multicog>=2.1.1,<3",
+  "python-dotenv>=1.2.4,<2",
+  "requests>=2.34.2,<3",
+  "sqlitedict>=2.1,<3",
+  "tiktoken>=0.14,<1",
+  "Unidecode>=1.4,<2",
+  "yt-dlp>=2026.8.19",
 ]
-
 dynamic = ["version"]
-
 
 [project.scripts]
 gpt3discord = "gpt3discord:init"
 
 [project.urls]
-Documentation = "https://github.com/Kav-K/GPT3Discord/#readme"
-Issues = "https://github.com/Kav-K/GPT3Discord/issues"
-Source = "https://github.com/Kav-K/GPT3Discord"
+Documentation = "https://github.com/Kav-K/GPTDiscord#readme"
+Issues = "https://github.com/Kav-K/GPTDiscord/issues"
+Source = "https://github.com/Kav-K/GPTDiscord"
 
 [project.optional-dependencies]
-full = [
-  "torch==1.13.1",
-  "torchvision==1.14.1",
-  "tokenizers==0.13.3",
-  "numpy==1.24.2",
-  "scipy==1.10.1",
-  "huggingface-hub==0.12.1",
-  "more-itertools==9.0.0",
-  "ffmpeg-python==0.2.0",
-  "sentence-transformers==2.2.2",
-  "openai-whisper",
+# LlamaIndex currently requires OpenAI SDK 2.x; the resolver selects that SDK
+# only when installing this integration. The core also supports SDK 3.x.
+index = [
+  "beautifulsoup4>=4.15,<5",
+  "google-api-python-client>=2.201,<3",
+  "wolframalpha>=5.1.4,<6",
+  "langchain-classic>=1.0.8,<2",
+  "langchain-community>=0.4.2,<0.5",
+  "langchain-core>=1.6.10,<2",
+  "langchain-openai>=1.7.2,<2",
+  "llama-index-core>=0.14.25,<0.15",
+  "llama-index-embeddings-openai>=0.7,<0.8",
+  "llama-index-llms-openai>=0.8.3,<0.9",
+  "llama-index-readers-file>=0.7,<0.8",
+]
+search = ["gpt3discord[index]"]
+code = [
+  "e2b-code-interpreter>=2.11,<3",
+  "google-api-python-client>=2.201,<3",
+  "langchain-classic>=1.0.8,<2",
+  "langchain-community>=0.4.2,<0.5",
+  "langchain-core>=1.6.10,<2",
+  "langchain-openai>=1.7.2,<2",
+]
+pinecone = ["pinecone>=10,<11"]
+replicate = ["replicate>=1.0.7,<2"]
+full = ["gpt3discord[code,index,pinecone,replicate]"]
+dev = [
+  "build>=1.6,<2",
+  "packaging>=24",
+  "pytest>=9.1,<10",
+  "pytest-asyncio>=1.4,<2",
+  "PyYAML>=6,<7",
+  "ruff>=0.17,<0.18",
+  "twine>=7,<8",
 ]
 
 [tool.hatch.version]
 path = "gpt3discord.py"
 
-[tool.hatch.build]
+[tool.hatch.build.targets.wheel]
+only-include = ["gpt3discord.py", "cogs", "models", "services", "utils"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"conversation_drawing_ability_extraction_snippet.txt" = "gptdiscord_data/conversation_drawing_ability_extraction_snippet.txt"
+"conversation_drawing_ability_snippet.txt" = "gptdiscord_data/conversation_drawing_ability_snippet.txt"
+"conversation_starter_pretext.txt" = "gptdiscord_data/conversation_starter_pretext.txt"
+"conversation_starter_pretext_minimal.txt" = "gptdiscord_data/conversation_starter_pretext_minimal.txt"
+"conversation_starter_pretext_vision.txt" = "gptdiscord_data/conversation_starter_pretext_vision.txt"
+"image_optimizer_pretext.txt" = "gptdiscord_data/image_optimizer_pretext.txt"
+"language_detection_pretext.txt" = "gptdiscord_data/language_detection_pretext.txt"
+"openers" = "gptdiscord_data/openers"
+
+[tool.hatch.build.targets.sdist]
 include = [
-  "cogs/*.py",
-  "models/*.py",
-  "services/*.py",
-  "utils/*.py",
-  "gpt3discord.py",
+  "/cogs", "/models", "/services", "/utils", "/tests", "/openers",
+  "/gpt3discord.py", "/pyproject.toml", "/README.md", "/LICENSE",
+  "/requirements*.txt", "/Dockerfile", "/docker-compose.yml", "/sample.env",
+  "/*_pretext*.txt", "/conversation_drawing_ability*_snippet.txt",
 ]
 
-#[tool.hatch.build.targets.sdist]
-#packages = ["cogs", "gpt3discord.py", "models", "services"]
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["integration: opt-in tests requiring a live API and credentials"]
 
-#[tool.hatch.build.targets.wheel]
-#packages = ["cogs", "gpt3discord.py", "models", "services"]
+[tool.ruff]
+target-version = "py311"
 
-[[tool.hatch.envs.test.matrix]]
-python = ["310", "311"]
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

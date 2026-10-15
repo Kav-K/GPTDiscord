@@ -47,9 +47,9 @@ class EnvService:
     @staticmethod
     def save_path():
         share_dir = os.getenv("SHARE_DIR")
-        if share_dir is not None:
-            return Path(share_dir)
-        return app_root_path()
+        directory = Path(share_dir or os.getenv("DATA_DIR") or Path.cwd()).resolve()
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory
 
     @staticmethod
     def find_shared_file(file_name):
@@ -60,6 +60,9 @@ class EnvService:
 
         share_file_paths.extend(
             [
+                EnvService.save_path() / file_name,
+                Path(__file__).resolve().parent.parent / "gptdiscord_data" / file_name,
+                Path(__file__).resolve().parent.parent / file_name,
                 app_root_path() / "share" / file_name,
                 app_root_path() / file_name,
                 Path(file_name),
@@ -412,7 +415,7 @@ class EnvService:
                 print(
                     "No user key database path was provided. Defaulting to user_key_db.sqlite"
                 )
-                user_key_db_path = EnvService.find_shared_file("user_key_db.sqlite")
+                user_key_db_path = EnvService.save_path() / "user_key_db.sqlite"
             else:
                 # append "user_key_db.sqlite" to USER_KEY_DB_PATH if it doesn't already end with .sqlite
                 if not user_key_db_path.match("*.sqlite"):
@@ -467,13 +470,37 @@ class EnvService:
 
     @staticmethod
     def get_openai_token():
-        try:
-            openai_token = os.getenv("OPENAI_TOKEN")
-            return openai_token
-        except Exception:
-            raise ValueError(
-                "OPENAI_TOKEN is not defined properly in the environment file! The bot cannot start without this token."
-            )
+        """Prefer the SDK standard name; keep existing deployments compatible."""
+        return os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_TOKEN")
+
+    @staticmethod
+    def get_openai_project():
+        return os.getenv("OPENAI_PROJECT")
+
+    @staticmethod
+    def get_openai_base_url():
+        return os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+
+    @staticmethod
+    def get_openai_model():
+        return os.getenv("OPENAI_MODEL")
+
+    @staticmethod
+    def get_openai_image_model():
+        return os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2.5-flare")
+
+    @staticmethod
+    def get_openai_embedding_model():
+        # Keep existing Pinecone indexes compatible (1536 dimensions).
+        return os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+    @staticmethod
+    def get_openai_moderation_model():
+        return os.getenv("OPENAI_MODERATION_MODEL", "omni-moderation-latest")
+
+    @staticmethod
+    def get_indexing_enabled():
+        return os.getenv("ENABLE_INDEXING", "false").strip().lower() == "true"
 
     @staticmethod
     def get_wolfram_api_key():
@@ -529,10 +556,10 @@ class EnvService:
     @staticmethod
     def get_pinecone_region():
         try:
-            pinecone_region = os.getenv("PINECONE_REGION")
+            pinecone_region = os.getenv("PINECONE_REGION", "us-east-1")
             return pinecone_region
         except Exception:
-            return "us-west1-gcp"
+            return "us-east-1"
 
     @staticmethod
     def get_max_search_price():

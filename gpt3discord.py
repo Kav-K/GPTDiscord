@@ -1,137 +1,96 @@
-import os
+"""GPTDiscord entry point. Importing this module does not start the bot."""
+
 import asyncio
+import importlib
+import logging
+import os
 import signal
 import sys
-import threading
-import traceback
 from pathlib import Path
 from platform import system
 
-import discord
-import pinecone
-from pycord.multicog import apply_multicog
-
-from cogs.code_interpreter_service_cog import CodeInterpreterService
-from cogs.search_service_cog import SearchService
-from cogs.text_service_cog import GPT3ComCon
-from cogs.image_service_cog import DrawDallEService
-from cogs.prompt_optimizer_cog import ImgPromptOptimizer
-from cogs.moderations_service_cog import ModerationsService
-from cogs.commands import Commands
-from cogs.transcription_service_cog import TranscribeService
-from cogs.translation_service_cog import TranslationService
-from cogs.index_service_cog import IndexService
-from models.deepl_model import TranslationModel
-from services.health_service import HealthService
-from services.pickle_service import Pickler
-
-from services.pinecone_service import PineconeService
-from services.deletion_service import Deletion
-from services.message_queue_service import Message
-from services.usage_service import UsageService
 from services.environment_service import EnvService
 
-from models.openai_model import Model
-
-__version__ = "12.4.0"
-
+__version__ = "13.0.0"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
-
-if sys.platform == "win32":
-    separator = "\\"
-else:
-    separator = "/"
-
-#
-# The pinecone service is used to store and retrieve conversation embeddings.
-#
-
-try:
-    PINECONE_TOKEN = os.getenv("PINECONE_TOKEN")
-except Exception:
-    PINECONE_TOKEN = None
-
-pinecone_service = None
-if PINECONE_TOKEN:
-    pinecone.init(api_key=PINECONE_TOKEN, environment=EnvService.get_pinecone_region())
-    PINECONE_INDEX = "conversation-embeddings"
-    if PINECONE_INDEX not in pinecone.list_indexes():
-        print("Creating pinecone index. Please wait...")
-        pinecone.create_index(
-            PINECONE_INDEX,
-            dimension=1536,
-            metric="dotproduct",
-            pod_type="s1",
-        )
-
-    pinecone_service = PineconeService(pinecone.Index(PINECONE_INDEX))
-    print("Got the pinecone service")
-
-#
-# Message queueing for the debug service, defer debug messages to be sent later so we don't hit rate limits.
-#
-message_queue = asyncio.Queue()
-deletion_queue = asyncio.Queue()
-asyncio.ensure_future(Message.process_message_queue(message_queue, 1.5, 5))
-asyncio.ensure_future(Deletion.process_deletion_queue(deletion_queue, 1, 1))
-
-# Pickling service for conversation persistence
-try:
-    Path(EnvService.save_path() / "pickles").mkdir(exist_ok=True)
-except Exception:
-    traceback.print_exc()
-    print(
-        "Could not start pickle service. Conversation history will not be persistent across restarts."
-    )
-pickle_queue = asyncio.Queue()
-asyncio.ensure_future(Pickler.process_pickle_queue(pickle_queue, 5, 1))
+logger = logging.getLogger(__name__)
 
 
-#
-# Settings for the bot
-#
-activity = discord.Activity(
-    type=discord.ActivityType.watching, name="for /help, /gpt, and more!"
-)
-bot = discord.Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
-usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
-model = Model(usage_service)
-
-
-#
-# An encapsulating wrapper for the discord.py client. This uses the old re-write without cogs, but it gets the job done!
-#
-
-
-@bot.event  # Using self gives u
-async def on_ready():  # I can make self optional by
-    print("We have logged in as {0.user}".format(bot))
-
-
-@bot.event
-async def on_application_command_error(
-    ctx: discord.ApplicationContext, error: discord.DiscordException
-):
-    if isinstance(error, discord.CheckFailure):
-        pass
-    else:
-        raise error
+def load_optional_service(module_name, class_name, extra):
+    """Explain missing optional packages at startup, before connecting to Discord."""
+    try:
+        return getattr(importlib.import_module(module_name), class_name)
+    except ImportError as exc:
+        raise RuntimeError(
+            f"Cannot load {class_name}. Install its dependencies with "
+            f"pip install 'gpt3discord[{extra}]' and check the integration configuration."
+        ) from exc
 
 
 async def main():
+    # Validate before importing cogs: several initialize their local SQLite tables.
+    if not os.getenv("DISCORD_TOKEN"):
+        raise ValueError("Set DISCORD_TOKEN to your Discord application's bot token.")
+    if not EnvService.get_openai_token() and not EnvService.get_user_input_api_keys():
+        raise ValueError("Set OPENAI_API_KEY (or the legacy OPENAI_TOKEN).")
+    EnvService.get_allowed_guilds()
     data_path = EnvService.environment_path_with_fallback("DATA_DIR")
-    debug_guild = int(os.getenv("DEBUG_GUILD"))
-    debug_channel = int(os.getenv("DEBUG_CHANNEL"))
+    data_path.mkdir(parents=True, exist_ok=True)
+    (EnvService.save_path() / "pickles").mkdir(parents=True, exist_ok=True)
 
-    if not data_path.exists():
-        raise OSError(f"Data path: {data_path} does not exist ... create it?")
+    import discord
+    from pycord.multicog import Bot
 
-    # Load the cog for the moderations service
+    from cogs.commands import Commands
+    from cogs.image_service_cog import DrawDallEService
+    from cogs.moderations_service_cog import ModerationsService
+    from cogs.prompt_optimizer_cog import ImgPromptOptimizer
+    from cogs.text_service_cog import GPT3ComCon
+    from cogs.transcription_service_cog import TranscribeService
+    from cogs.web_search_cog import WebSearchCog
+    from models.openai_model import Model
+    from services.deletion_service import Deletion
+    from services.message_queue_service import Message
+    from services.pickle_service import Pickler
+    from services.usage_service import UsageService
+
+    activity = discord.Activity(
+        type=discord.ActivityType.watching, name="for /help, /gpt, and /web"
+    )
+    bot = Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
+    usage_service = UsageService(data_path)
+    model = Model(usage_service)
+    message_queue, deletion_queue, pickle_queue = (
+        asyncio.Queue(),
+        asyncio.Queue(),
+        asyncio.Queue(),
+    )
+
+    pinecone_service = None
+    if os.getenv("PINECONE_TOKEN"):
+        PineconeService = load_optional_service(
+            "services.pinecone_service", "PineconeService", "pinecone"
+        )
+        pinecone_service = PineconeService.from_config(
+            os.environ["PINECONE_TOKEN"], EnvService.get_pinecone_region()
+        )
+
+    @bot.event
+    async def on_ready():
+        logger.info("Logged in as %s", bot.user)
+
+    @bot.event
+    async def on_application_command_error(ctx, error):
+        if isinstance(error, discord.CheckFailure):
+            return
+        logger.error("Application command failed", exc_info=error)
+        await ctx.respond(
+            "The command failed. Check the bot logs for details.", ephemeral=True
+        )
+
     bot.add_cog(ModerationsService(bot, usage_service, model))
-
-    # Load the main GPT3 Bot service
     bot.add_cog(
         GPT3ComCon(
             bot,
@@ -139,14 +98,13 @@ async def main():
             model,
             message_queue,
             deletion_queue,
-            debug_guild,
-            debug_channel,
+            int(os.getenv("DEBUG_GUILD") or 0),
+            int(os.getenv("DEBUG_CHANNEL") or 0),
             data_path,
             pinecone_service=pinecone_service,
             pickle_queue=pickle_queue,
         )
     )
-
     bot.add_cog(
         DrawDallEService(
             bot,
@@ -157,7 +115,6 @@ async def main():
             bot.get_cog("GPT3ComCon"),
         )
     )
-
     bot.add_cog(
         ImgPromptOptimizer(
             bot,
@@ -169,46 +126,44 @@ async def main():
             bot.get_cog("DrawDallEService"),
         )
     )
+    bot.add_cog(WebSearchCog(bot, usage_service=usage_service))
 
-    bot.add_cog(
-        IndexService(
-            bot,
-            usage_service,
-            deletion_queue,
+    if EnvService.get_indexing_enabled():
+        IndexService = load_optional_service(
+            "cogs.index_service_cog", "IndexService", "index"
         )
-    )
+        bot.add_cog(IndexService(bot, usage_service, deletion_queue))
 
     if EnvService.get_deepl_token():
+        from cogs.translation_service_cog import TranslationService
+        from models.deepl_model import TranslationModel
+
         bot.add_cog(TranslationService(bot, TranslationModel()))
-        print("The translation service is enabled.")
 
     if (
         EnvService.get_google_search_api_key()
         and EnvService.get_google_search_engine_id()
     ):
+        SearchService = load_optional_service(
+            "cogs.search_service_cog", "SearchService", "search"
+        )
         bot.add_cog(
             SearchService(
                 bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")
             )
         )
-        print("The Search service is enabled.")
 
     if EnvService.get_e2b_api_key():
+        CodeInterpreterService = load_optional_service(
+            "cogs.code_interpreter_service_cog", "CodeInterpreterService", "code"
+        )
         bot.add_cog(
             CodeInterpreterService(
                 bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")
             )
         )
-        print("The Code Interpreter service is enabled.")
 
-    bot.add_cog(
-        TranscribeService(
-            bot,
-            model,
-            usage_service,
-        )
-    )
-
+    bot.add_cog(TranscribeService(bot, model, usage_service))
     bot.add_cog(
         Commands(
             bot,
@@ -228,75 +183,84 @@ async def main():
         )
     )
 
-    apply_multicog(bot)
-
-    await bot.start(os.getenv("DISCORD_TOKEN"))
+    workers = [
+        asyncio.create_task(Message.process_message_queue(message_queue, 1.5, 5)),
+        asyncio.create_task(Deletion.process_deletion_queue(deletion_queue, 1, 1)),
+        asyncio.create_task(Pickler.process_pickle_queue(pickle_queue, 5, 1)),
+    ]
+    try:
+        await bot.start(os.environ["DISCORD_TOKEN"])
+    finally:
+        await bot.close()
+        for worker in workers:
+            worker.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
 
 
 def check_process_file(pid_file: Path) -> bool:
-    """Check the pid file exists and if the Process ID is actually running"""
+    """Reject an active PID; remove malformed and stale PID files."""
     if not pid_file.exists():
         return False
+    try:
+        pid = int(pid_file.read_text().strip())
+        if pid <= 0:
+            raise ValueError("Invalid PID")
+    except ValueError:
+        pid_file.unlink(missing_ok=True)
+        return False
     if system() == "Linux":
-        with pid_file.open("r") as pfp:
-            try:
-                proc_pid_path = Path("/proc") / "{int(pfp.read().strip())}"
-                print("Checking if PID proc path {proc_pid_path} exists")
-            except ValueError:
-                # We don't have a valid int in the PID File^M
-                pid_file.unlink()
-                return False
-        return proc_pid_path.exists()
+        if (Path("/proc") / str(pid)).exists():
+            return True
+        pid_file.unlink(missing_ok=True)
+        return False
+    # On other platforms ask the OS rather than treating stale files as active.
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        pid_file.unlink(missing_ok=True)
+        return False
+    except PermissionError:
+        return True
     return True
 
 
-def cleanup_pid_file(signum, frame):
-    # Kill all threads
+def cleanup_pid_file(signum=None, frame=None):
     if PROCESS:
-        print("Killing all subprocesses")
         PROCESS.terminate()
-    print("Killed all subprocesses")
-    # Always cleanup PID File if it exists
-    if PID_FILE.exists():
-        print(f"Removing PID file {PID_FILE}", flush=True)
-        PID_FILE.unlink()
+        PROCESS.join(timeout=5)
+    PID_FILE.unlink(missing_ok=True)
 
 
-# Run the bot with a token taken from an environment file.
+def _handle_sigterm(signum, frame):
+    raise KeyboardInterrupt
+
+
 def init():
     global PROCESS
-    # Handle SIGTERM cleanly - Docker sends this ...
-    signal.signal(signal.SIGTERM, cleanup_pid_file)
-
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+    )
     if check_process_file(PID_FILE):
-        print(
-            "Process ID file already exists. Remove the file if you're sure another instance isn't running with the command: rm bot.pid"
-        )
-        sys.exit(1)
-    else:
-        with PID_FILE.open("w") as f:
-            f.write(str(os.getpid()))
-            print(f"Wrote PID to file {PID_FILE}")
-            f.close()
+        logger.error("Another bot process is running (see %s).", PID_FILE)
+        return 1
+    PID_FILE.write_text(str(os.getpid()))
+    # asyncio.run handles SIGINT; convert SIGTERM to the same orderly shutdown.
+    previous_handler = signal.signal(signal.SIGTERM, _handle_sigterm)
     try:
         if EnvService.get_health_service_enabled():
-            try:
-                PROCESS = HealthService().get_process()
-            except:
-                traceback.print_exc()
-                print("The health service failed to start.")
+            from services.health_service import HealthService
 
-        asyncio.get_event_loop().run_until_complete(main())
+            PROCESS = HealthService().get_process()
+        asyncio.run(main())
+        return 0
     except KeyboardInterrupt:
-        print("Caught keyboard interrupt, killing and removing PID")
-    except Exception as e:
-        traceback.print_exc()
-        print(str(e))
-        print("Removing PID file")
+        return 0
+    except Exception:
+        logger.exception("Bot startup or execution failed")
+        return 1
     finally:
-        cleanup_pid_file(None, None)
-
-    sys.exit(0)
+        signal.signal(signal.SIGTERM, previous_handler)
+        cleanup_pid_file()
 
 
 if __name__ == "__main__":

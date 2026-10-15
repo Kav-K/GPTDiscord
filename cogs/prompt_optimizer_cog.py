@@ -21,7 +21,7 @@ PRE_MODERATE = EnvService.get_premoderate()
 class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
     """cog containing the optimizer command"""
 
-    _OPTIMIZER_PRETEXT = "Optimize the following text for DALL-E image generation to have the most detailed and realistic image possible. Prompt:"
+    _OPTIMIZER_PRETEXT = "Optimize the following text for image generation to have the most detailed and realistic image possible. Prompt:"
 
     def __init__(
         self,
@@ -94,15 +94,11 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
                 temp_override=0.9,
                 presence_penalty_override=0.5,
                 best_of_override=1,
-                max_tokens_override=60,
+                model=Models.LOW_USAGE_MODEL,
+                max_tokens_override=2048,
                 custom_api_key=user_api_key,
-                is_chatgpt_request="turbo" in str(self.model.model)
-                or "gpt-4" in str(self.model.model),
+                is_chatgpt_request=True,
             )
-
-            # THIS USES MORE TOKENS THAN A NORMAL REQUEST! This will use roughly 4000 tokens, and will repeat the query
-            # twice because of the best_of_override=2 parameter. This is to ensure that the model does a lot of analysis, but is
-            # also relatively cost-effective
 
             # All responses now use chat completions format
             response_text = str(response["choices"][0]["message"]["content"])
@@ -247,7 +243,7 @@ class DrawButton(discord.ui.Button["OptimizeView"]):
             dalle_3=True,
             image_size="1024x1024",
             style="vivid",
-            quality="hd",
+            quality="auto",
         )
 
 

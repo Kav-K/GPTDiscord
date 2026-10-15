@@ -1,68 +1,42 @@
-ARG PY_VERSION=3.11
+# Supported Python versions are tested in .github/workflows/build.yml.
+ARG PY_VERSION=3.13
+FROM python:${PY_VERSION}-slim-bookworm AS builder
 
-# Build container
-FROM python:${PY_VERSION} as base
-FROM base as builder
-ARG PY_VERSION
-ARG TARGETPLATFORM
-ARG FULL
+ARG FULL=false
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+WORKDIR /build
 
-COPY . .
+# Copy only build inputs, never local .env files, credentials, or runtime data.
+COPY pyproject.toml README.md LICENSE gpt3discord.py ./
+COPY cogs ./cogs
+COPY models ./models
+COPY services ./services
+COPY utils ./utils
+COPY openers ./openers
+COPY *_pretext*.txt conversation_drawing_ability*_snippet.txt ./
 
-#Install rust
-RUN apt-get update
-RUN apt-get install -y \
-    build-essential \
-    gcc \
-    curl
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ARG PATH="/root/.cargo/bin:${PATH}"
-# https://github.com/rust-lang/cargo/issues/10583
-ARG CARGO_NET_GIT_FETCH_WITH_CLI=true
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/python -m pip install --upgrade pip \
+    && if [ "$FULL" = "true" ]; then /opt/venv/bin/python -m pip install '.[full]'; \
+       else /opt/venv/bin/python -m pip install .; fi \
+    && /opt/venv/bin/python -m pip check
 
-RUN mkdir /install /src
-WORKDIR /install
-
-RUN pip install --target="/install" --upgrade pip setuptools wheel setuptools_rust
-
-COPY requirements_base.txt /install
-COPY requirements_full.txt /install
-RUN pip install --target="/install" --upgrade -r requirements_base.txt
-RUN if [ "${FULL}" = "true" ]; then \
-    if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then pip install --target="/install" --upgrade torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html ; fi \
-    ; if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then pip install --target="/install" --upgrade torch==1.13.1 torchvision==0.14.1 -f https://torch.kmtea.eu/whl/stable.html -f https://ext.kmtea.eu/whl/stable.html ; fi \  
-    ; pip install --target="/install" --upgrade \
-       -r requirements_full.txt \
-    ; pip install --target="/install" --upgrade \
-       --no-deps --no-build-isolation openai-whisper sentence-transformers==2.2.2 \
-    ; fi
-
-COPY README.md /src
-COPY cogs /src/cogs
-COPY models /src/models
-COPY services /src/services
-COPY utils /src/utils
-COPY gpt3discord.py /src
-COPY pyproject.toml /src
-
-# For debugging + seeing that the modiles file layouts look correct ...
-RUN find /src
-RUN pip install --target="/install" /src
-
-# Copy minimal to main image (to keep as small as possible)
-FROM python:${PY_VERSION}-slim
-
-ARG PY_VERSION
-COPY . .
-COPY --from=builder /install /usr/local/lib/python${PY_VERSION}/site-packages
-#Install ffmpeg and clean
-RUN apt-get -y update
-RUN apt-get -y install --no-install-recommends ffmpeg
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/*
-
-RUN mkdir -p /opt/gpt3discord/etc
-COPY gpt3discord.py /opt/gpt3discord/bin/
-COPY image_optimizer_pretext.txt language_detection_pretext.txt conversation_starter_pretext.txt conversation_starter_pretext_minimal.txt /opt/gpt3discord/share/
-COPY openers /opt/gpt3discord/share/openers
-CMD ["python3", "/opt/gpt3discord/bin/gpt3discord.py"]
+FROM python:${PY_VERSION}-slim-bookworm
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DATA_DIR=/data
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 gptdiscord \
+    && useradd --uid 10001 --gid gptdiscord --no-create-home gptdiscord \
+    && mkdir -p /data /opt/gpt3discord/bin /opt/gpt3discord/etc \
+    && chown gptdiscord:gptdiscord /data
+COPY --from=builder /opt/venv /opt/venv
+# Preserve the existing /opt/gpt3discord/etc/environment mount location.
+COPY gpt3discord.py /opt/gpt3discord/bin/gpt3discord.py
+WORKDIR /data
+USER gptdiscord
+CMD ["python", "/opt/gpt3discord/bin/gpt3discord.py"]

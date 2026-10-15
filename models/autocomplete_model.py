@@ -14,6 +14,14 @@ usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
 
 
+def _matching_choices(ctx, values):
+    """Discord accepts at most 25 autocomplete results."""
+    prefix = (ctx.value or "").lower()
+    return [
+        value for value in dict.fromkeys(values) if value.lower().startswith(prefix)
+    ][:25]
+
+
 class Settings_autocompleter:
     """autocompleter for the settings command"""
 
@@ -82,57 +90,39 @@ class Settings_autocompleter:
         }
         options = values.get(ctx.options["parameter"], [])
         if options:
-            return [value for value in options if value.startswith(ctx.value.lower())]
+            return _matching_choices(ctx, options)
 
         await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
         return []
 
     async def get_function_calling_models(ctx: discord.AutocompleteContext):
-        return [
-            "gpt-4",
-            "gpt-4-32k",
-            "gpt-4-1106-preview",
-            "gpt-4-0613",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-            "gpt-3.5-turbo-0613",
-            "gpt-4-turbo-preview",
-            "gpt-4-turbo",
-            "gpt-4o",
-        ]
+        return _matching_choices(ctx, Models.TEXT_MODELS)
 
     async def get_models(
         ctx: discord.AutocompleteContext,
     ):
         """Gets all models"""
-        models = [
-            value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
-        ]
-        return models
+        return _matching_choices(ctx, Models.TEXT_MODELS)
 
     async def get_index_and_search_models(
         ctx: discord.AutocompleteContext,
     ):
-        models = Models.CHATGPT_MODELS + Models.GPT4_MODELS
-        return [value for value in models if value.startswith(ctx.value.lower())]
+        return _matching_choices(ctx, Models.TEXT_MODELS)
 
     async def get_converse_models(
         ctx: discord.AutocompleteContext,
     ):
         """Gets all models"""
-        models = [
-            value for value in Models.TEXT_MODELS if value.startswith(ctx.value.lower())
-        ]
-        return models
+        return _matching_choices(ctx, Models.TEXT_MODELS)
 
     async def get_dalle3_image_qualities(ctx: discord.AutocompleteContext):
-        return ["hd", "standard"]
+        return _matching_choices(ctx, ["auto", "low", "medium", "high", "xhigh", "max"])
 
     async def get_dalle3_image_sizes(ctx: discord.AutocompleteContext):
-        return ["1024x1024", "1792x1024", "1024x1792"]
+        return _matching_choices(ctx, ["auto", "1024x1024", "1536x1024", "1024x1536"])
 
     async def get_dalle3_image_styles(ctx: discord.AutocompleteContext):
-        return ["natural", "vivid"]
+        return _matching_choices(ctx, ["natural", "vivid"])
 
     async def get_value_moderations(
         ctx: discord.AutocompleteContext,

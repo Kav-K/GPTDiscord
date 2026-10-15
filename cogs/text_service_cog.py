@@ -16,7 +16,7 @@ from discord.ext import pages
 from models.deepl_model import TranslationModel
 from models.embed_statics_model import EmbedStatics
 from models.image_understanding_model import ImageUnderstandingModel
-from models.openai_model import Override
+from models.openai_model import Models, Override
 from services.environment_service import EnvService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -239,9 +239,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 welcome_message_response = await self.model.send_request(
                     query,
                     tokens=self.usage_service.count_tokens(query),
-                    is_chatgpt_request=(
-                        True if "turbo" in str(self.model.model) else False
-                    ),
+                    is_chatgpt_request=True,
                 )
                 welcome_message = str(
                     welcome_message_response["choices"][0]["message"]["content"]
@@ -264,10 +262,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.Cog.listener()
     async def on_ready(self):
         """When ready to recieve data set debug channel and sync commands"""
-        self.debug_channel = self.bot.get_guild(self.DEBUG_GUILD).get_channel(
-            self.DEBUG_CHANNEL
+        debug_guild = self.bot.get_guild(self.DEBUG_GUILD)
+        self.debug_channel = (
+            debug_guild.get_channel(self.DEBUG_CHANNEL) if debug_guild else None
         )
-        print("The debug channel was acquired")
 
         print("Attempting to load from pickles")
         # Try to load self.full_conversation_history, self.conversation_threads, and self.conversation_thread_owners from the `pickles` folder
@@ -301,10 +299,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 self.instructions = pickle.load(f)
                 print("Loaded instructions")
 
-            # Fail if all three weren't loaded
-            assert self.full_conversation_history is not {}
-            assert self.conversation_threads is not {}
-            assert self.conversation_thread_owners is not defaultdict(list)
+            # Reject malformed saved state while allowing empty conversations.
+            assert isinstance(self.full_conversation_history, dict)
+            assert isinstance(self.conversation_threads, dict)
+            assert isinstance(self.conversation_thread_owners, dict)
+            for thread in self.conversation_threads.values():
+                if thread.model not in Models.TEXT_MODELS and (
+                    thread.model != EnvService.get_openai_model()
+                ):
+                    thread.model = self.model.model
 
         except Exception:
             print("Failed to load existing pickles")
@@ -642,15 +645,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 return True
         return False
 
-    async def summarize_conversation(self, message, prompt):
+    async def summarize_conversation(self, message, prompt, custom_api_key=None):
         """Takes a conversation history filled prompt and summarizes it to then start a new history with it as the base"""
-        response = await self.model.send_summary_request(prompt)
+        response = await self.model.send_summary_request(
+            prompt, custom_api_key=custom_api_key
+        )
         summarized_text = response["choices"][0]["message"]["content"]
 
-        new_conversation_history = []
-        new_conversation_history.append(
-            EmbeddedConversationItem(self.CONVERSATION_STARTER_TEXT, 0)
-        )
+        history = self.conversation_threads[message.channel.id].history
+        new_conversation_history = [history[0]]
         new_conversation_history.append(
             EmbeddedConversationItem(
                 f"\nThis conversation has some context from earlier, which has been summarized as follows: {summarized_text} \nContinue the conversation, paying very close attention to things <username> told you, such as their name, and personal details.",
@@ -661,7 +664,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Get the last entry from the thread's conversation history
         new_conversation_history.append(
             EmbeddedConversationItem(
-                self.conversation_threads[message.channel.id].history[-1].text + "\n", 0
+                history[-1].text + "\n",
+                history[-1].timestamp,
+                image_urls=history[-1].image_urls,
             )
         )
         self.conversation_threads[message.channel.id].history = new_conversation_history
@@ -714,7 +719,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not hasattr(message.author, "roles"):
                 pass
             # Verify that the user is not in a role that can bypass moderation
-            elif CHAT_BYPASS_ROLES is [None] or not any(
+            elif CHAT_BYPASS_ROLES == [None] or not any(
                 role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles
             ):
                 # Create a timestamp that is 0.5 seconds from now
@@ -738,13 +743,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Retain only image attachments if in a regular conversation
         attachments = []
         if self.check_conversing(message.channel.id, message.content):
-            attachments = message.attachments
             for _file in message.attachments:
-                _file: discord.Attachment
-
-                if not _file.content_type.startswith("image"):
-                    attachments.remove(_file)
-                if _file.content_type.startswith("text/"):
+                content_type = _file.content_type or ""
+                if content_type.startswith("image/"):
+                    attachments.append(_file)
+                elif content_type.startswith("text/"):
                     # Decoding a text file to use in the prompt
                     text = (await _file.read()).decode("utf-8")
                     amended_message += text
@@ -1240,9 +1243,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
                 message_embed.set_thumbnail(url="https://i.imgur.com/wpp4TIf.png")
                 footer_text = (
-                    "Regular Chat"
-                    if not image_understanding_model.get_is_usable()
-                    else "Regular Chat, Multi-Modal"
+                    "Chat with image understanding"
+                    if Models.supports_vision(model or self.model.model)
+                    or image_understanding_model.get_is_usable()
+                    else "Chat"
                 )
                 message_embed.set_footer(
                     text=footer_text, icon_url="https://i.imgur.com/wpp4TIf.png"
@@ -1343,7 +1347,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
         if minimal or opener_file or opener:
             starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
-        elif not minimal and not "-vision" in model_selection:
+        elif not Models.supports_vision(model_selection):
             starting_text = self.CONVERSATION_STARTER_TEXT
         else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
             starting_text = self.CONVERSATION_STARTER_TEXT_VISION
@@ -1351,7 +1355,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if draw:
             starting_text += self.CONVERSATION_DRAWING_ABILITY_SNIPPET
         else:
-            starting_text += "You are unable to draw images in this conversation. Ask the user to start a conversation with gpt-4-vision with the `draw` option turned on in order to have this ability."
+            starting_text += "Image generation is disabled in this conversation. Ask the user to start a conversation with the `draw` option turned on to enable it."
         self.conversation_threads[target.id].history.append(
             EmbeddedConversationItem(starting_text, 0)
         )

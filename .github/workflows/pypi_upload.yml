@@ -3,32 +3,39 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  main:
-    name: sdist + pure wheel
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up latest Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "*"
+          python-version: "3.13"
+      - run: python -m pip install --upgrade build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pypi-distributions
+          path: dist/
 
-      - name: Install latest pip, build, twine
-        run: |
-          python -m pip install --upgrade --disable-pip-version-check pip
-          python -m pip install --upgrade build twine
-
-      - name: Build wheel and source distributions
-        run: python -m build
-
-      - name: Upload to PyPI via Twine
-        env:
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: twine upload --verbose -u '__token__' dist/*
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gpt3discord
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pypi-distributions
+          path: dist/
+      # Configure this repository/workflow/environment as a PyPI trusted publisher.
+      - uses: pypa/gh-action-pypi-publish@release/v1

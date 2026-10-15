@@ -1,250 +1,66 @@
 name: Docker
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 on:
+  pull_request:
   push:
-    branches:
-      - main
+    branches: [main, alpha]
   release:
     types: [published]
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish images to GitHub Container Registry
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 jobs:
-  docker-push-base:
-    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
-    runs-on: ubuntu-20.04
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [base, full]
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v2
-        with:
-          cosign-release: 'v1.13.1'
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Compute lowercase image name and publishing intent
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PUBLISH: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        run: |
+          echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v4
+        if: steps.image.outputs.publish == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Extract metadata (tags, labels) for Docker
-      - name: Extract Docker metadata
+      - uses: docker/metadata-action@v6
         id: meta
-        uses: docker/metadata-action@v5
         with:
-          flavor: |
-            latest=auto
-            suffix=-base,onlatest=true
+          images: ${{ steps.image.outputs.name }}
+          flavor: suffix=-${{ matrix.variant }},onlatest=true
           tags: |
-            type=semver,pattern={{raw}}
+            type=semver,pattern={{version}}
             type=ref,event=branch
-          images: |
-            kaveenk/gpt3discord
-            ghcr.io/${{ github.repository }}
-
-      - name: Check if release
-        uses: haya14busa/action-cond@v1
-        id: isRelease
-        with:
-          cond: ${{ github.event_name == 'release' }}
-          if_true: 'linux/amd64,linux/arm64'
-          if_false: 'linux/amd64'
-
-      # Build and push Docker image with Buildx
-      - name: Build and push base Docker image
-        id: build-and-push-base
-        uses: docker/build-push-action@v5
+            type=ref,event=pr
+            type=sha
+      - name: Build image, publish only for an explicit release or manual request
+        uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
+          build-args: FULL=${{ matrix.variant == 'full' }}
+          push: ${{ steps.image.outputs.publish == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: ${{ steps.isRelease.outputs.value }}
-
-
-      # Sign the resulting Docker image digest
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published base Docker image
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push-base.outputs.digest }}
-   
-
-  docker-push-full:
-    if: ${{ github.event_name != 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
-    runs-on: ubuntu-20.04
-    permissions:
-      contents: read
-      packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v2
-        with:
-          cosign-release: 'v1.13.1'
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Extract metadata (tags, labels) for Docker
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          flavor: |
-            latest=auto
-            suffix=-full,onlatest=true
-          tags: |
-            type=semver,pattern={{raw}}
-            type=ref,event=branch
-          images: |
-            kaveenk/gpt3discord
-            ghcr.io/${{ github.repository }}
-
-      - name: Check if release
-        uses: haya14busa/action-cond@v1
-        id: isRelease
-        with:
-          cond: ${{ github.event_name == 'release' }}
-          if_true: 'linux/amd64,linux/arm64'
-          if_false: 'linux/amd64'
-
-      # Build and push Docker image with Buildx
-      # https://github.com/docker/build-push-action
-      - name: Build and push full Docker image
-        id: build-and-push-full
-        uses: docker/build-push-action@v5
-        with:
-          build-args: FULL=true
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: ${{ steps.isRelease.outputs.value }}
-
-
-      # Sign the resulting Docker image digest
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published full Docker image
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push-full.outputs.digest }}
-
-
-  docker-pr:
-    # Only builds amd64 due to arm64 being slow
-    if: ${{ github.event_name == 'pull_request' && github.repository == 'Kav-K/GPTDiscord' }}
-    runs-on: ubuntu-20.04
-    permissions:
-      contents: read
-      packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            kaveenk/gpt3discord
-            ghcr.io/${{ github.repository }}
-
-      - name: Build and push base Docker image
-        id: build-and-push-base
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Build and push full Docker image
-        id: build-and-push-full
-        uses: docker/build-push-action@v5
-        with:
-          build-args: FULL=true
-          context: .
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
