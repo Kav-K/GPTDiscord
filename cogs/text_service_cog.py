@@ -137,7 +137,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 "conversation_starter_pretext.txt"
             )
             # Attempt to read a conversation starter text string from the file.
-            with conversation_file_path.open("r") as f:
+            with conversation_file_path.open("r", encoding="utf-8") as f:
                 self.CONVERSATION_STARTER_TEXT = f.read()
                 print(
                     f"Conversation starter text loaded from {conversation_file_path}."
@@ -148,7 +148,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 "language_detection_pretext.txt"
             )
             # Attempt to read a conversation starter text string from the file.
-            with language_detect_file_path.open("r") as f:
+            with language_detect_file_path.open("r", encoding="utf-8") as f:
                 self.LANGUAGE_DETECT_STARTER_TEXT = f.read()
                 print(
                     f"Language detection starter text loaded from {language_detect_file_path}."
@@ -158,7 +158,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             conversation_file_path_minimal = EnvService.find_shared_file(
                 "conversation_starter_pretext_minimal.txt"
             )
-            with conversation_file_path_minimal.open("r") as f:
+            with conversation_file_path_minimal.open("r", encoding="utf-8") as f:
                 self.CONVERSATION_STARTER_TEXT_MINIMAL = f.read()
                 print(
                     f"Conversation starter text loaded from {conversation_file_path_minimal}."
@@ -168,7 +168,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             conversation_file_path_vision = EnvService.find_shared_file(
                 "conversation_starter_pretext_vision.txt"
             )
-            with conversation_file_path_vision.open("r") as f:
+            with conversation_file_path_vision.open("r", encoding="utf-8") as f:
                 self.CONVERSATION_STARTER_TEXT_VISION = f.read()
                 print(
                     f"Conversation starter text loaded from {conversation_file_path_vision}."
@@ -178,7 +178,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             conversation_drawing_ability_snippet = EnvService.find_shared_file(
                 "conversation_drawing_ability_snippet.txt"
             )
-            with conversation_drawing_ability_snippet.open("r") as f:
+            with conversation_drawing_ability_snippet.open("r", encoding="utf-8") as f:
                 self.CONVERSATION_DRAWING_ABILITY_SNIPPET = f.read()
                 print(
                     f"Conversation starter text loaded from {conversation_drawing_ability_snippet}."
@@ -190,7 +190,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     "conversation_drawing_ability_extraction_snippet.txt"
                 )
             )
-            with conversation_drawing_ability_extraction_snippet.open("r") as f:
+            with conversation_drawing_ability_extraction_snippet.open(
+                "r", encoding="utf-8"
+            ) as f:
                 self.CONVERSATION_DRAWING_ABILITY_EXTRACTION_SNIPPET = f.read()
                 print(
                     f"Conversation starter text loaded from {conversation_drawing_ability_extraction_snippet}."
@@ -220,7 +222,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def load_file(self, file, ctx):
         """Take filepath, return content or respond if not found"""
         try:
-            async with aiofiles.open(file, "r") as f:
+            async with aiofiles.open(file, "r", encoding="utf-8") as f:
                 return await f.read()
         except Exception as e:
             traceback.print_exc()

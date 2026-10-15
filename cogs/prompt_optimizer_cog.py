@@ -49,7 +49,7 @@ class ImgPromptOptimizer(discord.Cog, name="ImgPromptOptimizer"):
             )
             # Try to read the image optimizer pretext from
             # the file system
-            with image_pretext_path.open("r") as file:
+            with image_pretext_path.open("r", encoding="utf-8") as file:
                 self.OPTIMIZER_PRETEXT = file.read()
             print(f"Loaded image optimizer pretext from {image_pretext_path}")
         except Exception:
