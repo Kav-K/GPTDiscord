@@ -197,6 +197,36 @@ async def main():
         await asyncio.gather(*workers, return_exceptions=True)
 
 
+def _windows_process_running(pid):
+    """Query a Windows process without sending console events or terminating it."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    handle = kernel32.OpenProcess(
+        0x1000, False, pid
+    )  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        # An inaccessible process can still be running; do not start a duplicate.
+        return ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return True
+        return exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def check_process_file(pid_file: Path) -> bool:
     """Reject an active PID; remove malformed and stale PID files."""
     if not pid_file.exists():
@@ -213,7 +243,13 @@ def check_process_file(pid_file: Path) -> bool:
             return True
         pid_file.unlink(missing_ok=True)
         return False
-    # On other platforms ask the OS rather than treating stale files as active.
+    if system() == "Windows":
+        if _windows_process_running(pid):
+            return True
+        pid_file.unlink(missing_ok=True)
+        return False
+    # Unix supports a non-signalling existence check. Windows os.kill(pid, 0)
+    # sends a console event, so it must never be used as a Windows PID probe.
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

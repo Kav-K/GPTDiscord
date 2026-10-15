@@ -36,7 +36,7 @@ RUN apt-get update \
     && chown gptdiscord:gptdiscord /data
 COPY --from=builder /opt/venv /opt/venv
 # Preserve the existing /opt/gpt3discord/etc/environment mount location.
-COPY gpt3discord.py /opt/gpt3discord/bin/gpt3discord.py
+COPY --chmod=0644 gpt3discord.py /opt/gpt3discord/bin/gpt3discord.py
 WORKDIR /data
 USER gptdiscord
 CMD ["python", "/opt/gpt3discord/bin/gpt3discord.py"]

@@ -39,7 +39,20 @@ jobs:
       - name: Check Python errors
         run: python -m ruff check .
       - name: Run offline tests
-        run: python -m pytest -q -m "not integration"
+        run: python -m pytest -q -m "not integration" --junitxml=test-results.xml
+      - name: Annotate test failures
+        if: failure()
+        shell: python
+        run: |
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report = Path("test-results.xml")
+          if report.exists():
+              for case in ET.parse(report).iter("testcase"):
+                  for failure in list(case.findall("failure")) + list(case.findall("error")):
+                      message = (failure.text or failure.get("message", "Test failed"))[-6000:]
+                      message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                      print(f"::error title={case.get('name', 'Test failure')}::{message}")
 
   package:
     runs-on: ubuntu-latest

@@ -109,3 +109,23 @@ asyncio.run(gpt3discord.main())
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "CORE_ASSEMBLED" in result.stdout
+
+
+@pytest.mark.parametrize("running", [True, False])
+def test_windows_pid_check_never_sends_a_signal(tmp_path, monkeypatch, running):
+    import gpt3discord
+    from unittest.mock import Mock
+
+    path = tmp_path / "bot.pid"
+    path.write_text("12345")
+    monkeypatch.setattr(gpt3discord, "system", lambda: "Windows")
+    query = Mock(return_value=running)
+    monkeypatch.setattr(gpt3discord, "_windows_process_running", query)
+    signal_probe = Mock(
+        side_effect=AssertionError("Windows PID checks must not signal a process")
+    )
+    monkeypatch.setattr(gpt3discord.os, "kill", signal_probe)
+    assert check_process_file(path) is running
+    assert path.exists() is running
+    query.assert_called_once_with(12345)
+    signal_probe.assert_not_called()
