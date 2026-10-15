@@ -1,8 +1,9 @@
 import discord
-from pycord.multicog import add_to_group
+from pycord.multicog import subcommand as add_to_group
 
 from services.environment_service import EnvService
 from models.check_model import Check
+from models.openai_model import Models
 from models.autocomplete_model import (
     Settings_autocompleter,
     File_autocompleter,
@@ -48,10 +49,23 @@ class Commands(discord.Cog, name="Commands"):
         self.transcribe_cog = transcribe_cog
         self.code_interpreter_cog = code_interpreter_cog
 
+    async def _require_integration(self, ctx, name):
+        if getattr(self, name) is not None:
+            return True
+        setup = {
+            "index_cog": "Document indexing is unavailable. Ask the bot administrator to install `pip install '.[index]'`, set ENABLE_INDEXING=true, and restart the bot.",
+            "search_cog": "Legacy Google search is unavailable. Use /web for OpenAI web search, or ask the bot administrator to install `pip install '.[index]'` and configure GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID.",
+            "translations_cog": "Translation is unavailable. Ask the bot administrator to configure DEEPL_TOKEN and restart the bot.",
+            "transcribe_cog": "Transcription is unavailable. Ask the bot administrator to check the OpenAI credentials and transcription startup logs.",
+            "code_interpreter_cog": "Code interpretation is unavailable. Ask the bot administrator to install `pip install '.[code]'`, configure E2B_API_KEY, and restart the bot.",
+        }
+        await ctx.respond(setup[name], ephemeral=True)
+        return False
+
     # Create slash command groups
     dalle = discord.SlashCommandGroup(
         name="dalle",
-        description="Dalle related commands",
+        description="OpenAI image generation commands",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_dalle_roles()],
     )
@@ -492,7 +506,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.option(
         name="draw",
-        description="Allow GPT to draw images with DALL-E",
+        description="Allow GPT to generate images with GPT Image",
         required=False,
         default=False,
     )
@@ -523,7 +537,6 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="Which model to use with the bot",
         required=False,
-        default=False,
         autocomplete=Settings_autocompleter.get_converse_models,
     )
     @discord.option(
@@ -630,6 +643,8 @@ class Commands(discord.Cog, name="Commands"):
         user_index: str,
         new_name: str,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.rename_user_index_command(ctx, user_index, new_name)
 
@@ -657,6 +672,8 @@ class Commands(discord.Cog, name="Commands"):
         server_index: str,
         new_name: str,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.rename_server_index_command(ctx, server_index, new_name)
 
@@ -684,6 +701,8 @@ class Commands(discord.Cog, name="Commands"):
         search_index: str,
         new_name: str,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.rename_search_index_command(ctx, search_index, new_name)
 
@@ -718,6 +737,8 @@ class Commands(discord.Cog, name="Commands"):
         server_index: str,
         search_index: str,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.load_index_command(
             ctx, user_index, server_index, search_index
@@ -733,7 +754,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the conversation",
         required=False,
-        default="gpt-4-1106-preview",
+        default=Models.DEFAULT,
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     @discord.option(
@@ -761,6 +782,8 @@ class Commands(discord.Cog, name="Commands"):
         temperature: float = 0,
         top_p: float = 1,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.index_chat_command(ctx, model, temperature, top_p)
 
@@ -783,6 +806,8 @@ class Commands(discord.Cog, name="Commands"):
     async def set_file(
         self, ctx: discord.ApplicationContext, file: discord.Attachment, link: str
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.set_index_command(ctx, file, link)
 
     @add_to_group("index")
@@ -808,6 +833,8 @@ class Commands(discord.Cog, name="Commands"):
     async def set_recurse_link(
         self, ctx: discord.ApplicationContext, link: str, depth: int
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.set_index_link_recurse_command(ctx, link, depth)
 
     @add_to_group("index")
@@ -817,6 +844,8 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     async def reset(self, ctx: discord.ApplicationContext):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.reset_command(ctx)
 
     @add_to_group("index")
@@ -832,6 +861,8 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.string,
     )
     async def compose(self, ctx: discord.ApplicationContext, name: str):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.compose_command(ctx, name)
 
     @add_to_group("index")
@@ -858,6 +889,8 @@ class Commands(discord.Cog, name="Commands"):
         channel: discord.TextChannel,
         message_limit: int,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.set_discord_command(
             ctx, channel, message_limit=message_limit
         )
@@ -876,6 +909,8 @@ class Commands(discord.Cog, name="Commands"):
         input_type=discord.SlashCommandOptionType.integer,
     )
     async def discord_backup(self, ctx: discord.ApplicationContext, message_limit: int):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await self.index_cog.discord_backup_command(ctx, message_limit=message_limit)
 
     @add_to_group("index")
@@ -913,7 +948,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-32k",
+        default=Models.DEFAULT,
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -933,6 +968,8 @@ class Commands(discord.Cog, name="Commands"):
         model: str,
         multistep: bool,
     ):
+        if not await self._require_integration(ctx, "index_cog"):
+            return
         await ctx.defer()
         await self.index_cog.query_command(
             ctx,
@@ -951,7 +988,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("dalle")
     @discord.slash_command(
         name="draw_old",
-        description="Draw an image from a prompt using the old DALLE-2 Model",
+        description="Legacy alias for image generation using the configured image model",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
@@ -961,7 +998,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("dalle")
     @discord.slash_command(
         name="draw",
-        description="Draw an image from a prompt using the new DALLE-3 Model. Does not support Variations.",
+        description="Generate an image from a prompt using GPT Image",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(name="prompt", description="The prompt to draw from", required=True)
@@ -969,7 +1006,7 @@ class Commands(discord.Cog, name="Commands"):
         name="quality",
         description="Image quality",
         required=False,
-        default="hd",
+        default="auto",
         autocomplete=Settings_autocompleter.get_dalle3_image_qualities,
     )
     @discord.option(
@@ -981,7 +1018,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.option(
         name="style",
-        description="The style of the generated images, choose between realism/vivid",
+        description="An optional style instruction to add to the image prompt",
         required=False,
         default="vivid",
         autocomplete=Settings_autocompleter.get_dalle3_image_styles,
@@ -999,7 +1036,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("dalle")
     @discord.slash_command(
         name="optimize",
-        description="Optimize a text prompt for DALL-E/MJ/SD image generation.",
+        description="Optimize a prompt for image generation.",
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
@@ -1097,7 +1134,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-1106-preview",
+        default=Models.DEFAULT,
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     @discord.option(
@@ -1125,10 +1162,7 @@ class Commands(discord.Cog, name="Commands"):
         temperature: float = 0,
         top_p: float = 1,
     ):
-        if not self.code_interpreter_cog:
-            await ctx.respond(
-                "Code interpretation is disabled on this server.", ephemeral=True
-            )
+        if not await self._require_integration(ctx, "code_interpreter_cog"):
             return
         await self.code_interpreter_cog.code_interpreter_chat_command(
             ctx, model=model, temperature=temperature, top_p=top_p
@@ -1164,14 +1198,11 @@ class Commands(discord.Cog, name="Commands"):
         target_language: str,
         formality: str,
     ):
-        if self.translations_cog:
-            await self.translations_cog.translate_command(
-                ctx, text, target_language, formality
-            )
-        else:
-            await ctx.respond(
-                "Translations are disabled on this server.", ephemeral=True
-            )
+        if not await self._require_integration(ctx, "translations_cog"):
+            return
+        await self.translations_cog.translate_command(
+            ctx, text, target_language, formality
+        )
 
     @discord.slash_command(
         name="languages",
@@ -1180,12 +1211,9 @@ class Commands(discord.Cog, name="Commands"):
         checks=[Check.check_translator_roles()],
     )
     async def languages(self, ctx: discord.ApplicationContext):
-        if self.translations_cog:
-            await self.translations_cog.languages_command(ctx)
-        else:
-            await ctx.respond(
-                "Translations are disabled on this server.", ephemeral=True
-            )
+        if not await self._require_integration(ctx, "translations_cog"):
+            return
+        await self.translations_cog.languages_command(ctx)
 
     @discord.message_command(
         name="Translate",
@@ -1193,12 +1221,9 @@ class Commands(discord.Cog, name="Commands"):
         checks=[Check.check_translator_roles()],
     )
     async def translate_action(self, ctx, message: discord.Message):
-        if self.translations_cog:
-            await self.translations_cog.translate_action(ctx, message)
-        else:
-            await ctx.respond(
-                "Translations are disabled on this server.", ephemeral=True
-            )
+        if not await self._require_integration(ctx, "translations_cog"):
+            return
+        await self.translations_cog.translate_action(ctx, message)
 
     # @discord.message_command(
     #     name="Paraphrase",
@@ -1244,7 +1269,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-1106-preview",
+        default=Models.DEFAULT,
         autocomplete=Settings_autocompleter.get_function_calling_models,
     )
     @discord.option(
@@ -1273,6 +1298,8 @@ class Commands(discord.Cog, name="Commands"):
         temperature: float = 0,
         top_p: float = 1,
     ):
+        if not await self._require_integration(ctx, "search_cog"):
+            return
         await self.search_cog.search_chat_command(
             ctx,
             search_scope=search_scope,
@@ -1326,7 +1353,7 @@ class Commands(discord.Cog, name="Commands"):
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
-        default="gpt-4-1106-preview",
+        default=Models.DEFAULT,
         autocomplete=Settings_autocompleter.get_index_and_search_models,
     )
     @discord.option(
@@ -1344,9 +1371,11 @@ class Commands(discord.Cog, name="Commands"):
         nodes: int = 4,
         deep: bool = False,
         response_mode: str = "refine",
-        model: str = "gpt-4-1106-preview",
+        model: str = Models.DEFAULT,
         multistep: bool = False,
     ):
+        if not await self._require_integration(ctx, "search_cog"):
+            return
         await self.search_cog.search_command(
             ctx,
             query,
@@ -1385,6 +1414,8 @@ class Commands(discord.Cog, name="Commands"):
         file: discord.Attachment,
         temperature: float,
     ):
+        if not await self._require_integration(ctx, "transcribe_cog"):
+            return
         await self.transcribe_cog.transcribe_file_command(ctx, file, temperature)
 
     @add_to_group("transcribe")
@@ -1410,4 +1441,6 @@ class Commands(discord.Cog, name="Commands"):
     async def transcribe_link(
         self, ctx: discord.ApplicationContext, link: str, temperature: float
     ):
+        if not await self._require_integration(ctx, "transcribe_cog"):
+            return
         await self.transcribe_cog.transcribe_link_command(ctx, link, temperature)

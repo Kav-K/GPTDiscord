@@ -1,12 +1,10 @@
 import datetime
 import traceback
 
-import aiofiles
 import discord
 import os
 
 import openai
-from discord.ext import pages
 
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
@@ -108,6 +106,16 @@ class IndexService(discord.Cog, name="IndexService"):
         if message.content.strip().startswith("~"):
             return
 
+        if not await self.index_handler.get_is_in_index_chat(message):
+            return
+
+        chat = self.index_handler.index_chat_chains[message.channel.id]
+        if USER_INPUT_API_KEYS and chat.owner_id != message.author.id:
+            await message.reply(
+                "This data chat uses its creator's API key. Start your own with /index chat."
+            )
+            return
+
         if message.channel.id in self.thread_awaiting_responses:
             resp_message = await message.reply(
                 "Please wait for the agent to respond to a previous message first!"
@@ -178,7 +186,7 @@ class IndexService(discord.Cog, name="IndexService"):
                 chat_result = await self.index_handler.execute_index_chat_message(
                     message, prompt
                 )
-            except openai.BadRequestError as e:
+            except openai.BadRequestError:
                 traceback.print_exc()
                 safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 await message.reply(
@@ -210,8 +218,16 @@ class IndexService(discord.Cog, name="IndexService"):
                 safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def index_chat_command(self, ctx, model, temperature, top_p):
-        await self.index_handler.start_index_chat(ctx, model, temperature, top_p)
-        pass
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(
+                ctx.user.id, ctx, USER_KEY_DB
+            )
+            if not user_api_key:
+                return
+        await self.index_handler.start_index_chat(
+            ctx, model, temperature, top_p, user_api_key=user_api_key
+        )
 
     async def rename_user_index_command(self, ctx, user_index, new_name):
         """Command handler to rename a user index"""

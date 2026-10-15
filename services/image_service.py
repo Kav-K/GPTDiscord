@@ -9,6 +9,8 @@ import discord
 from PIL import Image
 
 from models.user_model import RedoUser
+from models.openai_model import OpenAIAPIError
+from utils.api_errors import openai_error_message
 
 
 class ImageService:
@@ -25,7 +27,7 @@ class ImageService:
         vary=None,
         draw_from_optimizer=None,
         custom_api_key=None,
-        dalle_3=False,
+        dalle_3=True,
         quality=None,
         image_size=None,
         style=None,
@@ -69,6 +71,14 @@ class ImageService:
             message = (
                 f"The API returned an invalid response: **{e.status}: {e.message}**"
             )
+            if not from_context:
+                await ctx.channel.send(message)
+            else:
+                await ctx.respond(message, ephemeral=True)
+            return
+
+        except OpenAIAPIError as error:
+            message = openai_error_message(error)
             if not from_context:
                 await ctx.channel.send(message)
             else:
@@ -253,17 +263,6 @@ class SaveView(discord.ui.View):
                         custom_api_key=self.custom_api_key,
                     )
                 )
-            if not self.dalle_3:
-                for x in range(1, len(image_urls) + 1):
-                    self.add_item(
-                        VaryButton(
-                            x,
-                            image_urls[x - 1],
-                            self.cog,
-                            converser_cog=self.converser_cog,
-                            custom_api_key=self.custom_api_key,
-                        )
-                    )
 
     # On the timeout event, override it and we want to clear the items.
     async def on_timeout(self):

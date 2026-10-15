@@ -1,11 +1,11 @@
 import base64
 import json
 import os
+from importlib.util import find_spec
 
 import aiohttp
 
 from services.environment_service import EnvService
-import replicate
 
 
 class ImageUnderstandingModel:
@@ -15,7 +15,7 @@ class ImageUnderstandingModel:
         # Set the environment REPLICATE_API_TOKEN to the replicate API key
         if self.replicate_key:
             os.environ["REPLICATE_API_TOKEN"] = self.replicate_key
-            self.key_set = True
+            self.key_set = find_spec("replicate") is not None
         else:
             self.key_set = False
 
@@ -25,44 +25,53 @@ class ImageUnderstandingModel:
     def get_is_usable(self):
         return self.key_set
 
+    @staticmethod
+    def _run(model, filepath, **inputs):
+        # Replicate is an optional fallback for models without native image input.
+        import replicate
+
+        with open(filepath, "rb") as image:
+            return replicate.run(model, input={"image": image, **inputs})
+
     def ask_image_question(self, prompt, filepath):
-        output = replicate.run(
+        output = self._run(
             "andreasjansson/blip-2:4b32258c42e9efd4288bb9910bc532a69727f9acd26aa08e175713a0a857a608",
-            input={"image": open(filepath, "rb"), "question": prompt},
+            filepath,
+            question=prompt,
         )
         return output
 
     def get_llava_answer(self, prompt, filepath):
-        output = replicate.run(
+        output = self._run(
             "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
-            input={
-                "image": open(filepath, "rb"),
-                "prompt": prompt,
-                "temperature": 0.2,
-                "top_p": 1,
-                "max_tokens": 1024,
-            },
+            filepath,
+            prompt=prompt,
+            temperature=0.2,
+            top_p=1,
+            max_tokens=1024,
         )
         return output
 
     def get_minigpt_answer(self, prompt, filepath):
-        output = replicate.run(
+        output = self._run(
             "daanelson/minigpt-4:b96a2f33cc8e4b0aa23eacfce731b9c41a7d9466d9ed4e167375587b54db9423",
-            input={"image": open(filepath, "rb"), "prompt": prompt},
+            filepath,
+            prompt=prompt,
         )
         return output
 
     def get_image_caption(self, filepath):
-        output = replicate.run(
+        output = self._run(
             "andreasjansson/blip-2:4b32258c42e9efd4288bb9910bc532a69727f9acd26aa08e175713a0a857a608",
-            input={"image": open(filepath, "rb"), "caption": True},
+            filepath,
+            caption=True,
         )
         return output
 
     def get_image_stylistic_caption(self, filepath):
-        output = replicate.run(
+        output = self._run(
             "pharmapsychotic/clip-interrogator:a4a8bafd6089e1716b06057c42b19378250d008b80fe87caa5cd36d40c1eda90",
-            input={"image": open(filepath, "rb")},
+            filepath,
         )
         return output
 

@@ -1,6 +1,7 @@
 import functools
 import os
 import random
+import shutil
 import tempfile
 import traceback
 import asyncio
@@ -9,116 +10,61 @@ from collections import defaultdict
 import aiohttp
 import discord
 import aiofiles
-import httpx
-import openai
 import tiktoken
 from functools import partial
-from typing import List, Optional, cast
+from typing import List, Optional
 from pathlib import Path
 from datetime import date
 
 from discord import Interaction
 from discord.ext import pages
-from langchain.agents import initialize_agent, AgentType
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationSummaryBufferMemory
-from langchain.prompts import MessagesPlaceholder
-from langchain.schema import SystemMessage
-from langchain.tools import Tool
-from llama_index.callbacks import CallbackManager, TokenCountingHandler
-from llama_index.evaluation.guideline import DEFAULT_GUIDELINES, GuidelineEvaluator
-from llama_index.llms import OpenAI
-from llama_index.node_parser import SimpleNodeParser
-from llama_index.response_synthesizers import ResponseMode
-from llama_index.indices.query.query_transform import StepDecomposeQueryTransform
-from llama_index.langchain_helpers.agents import (
-    IndexToolConfig,
-    LlamaToolkit,
-    create_llama_chat_agent,
-    LlamaIndexTool,
-)
-from llama_index.prompts.chat_prompts import (
-    CHAT_REFINE_PROMPT,
-    CHAT_TREE_SUMMARIZE_PROMPT,
-    TEXT_QA_SYSTEM_PROMPT,
-)
-
-from llama_index.readers import YoutubeTranscriptReader
-from llama_index.readers.schema.base import Document
-from llama_index.langchain_helpers.text_splitter import TokenTextSplitter
-
-from llama_index.retrievers import VectorIndexRetriever, TreeSelectLeafRetriever
-from llama_index.query_engine import (
-    RetrieverQueryEngine,
-    MultiStepQueryEngine,
-    RetryGuidelineQueryEngine,
-)
-
-from llama_index import (
-    GPTVectorStoreIndex,
+from langchain_classic.memory import ConversationSummaryBufferMemory
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.messages import SystemMessage
+from langchain_core.tools import Tool
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+from llama_index.core.response_synthesizers import ResponseMode
+from llama_index.core.indices.query.query_transform import StepDecomposeQueryTransform
+from llama_index.core.prompts.chat_prompts import CHAT_REFINE_PROMPT
+from llama_index.core.schema import Document
+from llama_index.core.node_parser import TokenTextSplitter
+from llama_index.core.retrievers import VectorIndexRetriever, TreeSelectLeafRetriever
+from llama_index.core.query_engine import RetrieverQueryEngine, MultiStepQueryEngine
+from llama_index.core import (
+    VectorStoreIndex as GPTVectorStoreIndex,
+    TreeIndex as GPTTreeIndex,
     SimpleDirectoryReader,
-    QuestionAnswerPrompt,
-    BeautifulSoupWebReader,
-    GPTTreeIndex,
-    GoogleDocsReader,
-    MockLLMPredictor,
-    OpenAIEmbedding,
-    GithubRepositoryReader,
+    PromptTemplate as QuestionAnswerPrompt,
     MockEmbedding,
-    download_loader,
-    LLMPredictor,
-    ServiceContext,
     StorageContext,
     load_index_from_storage,
     get_response_synthesizer,
     VectorStoreIndex,
 )
-
-from llama_index.schema import TextNode
-from llama_index.storage.docstore.types import RefDocInfo
-from llama_index.readers.web import DEFAULT_WEBSITE_EXTRACTOR
-
-from llama_index.composability import ComposableGraph
-from llama_index.vector_stores import DocArrayInMemoryVectorStore
+from llama_index.core.llms import MockLLM
+from services.indexing_service import (
+    IndexContext,
+    create_index_context,
+    read_web_documents,
+    RecursiveWebReader,
+    persist_index,
+    context_for_stored_index,
+    embedding_for_index,
+)
 
 from models.embed_statics_model import EmbedStatics
 from models.openai_model import Models
 from models.check_model import UrlCheck
 from services.environment_service import EnvService
+from services.agent_service import create_chat_llm, create_chat_agent, agent_output_text
 from utils.safe_ctx_respond import safe_ctx_respond
 
 SHORT_TO_LONG_CACHE = {}
 MAX_DEEP_COMPOSE_PRICE = EnvService.get_max_deep_compose_price()
-EpubReader = download_loader("EpubReader")
-MarkdownReader = download_loader("MarkdownReader")
-RemoteReader = download_loader("RemoteReader")
-RemoteDepthReader = download_loader("RemoteDepthReader")
-
-embedding_model = OpenAIEmbedding()
-token_counter = TokenCountingHandler(
-    tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-    verbose=False,
-)
-node_parser = SimpleNodeParser.from_defaults(
-    text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=20)
-)
-callback_manager = CallbackManager([token_counter])
-service_context_no_llm = ServiceContext.from_defaults(
-    embed_model=embedding_model,
-    callback_manager=callback_manager,
-    node_parser=node_parser,
-)
-timeout = httpx.Timeout(1, read=1, write=1, connect=1)
 
 
 def get_service_context_with_llm(llm):
-    service_context = ServiceContext.from_defaults(
-        embed_model=embedding_model,
-        callback_manager=callback_manager,
-        node_parser=node_parser,
-        llm=llm,
-    )
-    return service_context
+    return create_index_context(llm=llm)
 
 
 def dummy_tool(**kwargs):
@@ -135,49 +81,49 @@ def get_and_query(
     service_context,
     multistep,
 ):
-    index: [GPTVectorStoreIndex, GPTTreeIndex] = index_storage[
-        user_id
-    ].get_index_or_throw()
-
+    index = index_storage[user_id].get_index_or_throw()
+    service_context.embed_model = embedding_for_index(index, service_context)
     if isinstance(index, GPTTreeIndex):
         retriever = TreeSelectLeafRetriever(
             index=index,
             child_branch_factor=child_branch_factor,
-            service_context=service_context,
+            llm=service_context.llm,
         )
     else:
         retriever = VectorIndexRetriever(
-            index=index, similarity_top_k=nodes, service_context=service_context
+            index=index,
+            similarity_top_k=nodes,
+            embed_model=embedding_for_index(index, service_context),
         )
-
-    response_synthesizer = get_response_synthesizer(
+    synthesizer = get_response_synthesizer(
         response_mode=response_mode,
         use_async=True,
         refine_template=CHAT_REFINE_PROMPT,
-        service_context=service_context,
+        **service_context.query_kwargs,
     )
-
     query_engine = RetrieverQueryEngine(
-        retriever=retriever, response_synthesizer=response_synthesizer
+        retriever=retriever, response_synthesizer=synthesizer
     )
-
-    multistep_query_engine = MultiStepQueryEngine(
-        query_engine=query_engine,
-        query_transform=StepDecomposeQueryTransform(multistep),
-        index_summary="Provides information about everything you need to know about this topic, use this to answer the question.",
-    )
-
     if multistep:
-        response = multistep_query_engine.query(query)
-    else:
-        response = query_engine.query(query)
-
-    return response
+        query_engine = MultiStepQueryEngine(
+            query_engine=query_engine,
+            query_transform=StepDecomposeQueryTransform(llm=service_context.llm),
+            index_summary="Provides information about the indexed documents.",
+        )
+    return query_engine.query(query)
 
 
 class IndexChatData:
     def __init__(
-        self, llm, agent_chain, memory, thread_id, tools, agent_kwargs, llm_predictor
+        self,
+        llm,
+        agent_chain,
+        memory,
+        thread_id,
+        tools,
+        agent_kwargs,
+        llm_predictor,
+        owner_id=None,
     ):
         self.llm = llm
         self.agent_chain = agent_chain
@@ -186,6 +132,7 @@ class IndexChatData:
         self.tools = tools
         self.agent_kwargs = agent_kwargs
         self.llm_predictor = llm_predictor
+        self.owner_id = owner_id
 
 
 class IndexData:
@@ -237,53 +184,25 @@ class IndexData:
         if len(file) > 93:
             file = file[:93]
 
-        index.storage_context.persist(
+        persist_index(
+            index,
             persist_dir=EnvService.save_path()
             / "indexes"
             / f"{str(user_id)}"
-            / f"{file}"
+            / f"{file}",
         )
 
     def reset_indexes(self, user_id):
         self.individual_indexes = []
         self.queryable_index = None
 
-        # Delete the user indexes
-        try:
-            # First, clear all the files inside it
-            for file in os.listdir(EnvService.find_shared_file(f"indexes/{user_id}")):
-                try:
-                    os.remove(EnvService.find_shared_file(f"indexes/{user_id}/{file}"))
-                except:
-                    traceback.print_exc()
-            for file in os.listdir(
-                EnvService.find_shared_file(f"indexes/{user_id}_search")
-            ):
-                try:
-                    os.remove(
-                        EnvService.find_shared_file(f"indexes/{user_id}_search/{file}")
-                    )
-                except:
-                    traceback.print_exc()
-        except Exception:
-            traceback.print_exc()
+        for folder in (str(user_id), f"{user_id}_search"):
+            path = EnvService.save_path() / "indexes" / folder
+            if path.is_dir():
+                shutil.rmtree(path)
 
 
 class Index_handler:
-    embedding_model = OpenAIEmbedding()
-    token_counter = TokenCountingHandler(
-        tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-        verbose=False,
-    )
-    node_parser = SimpleNodeParser.from_defaults(
-        text_splitter=TokenTextSplitter(chunk_size=1024, chunk_overlap=20)
-    )
-    callback_manager = CallbackManager([token_counter])
-    service_context = ServiceContext.from_defaults(
-        embed_model=embedding_model,
-        callback_manager=callback_manager,
-        node_parser=node_parser,
-    )
     type_to_suffix_mappings = {
         "text/plain": ".txt",
         "text/csv": ".csv",
@@ -335,7 +254,7 @@ class Index_handler:
 
     def __init__(self, bot, usage_service):
         self.bot = bot
-        self.openai_key = os.getenv("OPENAI_TOKEN")
+        self.openai_key = EnvService.get_openai_token()
         self.index_storage = defaultdict(IndexData)
         self.loop = asyncio.get_running_loop()
         self.usage_service = usage_service
@@ -364,7 +283,7 @@ class Index_handler:
         try:
             Path(original_path).rename(rename_path)
             return True
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             return False
 
@@ -389,9 +308,12 @@ class Index_handler:
 
         agent_output = await self.loop.run_in_executor(
             None,
-            partial(self.index_chat_chains[ctx.channel.id].agent_chain.run, message),
+            partial(
+                self.index_chat_chains[ctx.channel.id].agent_chain.invoke,
+                {"input": message},
+            ),
         )
-        return agent_output
+        return agent_output_text(agent_output["output"])
 
     async def index_chat_file(self, message: discord.Message, file: discord.Attachment):
         # First, initially set the suffix to the suffix of the attachment
@@ -415,7 +337,6 @@ class Index_handler:
                     # Assert that the filename is < 100 characters, if it is greater, truncate to the first 100 characters and keep the original ending
                     if len(filename) > 100:
                         filename = filename[:100] + filename[-4:]
-                    openai.log = "debug"
 
                     print("Indexing")
                     index: VectorStoreIndex = await self.loop.run_in_executor(
@@ -436,9 +357,9 @@ class Index_handler:
 
                     summary = await index.as_query_engine(
                         response_mode="tree_summarize",
-                        service_context=get_service_context_with_llm(
+                        **get_service_context_with_llm(
                             self.index_chat_chains[message.channel.id].llm
-                        ),
+                        ).query_kwargs,
                     ).aquery(
                         f"What is a summary or general idea of this data? Be detailed in your summary (e.g "
                         f"extract key names, etc) but not too verbose. Your summary should be under a hundred words. "
@@ -460,31 +381,22 @@ class Index_handler:
                         [c for c in filename if c.isalpha() or c.isdigit()]
                     ).rstrip()
 
-                    tool_config = IndexToolConfig(
-                        query_engine=engine,
+                    tool = Tool(
                         name=f"{filename}-index",
-                        description=f"Use this tool if the query seems related to this summary: {summary}",
-                        tool_kwargs={
-                            "return_direct": False,
-                        },
-                        max_iterations=5,
+                        func=lambda query: str(engine.query(query)),
+                        description=f"Use this tool for data related to this summary: {summary}",
                     )
-
-                    tool = LlamaIndexTool.from_tool_config(tool_config)
 
                     tools = self.index_chat_chains[message.channel.id].tools
                     tools.append(tool)
 
-                    agent_chain = initialize_agent(
-                        tools=tools,
-                        llm=self.index_chat_chains[message.channel.id].llm,
-                        agent=AgentType.OPENAI_FUNCTIONS,
-                        verbose=True,
-                        agent_kwargs=self.index_chat_chains[
-                            message.channel.id
-                        ].agent_kwargs,
+                    agent_chain = create_chat_agent(
+                        self.index_chat_chains[message.channel.id].llm,
+                        tools,
+                        self.index_chat_chains[message.channel.id]
+                        .agent_kwargs["system_message"]
+                        .content,
                         memory=self.index_chat_chains[message.channel.id].memory,
-                        handle_parsing_errors="Check your output and make sure it conforms!",
                     )
 
                     index_chat_data = IndexChatData(
@@ -495,6 +407,7 @@ class Index_handler:
                         tools,
                         self.index_chat_chains[message.channel.id].agent_kwargs,
                         self.index_chat_chains[message.channel.id].llm_predictor,
+                        owner_id=self.index_chat_chains[message.channel.id].owner_id,
                     )
 
                     self.index_chat_chains[message.channel.id] = index_chat_data
@@ -507,24 +420,26 @@ class Index_handler:
                     traceback.print_exc()
                     return False, None
 
-    async def start_index_chat(self, ctx, model, temperature, top_p):
+    async def start_index_chat(self, ctx, model, temperature, top_p, user_api_key=None):
         preparation_message = await ctx.channel.send(
             embed=EmbedStatics.get_index_chat_preparation_message()
         )
-        llm = ChatOpenAI(
-            model=model, temperature=temperature, top_p=top_p, max_retries=2
+        llm = create_chat_llm(
+            model,
+            temperature,
+            top_p,
+            api_key=user_api_key or self.openai_key,
+            max_retries=2,
         )
-        llm_predictor = LLMPredictor(
-            llm=ChatOpenAI(temperature=temperature, top_p=top_p, model_name=model)
-        )
+        llm_predictor = create_index_context(llm=llm).llm
 
-        max_token_limit = 29000 if "gpt-4" in model else 7500
+        max_token_limit = min(16000, Models.get_max_tokens(model) // 4)
 
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
             return_messages=True,
             llm=llm,
-            max_token_limit=100000 if "preview" in model else max_token_limit,
+            max_token_limit=max_token_limit,
         )
 
         agent_kwargs = {
@@ -545,20 +460,12 @@ class Index_handler:
             Tool(
                 name="Dummy-Tool-Do-Not-Use",
                 func=dummy_tool,
-                description=f"This is a dummy tool that does nothing, do not ever mention this tool or use this tool.",
+                description="This is a dummy tool that does nothing, do not ever mention this tool or use this tool.",
             )
         ]
 
-        print(f"{tools}{llm}{AgentType.OPENAI_FUNCTIONS}{True}{agent_kwargs}{memory}")
-
-        agent_chain = initialize_agent(
-            tools=tools,
-            llm=llm,
-            agent=AgentType.OPENAI_FUNCTIONS,
-            verbose=True,
-            agent_kwargs=agent_kwargs,
-            memory=memory,
-            handle_parsing_errors="Check your output and make sure it conforms!",
+        agent_chain = create_chat_agent(
+            llm, tools, agent_kwargs["system_message"].content, memory=memory
         )
 
         embed_title = f"{ctx.user.name}'s data-connected conversation with GPT"
@@ -585,7 +492,14 @@ class Index_handler:
             pass
 
         index_chat_data = IndexChatData(
-            llm, agent_chain, memory, thread.id, tools, agent_kwargs, llm_predictor
+            llm,
+            agent_chain,
+            memory,
+            thread.id,
+            tools,
+            agent_kwargs,
+            llm_predictor,
+            owner_id=ctx.user.id,
         )
 
         self.index_chat_chains[thread.id] = index_chat_data
@@ -603,7 +517,7 @@ class Index_handler:
         for count, chunk in enumerate(response_text, start=1):
             if not first:
                 page = discord.Embed(
-                    title=f"Index Query Results",
+                    title="Index Query Results",
                     description=chunk,
                 )
                 first = True
@@ -620,22 +534,32 @@ class Index_handler:
         self, file_path, service_context, suffix=None
     ) -> GPTVectorStoreIndex:
         if suffix and suffix == ".md":
+            from llama_index.readers.file import MarkdownReader
+
             loader = MarkdownReader()
             document = loader.load_data(file_path)
         elif suffix and suffix == ".epub":
+            from llama_index.readers.file import EpubReader
+
             epub_loader = EpubReader()
             document = epub_loader.load_data(file_path)
         else:
             document = SimpleDirectoryReader(input_files=[file_path]).load_data()
         index = GPTVectorStoreIndex.from_documents(
-            document, service_context=service_context, use_async=True
+            document, **service_context.index_kwargs, use_async=True
         )
         return index
 
     def index_gdoc(self, doc_id, service_context) -> GPTVectorStoreIndex:
-        document = GoogleDocsReader().load_data(doc_id)
+        try:
+            from llama_index.readers.google import GoogleDocsReader
+        except ImportError as exc:
+            raise ValueError(
+                "Google Docs indexing requires llama-index-readers-google."
+            ) from exc
+        document = GoogleDocsReader().load_data(document_ids=[doc_id])
         index = GPTVectorStoreIndex.from_documents(
-            document, service_context=service_context, use_async=True
+            document, **service_context.index_kwargs, use_async=True
         )
         return index
 
@@ -653,6 +577,14 @@ class Index_handler:
                 else:
                     return short_link
 
+            try:
+                from llama_index.readers.youtube_transcript import (
+                    YoutubeTranscriptReader,
+                )
+            except ImportError as exc:
+                raise ValueError(
+                    "YouTube indexing requires llama-index-readers-youtube-transcript."
+                ) from exc
             documents = YoutubeTranscriptReader().load_data(
                 ytlinks=[convert_shortlink_to_full_link(link)]
             )
@@ -661,7 +593,7 @@ class Index_handler:
 
         index = GPTVectorStoreIndex.from_documents(
             documents,
-            service_context=service_context,
+            **service_context.index_kwargs,
             use_async=True,
         )
         return index
@@ -672,30 +604,41 @@ class Index_handler:
         repo = link.split("/")[4]
 
         try:
-            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(
-                branch="main"
-            )
-        except KeyError:
-            documents = GithubRepositoryReader(owner=owner, repo=repo).load_data(
-                branch="master"
-            )
+            from llama_index.readers.github import GithubClient, GithubRepositoryReader
+        except ImportError as exc:
+            raise ValueError(
+                "GitHub indexing requires llama-index-readers-github."
+            ) from exc
+        reader = GithubRepositoryReader(
+            GithubClient(github_token=EnvService.get_github_token()),
+            owner=owner,
+            repo=repo,
+        )
+        try:
+            documents = reader.load_data(branch="main")
+        except (KeyError, ValueError):
+            documents = reader.load_data(branch="master")
 
         index = GPTVectorStoreIndex.from_documents(
             documents,
-            service_context=service_context,
+            **service_context.index_kwargs,
             use_async=True,
         )
         return index
 
-    def index_load_file(self, file_path) -> [GPTVectorStoreIndex, ComposableGraph]:
+    def index_load_file(self, file_path, context=None):
+        context = context or create_index_context(api_key=self.openai_key)
         storage_context = StorageContext.from_defaults(persist_dir=file_path)
-        index = load_index_from_storage(storage_context)
+        context = context_for_stored_index(file_path, context)
+        index = load_index_from_storage(
+            storage_context, embed_model=context.embed_model
+        )
         return index
 
     def index_discord(self, document, service_context) -> GPTVectorStoreIndex:
         index = GPTVectorStoreIndex.from_documents(
             document,
-            service_context=service_context,
+            **service_context.index_kwargs,
             use_async=True,
         )
         return index
@@ -737,7 +680,7 @@ class Index_handler:
                                 functools.partial(
                                     GPTVectorStoreIndex.from_documents,
                                     documents=documents,
-                                    service_context=service_context,
+                                    **service_context.index_kwargs,
                                     use_async=True,
                                 ),
                             )
@@ -747,9 +690,7 @@ class Index_handler:
             traceback.print_exc()
             raise ValueError("Could not load webpage")
 
-        documents = BeautifulSoupWebReader(
-            website_extractor=DEFAULT_WEBSITE_EXTRACTOR
-        ).load_data(urls=[url])
+        documents = await asyncio.to_thread(read_web_documents, url)
 
         # index = GPTVectorStoreIndex(documents, embed_model=embed_model, use_async=True)
         index = await self.loop.run_in_executor(
@@ -757,7 +698,7 @@ class Index_handler:
             functools.partial(
                 GPTVectorStoreIndex.from_documents,
                 documents=documents,
-                service_context=service_context,
+                **service_context.index_kwargs,
                 use_async=True,
             ),
         )
@@ -767,7 +708,7 @@ class Index_handler:
         self.index_storage[user_id].reset_indexes(user_id)
 
     def get_file_suffix(self, content_type, filename):
-        print("The content type is " + content_type)
+        print("The content type is " + str(content_type))
         if content_type:
             # Apply the suffix mappings to the file
             for key, value in self.type_to_suffix_mappings.items():
@@ -784,11 +725,10 @@ class Index_handler:
     async def set_file_index(
         self, ctx: discord.ApplicationContext, file: discord.Attachment, user_api_key
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
+        token_counter = service_context_no_llm.token_counter
 
         try:
             # First, initially set the suffix to the suffix of the attachment
@@ -820,12 +760,14 @@ class Index_handler:
                         ),
                     )
                     await self.usage_service.update_usage(
-                        token_counter.total_embedding_token_count, "embedding"
+                        token_counter.total_embedding_token_count,
+                        service_context_no_llm.embed_model.model_name,
                     )
 
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.total_embedding_token_count, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except:
                 traceback.print_exc()
@@ -845,11 +787,10 @@ class Index_handler:
     async def set_link_index_recurse(
         self, ctx: discord.ApplicationContext, link: str, depth, user_api_key
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
+        token_counter = service_context_no_llm.token_counter
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
@@ -858,9 +799,7 @@ class Index_handler:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(link, timeout=2) as _response:
                         print(_response.status)
-                        if _response.status == 200:
-                            content_type = _response.headers.get("content-type")
-                        else:
+                        if _response.status != 200:
                             await response.edit(
                                 embed=EmbedStatics.get_index_set_failure_embed(
                                     "Invalid URL or could not connect to the provided URL."
@@ -878,27 +817,29 @@ class Index_handler:
                 return
 
             # Check if the link contains youtube in it
-            loader = RemoteDepthReader(depth=depth)
+            loader = RecursiveWebReader(depth=depth)
             documents = await self.loop.run_in_executor(
                 None, partial(loader.load_data, [link])
             )
             index = await self.loop.run_in_executor(
                 None,
                 functools.partial(
-                    GPTVectorStoreIndex,
+                    GPTVectorStoreIndex.from_documents,
                     documents=documents,
-                    service_context=service_context_no_llm,
+                    **service_context_no_llm.index_kwargs,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.total_embedding_token_count, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except:
                 traceback.print_exc()
@@ -932,27 +873,32 @@ class Index_handler:
         await response.edit(embed=EmbedStatics.get_index_set_success_embed(price))
 
     def get_query_engine(self, index, llm):
+        context = get_service_context_with_llm(llm)
         retriever = VectorIndexRetriever(
             index=index,
             similarity_top_k=6,
-            service_context=get_service_context_with_llm(llm),
+            embed_model=embedding_for_index(index, context),
         )
-
-        response_synthesizer = get_response_synthesizer(
+        synthesizer = get_response_synthesizer(
             response_mode=ResponseMode.COMPACT_ACCUMULATE,
-            use_async=True,
-            refine_template=TEXT_QA_SYSTEM_PROMPT,
-            service_context=get_service_context_with_llm(llm),
-            verbose=True,
+            refine_template=CHAT_REFINE_PROMPT,
+            **context.query_kwargs,
+        )
+        return RetrieverQueryEngine(
+            retriever=retriever, response_synthesizer=synthesizer
         )
 
-        engine = RetrieverQueryEngine(
-            retriever=retriever, response_synthesizer=response_synthesizer
-        )
-
-        return engine
-
-    async def index_link(self, link, summarize=False, index_chat_ctx=None):
+    async def index_link(
+        self, link, summarize=False, index_chat_ctx=None, context=None
+    ):
+        if context is not None:
+            service_context_no_llm = context
+        elif index_chat_ctx is not None:
+            service_context_no_llm = create_index_context(
+                llm=self.index_chat_chains[index_chat_ctx.channel.id].llm
+            )
+        else:
+            service_context_no_llm = create_index_context(api_key=self.openai_key)
         try:
             if await UrlCheck.check_youtube_link(link):
                 print("Indexing youtube transcript")
@@ -988,9 +934,9 @@ class Index_handler:
                 )
                 summary = await index.as_query_engine(
                     response_mode="tree_summarize",
-                    service_context=get_service_context_with_llm(
+                    **get_service_context_with_llm(
                         self.index_chat_chains[index_chat_ctx.channel.id].llm
-                    ),
+                    ).query_kwargs,
                 ).aquery(
                     "What is a summary or general idea of this document? Be detailed in your summary but not too verbose. Your summary should be under 50 words. This summary will be used in a vector index to retrieve information about certain data. So, at a high level, the summary should describe the document in such a way that a retriever would know to select it when asked questions about it. The link was {link}. Include the an easy identifier derived from the link at the end of the summary."
                 )
@@ -1010,32 +956,22 @@ class Index_handler:
                 # Shorten the link to the first 100 characters
                 link_cleaned = link_cleaned[:50]
 
-                tool_config = IndexToolConfig(
-                    query_engine=engine,
+                tool = Tool(
                     name=f"{link_cleaned}-index",
-                    description=f"Use this tool if the query seems related to this summary: {summary}",
-                    tool_kwargs={
-                        "return_direct": False,
-                    },
-                    max_iterations=5,
+                    func=lambda query: str(engine.query(query)),
+                    description=f"Use this tool for data related to this summary: {summary}",
                 )
-
-                tool = LlamaIndexTool.from_tool_config(tool_config)
 
                 tools = self.index_chat_chains[index_chat_ctx.channel.id].tools
                 tools.append(tool)
 
-                agent_chain = initialize_agent(
-                    tools=tools,
-                    llm=self.index_chat_chains[index_chat_ctx.channel.id].llm,
-                    agent=AgentType.OPENAI_FUNCTIONS,
-                    verbose=True,
-                    agent_kwargs=self.index_chat_chains[
-                        index_chat_ctx.channel.id
-                    ].agent_kwargs,
+                agent_chain = create_chat_agent(
+                    self.index_chat_chains[index_chat_ctx.channel.id].llm,
+                    tools,
+                    self.index_chat_chains[index_chat_ctx.channel.id]
+                    .agent_kwargs["system_message"]
+                    .content,
                     memory=self.index_chat_chains[index_chat_ctx.channel.id].memory,
-                    handle_parsing_errors="Check your output and make sure it conforms!",
-                    max_iterations=5,
                 )
 
                 index_chat_data = IndexChatData(
@@ -1046,6 +982,7 @@ class Index_handler:
                     tools,
                     self.index_chat_chains[index_chat_ctx.channel.id].agent_kwargs,
                     self.index_chat_chains[index_chat_ctx.channel.id].llm_predictor,
+                    owner_id=self.index_chat_chains[index_chat_ctx.channel.id].owner_id,
                 )
 
                 self.index_chat_chains[index_chat_ctx.channel.id] = index_chat_data
@@ -1062,24 +999,25 @@ class Index_handler:
     async def set_link_index(
         self, ctx: discord.ApplicationContext, link: str, user_api_key
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
+        token_counter = service_context_no_llm.token_counter
 
         response = await ctx.respond(embed=EmbedStatics.build_index_progress_embed())
         try:
             # Check if the link contains youtube in it
-            index, _ = await self.index_link(link)
+            index, _ = await self.index_link(link, context=service_context_no_llm)
 
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
 
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.embedding_token_counts, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except:
                 traceback.print_exc()
@@ -1114,11 +1052,10 @@ class Index_handler:
         user_api_key,
         message_limit: int = 2500,
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
+        token_counter = service_context_no_llm.token_counter
 
         try:
             document = await self.load_data(
@@ -1129,13 +1066,15 @@ class Index_handler:
             )
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.total_embedding_token_count, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except Exception:
                 traceback.print_exc()
                 price = "Unknown"
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
             self.index_storage[ctx.user.id].add_index(index, ctx.user.id, channel.name)
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))
@@ -1146,11 +1085,9 @@ class Index_handler:
     async def load_index(
         self, ctx: discord.ApplicationContext, index, server, search, user_api_key
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
 
         try:
             if server:
@@ -1166,7 +1103,7 @@ class Index_handler:
                     f"indexes/{ctx.user.id}/{index}"
                 )
             index = await self.loop.run_in_executor(
-                None, partial(self.index_load_file, index_file)
+                None, partial(self.index_load_file, index_file, service_context_no_llm)
             )
             self.index_storage[ctx.user.id].queryable_index = index
             await ctx.respond(embed=EmbedStatics.get_index_load_success_embed())
@@ -1198,7 +1135,12 @@ class Index_handler:
 
         return documents
 
-    async def compose_indexes(self, user_id, indexes, name, deep_compose):
+    async def compose_indexes(self, user_id, indexes, name, deep_compose, context=None):
+        service_context_no_llm = context or create_index_context(
+            api_key=self.openai_key
+        )
+        service_context = service_context_no_llm
+        token_counter = service_context_no_llm.token_counter
         # Load all the indexes first
         index_objects = []
         for _index in indexes:
@@ -1210,13 +1152,9 @@ class Index_handler:
                 )
 
             index = await self.loop.run_in_executor(
-                None, partial(self.index_load_file, index_file)
+                None, partial(self.index_load_file, index_file, service_context_no_llm)
             )
             index_objects.append(index)
-
-        llm_predictor = LLMPredictor(
-            llm=ChatOpenAI(temperature=0, model_name="gpt-4-32k")
-        )
 
         # For each index object, add its documents to a GPTTreeIndex
         if deep_compose:
@@ -1224,22 +1162,17 @@ class Index_handler:
             for _index in index_objects:
                 documents.extend(await self.index_to_docs(_index, 256, 20))
 
-            embedding_model = OpenAIEmbedding()
-
-            llm_predictor_mock = MockLLMPredictor()
-            embedding_model_mock = MockEmbedding(1536)
-
             token_counter_mock = TokenCountingHandler(
-                tokenizer=tiktoken.encoding_for_model("text-davinci-003").encode,
-                verbose=False,
+                tokenizer=tiktoken.get_encoding("cl100k_base").encode,
             )
-
-            callback_manager_mock = CallbackManager([token_counter_mock])
-
-            service_context_mock = ServiceContext.from_defaults(
-                llm_predictor=llm_predictor_mock,
-                embed_model=embedding_model_mock,
-                callback_manager=callback_manager_mock,
+            callbacks_mock = CallbackManager([token_counter_mock])
+            service_context_mock = IndexContext(
+                llm=MockLLM(callback_manager=callbacks_mock),
+                embed_model=MockEmbedding(
+                    embed_dim=1536, callback_manager=callbacks_mock
+                ),
+                callback_manager=callbacks_mock,
+                token_counter=token_counter_mock,
             )
 
             # Run the mock call first
@@ -1248,14 +1181,15 @@ class Index_handler:
                 partial(
                     GPTTreeIndex.from_documents,
                     documents=documents,
-                    service_context=service_context_mock,
+                    **service_context_mock.index_kwargs,
                 ),
             )
             total_usage_price = await self.usage_service.get_price(
                 token_counter_mock.total_llm_token_count,
-                "turbo",  # TODO Enable again when tree indexes are fixed
+                service_context_no_llm.llm.model,
             ) + await self.usage_service.get_price(
-                token_counter_mock.total_embedding_token_count, "embedding"
+                token_counter_mock.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
             print("The total composition price is: ", total_usage_price)
             if total_usage_price > MAX_DEEP_COMPOSE_PRICE:
@@ -1268,16 +1202,17 @@ class Index_handler:
                 partial(
                     GPTTreeIndex.from_documents,
                     documents=documents,
-                    service_context=self.service_context,
+                    **service_context.index_kwargs,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                self.token_counter.total_llm_token_count, "turbo"
+                token_counter.total_llm_token_count, service_context_no_llm.llm.model
             )
             await self.usage_service.update_usage(
-                self.token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
 
             # Now we have a list of tree indexes, we can compose them
@@ -1285,8 +1220,9 @@ class Index_handler:
                 name = f"{date.today().month}_{date.today().day}_composed_deep_index"
 
             # Save the composed index
-            tree_index.storage_context.persist(
-                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name
+            persist_index(
+                tree_index,
+                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name,
             )
 
             self.index_storage[user_id].queryable_index = tree_index
@@ -1302,27 +1238,30 @@ class Index_handler:
                 partial(
                     GPTVectorStoreIndex.from_documents,
                     documents=documents,
-                    service_context=service_context_no_llm,
+                    **service_context_no_llm.index_kwargs,
                     use_async=True,
                 ),
             )
 
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
 
             if not name:
                 name = f"{date.today().month}_{date.today().day}_composed_index"
 
             # Save the composed index
-            simple_index.storage_context.persist(
-                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name
+            persist_index(
+                simple_index,
+                persist_dir=EnvService.save_path() / "indexes" / str(user_id) / name,
             )
             self.index_storage[user_id].queryable_index = simple_index
 
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.total_embedding_token_count, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except:
                 price = "Unknown"
@@ -1332,11 +1271,10 @@ class Index_handler:
     async def backup_discord(
         self, ctx: discord.ApplicationContext, user_api_key, message_limit
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
+        token_counter = service_context_no_llm.token_counter
 
         try:
             channel_ids: List[int] = []
@@ -1350,11 +1288,13 @@ class Index_handler:
                 None, partial(self.index_discord, document, service_context_no_llm)
             )
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
             try:
                 price = await self.usage_service.get_price(
-                    token_counter.total_embedding_token_count, "embedding"
+                    token_counter.total_embedding_token_count,
+                    service_context_no_llm.embed_model.model_name,
                 )
             except Exception:
                 traceback.print_exc()
@@ -1382,16 +1322,13 @@ class Index_handler:
         nodes,
         user_api_key,
         child_branch_factor,
-        model="gpt-4-32k",
+        model=Models.DEFAULT,
         multistep=False,
     ):
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
-
-        llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name=model))
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key, model=model
+        )
+        token_counter = service_context_no_llm.token_counter
 
         ctx_response = await ctx.respond(
             embed=EmbedStatics.build_index_query_progress_embed(query)
@@ -1410,7 +1347,7 @@ class Index_handler:
                     nodes,
                     child_branch_factor,
                     service_context=service_context_no_llm,
-                    multistep=llm_predictor if multistep else None,
+                    multistep=multistep,
                 ),
             )
             print("The last token usage was ", token_counter.total_llm_token_count)
@@ -1419,7 +1356,8 @@ class Index_handler:
                 await self.usage_service.get_cost_name(model),
             )
             await self.usage_service.update_usage(
-                token_counter.total_embedding_token_count, "embedding"
+                token_counter.total_embedding_token_count,
+                service_context_no_llm.embed_model.model_name,
             )
 
             try:
@@ -1429,7 +1367,8 @@ class Index_handler:
                         await self.usage_service.get_cost_name(model),
                     )
                     + await self.usage_service.get_price(
-                        token_counter.total_embedding_token_count, "embedding"
+                        token_counter.total_embedding_token_count,
+                        service_context_no_llm.embed_model.model_name,
                     ),
                     6,
                 )
@@ -1539,11 +1478,9 @@ class Index_handler:
 
     async def compose(self, ctx: discord.ApplicationContext, name, user_api_key):
         # Send the ComposeModal
-        if not user_api_key:
-            os.environ["OPENAI_API_KEY"] = self.openai_key
-        else:
-            os.environ["OPENAI_API_KEY"] = user_api_key
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        service_context_no_llm = create_index_context(
+            api_key=user_api_key or self.openai_key
+        )
 
         if not self.index_storage[ctx.user.id].has_indexes(ctx.user.id):
             await ctx.respond(
@@ -1555,18 +1492,19 @@ class Index_handler:
 
         await ctx.respond(
             "Select the index(es) to compose. You can compose multiple indexes together, you can also Deep Compose a single index.",
-            view=ComposeModal(self, ctx.user.id, name),
+            view=ComposeModal(self, ctx.user.id, name, context=service_context_no_llm),
             ephemeral=True,
         )
 
 
 class ComposeModal(discord.ui.View):
-    def __init__(self, index_cog, user_id, name=None, deep=None) -> None:
+    def __init__(self, index_cog, user_id, name=None, deep=None, context=None) -> None:
         super().__init__()
         # Get the argument named "user_key_db" and save it as USER_KEY_DB
         self.index_cog = index_cog
         self.user_id = user_id
         self.deep = deep
+        self.context = context
 
         # Get all the indexes for the user
         self.indexes = [
@@ -1694,6 +1632,7 @@ class ComposeModal(discord.ui.View):
                             or self.deep_select.values[0] == "no"
                             else True
                         ),
+                        context=self.context,
                     )
                 except ValueError as e:
                     await interaction.followup.send(
@@ -1720,7 +1659,7 @@ class ComposeModal(discord.ui.View):
                 # Try to direct message the user that their composed index is ready
                 try:
                     await self.index_cog.bot.get_user(self.user_id).send(
-                        f"Your composed index is ready! You can load it with /index load now in the server."
+                        "Your composed index is ready! You can load it with /index load now in the server."
                     )
                 except discord.Forbidden:
                     pass

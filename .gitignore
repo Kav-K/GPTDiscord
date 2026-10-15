@@ -15,3 +15,12 @@ usage.txt
 .idea
 
 
+
+# Development and packaging
+.venv/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+*.sqlite-shm
+*.sqlite-wal

@@ -15,10 +15,12 @@ import unidecode
 from models.embed_statics_model import EmbedStatics
 from models.image_understanding_model import ImageUnderstandingModel
 from services.deletion_service import Deletion
-from models.openai_model import Model, Override, Models
+from models.openai_model import Model, Override, Models, OpenAIAPIError
 from models.user_model import EmbeddedConversationItem, RedoUser
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
+from utils.image_attachments import image_references_to_discord_payload
+from utils.api_errors import openai_error_message
 
 BOT_NAME = EnvService.get_custom_bot_name()
 PRE_MODERATE = EnvService.get_premoderate()
@@ -273,7 +275,9 @@ class TextService:
                         "give me one moment!"
                     )
 
-                    await converser_cog.summarize_conversation(ctx, new_prompt)
+                    await converser_cog.summarize_conversation(
+                        ctx, new_prompt, custom_api_key=custom_api_key
+                    )
 
                     try:
                         await summarizing_message.delete()
@@ -320,23 +324,6 @@ class TextService:
                 ctx.channel.id in converser_cog.conversation_threads
                 and not from_ask_command
                 and not from_edit_command
-                and (
-                    (
-                        model is not None
-                        and (
-                            model in Models.CHATGPT_MODELS
-                            or (model == "chatgpt" or "gpt-4" in model)
-                        )
-                    )
-                    or (
-                        model is None
-                        and converser_cog.model.model in Models.CHATGPT_MODELS
-                    )
-                )
-            )
-            delegator = model or converser_cog.model.model
-            is_chatgpt_request = (
-                delegator in Models.CHATGPT_MODELS or delegator in Models.GPT4_MODELS
             )
 
             # Set some variables if a user or channel has a system instruction set
@@ -388,7 +375,7 @@ class TextService:
                     model=model,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
-                    is_chatgpt_request=is_chatgpt_request,
+                    is_chatgpt_request=True,
                     system_instruction=system_instruction,
                 )
 
@@ -414,13 +401,11 @@ class TextService:
                     else response_text
                 )
             elif from_ask_command or from_ask_action:
-                response_model = response["model"]
-                if "gpt-3.5" in response_model or "gpt-4" in response_model:
-                    response_text = (
-                        f"\n\n{response_text}"
-                        if not response_text.startswith("\n\n")
-                        else response_text
-                    )
+                response_text = (
+                    f"\n\n{response_text}"
+                    if not response_text.startswith("\n\n")
+                    else response_text
+                )
                 response_text = f"***{prompt}***{response_text}"
                 response_text = (
                     f"{usage_message}\n\n{response_text}"
@@ -640,7 +625,17 @@ class TextService:
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
-        # Error catching for OpenAI model value errors
+        except OpenAIAPIError as error:
+            message = openai_error_message(error)
+            if from_context:
+                await ctx.send_followup(message, ephemeral=True)
+            else:
+                await ctx.reply(message)
+            converser_cog.remove_awaiting(
+                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+            )
+
+        # Error catching for local model/input validation errors
         except ValueError as e:
             embed = EmbedStatics.get_invalid_value_embed(e)
             if from_ask_action:
@@ -775,13 +770,13 @@ class TextService:
 
                 if files:
                     if (
-                        "-vision" not in model
+                        not Models.supports_vision(model)
                         and image_understanding_model.get_is_usable()
                     ):
                         add_prompts = []
                         for num, file in enumerate(files):
                             thinking_embed = discord.Embed(
-                                title=f"🤖💬 Interpreting attachment without GPT-Vision...",
+                                title="🤖💬 Interpreting attachment...",
                                 color=0x808080,
                             )
 
@@ -847,9 +842,13 @@ class TextService:
                             + f"is given below, use the image understanding data to answer the question but don't "
                             f"refer directly to the data. Original Prompt: " + prompt
                         )
-                    elif "-vision" in model:
+                    elif Models.supports_vision(model):
                         file_urls = [file.url for file in files]
-                        print("The file URLs were found to be" + str(file_urls))
+                    else:
+                        await message.reply(
+                            f"{model} does not support image attachments. Start a conversation with {Models.DEFAULT} to analyze images."
+                        )
+                        return
 
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
@@ -871,8 +870,7 @@ class TextService:
             # Determine if we should draw an image and determine what to draw, and handle the drawing itself
             # TODO: This should be encapsulated better into some other service or function so we're not cluttering this text service file, this text service file is gross right now..
             if (
-                "-vision" in model
-                and not converser_cog.pinecone_service
+                not converser_cog.pinecone_service
                 and converser_cog.conversation_threads[message.channel.id].drawable
             ):
                 print("Checking for if the user asked to draw")
@@ -928,39 +926,41 @@ class TextService:
                 ].history[
                     -6:
                 ]  # Get the last 6 messages to determine context on whether we should draw
-                last_messages = last_messages[1:]
                 try:
                     thinking_message = await TextService.trigger_thinking(message)
 
                     response_json = await converser_cog.model.send_chatgpt_chat_request(
                         last_messages,
-                        "gpt-4-vision-preview",
+                        Models.LOW_USAGE_MODEL,
                         temp_override=0,
                         user_displayname=message.author.display_name,
                         bot_name=BOT_NAME,
                         system_prompt_override=draw_check_prompt,
                         respond_json=True,
+                        custom_api_key=user_api_key,
                     )
                     await TextService.stop_thinking(thinking_message)
-                    # This validation is only until we figure out what's wrong with the json response mode for vision.
-                    if response_json["intent_to_draw"]:
+                    if response_json.get("intent_to_draw") is True:
                         thinking_message = await TextService.trigger_thinking(
                             message, is_drawing=True
                         )
 
                         links = await converser_cog.model.send_image_request_within_conversation(
                             response_json["prompt"],
-                            quality="hd",
+                            quality="auto",
                             image_size="1024x1024",
                             style="vivid",
-                            num_images=response_json["amount"],
+                            num_images=max(
+                                1, min(4, int(response_json.get("amount", 1)))
+                            ),
+                            custom_api_key=user_api_key,
                         )
                         await TextService.stop_thinking(thinking_message)
 
-                        image_markdowns = []
-                        for num, link in enumerate(links):
-                            image_markdowns.append(f"[image{num}]({link})")
-                        await message.reply(" ".join(image_markdowns))
+                        image_content, image_files = (
+                            image_references_to_discord_payload(links)
+                        )
+                        await message.reply(content=image_content, files=image_files)
 
                         converser_cog.conversation_threads[
                             message.channel.id
@@ -1280,56 +1280,46 @@ class SetupModal(discord.ui.Modal):
 
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user
-        api_key = self.children[0].value
-        # Validate that api_key is indeed in this format
-        if not re.match(r"sk-[a-zA-Z0-9]{32}", api_key):
+        api_key = (self.children[0].value or "").strip()
+        # Keys may be project scoped, service-account scoped, or supplied by a
+        # compatible provider. Let the configured API validate their format.
+        if (
+            not api_key
+            or len(api_key) > 4096
+            or not api_key.isprintable()
+            or any(character.isspace() for character in api_key)
+        ):
             await interaction.response.send_message(
-                "Your API key looks invalid, please check that it is correct before proceeding. Please run the /setup command to set your key.",
+                "Enter an API key without whitespace or control characters, then try /setup again.",
                 ephemeral=True,
-                delete_after=100,
+                delete_after=30,
             )
-        else:
-            # We can save the key for the user to the database.
+            return
 
-            # Make a test request using the api key to ensure that it is valid.
-            try:
-                await Model.send_test_request(api_key)
-                await interaction.response.send_message(
-                    "Your API key was successfully validated.",
-                    ephemeral=True,
-                    delete_after=10,
-                )
+        await interaction.response.defer(ephemeral=True)
+        try:
+            await Model.send_test_request(api_key)
+        except Exception:
+            # Provider error bodies can contain credential/account details.
+            await interaction.followup.send(
+                "The API could not validate your key. Check the key, project access, and configured endpoint, then try /setup again.",
+                ephemeral=True,
+                delete_after=30,
+            )
+            return
 
-            except aiohttp.ClientResponseError as e:
-                await interaction.response.send_message(
-                    embed=EmbedStatics.get_invalid_api_response_embed(e),
-                    ephemeral=True,
-                    delete_after=30,
-                )
-                return
-
-            except Exception as e:
-                await interaction.response.send_message(
-                    f"Your API key looks invalid, the API returned: {e}. Please check that your API key is correct before proceeding",
-                    ephemeral=True,
-                    delete_after=30,
-                )
-                return
-
-            # Save the key to the database
-            try:
-                self.USER_KEY_DB[user.id] = api_key
-                self.USER_KEY_DB.commit()
-                await interaction.followup.send(
-                    "Your API key was successfully saved.",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-            except Exception:
-                traceback.print_exc()
-                await interaction.followup.send(
-                    "There was an error saving your API key.",
-                    ephemeral=True,
-                    delete_after=30,
-                )
-                return
+        try:
+            self.USER_KEY_DB[user.id] = api_key
+            self.USER_KEY_DB.commit()
+        except Exception:
+            await interaction.followup.send(
+                "There was an error saving your API key. Contact the bot administrator.",
+                ephemeral=True,
+                delete_after=30,
+            )
+            return
+        await interaction.followup.send(
+            "Your API key was successfully validated and saved.",
+            ephemeral=True,
+            delete_after=10,
+        )

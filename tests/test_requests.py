@@ -1,10 +1,19 @@
 from pathlib import Path
-import tempfile
+import os
 
 import pytest
 from models.openai_model import Model
 
 from services.usage_service import UsageService
+
+# Paid integration tests are opt-in. All normal CI tests mock the network.
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_LIVE_OPENAI_TESTS") != "1",
+        reason="Set RUN_LIVE_OPENAI_TESTS=1 explicitly to enable paid API calls",
+    ),
+]
 
 
 @pytest.fixture

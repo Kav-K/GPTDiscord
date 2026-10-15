@@ -1,78 +1,35 @@
 import asyncio
+import base64
 import datetime
 import functools
 import io
-import os
-import sys
-import tempfile
+import posixpath
+import shlex
 import traceback
-from concurrent.futures.thread import ThreadPoolExecutor
-from typing import List
+import uuid
 
-import re
-
-import aiofiles
 import discord
-import openai
-from discord.ext import pages
-from e2b import DataAnalysis
-from e2b.templates.data_analysis import Artifact
+from e2b_code_interpreter import Sandbox
 
-from langchain.agents import (
-    Tool,
-    initialize_agent,
-    AgentType,
-)
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
-from langchain.prompts import (
-    MessagesPlaceholder,
-)
-from langchain.schema import SystemMessage
-from langchain.utilities import GoogleSearchAPIWrapper
+from langchain_community.utilities.google_search import GoogleSearchAPIWrapper
+from langchain_core.tools import Tool
 
 from models.embed_statics_model import EmbedStatics
+from services.agent_service import agent_output_text, create_chat_agent, create_chat_llm
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
-from services.moderations_service import Moderation
 from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
 
-class CaptureStdout:
-    def __enter__(self):
-        self.buffer = io.StringIO()
-        self.original_stdout = sys.stdout
-        sys.stdout = self.buffer
-        return self.buffer
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout = self.original_stdout
-
-
-async def capture_stdout(func, *args, **kwargs):
-    with CaptureStdout() as buffer:
-        result = await func(*args, **kwargs)
-    captured_output = buffer.getvalue()
-    return result, captured_output
-
-
-ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+PRE_MODERATE = EnvService.get_premoderate()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
-PRE_MODERATE = EnvService.get_premoderate()
-
-OPENAI_API_KEY = EnvService.get_openai_token()
-# Set the environment
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-openai.api_key = os.environ["OPENAI_API_KEY"]
 GOOGLE_API_KEY = EnvService.get_google_search_api_key()
 GOOGLE_SEARCH_ENGINE_ID = EnvService.get_google_search_engine_id()
 
-E2B_API_KEY = EnvService.get_e2b_api_key()
-
 
 class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
-    """Cog containing translation commands and retrieval of translation services"""
+    """Stateful Python execution in E2B sandboxes."""
 
     def __init__(
         self,
@@ -88,9 +45,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self.EMBED_CUTOFF = 2000
         self.redo_users = {}
         self.chat_agents = {}
+        self.thread_owners = {}
         self.thread_awaiting_responses = []
         self.converser_cog = converser_cog
-        self.executor = ThreadPoolExecutor(max_workers=10)
         self.initial_messages = {}
         self.sessions = {}
         # Make a mapping of all the country codes and their full country names:
@@ -112,6 +69,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         if message.content.strip().startswith("~"):
             return
 
+        if message.channel.id not in self.chat_agents:
+            return
+
+        if USER_INPUT_API_KEYS and self.thread_owners.get(message.channel.id) != message.author.id:
+            await message.reply("This session uses its creator's API key. Start your own code interpreter session to participate.")
+            return
+
         # if we are still awaiting a response from the agent, then we don't want to process the message.
         if message.channel.id in self.thread_awaiting_responses:
             resp_message = await message.reply(
@@ -128,6 +92,8 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
         # Pre moderation
         if PRE_MODERATE:
+            from services.moderations_service import Moderation
+
             if await Moderation.simple_moderate_and_respond(message.content, message):
                 await message.delete()
                 return
@@ -137,12 +103,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
+                session = self.sessions.pop(message.channel.id)
+                await asyncio.to_thread(session.close)
                 await message.reply(
-                    "Ending chat session. You can access the sandbox of this session at https://"
-                    + self.sessions[message.channel.id].get_hostname()
+                    "Code interpreter session ended. Its sandbox and files have been removed."
                 )
-                self.sessions[message.channel.id].close()
                 self.chat_agents.pop(message.channel.id)
+                self.thread_owners.pop(message.channel.id, None)
 
                 # close the thread
                 thread = await self.bot.fetch_channel(message.channel.id)
@@ -156,7 +123,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             if file:
                 # We will attempt to upload the file to the execution environment
                 thinking_embed = discord.Embed(
-                    title=f"🤖💬 Uploading file to code interpreter environment...",
+                    title="🤖💬 Uploading file to code interpreter environment...",
                     color=0x808080,
                 )
 
@@ -172,42 +139,27 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 except Exception:
                     pass
 
-                async with aiofiles.tempfile.NamedTemporaryFile(
-                    delete=False
-                ) as temp_file:
-                    await file.save(temp_file.name)
-
-                    filename = file.filename
-
-                    # Assert that the filename is < 100 characters, if it is greater, truncate to the first 100 characters and keep the original ending
-                    if len(filename) > 100:
-                        filename = filename[:100] + filename[-4:]
-
-                    file_upload_result = await self.sessions[
+                try:
+                    filename = posixpath.basename(file.filename)
+                    uploaded_path = await self.sessions[
                         message.channel.id
                     ].upload_file_async(filename, await file.read())
-
-                    if filename in str(file_upload_result):
+                    prompt += (
+                        f"\n{{The user has just uploaded a file to {uploaded_path}}}"
+                    )
+                except Exception:
+                    traceback.print_exc()
+                    await message.reply(
+                        embed=discord.Embed(
+                            title="🤖💬 File upload failed", color=0x808080
+                        )
+                    )
+                    return
+                finally:
+                    if "thinking_message" in locals():
                         try:
                             await thinking_message.delete()
-                            prompt += (
-                                "\n{The user has just uploaded a file to "
-                                + f"/home/user/{filename}"
-                                + "}"
-                            )
-                            print("The edited prompt is: " + prompt)
-                        except:
-                            traceback.print_exc()
-                            pass
-                    else:
-                        try:
-                            failed_embed = discord.Embed(
-                                title=f"🤖💬 File upload failed", color=0x808080
-                            )
-                            await message.reply(embed=failed_embed)
-                            return
-                        except:
-                            traceback.print_exc()
+                        except discord.HTTPException:
                             pass
 
             self.thread_awaiting_responses.append(message.channel.id)
@@ -219,20 +171,14 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
             agent = self.chat_agents[message.channel.id]
             try:
-                # Start listening to STDOUT before this call. We wanna track all the output for this specific call below
                 self.usage_service.update_usage_memory(
                     message.guild.name, "code_interpreter_message", 1
                 )
-                response, stdout_output = await capture_stdout(
-                    self.bot.loop.run_in_executor, None, agent.run, prompt
+                result = await asyncio.to_thread(agent.invoke, {"input": prompt})
+                response = agent_output_text(result["output"])
+                artifact_names = await asyncio.to_thread(
+                    self.sessions[message.channel.id].get_artifact_names
                 )
-                response = str(response)
-
-                try:
-                    print(response)
-                    print(stdout_output)
-                except:
-                    pass
 
             except Exception as e:
                 response = f"Error: {e}"
@@ -243,16 +189,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 return
 
-            # Parse the artifact names. After Artifacts: there should be a list in form [] where the artifact names are inside, comma separated inside stdout_output
-            artifact_names = re.findall(r"Artifacts: \[(.*?)\]", stdout_output)
-            # The artifacts list may be formatted like ["'/home/user/artifacts/test2.txt', '/home/user/artifacts/test.txt'"], where its technically 1 element in the list, so we need to split it by comma and then remove the quotes and spaces
-            if len(artifact_names) > 0:
-                artifact_names = artifact_names[0].split(",")
-                artifact_names = [
-                    artifact_name.strip().replace("'", "")
-                    for artifact_name in artifact_names
-                ]
-
             artifacts_available = len(artifact_names) > 0
 
             if len(response) > 2000:
@@ -262,7 +198,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     if x == 0:
                         previous_message = await message.reply(embed=page)
                     else:
-                        previous_message = previous_message.reply(embed=page)
+                        previous_message = await previous_message.reply(embed=page)
 
                 if artifacts_available:
                     await previous_message.reply(
@@ -300,91 +236,110 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     class SessionedCodeExecutor:
+        ARTIFACT_DIRECTORY = "/home/user/artifacts"
+
         def __init__(self):
+            self.session = None
+            self.sessioned = False
             try:
-                self.session = DataAnalysis(api_key=E2B_API_KEY)
+                self.session = Sandbox.create(
+                    api_key=EnvService.get_e2b_api_key(), timeout=3600
+                )
+                self.session.files.make_dir(self.ARTIFACT_DIRECTORY)
                 self.sessioned = True
-            except:
+            except Exception:
                 traceback.print_exc()
-                self.sessioned = False
+                if self.session is not None:
+                    self.session.kill()
 
         def execute_code_sync(self, code: str):
-            """Synchronous wrapper around the async execute_code function."""
-            return asyncio.run(self.execute_code_async(code))
+            """Run Python in the session's persistent Jupyter kernel."""
+            execution = self.session.run_code(code, timeout=30)
+            stdout = "".join(execution.logs.stdout)
+            stderr = "".join(execution.logs.stderr)
+
+            # Rich Jupyter results replace the retired DataAnalysis artifacts API.
+            # Keep plots downloadable alongside files written by user code.
+            for result in execution.results:
+                if result.text:
+                    stdout += "\n" + result.text
+                for extension in ("png", "jpeg", "pdf", "svg", "html"):
+                    content = getattr(result, extension, None)
+                    if content:
+                        if extension in ("png", "jpeg", "pdf"):
+                            content = base64.b64decode(content)
+                        path = (
+                            f"{self.ARTIFACT_DIRECTORY}/{uuid.uuid4().hex}.{extension}"
+                        )
+                        self.session.files.write(path, content)
+
+            if execution.error:
+                stderr += (
+                    f"\n{execution.error.name}: {execution.error.value}\n"
+                    + execution.error.traceback
+                )
+            artifacts = self.get_artifact_names()
+            artifacts_output = (
+                "\nArtifacts: " + str(artifacts) if artifacts else "\nNO__ARTIFACTS"
+            )
+            return (
+                f"STDOUT: {stdout[:12000]}\nSTDERR: {stderr[:12000]}{artifacts_output}"
+            )
 
         async def execute_code_async(self, code: str):
-            loop = asyncio.get_running_loop()
-            runner = functools.partial(self.session.run_python, code=code, timeout=30)
+            return await asyncio.to_thread(self.execute_code_sync, code)
 
-            stdout, stderr, artifacts = await loop.run_in_executor(None, runner)
-            artifacts: List[Artifact] = list(artifacts)
-
-            artifacts_or_no_artifacts = (
-                "\nArtifacts: " + str([artifact.name for artifact in artifacts])
-                if len(artifacts) > 0
-                else "\nNO__ARTIFACTS"
-            )
-
-            if len(stdout) > 12000:
-                stdout = stdout[:12000]
-            return (
-                "STDOUT: " + stdout + "\nSTDERR: " + stderr + artifacts_or_no_artifacts
-            )
+        def get_artifact_names(self):
+            entries = self.session.files.list(self.ARTIFACT_DIRECTORY, depth=10)
+            return [
+                entry.path
+                for entry in entries
+                if getattr(entry.type, "value", entry.type) == "file"
+            ]
 
         def close(self):
-            self.session.close()
-
-        def get_hostname(self):
-            return self.session.get_hostname()
+            self.session.kill()
+            self.sessioned = False
 
         def download_file(self, filepath):
-            return self.session.download_file(filepath, timeout=30)
-
-        def install_python_package(self, package):
-            return self.session.install_python_packages(package_names=package)
-
-        def install_system_package(self, package):
-            return self.session.install_system_packages(package_names=package)
-
-        def run_command_sync(self, command):
-            return asyncio.run(self.run_command_async(command))
-
-        async def run_command_async(self, command):
-            loop = asyncio.get_running_loop()
-            runner = functools.partial(
-                self.session.process.start, cmd=command, timeout=30
+            return bytes(
+                self.session.files.read(filepath, format="bytes", request_timeout=30)
             )
 
-            command = await loop.run_in_executor(None, runner)
+        def install_python_package(self, package):
+            return self.run_command_sync(
+                f"python -m pip install -- {shlex.quote(package)}"
+            )
 
-            runner = functools.partial(command.wait)
-            await loop.run_in_executor(None, runner)
+        def install_system_package(self, package):
+            result = self.session.commands.run(
+                f"apt-get update && apt-get install -y -- {shlex.quote(package)}",
+                user="root",
+                timeout=120,
+            )
+            return f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
 
-            output = "STDOUT:" + command.stdout + "\nSTDERR:" + command.stderr
-            return output
+        def run_command_sync(self, command):
+            result = self.session.commands.run(command, timeout=120, cwd="/home/user")
+            return f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+
+        async def run_command_async(self, command):
+            return await asyncio.to_thread(self.run_command_sync, command)
 
         def is_sessioned(self):
             return self.sessioned
 
         def upload_file_sync(self, path, file):
-            return asyncio.run(self.upload_file_async(path, file))
+            # Discord attachment names must remain within the user's directory.
+            filename = posixpath.basename(path)
+            if filename in ("", ".", ".."):
+                raise ValueError("A filename is required")
+            destination = f"/home/user/{filename}"
+            self.session.files.write(destination, file)
+            return destination
 
         async def upload_file_async(self, path, file):
-            loop = asyncio.get_running_loop()
-            runner = functools.partial(
-                self.session.filesystem.write_bytes,
-                path=f"/home/user/{path}",
-                content=file,
-            )
-
-            await loop.run_in_executor(None, runner)
-
-            runner = functools.partial(
-                self.session.filesystem.list, path=f"/home/user/"
-            )
-            list_output = await loop.run_in_executor(None, runner)
-
-            return list_output
+            return await asyncio.to_thread(self.upload_file_sync, path, file)
 
     async def code_interpreter_chat_command(
         self,
@@ -394,6 +349,16 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         top_p,
     ):
         await ctx.defer()
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            from services.text_service import TextService
+
+            user_api_key = await TextService.get_user_api_key(
+                ctx.user.id, ctx, USER_KEY_DB
+            )
+            if not user_api_key:
+                return
+
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
@@ -411,7 +376,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         )
         await safe_ctx_respond(ctx=ctx, content="Conversation started.")
 
-        self.sessions[thread.id] = self.SessionedCodeExecutor()
+        self.sessions[thread.id] = await asyncio.to_thread(self.SessionedCodeExecutor)
 
         if not self.sessions[thread.id].is_sessioned():
             await thread.send(
@@ -426,22 +391,22 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             Tool(
                 name="Code-execution-tool",
                 func=self.sessions[thread.id].execute_code_sync,
-                description=f"This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
+                description="This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
             ),
             Tool(
                 name="Install-python-package-tool",
                 func=self.sessions[thread.id].install_python_package,
-                description=f"This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times.",
+                description="This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times.",
             ),
             Tool(
                 name="Install-system-package-tool",
-                func=self.sessions[thread.id].install_python_package,
-                description=f"This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
+                func=self.sessions[thread.id].install_system_package,
+                description="This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
             ),
             Tool(
                 name="Run-command-tool",
                 func=self.sessions[thread.id].run_command_sync,
-                description=f"This tool allows you to run terminal (bash/unix) commands in the execution environment. The input to the tool is the command to run. An example input can be 'df -h'",
+                description="This tool allows you to run terminal (bash/unix) commands in the execution environment. The input to the tool is the command to run. An example input can be 'df -h'",
             ),
         ]
 
@@ -460,58 +425,34 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 )
             )
 
-        llm = ChatOpenAI(
+        llm = create_chat_llm(
             model=model,
             temperature=temperature,
             top_p=top_p,
-            openai_api_key=OPENAI_API_KEY,
+            api_key=user_api_key,
         )
-
-        max_token_limit = 29000 if "gpt-4" in model else 7500
-
-        memory = ConversationSummaryBufferMemory(
-            memory_key="memory",
-            return_messages=True,
-            llm=llm,
-            max_token_limit=100000 if "preview" in model else max_token_limit,
+        system_message = (
+            "You are an expert programmer that is able to use the tools to your advantage to execute "
+            "python code. Help the user iterate on their code and test it through execution. "
+            "Always provide the full code output when asked for "
+            "when you execute code. Ensure that all your code is formatted with backticks followed by the "
+            "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are "
+            "able to search the internet to find the most up to date algorithms and practices. You are "
+            "also able to run commands in the execution environment such as to work with files, "
+            "make curl requests, or etc. The environment is Linux. When asked to write code that saves "
+            "files, always prefix the file with the artifacts/ folder. For example, if asked to create "
+            "test.txt, in the function call you make to whatever library that creates the file, "
+            "you would use artifacts/test.txt. However, when users upload files, they will by default be "
+            "in /home/user/, so if working with a user file, unless they give you the full path, "
+            "look in /home/user. Always show the output of code execution explicitly and separately at "
+            "the end of the rest of your output. You are also able to install system and python packages "
+            "using your tools. However, the tools can only install one package at a time, if you need to "
+            "install multiple packages, call the tools multiple times. Always first display your code to "
+            "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
+            "to execute code. Never execute code before showing the user the code first."
         )
-
-        agent_kwargs = {
-            "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
-            "system_message": SystemMessage(
-                content="You are an expert programmer that is able to use the tools to your advantage to execute "
-                "python code. Help the user iterate on their code and test it through execution. Always "
-                "respond in the specified JSON format. Always provide the full code output when asked for "
-                "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are "
-                "able to search the internet to find the most up to date algorithms and practices. You are "
-                "also able to run commands in the execution environment such as to work with files, "
-                "make curl requests, or etc. The environment is Linux. When asked to write code that saves "
-                "files, always prefix the file with the artifacts/ folder. For example, if asked to create "
-                "test.txt, in the function call you make to whatever library that creates the file, "
-                "you would use artifacts/test.txt. However, when users upload files, they will by default be "
-                "in /home/user/, so if working with a user file, unless they give you the full path, "
-                "look in /home/user. Always show the output of code execution explicitly and separately at "
-                "the end of the rest of your output. You are also able to install system and python packages "
-                "using your tools. However, the tools can only install one package at a time, if you need to "
-                "install multiple packages, call the tools multiple times. Always first display your code to "
-                "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
-                "to execute code. Never execute code before showing the user the code first. Your environment has 4GB RAM, 4vCPU, 2.5GB disk storage, keep this in mind when writing code."
-            ),
-        }
-
-        agent_chain = initialize_agent(
-            tools=tools,
-            llm=llm,
-            agent=AgentType.OPENAI_FUNCTIONS,
-            verbose=True,
-            agent_kwargs=agent_kwargs,
-            memory=memory,
-            handle_parsing_errors="Check your output and make sure it conforms!",
-            max_iterations=5,
-        )
-
-        self.chat_agents[thread.id] = agent_chain
+        self.chat_agents[thread.id] = create_chat_agent(llm, tools, system_message)
+        self.thread_owners[thread.id] = ctx.user.id
 
 
 class CodeInterpreterDownloadArtifactsView(discord.ui.View):
@@ -558,16 +499,12 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
                     self.session.download_file, filepath=artifact
                 )
 
-                bytes = await asyncio.get_running_loop().run_in_executor(None, runner)
-                # Save these bytes into a tempfile
-                with tempfile.NamedTemporaryFile(delete=False) as temp:
-                    temp.write(bytes)
-                    temp.flush()
-                    temp.seek(0)
-                    await self.ctx.channel.send(
-                        file=discord.File(temp.name, filename=artifact)
+                content = await asyncio.get_running_loop().run_in_executor(None, runner)
+                await self.ctx.channel.send(
+                    file=discord.File(
+                        io.BytesIO(content), filename=posixpath.basename(artifact)
                     )
-                    os.unlink(temp.name)
+                )
             except:
                 traceback.print_exc()
                 await self.ctx.channel.send(

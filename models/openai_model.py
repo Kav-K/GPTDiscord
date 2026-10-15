@@ -1,13 +1,11 @@
 import asyncio
-import functools
+import base64
+import io
 import json
 import math
 import os
 import re
-import tempfile
-import traceback
 import uuid
-from typing import Any, Tuple, List
 
 import aiohttp
 import backoff
@@ -17,7 +15,6 @@ import discord
 import requests
 from services.environment_service import EnvService
 from PIL import Image
-from discord import File
 from sqlitedict import SqliteDict
 
 try:
@@ -49,95 +46,172 @@ class Override:
 
 
 class Models:
-    # Embedding models
-    EMBEDDINGS = "text-embedding-ada-002"
+    """Supported API model IDs and capabilities, separate from output budgets."""
 
-    # ChatGPT Models
+    EMBEDDINGS = "text-embedding-3-small"
+    MODERATION = "omni-moderation-latest"
+    IMAGE = "gpt-image-2.5-flare"
+
+    GPT_6_ASTRA = "gpt-6-astra"
+    GPT_6_1_SOL = "gpt-6.1-sol"
+    GPT_6_SOL = "gpt-6-sol"
+    GPT_6_LUNA = "gpt-6-luna"
+    GPT_5_5 = "gpt-5.5"
+    GPT_5_4 = "gpt-5.4"
+    GPT_5_4_MINI = "gpt-5.4-mini"
+    GPT_5_4_NANO = "gpt-5.4-nano"
+    GPT_5_2 = "gpt-5.2"
+    GPT_5_1 = "gpt-5.1"
+    GPT_5 = "gpt-5"
+    GPT_5_MINI = "gpt-5-mini"
+    GPT_5_NANO = "gpt-5-nano"
+    GPT_4_1 = "gpt-4.1"
+    GPT_4_1_MINI = "gpt-4.1-mini"
+    GPT_4_1_NANO = "gpt-4.1-nano"
+    GPT_4_OMEGA = "gpt-4o"
+    GPT_4_OMEGA_MINI = "gpt-4o-mini"
+    O3 = "o3"
+    O4_MINI = "o4-mini"
+    O1 = "o1"
+    O3_MINI = "o3-mini"
+
+    # Kept as aliases for integrations importing these names. Retired IDs are
+    # deliberately excluded from slash-command choices and persisted settings.
     TURBO = "gpt-3.5-turbo"
     TURBO_16 = "gpt-3.5-turbo-16k"
-
-    # GPT4 Models
     GPT4 = "gpt-4"
     GPT4_32 = "gpt-4-32k"
     GPT_4_TURBO = "gpt-4-1106-preview"
     GPT_4_TURBO_VISION = "gpt-4-vision-preview"
     GPT_4_TURBO_CATCHALL = "gpt-4-turbo-preview"
     GPT_4_TURBO_REGULAR = "gpt-4-turbo"
-    GPT_4_OMEGA = "gpt-4o"
-    GPT_4_OMEGA_MINI = "gpt-4o-mini"
-
-    # O-series reasoning models
-    O1 = "o1"
     O1_MINI = "o1-mini"
-    O3_MINI = "o3-mini"
 
-    # Model collections
     TEXT_MODELS = [
+        GPT_6_1_SOL,
+        GPT_6_LUNA,
+        GPT_6_ASTRA,
+        GPT_6_SOL,
+        GPT_5_5,
+        GPT_5_4,
+        GPT_5_4_MINI,
+        GPT_5_4_NANO,
+        GPT_5_2,
+        GPT_5_1,
+        GPT_5,
+        GPT_5_MINI,
+        GPT_5_NANO,
+        GPT_4_1,
+        GPT_4_1_MINI,
         GPT_4_OMEGA,
         GPT_4_OMEGA_MINI,
-        GPT_4_TURBO_REGULAR,
-        TURBO,
-        TURBO_16,
-        GPT4,
-        GPT4_32,
-        GPT_4_TURBO,
-        GPT_4_TURBO_VISION,
-        GPT_4_TURBO_CATCHALL,
-        O1,
-        O1_MINI,
-        O3_MINI,
+        O3,
     ]
-    CHATGPT_MODELS = [
-        GPT_4_OMEGA,
-        GPT_4_OMEGA_MINI,
-        GPT_4_TURBO_REGULAR,
-        TURBO,
-        TURBO_16,
-        GPT4_32,
-        GPT_4_TURBO_VISION,
-        GPT_4_TURBO,
-        GPT_4_TURBO_CATCHALL,
-        O1,
-        O1_MINI,
-        O3_MINI,
+    CHATGPT_MODELS = TEXT_MODELS.copy()
+    GPT4_MODELS = TEXT_MODELS.copy()
+    WEB_SEARCH_MODELS = [
+        GPT_6_1_SOL,
+        GPT_6_LUNA,
+        GPT_6_ASTRA,
+        GPT_6_SOL,
+        GPT_5_5,
+        GPT_5_4,
+        GPT_5_4_MINI,
+        GPT_5_4_NANO,
+        GPT_5_2,
+        GPT_5_1,
+        GPT_4_1,
+        GPT_4_1_MINI,
     ]
-    GPT4_MODELS = [
-        GPT_4_OMEGA,
-        GPT_4_OMEGA_MINI,
-        GPT_4_TURBO_REGULAR,
-        GPT4,
-        GPT4_32,
-        GPT_4_TURBO_VISION,
-        GPT_4_TURBO,
-        GPT_4_TURBO_CATCHALL,
-        O1,
-        O1_MINI,
-        O3_MINI,
-    ]
+    DEFAULT = GPT_6_1_SOL
+    LOW_USAGE_MODEL = GPT_6_LUNA
 
-    DEFAULT = GPT_4_OMEGA
-    LOW_USAGE_MODEL = GPT_4_OMEGA_MINI
-
-    # Tokens Mapping
     TOKEN_MAPPING = {
-        TURBO: 4096,
-        TURBO_16: 16384,
-        GPT4: 8192,
-        GPT4_32: 32768,
-        GPT_4_TURBO_VISION: 128000,
-        GPT_4_TURBO: 128000,
-        GPT_4_TURBO_CATCHALL: 128000,
-        GPT_4_TURBO_REGULAR: 128000,
+        GPT_6_ASTRA: 1050000,
+        GPT_6_1_SOL: 1050000,
+        GPT_6_SOL: 1050000,
+        GPT_6_LUNA: 1050000,
+        GPT_5_5: 1050000,
+        GPT_5_4: 1050000,
+        GPT_5_4_MINI: 400000,
+        GPT_5_4_NANO: 400000,
+        GPT_5_2: 400000,
+        GPT_5_1: 400000,
+        GPT_5: 400000,
+        GPT_5_MINI: 400000,
+        GPT_5_NANO: 400000,
+        GPT_4_1: 1047576,
+        GPT_4_1_MINI: 1047576,
+        GPT_4_1_NANO: 1047576,
         GPT_4_OMEGA: 128000,
         GPT_4_OMEGA_MINI: 128000,
+        O3: 200000,
+        O4_MINI: 200000,
         O1: 200000,
-        O1_MINI: 128000,
         O3_MINI: 200000,
+        GPT_4_TURBO_REGULAR: 128000,
+        TURBO: 16385,
+        GPT4: 8192,
+    }
+    OUTPUT_TOKEN_MAPPING = {
+        GPT_4_1: 32768,
+        GPT_4_1_MINI: 32768,
+        GPT_4_1_NANO: 32768,
+        GPT_4_OMEGA: 16384,
+        GPT_4_OMEGA_MINI: 16384,
+        O3: 100000,
+        O4_MINI: 100000,
+        O1: 100000,
+        O3_MINI: 100000,
+        GPT_4_TURBO_REGULAR: 4096,
+        TURBO: 4096,
+        GPT4: 8192,
     }
 
     @staticmethod
     def get_max_tokens(model: str) -> int:
-        return Models.TOKEN_MAPPING.get(model, 4096)
+        """Return context capacity; never use this as the completion budget."""
+        return Models.TOKEN_MAPPING.get(model, 128000)
+
+    @staticmethod
+    def get_max_output_tokens(model: str) -> int:
+        return Models.OUTPUT_TOKEN_MAPPING.get(model, 128000)
+
+    @staticmethod
+    def is_reasoning(model: str) -> bool:
+        return model.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
+
+    @staticmethod
+    def supports_vision(model: str) -> bool:
+        return model.startswith(("gpt-5", "gpt-6", "gpt-4.1", "gpt-4o")) or model in (
+            Models.O1,
+            Models.O3,
+            Models.O4_MINI,
+            Models.GPT_4_TURBO_REGULAR,
+        )
+
+    @staticmethod
+    def token_parameter(model: str) -> str:
+        return (
+            "max_tokens"
+            if model in (Models.TURBO, Models.GPT4, Models.GPT_4_TURBO_REGULAR)
+            else "max_completion_tokens"
+        )
+
+
+class OpenAIAPIError(ValueError):
+    """API failure whose status determines whether retrying can help."""
+
+    def __init__(self, message, status, code=None):
+        super().__init__(message)
+        self.status = status
+        self.code = code
+
+    @property
+    def retryable(self):
+        if self.code in ("insufficient_quota", "billing_hard_limit_reached"):
+            return False
+        return self.status in (408, 409, 429) or self.status >= 500
 
 
 class ImageSize:
@@ -150,7 +224,7 @@ class ImageSize:
 
 class ModelLimits:
     MIN_TOKENS = 15
-    MAX_TOKENS = 32000
+    MAX_TOKENS = 128000
 
     MIN_CONVERSATION_LENGTH = 1
     MAX_CONVERSATION_LENGTH = 100000
@@ -225,7 +299,7 @@ class Model:
         self.model = (
             SETTINGS_DB["model"]
             if "model" in SETTINGS_DB and SETTINGS_DB["model"] in Models.TEXT_MODELS
-            else Models.DEFAULT
+            else EnvService.get_openai_model() or Models.DEFAULT
         )
         self._low_usage_mode = False
         self.usage_service = usage_service
@@ -340,10 +414,14 @@ class Model:
             "openai_key",
             "openai_organization",
             "IMAGE_SAVE_PATH",
+            "openai_project",
+            "openai_base_url",
         ]
 
         self.openai_key = EnvService.get_openai_token()
         self.openai_organization = EnvService.get_openai_organization()
+        self.openai_project = EnvService.get_openai_project()
+        self.openai_base_url = EnvService.get_openai_base_url().rstrip("/")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
 
@@ -476,22 +554,18 @@ class Model:
 
     @low_usage_mode.setter
     def low_usage_mode(self, value):
-        # convert value string into boolean
-        if value.lower() == "true":
-            value = True
-        elif value.lower() == "false":
-            value = False
-        else:
-            raise ValueError("Value must be either `true` or `false`!")
-
-        if value:
-            self._model = Models.LOW_USAGE_MODEL
-            self.max_tokens = 1900
-            self.model_max_tokens = 1000
-        else:
-            self._model = Models.DEFAULT
-            self.max_tokens = 4000
-            self.model_max_tokens = 4024
+        if not isinstance(value, bool):
+            if str(value).lower() not in ("true", "false"):
+                raise ValueError("Value must be either `true` or `false`!")
+            value = str(value).lower() == "true"
+        self._low_usage_mode = value
+        self.model = (
+            Models.LOW_USAGE_MODEL
+            if value
+            else (EnvService.get_openai_model() or Models.DEFAULT)
+        )
+        self.max_tokens = 1900 if value else 4000
+        self.model_max_tokens = self.max_tokens
 
     @property
     def model(self):
@@ -499,21 +573,23 @@ class Model:
 
     @model.setter
     def model(self, model):
-        if model not in Models.TEXT_MODELS:
+        if model not in Models.TEXT_MODELS and model != EnvService.get_openai_model():
             raise ValueError(f"Invalid model, must be one of: {Models.TEXT_MODELS}")
         self._model = model
 
         # Set the token count
-        self._max_tokens = Models.get_max_tokens(self._model)
+        self._max_tokens = min(
+            self._max_tokens or 4000, Models.get_max_output_tokens(model)
+        )
         SETTINGS_DB["model"] = model
 
-        # Set the summarize threshold if the model was set to gpt-4
-        if "4-turbo" in self._model or "4-vision" in self._model:
-            self._summarize_threshold = 125000
-        elif "gpt-4" in self._model:
-            self._summarize_threshold = 28000
-        elif "gpt-3" in self._model:
-            self._summarize_threshold = 6000
+        self._summarize_threshold = min(
+            ModelLimits.MAX_SUMMARIZE_THRESHOLD,
+            max(
+                ModelLimits.MIN_SUMMARIZE_THRESHOLD,
+                Models.get_max_tokens(model) - self._max_tokens - 1000,
+            ),
+        )
 
     @property
     def max_conversation_length(self):
@@ -662,78 +738,165 @@ class Model:
         self._prompt_min_length = value
         SETTINGS_DB["prompt_min_length"] = value
 
+    @staticmethod
     def backoff_handler_http(details):
         print(
-            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
-            f"{details['exception'].status}: {details['exception'].message}"
+            f"Retrying OpenAI request after {details['wait']:0.1f}s ({details['tries']} attempts)"
         )
 
-    def backoff_handler_request(details):
-        print(
-            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
-            f"{details['exception'].args[0]}"
+    def _request_headers(self, custom_api_key=None):
+        headers = {"Authorization": f"Bearer {custom_api_key or self.openai_key}"}
+        # A user's key can belong to a different organization/project.
+        if not custom_api_key:
+            if self.openai_organization:
+                headers["OpenAI-Organization"] = self.openai_organization
+            if self.openai_project:
+                headers["OpenAI-Project"] = self.openai_project
+        return headers
+
+    @backoff.on_exception(
+        backoff.expo,
+        (OpenAIAPIError, aiohttp.ClientConnectionError, asyncio.TimeoutError),
+        max_tries=4,
+        giveup=lambda error: isinstance(error, OpenAIAPIError) and not error.retryable,
+    )
+    async def _post_json(self, endpoint, payload, custom_api_key=None):
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+        ) as session:
+            async with session.post(
+                f"{self.openai_base_url}/{endpoint.lstrip('/')}",
+                json=payload,
+                headers=self._request_headers(custom_api_key),
+            ) as response:
+                try:
+                    result = await response.json()
+                except (ValueError, aiohttp.ContentTypeError) as error:
+                    raise OpenAIAPIError(
+                        "The API returned a non-JSON response", response.status
+                    ) from error
+                if not isinstance(result, dict):
+                    raise OpenAIAPIError(
+                        "The API returned an invalid JSON response", response.status
+                    )
+                if response.status >= 400 or "error" in result:
+                    error = result.get("error", {})
+                    message = (
+                        error.get("message", "OpenAI request failed")
+                        if isinstance(error, dict)
+                        else str(error)
+                    )
+                    raise OpenAIAPIError(
+                        message,
+                        response.status,
+                        error.get("code") if isinstance(error, dict) else None,
+                    )
+                return result
+
+    def _chat_payload(
+        self,
+        model,
+        messages,
+        *,
+        temp_override=None,
+        top_p_override=None,
+        frequency_penalty_override=None,
+        presence_penalty_override=None,
+        max_tokens_override=None,
+        stop=None,
+        respond_json=False,
+        input_tokens=None,
+    ):
+        budget = (
+            self.max_tokens if max_tokens_override is None else int(max_tokens_override)
         )
+        if budget < 1:
+            raise ValueError("The output token budget must be positive")
+        budget = min(budget, Models.get_max_output_tokens(model))
+        if input_tokens is not None:
+            remaining = Models.get_max_tokens(model) - int(input_tokens)
+            if remaining < 1:
+                raise ValueError("The prompt exceeds the model's context window")
+            budget = min(budget, remaining)
+        # Developer messages are the current instruction role for reasoning models.
+        messages = [dict(message) for message in messages]
+        if Models.is_reasoning(model):
+            for message in messages:
+                if message["role"] == "system":
+                    message["role"] = "developer"
+        payload = {
+            "model": model,
+            "messages": messages,
+            Models.token_parameter(model): budget,
+        }
+        if not Models.is_reasoning(model):
+            payload.update(
+                {
+                    "temperature": (
+                        self.temp if temp_override is None else temp_override
+                    ),
+                    "top_p": self.top_p if top_p_override is None else top_p_override,
+                    "presence_penalty": (
+                        self.presence_penalty
+                        if presence_penalty_override is None
+                        else presence_penalty_override
+                    ),
+                    "frequency_penalty": (
+                        self.frequency_penalty
+                        if frequency_penalty_override is None
+                        else frequency_penalty_override
+                    ),
+                }
+            )
+            if stop:
+                payload["stop"] = stop
+        if respond_json:
+            payload["response_format"] = {"type": "json_object"}
+        return payload
 
     async def valid_text_request(self, response, model=None):
-        try:
-            tokens_used = int(response["usage"]["total_tokens"])
-            await self.usage_service.update_usage(
-                tokens_used, await self.usage_service.get_cost_name(model)
+        if "error" in response:
+            raise ValueError(
+                str(response["error"].get("message", "The API returned an error"))
             )
-        except Exception as e:
-            traceback.print_exc()
-            if "error" in response:
+        if "usage" not in response or not response.get("choices"):
+            raise ValueError("The API returned an invalid chat completion")
+        await self.usage_service.update_usage_from_response(
+            response["usage"], model or self.model
+        )
+
+    async def _send_chat(self, payload, custom_api_key=None):
+        response = await self._post_json("chat/completions", payload, custom_api_key)
+        await self.valid_text_request(response, payload["model"])
+        choice = response["choices"][0]
+        message = choice.get("message", {})
+        if not message.get("content"):
+            if message.get("refusal"):
+                message["content"] = message["refusal"]
+            elif choice.get("finish_reason") == "length":
                 raise ValueError(
-                    "The API returned an invalid response: "
-                    + str(response["error"]["message"])
-                ) from e
+                    "The model exhausted its output budget before producing text. Increase max_tokens, especially for reasoning models."
+                )
             else:
-                raise ValueError("The API returned an invalid response") from e
+                raise ValueError("The API returned no response text")
+        return response
 
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_http,
-    )
     async def send_embedding_request(self, text, custom_api_key=None):
-        async with aiohttp.ClientSession(
-            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            payload = {
-                "model": Models.EMBEDDINGS,
-                "input": text,
-            }
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-            async with session.post(
-                "https://api.openai.com/v1/embeddings", json=payload, headers=headers
-            ) as resp:
-                response = await resp.json()
+        model = EnvService.get_openai_embedding_model() or Models.EMBEDDINGS
+        payload = {"model": model, "input": text}
+        if model.startswith("text-embedding-3-"):
+            payload["dimensions"] = (
+                1536  # Existing Pinecone memory indexes use 1536 dimensions.
+            )
+        response = await self._post_json("embeddings", payload, custom_api_key)
+        if not response.get("data") or "embedding" not in response["data"][0]:
+            raise ValueError("The API returned an invalid embedding")
+        if "usage" in response:
+            await self.usage_service.update_usage_from_response(
+                response["usage"], model
+            )
+        return response["data"][0]["embedding"]
 
-                try:
-                    return response["data"][0]["embedding"]
-                except Exception:
-                    print(response)
-                    traceback.print_exc()
-                    return
-
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
     async def send_edit_request(
         self,
         instruction,
@@ -742,201 +905,75 @@ class Model:
         top_p_override=None,
         custom_api_key=None,
     ):
-        print(
-            f"The text about to be edited is [{text}] with instructions [{instruction}]"
+        return await self._send_chat(
+            self._chat_payload(
+                Models.LOW_USAGE_MODEL,
+                [
+                    {
+                        "role": "system",
+                        "content": "Edit the provided text according to the instruction. Return only the edited result.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Instruction: {instruction}\n\nText to edit: {text or ''}",
+                    },
+                ],
+                temp_override=temp_override,
+                top_p_override=top_p_override,
+            ),
+            custom_api_key,
         )
-        print(f"Overrides -> temp:{temp_override}, top_p:{top_p_override}")
 
-        # The /v1/edits endpoint was removed by OpenAI. Use chat completions instead.
-        async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            messages = [
-                {
-                    "role": "system",
-                    "content": f"You are a helpful assistant that edits text according to instructions. Apply the following instruction to the given text and return only the edited result.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Instruction: {instruction}\n\nText to edit: {'' if text is None else text}",
-                },
-            ]
-            payload = {
-                "model": Models.GPT_4_OMEGA_MINI,
-                "messages": messages,
-                "temperature": self.temp if temp_override is None else temp_override,
-                "top_p": self.top_p if top_p_override is None else top_p_override,
-            }
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            ) as resp:
-                response = await resp.json()
-                await self.valid_text_request(response, model=Models.GPT_4_OMEGA_MINI)
-                return response
-
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=6,
-        on_backoff=backoff_handler_http,
-    )
     async def send_moderations_request(self, text):
-        # Use aiohttp to send the above request:
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key}",
-            }
-            payload = {"input": text}
-            async with session.post(
-                "https://api.openai.com/v1/moderations",
-                headers=headers,
-                json=payload,
-            ) as response:
-                return await response.json()
-
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
-    async def send_summary_request(self, prompt, custom_api_key=None):
-        """
-        Sends a summary request to the OpenAI API
-        """
-        summary_request_text = []
-        summary_request_text.append(
-            "The following is a conversation instruction set and a conversation between two people, a <username>, and GPTie."
-            " Firstly, determine the <username>'s name from the conversation history, then summarize the conversation."
-            " Do not summarize the instructions for GPTie, only the conversation. Summarize the conversation in a detailed fashion. If <username> mentioned"
-            " their name, be sure to mention it in the summary. Pay close attention to things the <username> has told you, such as personal details."
-        )
-        summary_request_text.append(prompt + "\nDetailed summary of conversation: \n")
-
-        summary_request_text = "".join(summary_request_text)
-
-        messages = []
-        messages.append(
+        return await self._post_json(
+            "moderations",
             {
-                "role": "system",
-                "content": summary_request_text,
-            }
+                "model": EnvService.get_openai_moderation_model() or Models.MODERATION,
+                "input": text,
+            },
         )
 
-        async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            payload = {
-                "model": self.model if self.model is not None else Models.GPT4_32,
-                "messages": messages,
-                "temperature": self.temp,
-                "top_p": self.top_p,
-                "presence_penalty": self.presence_penalty,
-                "frequency_penalty": self.frequency_penalty,
-            }
-            headers = {
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
+    async def send_summary_request(self, prompt, custom_api_key=None):
+        return await self._send_chat(
+            self._chat_payload(
+                self.model,
+                [
+                    {
+                        "role": "system",
+                        "content": "Summarize the conversation in detail. Preserve names, user preferences, relevant personal details, and unresolved requests. Do not summarize the assistant's instructions.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            ),
+            custom_api_key,
+        )
 
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            ) as resp:
-                response = await resp.json()
-                # print(f"Payload -> {payload}")
-                # Parse the total tokens used for this request and response pair from the response
-                await self.valid_text_request(
-                    response,
-                    model=self.model if self.model is not None else Models.GPT4_32,
-                )
-                print(f"Summary response -> {response}")
-
-                return response
-
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
-    async def send_language_detect_request(
-        self,
-        text,
-        pretext,
-    ) -> Tuple[
-        dict, bool
-    ]:  # The response, and a boolean indicating whether or not the context limit was reached.
-        # Validate that  all the parameters are in a good state before we send the request
-
-        print(f"Language detection request for {text}")
-
-        # Use chat completions instead of the deprecated /v1/completions endpoint
-        async with aiohttp.ClientSession(raise_for_status=False) as session:
-            messages = [
-                {"role": "system", "content": pretext},
-                {"role": "user", "content": text},
-            ]
-            payload = {
-                "model": Models.GPT_4_OMEGA_MINI,
-                "messages": messages,
-                "temperature": 0,
-                "top_p": 1,
-            }
-            headers = {"Authorization": f"Bearer {self.openai_key}"}
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            ) as resp:
-                response = await resp.json()
-
-                await self.valid_text_request(response, model=Models.GPT_4_OMEGA_MINI)
-                print(f"Response -> {response}")
-
-                return response
+    async def send_language_detect_request(self, text, pretext, custom_api_key=None):
+        return await self._send_chat(
+            self._chat_payload(
+                Models.LOW_USAGE_MODEL,
+                [
+                    {"role": "system", "content": pretext},
+                    {"role": "user", "content": text},
+                ],
+                temp_override=0,
+            ),
+            custom_api_key,
+        )
 
     def cleanse_username(self, text):
-        text = text.strip()
-        text = text.replace(":", "")
-        text = text.replace(" ", "")
-        # Replace any character that's not a letter or number with an underscore
-        text = re.sub(r"[^a-zA-Z0-9]", "_", text)
-        return text
+        # Chat Completions message names accept only these characters, up to 64.
+        return re.sub(r"[^a-zA-Z0-9_-]", "_", text.strip())[:64] or "user"
 
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
+    @staticmethod
+    def _message_content(text, image_urls, model):
+        if not image_urls or not Models.supports_vision(model):
+            return text
+        return [{"type": "text", "text": text}] + [
+            {"type": "image_url", "image_url": {"url": url, "detail": "auto"}}
+            for url in image_urls
+        ]
+
     async def send_chatgpt_chat_request(
         self,
         prompt_history,
@@ -953,235 +990,111 @@ class Model:
         custom_api_key=None,
         system_prompt_override=None,
         respond_json=None,
-    ) -> Tuple[
-        dict, bool
-    ]:  # The response, and a boolean indicating whether or not the context limit was reached.
-        # Validate that  all the parameters are in a good state before we send the request
-        model_selection = self.model if not model else model
-        print("The model selection is " + model_selection)
-
-        # Clean up the bot name
-        bot_name_clean = self.cleanse_username(bot_name)
-
-        # Format the request body into the messages format that the API is expecting
-        #   "messages": [{"role": "user", "content": "Hello!"}]
+    ):
+        model_selection = model or self.model
         messages = []
+        if system_prompt_override:
+            messages.append({"role": "system", "content": system_prompt_override})
+        if respond_json:
+            messages.append(
+                {"role": "system", "content": "Return a valid JSON object."}
+            )
         for number, message in enumerate(prompt_history):
-            if number == 0:
-                if not system_prompt_override:
-                    # If this is the first message, it is the context prompt.
-                    messages.append(
-                        {
-                            "role": "system",
-                            "content": message.text,
-                        }
-                    )
-                    continue
-                else:
-                    # When we have a system prompt override, we're trying to do a one-off chatcompletion WITH VISION. So we use the override
-                    # param as the new system prompt and the first message as the user message. This is messy, and I'll clean it up soon
-                    messages.append(
-                        {
-                            "role": "system",
-                            "content": system_prompt_override,
-                        }
-                    )
-                    messages.append(
-                        {
-                            "role": "user",
-                            "name": user_displayname,
-                            "content": message.text,
-                        }
-                    )
-                    continue
-
-            try:
-                if (
-                    message.text.strip()
-                    .lower()
-                    .startswith("this conversation has some context from earlier")
-                ):
-                    raise Exception("This is a context message")
-
-                if message.text.startswith(f"\n{bot_name}"):
-                    role = "assistant"
-                    text = message.text.replace(bot_name, "")
-                    text = text.replace("<|endofstatement|>", "")
-                else:
-                    role = "user"
-                    username = re.search(r"(?<=\n)(.*?)(?=:)", message.text).group()
-                    username_clean = self.cleanse_username(username)
-                    text = message.text.replace(f"{username}:", "")
-                    # Strip whitespace just from the right side of the string
-                    text = text.rstrip()
-                    text = text.replace("<|endofstatement|>", "")
-
-                if "-vision" not in model_selection:
-                    messages.append(
-                        {
-                            "role": role,
-                            "name": (
-                                username_clean if role == "user" else bot_name_clean
-                            ),
-                            "content": text,
-                        }
-                    )
-
-                else:
-                    if len(message.image_urls) > 0:
-                        messages.append(
-                            {
-                                "role": role,
-                                "name": (
-                                    username_clean if role == "user" else bot_name_clean
-                                ),
-                                "content": [
-                                    {"type": "text", "text": text},
-                                ],
-                            }
-                        )
-                        for image_url in message.image_urls:
-                            image_info = {
-                                "type": "image_url",
-                                "image_url": {"url": image_url, "detail": "high"},
-                            }
-                            messages[-1]["content"].append(image_info)
-                    else:
-                        messages.append(
-                            {
-                                "role": role,
-                                "name": (
-                                    username_clean if role == "user" else bot_name_clean
-                                ),
-                                "content": [
-                                    {"type": "text", "text": text},
-                                ],
-                            }
-                        )
-            except Exception:
-                text = message.text.replace("<|endofstatement|>", "")
+            text = message.text.replace("<|endofstatement|>", "")
+            if number == 0 and not system_prompt_override:
                 messages.append({"role": "system", "content": text})
+                continue
+            if (
+                text.strip()
+                .lower()
+                .startswith("this conversation has some context from earlier")
+            ):
+                messages.append({"role": "system", "content": text})
+                continue
+            role, username = "user", user_displayname
+            if text.startswith(f"\n{bot_name}"):
+                role, username = "assistant", bot_name
+                text = text.removeprefix(f"\n{bot_name}").lstrip(": ")
+            else:
+                match = re.match(r"\s*([^\n:]+):", text)
+                if match:
+                    username = match[1]
+                    text = text[match.end() :].rstrip()
+            messages.append(
+                {
+                    "role": role,
+                    "name": self.cleanse_username(username),
+                    "content": self._message_content(
+                        text, getattr(message, "image_urls", None), model_selection
+                    ),
+                }
+            )
+        response = await self._send_chat(
+            self._chat_payload(
+                model_selection,
+                messages,
+                temp_override=temp_override,
+                top_p_override=top_p_override,
+                frequency_penalty_override=frequency_penalty_override,
+                presence_penalty_override=presence_penalty_override,
+                max_tokens_override=max_tokens_override,
+                stop=stop,
+                respond_json=bool(respond_json),
+            ),
+            custom_api_key,
+        )
+        if respond_json:
+            content = response["choices"][0]["message"].get("content")
+            try:
+                result = json.loads(content)
+            except (TypeError, json.JSONDecodeError) as error:
+                raise ValueError(
+                    "Could not decode JSON response from the API"
+                ) from error
+            if not isinstance(result, dict):
+                raise ValueError("The API did not return a JSON object")
+            return result
+        return response
 
-        print(f"Messages -> {messages}")
+    async def send_transcription_request(
+        self, file, temperature_override=None, custom_api_key=None
+    ):
+        data = aiohttp.FormData()
+        data.add_field(
+            "model", os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-mini-transcribe")
+        )
+        if isinstance(file, discord.Attachment):
+            content = await file.read()
+            content_type = file.content_type or "application/octet-stream"
+        else:
+            content = await asyncio.to_thread(file.fp.read)
+            content_type = "application/octet-stream"
+        data.add_field(
+            "file",
+            content,
+            filename=file.filename or "audio.mp4",
+            content_type=content_type,
+        )
+        if temperature_override is not None:
+            data.add_field("temperature", str(temperature_override))
         async with aiohttp.ClientSession(
             raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
         ) as session:
-            payload = {
-                "model": model_selection,
-                "messages": messages,
-                "stop": "" if stop is None else stop,
-                "temperature": self.temp if temp_override is None else temp_override,
-                "top_p": self.top_p if top_p_override is None else top_p_override,
-                "presence_penalty": (
-                    self.presence_penalty
-                    if presence_penalty_override is None
-                    else presence_penalty_override
-                ),
-                "frequency_penalty": (
-                    self.frequency_penalty
-                    if frequency_penalty_override is None
-                    else frequency_penalty_override
-                ),
-            }
-            if "-preview" in model_selection:
-                payload["max_tokens"] = (
-                    4096  # TODO Not sure if this needs to be subtracted from a token count..
-                )
-            if respond_json:
-                # payload["response_format"] = { "type": "json_object" }
-                # TODO The above needs to be fixed, doesn't work for some reason?
-                pass
-
-            headers = {
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-
             async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            ) as resp:
-                response = await resp.json()
-                # print(f"Payload -> {payload}")
-                # Parse the total tokens used for this request and response pair from the response
-                await self.valid_text_request(
-                    response, model=self.model if model is None else model
-                )
-                print(f"Response -> {response}")
-
-                # Temporary until we can ensure json response via the API, for some reason upstream pydantic complains when
-                # we pass response_format in the request..
-                if respond_json:
-                    response_text = response["choices"][0]["message"]["content"].strip()
-                    response_text = response_text.replace("```json", "")
-                    response_text = response_text.replace("```", "")
-                    try:
-                        response_text = json.loads(response_text)
-                        return response_text
-                    except Exception:
-                        raise ValueError("Could not decode JSON response from the API")
-
-                return response
-
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
-    async def send_transcription_request(
-        self,
-        file: [discord.Attachment, discord.File],
-        temperature_override=None,
-        custom_api_key=None,
-    ):
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
-            data = aiohttp.FormData()
-            data.add_field("model", "whisper-1")
-            print("audio." + file.filename.split(".")[-1])
-            # TODO: make async
-            data.add_field(
-                "file",
-                file.read() if isinstance(file, discord.Attachment) else file.fp.read(),
-                filename=(
-                    "audio." + file.filename.split(".")[-1]
-                    if isinstance(file, discord.Attachment)
-                    else "audio.mp4"
-                ),
-                content_type=(
-                    file.content_type
-                    if isinstance(file, discord.Attachment)
-                    else "video/mp4"
-                ),
-            )
-
-            if temperature_override:
-                data.add_field("temperature", temperature_override)
-
-            async with session.post(
-                "https://api.openai.com/v1/audio/transcriptions",
-                headers={
-                    "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-                },
+                f"{self.openai_base_url}/audio/transcriptions",
+                headers=self._request_headers(custom_api_key),
                 data=data,
             ) as resp:
                 response = await resp.json()
+                if resp.status >= 400 or "error" in response:
+                    raise OpenAIAPIError(
+                        response.get("error", {}).get(
+                            "message", "Transcription failed"
+                        ),
+                        resp.status,
+                    )
                 return response["text"]
 
-    @backoff.on_exception(
-        backoff.expo,
-        ValueError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_request,
-    )
     async def send_request(
         self,
         prompt,
@@ -1197,416 +1110,188 @@ class Model:
         custom_api_key=None,
         is_chatgpt_request=False,
         system_instruction=None,
-    ):  # The response, and a boolean indicating whether or not the context limit was reached.
-        # Validate that  all the parameters are in a good state before we send the request
-
-        if not max_tokens_override:
-            if (
-                model
-                and model not in Models.GPT4_MODELS
-                and model not in Models.CHATGPT_MODELS
-            ):
-                max_tokens_override = Models.get_max_tokens(model) - tokens
-
-        messages = [{"role": "user", "content": prompt}]
-        # modify prompt if a system instruction is set
-        if system_instruction and is_chatgpt_request:
-            messages = [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt},
-            ]
-        elif system_instruction:
-            prompt = f"{system_instruction} {prompt}"
-
+    ):
+        messages = []
         if system_instruction:
-            print(f"The instruction added to the prompt will be {system_instruction}")
-        print(f"The prompt about to be sent is {prompt}")
-        print(
-            f"Overrides -> temp:{temp_override}, top_p:{top_p_override} frequency:{frequency_penalty_override}, presence:{presence_penalty_override}, model:{model if model else 'none'}, stop:{stop}"
+            messages.append({"role": "system", "content": system_instruction})
+        messages.append({"role": "user", "content": prompt})
+        return await self._send_chat(
+            self._chat_payload(
+                model or self.model,
+                messages,
+                temp_override=temp_override,
+                top_p_override=top_p_override,
+                frequency_penalty_override=frequency_penalty_override,
+                presence_penalty_override=presence_penalty_override,
+                max_tokens_override=max_tokens_override,
+                stop=stop,
+                input_tokens=tokens,
+            ),
+            custom_api_key,
         )
-
-        # All requests now use chat completions (the /v1/completions endpoint is deprecated)
-        if not is_chatgpt_request:
-            # Convert prompt-style request to chat completion format
-            if system_instruction:
-                messages = [
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt},
-                ]
-            else:
-                messages = [{"role": "user", "content": prompt}]
-
-        async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            model_selection = self.model if not model else model
-            payload = {
-                "model": model_selection,
-                "messages": messages,
-                "stop": "" if stop is None else stop,
-                "temperature": (self.temp if temp_override is None else temp_override),
-                "top_p": self.top_p if top_p_override is None else top_p_override,
-                "presence_penalty": (
-                    self.presence_penalty
-                    if presence_penalty_override is None
-                    else presence_penalty_override
-                ),
-                "frequency_penalty": (
-                    self.frequency_penalty
-                    if frequency_penalty_override is None
-                    else frequency_penalty_override
-                ),
-            }
-            if "preview" in model_selection:
-                payload["max_tokens"] = 4096
-
-            headers = {
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}"
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
-            ) as resp:
-                response = await resp.json()
-                await self.valid_text_request(
-                    response, model=self.model if model is None else model
-                )
-                print(f"Response -> {response}")
-
-                return response
 
     @staticmethod
     async def send_test_request(api_key):
-        async with aiohttp.ClientSession() as session:
-            payload = {
-                "model": Models.LOW_USAGE_MODEL,
-                "messages": [{"role": "user", "content": "test."}],
-                "temperature": 1,
-                "top_p": 1,
-                "max_tokens": 10,
-            }
-            headers = {"Authorization": f"Bearer {api_key}"}
+        # Called only after the user explicitly submits a key for validation.
+        selected_model = EnvService.get_openai_model() or Models.LOW_USAGE_MODEL
+        async with aiohttp.ClientSession(
+            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=60)
+        ) as session:
             async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                json=payload,
-                headers=headers,
+                f"{EnvService.get_openai_base_url().rstrip('/')}/chat/completions",
+                json={
+                    "model": selected_model,
+                    "messages": [{"role": "user", "content": "Reply OK."}],
+                    Models.token_parameter(selected_model): 128,
+                },
+                headers={"Authorization": f"Bearer {api_key}"},
             ) as resp:
                 response = await resp.json()
-                try:
-                    int(response["usage"]["total_tokens"])
-                except:
-                    raise ValueError(str(response["error"]["message"]))
-
+                if resp.status >= 400 or "error" in response:
+                    raise ValueError(
+                        response.get("error", {}).get(
+                            "message", "Key validation failed"
+                        )
+                    )
                 return response
 
     async def save_image_urls_and_return(self, image_urls, ctx):
-        # For each image url, open it as an image object using PIL
-        images = await asyncio.get_running_loop().run_in_executor(
-            None,
-            lambda: [
-                Image.open(requests.get(url, stream=True, timeout=10).raw)
-                for url in image_urls
-            ],
-        )
+        """Persist source images and return a Discord-sized contact sheet."""
+        if not image_urls:
+            raise ValueError("The API returned no images")
+        file_limit = ctx.guild.filesize_limit if ctx.guild else 10 * 1024 * 1024
 
-        # Save all the images with a random name to self.IMAGE_SAVE_PATH
-        image_names = [f"{uuid.uuid4()}.png" for _ in range(len(images))]
-        for image, name in zip(images, image_names):
-            await asyncio.get_running_loop().run_in_executor(
-                None, image.save, f"{self.IMAGE_SAVE_PATH}/{name}"
-            )
-
-        # Update image_urls to include the local path to these new images
-        image_urls = [f"{self.IMAGE_SAVE_PATH}/{name}" for name in image_names]
-
-        widths, heights = zip(*(i.size for i in images))
-
-        # Calculate the number of rows and columns needed for the grid
-        num_rows = num_cols = int(math.ceil(math.sqrt(len(images))))
-
-        # If there are only 2 images, set the number of rows to 1
-        if len(images) == 2:
-            num_rows = 1
-
-        # Calculate the size of the combined image
-        width = max(widths) * num_cols
-        height = max(heights) * num_rows
-
-        # Create a transparent image with the same size as the images
-        transparent = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: Image.new("RGBA", (max(widths), max(heights)))
-        )
-
-        # Create a new image with the calculated size
-        new_im = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: Image.new("RGBA", (width, height))
-        )
-
-        # Paste the images and transparent segments into the grid
-        x_offset = y_offset = 0
-        for im in images:
-            await asyncio.get_running_loop().run_in_executor(
-                None, new_im.paste, im, (x_offset, y_offset)
-            )
-
-            x_offset += im.size[0]
-            if x_offset >= width:
-                x_offset = 0
-                y_offset += im.size[1]
-
-        # Fill the remaining cells with transparent segments
-        while y_offset < height:
-            while x_offset < width:
-                await asyncio.get_running_loop().run_in_executor(
-                    None, new_im.paste, transparent, (x_offset, y_offset)
+        def save_images():
+            os.makedirs(self.IMAGE_SAVE_PATH, exist_ok=True)
+            images, paths = [], []
+            for reference in image_urls:
+                if reference.startswith("data:image/"):
+                    try:
+                        content = base64.b64decode(
+                            reference.split(",", 1)[1], validate=True
+                        )
+                    except (ValueError, IndexError) as error:
+                        raise ValueError(
+                            "The API returned invalid base64 image data"
+                        ) from error
+                else:
+                    response = requests.get(reference, timeout=60)
+                    response.raise_for_status()
+                    content = response.content
+                with Image.open(io.BytesIO(content)) as source:
+                    image = source.convert("RGBA")
+                path = os.path.join(self.IMAGE_SAVE_PATH, f"{uuid.uuid4()}.png")
+                image.save(path)
+                paths.append(path)
+                images.append(image)
+            columns = math.ceil(math.sqrt(len(images)))
+            rows = math.ceil(len(images) / columns)
+            cell_width = max(image.width for image in images)
+            cell_height = max(image.height for image in images)
+            grid = Image.new("RGBA", (cell_width * columns, cell_height * rows))
+            for index, image in enumerate(images):
+                grid.paste(
+                    image,
+                    ((index % columns) * cell_width, (index // columns) * cell_height),
                 )
-                x_offset += transparent.size[0]
+                image.close()
+            for _ in range(20):
+                output = io.BytesIO()
+                grid.save(output, format="PNG")
+                if output.tell() <= file_limit:
+                    output.seek(0)
+                    grid.close()
+                    return output, paths
+                output.close()
+                resized = grid.resize(
+                    (max(1, int(grid.width * 0.8)), max(1, int(grid.height * 0.8)))
+                )
+                grid.close()
+                grid = resized
+            grid.close()
+            raise ValueError(
+                "Generated images could not fit this server's upload limit"
+            )
 
-            x_offset = 0
-            y_offset += transparent.size[1]
+        output, paths = await asyncio.to_thread(save_images)
+        return discord.File(output, filename="generated-images.png"), paths
 
-        # Save the new_im to a temporary file and return it as a discord.File
-        temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        await asyncio.get_running_loop().run_in_executor(
-            None, new_im.save, temp_file.name
+    async def _generate_image_references(
+        self, prompt, quality, image_size, style, count, custom_api_key=None
+    ):
+        if not prompt or not prompt.strip():
+            raise ValueError("An image prompt is required")
+        count = int(count)
+        if count < 1 or count > ModelLimits.MAX_NUM_IMAGES:
+            raise ValueError(
+                f"Choose between 1 and {ModelLimits.MAX_NUM_IMAGES} images"
+            )
+        model = EnvService.get_openai_image_model() or Models.IMAGE
+        if model.startswith("dall-e"):
+            raise ValueError(
+                "DALL-E models have been retired. Set OPENAI_IMAGE_MODEL to a GPT Image model."
+            )
+        # Preserve existing slash command callers while using current Image API fields.
+        quality = {"standard": "medium", "hd": "high"}.get(quality, quality) or "auto"
+        image_size = {
+            "256x256": "1024x1024",
+            "512x512": "1024x1024",
+            "1792x1024": "1536x1024",
+            "1024x1792": "1024x1536",
+        }.get(image_size, image_size) or "auto"
+        if quality not in ("auto", "low", "medium", "high", "xhigh", "max"):
+            raise ValueError("Unknown image quality")
+        if image_size not in ("auto", "1024x1024", "1536x1024", "1024x1536"):
+            raise ValueError("Unknown image size")
+        if style in ("vivid", "natural"):
+            prompt = f"{prompt}\n\nUse a {style} visual style."
+        response = await self._post_json(
+            "images/generations",
+            {
+                "model": model,
+                "prompt": prompt,
+                "n": count,
+                "size": image_size,
+                "quality": quality,
+                "output_format": "png",
+            },
+            custom_api_key,
         )
-
-        # Print the filesize of new_im, in mega bytes
-        image_size = os.path.getsize(temp_file.name) / 1048576
-        if ctx.guild is None:
-            guild_file_limit = 8
-        else:
-            guild_file_limit = ctx.guild.filesize_limit / 1048576
-
-        # If the image size is greater than 8MB, we can't return this to the user, so we will need to downscale the
-        # image and try again
-        safety_counter = 0
-        while image_size > guild_file_limit:
-            safety_counter += 1
-            if safety_counter >= 3:
-                break
-            print(
-                f"Image size is {image_size}MB, which is too large for this server {guild_file_limit}MB. Downscaling and trying again"
+        references = []
+        for result in response.get("data", []):
+            if result.get("b64_json"):
+                references.append(f"data:image/png;base64,{result['b64_json']}")
+            elif result.get("url"):
+                # Also accept compatible providers returning signed download URLs.
+                references.append(result["url"])
+        if not references:
+            raise ValueError("The API returned no image data")
+        if "usage" in response:
+            await self.usage_service.update_usage_from_response(
+                response["usage"], model
             )
-            # We want to do this resizing asynchronously, so that it doesn't block the main thread during the resize.
-            # We can use the asyncio.run_in_executor method to do this
-            new_im = await asyncio.get_running_loop().run_in_executor(
-                None,
-                functools.partial(
-                    new_im.resize, (int(new_im.width / 1.05), int(new_im.height / 1.05))
-                ),
-            )
+        return references
 
-            temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            await asyncio.get_running_loop().run_in_executor(
-                None, new_im.save, temp_file.name
-            )
-            image_size = os.path.getsize(temp_file.name) / 1000000
-            print(f"New image size is {image_size}MB")
-
-        return discord.File(temp_file.name), image_urls
-
-    async def make_image_request_individual(
-        self, session, url, json_payload, headers
-    ) -> dict:
-        async with session.post(url, json=json_payload, headers=headers) as resp:
-            return await resp.json()
-
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_http,
-    )
     async def send_image_request(
         self, ctx, prompt, quality, image_size, style, custom_api_key=None
-    ) -> tuple[File, List[Any]]:
-        words = len(prompt.split(" "))
-        if words < 1 or words > 150:
-            raise ValueError(
-                f"Prompt must be greater than 1 word and less than 150, it is currently {words}"
-            )
+    ):
+        references = await self._generate_image_references(
+            prompt, quality, image_size, style, self.num_images, custom_api_key
+        )
+        return await self.save_image_urls_and_return(references, ctx)
 
-        await self.usage_service.update_usage_image(image_size)
-
-        print("Inside a dalle-3 request")
-
-        image_urls = []
-        tasks = []
-        payload = {
-            "prompt": prompt,
-            "quality": quality,
-            "style": style,
-            "model": "dall-e-3",
-            "size": image_size,
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-        }
-        self.use_org = "true" in str(self.use_org).lower()
-        if self.use_org and self.openai_organization:
-            headers["OpenAI-Organization"] = self.openai_organization
-
-        # Setup the client session outside of the loop
-        async with aiohttp.ClientSession(
-            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            # Create a coroutine for each image request and store it in the tasks list
-            for _ in range(self.num_images):
-                task = self.make_image_request_individual(
-                    session,
-                    "https://api.openai.com/v1/images/generations",
-                    payload,
-                    headers,
-                )
-                tasks.append(task)
-
-            # Run all tasks in parallel and wait for them to complete
-            responses = await asyncio.gather(*tasks)
-
-            # Process the results
-            for response in responses:
-                print(response)
-                for result in response["data"]:
-                    image_urls.append(result["url"])
-
-        # Now all the requests are done, we can save the URLs
-        return await self.save_image_urls_and_return(image_urls, ctx)
-
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_http,
-    )
     async def send_image_request_within_conversation(
         self, prompt, quality, image_size, style, custom_api_key=None, num_images=1
-    ) -> List[str]:
-        await self.usage_service.update_usage_image(image_size)
+    ):
+        return await self._generate_image_references(
+            prompt, quality, image_size, style, num_images, custom_api_key
+        )
 
-        print("Inside a dalle-3 request")
-
-        image_urls = []
-        tasks = []
-        payload = {
-            "prompt": prompt,
-            "quality": quality,
-            "style": style,
-            "model": "dall-e-3",
-            "size": image_size,
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-        }
-        self.use_org = "true" in str(self.use_org).lower()
-        if self.use_org and self.openai_organization:
-            headers["OpenAI-Organization"] = self.openai_organization
-
-        # Setup the client session outside of the loop
-        async with aiohttp.ClientSession(
-            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-        ) as session:
-            # Create a coroutine for each image request and store it in the tasks list
-            for _ in range(num_images):
-                task = self.make_image_request_individual(
-                    session,
-                    "https://api.openai.com/v1/images/generations",
-                    payload,
-                    headers,
-                )
-                tasks.append(task)
-
-            # Run all tasks in parallel and wait for them to complete
-            responses = await asyncio.gather(*tasks)
-
-            # Process the results
-            for response in responses:
-                print(response)
-                for result in response["data"]:
-                    image_urls.append(result["url"])
-
-        # Now all the requests are done, we can save the URLs
-        return image_urls
-
-    @backoff.on_exception(
-        backoff.expo,
-        aiohttp.ClientResponseError,
-        factor=3,
-        base=5,
-        max_tries=4,
-        on_backoff=backoff_handler_http,
-    )
-    async def send_image_request_old(
-        self, ctx, prompt, vary=None, custom_api_key=None
-    ) -> tuple[File, list[Any]]:
-        # Validate that  all the parameters are in a good state before we send the request
-        words = len(prompt.split(" "))
-        if words < 1 or words > 75:
+    async def send_image_request_old(self, ctx, prompt, vary=None, custom_api_key=None):
+        if vary:
             raise ValueError(
-                "Prompt must be greater than 1 word and less than 75, it is currently "
-                + str(words)
+                "DALL-E image variations have been retired. Generate a new image with /draw instead."
             )
-
-        # print("The prompt about to be sent is " + prompt)
-        await self.usage_service.update_usage_image(self.image_size)
-
-        response = None
-
-        if not vary:
-            payload = {"prompt": prompt, "n": self.num_images, "size": self.image_size}
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-            }
-            self.use_org = True if "true" in str(self.use_org).lower() else False
-            if self.use_org:
-                if self.openai_organization:
-                    headers["OpenAI-Organization"] = self.openai_organization
-
-            async with aiohttp.ClientSession(
-                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                async with session.post(
-                    "https://api.openai.com/v1/images/generations",
-                    json=payload,
-                    headers=headers,
-                ) as resp:
-                    response = await resp.json()
-
-        else:
-            async with aiohttp.ClientSession(
-                raise_for_status=True, timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
-                data = aiohttp.FormData()
-                data.add_field("n", str(self.num_images))
-                data.add_field("size", self.image_size)
-                with open(vary, "rb") as f:
-                    data.add_field(
-                        "image", f, filename="file.png", content_type="image/png"
-                    )
-
-                    async with session.post(
-                        "https://api.openai.com/v1/images/variations",
-                        headers={
-                            "Authorization": f"Bearer {self.openai_key if not custom_api_key else custom_api_key}",
-                        },
-                        data=data,
-                    ) as resp:
-                        response = await resp.json()
-
-        image_urls = []
-        for result in response["data"]:
-            image_urls.append(result["url"])
-
-        return await self.save_image_urls_and_return(image_urls, ctx)
+        return await self.send_image_request(
+            ctx, prompt, "auto", self.image_size, None, custom_api_key
+        )

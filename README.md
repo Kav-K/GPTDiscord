@@ -1,150 +1,129 @@
-<h1 align="center"> GPT Discord</h1>
-<p align="center">An all-in-one GPT-3 interface for Discord. ChatGPT-style conversations, image generation, AI-moderation, custom indexes/knowledgebase, youtube summarizer, and more!</p> 
+# GPTDiscord
 
-[![Docker](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml)  
-[![PyPi](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/pypi_upload.yml)  
-[![Build](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml)  
-[![PyPi version](https://badgen.net/pypi/v/gpt3discord/)](https://pypi.org/project/gpt3discord)  
-[![Latest release](https://badgen.net/github/release/Kav-K/GPTDiscord)](https://github.com/Kav-K/GPTDiscord/releases)  
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Kav-K/GPTDiscord/graphs/commit-activity)  
-[![GitHub license](https://img.shields.io/github/license/Kav-K/GPTDiscord)](https://github.com/Kav-K/GPTDiscord/blob/main/LICENSE)  
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)  
+[![CI](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build.yml)
+[![Docker](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml/badge.svg)](https://github.com/Kav-K/GPTDiscord/actions/workflows/build-and-publish-docker.yml)
+[![PyPI](https://img.shields.io/pypi/v/gpt3discord)](https://pypi.org/project/gpt3discord/)
 
-# Overview
-An all-in-one, robust OpenAI Integration for Discord. This bot is on feature parity with ChatGPT web and even does some things slightly better! 
+OpenAI chat, vision, image generation, transcription, moderation, and web search in Discord. Python **3.11–3.13** is supported.
 
-We support everything from **multi-modality image understanding**, **code interpretation**, advanced data analysis, Q&A on **your own documents**, **internet-connected chat** with Wolfram Alpha and Google access, **AI-moderation**, **image generation** with DALL-E, and much more! 
+## Current API support
 
-**BOT SETUP SUPPORT AND DEMO SERVER:** [Join Here](https://discord.gg/WvAHXDMS7Q)
+- `/gpt ask` and `/gpt converse` use current Chat Completions models, including vision and reasoning models. Defaults and model limits are centralized; incompatible sampling options are omitted for reasoning models.
+- `/web` uses the **Responses API with native web search** and visible source links for recent information. It needs an OpenAI key with access to the chosen model and web search, with no Google account required. Search tool calls incur additional OpenAI charges.
+- `/dalle draw` keeps the familiar command name and generates images with the current **GPT Image** API. Image bytes are sent as Discord attachments. Retired DALL·E endpoints are no longer used.
+- Transcription and moderation use current OpenAI APIs. Long conversations, per-user keys, server roles, prompt optimization, and saved conversations remain available.
+- Document indexing, Google/Wolfram chat, Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
 
-Featuring code execution and environment manipulation by [E2B](https://e2b.dev)
+The default chat model is `gpt-6.1-sol`, the low-cost helper model is `gpt-6-luna`, and image generation defaults to `gpt-image-2.5-flare`. Availability depends on your OpenAI project. Override models using the environment settings below. Model names and prices change; consult the [OpenAI model catalog](https://developers.openai.com/api/docs/models) and [pricing](https://openai.com/api/pricing/).
 
-We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone. Qdrant is an excellent vector database choice, and in fact the best one that we've tested and used so far.
-<p align="center">
-<img src="https://i.imgur.com/4g1tQ91.png" width="64px" height="64px" />
-</p>
+## Run from source
 
-# Overview of Capabilities
-![Overview of Features](https://i.imgur.com/BZdORTL.png)
-# Table of Contents  
+```bash
+git clone https://github.com/Kav-K/GPTDiscord.git
+cd GPTDiscord
+python3.13 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install .
+cp sample.env .env
+# Edit .env with your credentials and Discord server ID.
+python gpt3discord.py
+```
 
-- [Screenshots](#Screenshots)
-- [Features](#Features)
-- [Commands](#Commands)
-- [Installation](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/INSTALLATION.md)  
--- [DigitalOcean Droplet Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/DROPLET-GUIDE.md) 
--- [OpenAI Token Guide](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OPENAI-GUIDE.md)
-- [Internet Connected Chat](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/INTERNET-CONNECTED-CHAT.md)
-- [Code Interpreter / Advanced Data Analysis](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CODE-INTERPRETER.md)
-- [Permanent Memory](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/PERMANENT-MEMORY.md)    
-- [Multi-Modality](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/MULTI-MODALITY.md)
-- [AI-Search](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-SEARCH.md)  
-- [Custom Indexes](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/CUSTOM-INDEXES.md)  
-- [AI-Moderation](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/AI-MODERATION.md)  
-- [Translations](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/TRANSLATIONS.md)  
-- [User-Input API Keys](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/USER-INPUT-KEYS.md)  
-- [Permissions](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/PERMISSIONS.md)  
-- [Language Detection](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/LANGUAGE-DETECTION.md)
-- [Other Minor Features](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/OTHER-MINOR-FEATURES.md)  
+Install FFmpeg with your operating system's package manager to transcribe downloaded media. The basic bot does not require Torch, Transformers, LlamaIndex, or LangChain.
 
-# Screenshots
-<p align="center">
-Multi-Modality<br>
-<img src="https://i.imgur.com/TsfgtU2.png"/><br>
-Internet-connected chat (Google + Wolfram + Link Crawling)<br>
-<img src="https://i.imgur.com/nHRNY2l.png"/><br>
-Code Interpreter / Advanced Data Analysis <br>
-<img src="https://i.imgur.com/Y2VvwHd.png"/><br>
-Custom indexing and Document Q&A<br>
-<img src="https://i.imgur.com/1uKF1ye.png"/><br>
-</p>  
+The same code installs as the `gpt3discord` console command. Prompt files and conversation openers ship in the wheel; you can run the installed bot outside the source directory.
 
-# Recent Notable Updates
-- **Multi-modality + Drawing** - GPTDiscord now supports images sent to the bot during a conversation made with `/gpt converse`, and the bot can draw images for you and work with you on them!
+### Required configuration
 
+| Setting | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | OpenAI project API key. `OPENAI_TOKEN` remains a supported alias. ChatGPT subscriptions do not include API billing. |
+| `DISCORD_TOKEN` | Bot token from the [Discord Developer Portal](https://discord.com/developers/applications). |
+| `ALLOWED_GUILDS` | Comma-separated Discord server IDs where commands are registered. |
+| `DATA_DIR` | Writable directory for local data and usage estimates. Defaults to the current directory. |
 
-- **GPT-4-Vision support, GPT-4-Turbo, DALLE-3 Support** - Assistant support also coming soon!
+Enable the **Server Members** and **Message Content** privileged gateway intents for the Discord application; invite the bot with the `bot` and `applications.commands` OAuth scopes and permissions to read/send messages, attach files, embed links, and create/use threads. Review the role controls in `sample.env` before inviting it to a public server. Debug guild/channel IDs are optional.
 
+Keep credentials in an untracked `.env` or your hosting platform's secret store. GitHub credentials are unnecessary to run the basic bot or its tests. No passwords are required.
 
-- **Code Interpreter / Advanced Data Analysis** - Just like ChatGPT, GPTDiscord now has a fully-fledged code execution environment. You can work with GPT to execute your code in an isolated environment, with the ability to even install Python and system packages, and access the internet from the execution environment.
+### Model and project settings
 
+```dotenv
+OPENAI_MODEL=gpt-6.1-sol
+OPENAI_IMAGE_MODEL=gpt-image-2.5-flare
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_MODERATION_MODEL=omni-moderation-latest
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
+# OPENAI_PROJECT=proj_...
+# OPENAI_ORGANIZATION=org_...
+# OPENAI_BASE_URL=https://api.openai.com/v1
+```
 
-- **Drag And Drop Document Chat** - Chat with your documents by simply dragging and dropping files, or even links into discord chat! `/index chat`
+`OPENAI_BASE_URL` supports compatible providers. Only configure endpoints you trust with your API credentials. Core chat keeps the Chat Completions response shape; `/web` requires a provider implementing Responses and native web search.
 
+## Optional integrations
 
-- **Internet-connected Chat!** - Chat with an instance of GPT3.5 or GPT-4 that's connected to Google and Wolfram Alpha and can browse and access links that you send it!
+Install the extras you use and configure their keys. Missing configured dependencies produce an actionable startup error; disabled services respond with setup guidance.
 
-# Features
-- **Multi-modal** with image understanding, you can generate images with DALL-E within multi-modal conversations!
-- **Code Interpreter / Advanced Data Analysis**
-- Long-term, **permanent conversations** with GPT models
-- **Use your own files**, PDFs, text files, websites, Discord channel content as context when asking GPT questions!  
-- **Internet-connected** chatting with GPT, connected to Google, Wolfram Alpha, and a web crawler
-- Generate **DALL-E AI images** and even optimize them right in Discord
-- **Translate** text with DeepL.
-- Moderate your server automatically with AI!
-- **Auto-retry on API errors** - Automatically resend failed requests silently to ensure a seamless experience
-- Set context-based pre-instructions per user and per channel
-- Ability to redo, edit your conversation messages while chatting with GPT
-- ShareGPT integration to share your conversations
-- Tag your bot in chat, and it'll respond!
-- Async and fault-tolerant, **can handle hundreds of users at once**, if the upstream API permits!
-- Change and view model parameters such as temperature, top_p, and more directly within Discord.
-- Tracks token usage automatically
-- Automatic pagination and Discord support. The bot will automatically send very long messages as multiple messages and is able to send Discord code blocks and emoji, gifs, etc.
-- A low usage mode, use a command to automatically switch to a cheaper and faster model to conserve your tokens during times of peak usage.
-- Prints debug to a channel of your choice, so you can view the raw response JSON
-- Ability to specify a limit to how long a conversation can be with the bot, to conserve your tokens.
+| Feature | Install | Configuration |
+| --- | --- | --- |
+| Document Q&A / indexes | `pip install '.[index]'` | `ENABLE_INDEXING=true` and OpenAI access |
+| Google/Wolfram chat | `pip install '.[search]'` | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`; optionally `WOLFRAM_API_KEY` |
+| Pinecone memory | `pip install '.[pinecone]'` | `PINECONE_TOKEN`, `PINECONE_REGION` (default `us-east-1`) |
+| E2B code execution | `pip install '.[code]'` | `E2B_API_KEY` |
+| Replicate fallback vision | `pip install '.[replicate]'` | `REPLICATE_API_KEY` |
+| All integrations | `pip install '.[full]'` | Only configure the integrations you intend to enable |
 
-# Commands  
-These commands are grouped, so each group has a prefix, but you can easily tab complete the command without the prefix. For example, for `/gpt ask`, if you type `/ask` and press tab, it'll show up too.
+When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept messages from their creator only, so other thread participants cannot spend that person's API credits. Specialized GitHub, YouTube, and Google Docs readers may request an additional reader package when used.
 
-`/help` - Display help text for the bot  
+LlamaIndex currently requires OpenAI SDK 2.x. Installing its extra selects the current compatible SDK; the core also supports SDK 3.x. Requirements files delegate to `pyproject.toml` so dependencies have one source of truth.
 
-### (Chat)GPT Commands  
-- `/gpt ask <prompt> <temp> <top_p> <frequency penalty> <presence penalty>` Ask the GPT Davinci 003 model a question. Optional overrides available.
-- `/gpt edit <instruction> <input> <temp> <top_p>` Use the bot to edit text using the given instructions for how to do it, currently an alpha OpenAI feature so results might vary. Editing is currently free.
-- `/gpt converse <opener> <opener_file> <private> <minimal>` - Start a conversation with the bot, like ChatGPT. Also use the option `use_threads:False` to start a conversation in a full Discord channel!
-- `/gpt end` - End a conversation with the bot.
-- `/gpt instruction mode:<set/get/clear> type:<user/channel> <instruction> <instruction_file>` - The commands let you set a system instruction for 3.5-turbo and gpt4 or just prepending text for Davinci and older models.
+## Docker
 
-### Code Interpreter // Advanced Data Analysis Commands  
-- `/code chat` - Start a code interpreter chat with GPT. You can type `end` to end the conversation.
+Build this checkout with Docker Compose:
 
-### Search & Internet Commands  
-- `/internet search:<prompt> scope:<number of sites to visit> nodes:<how deep GPT should think>` - Search the internet with GPT assistance!
-- `/internet chat search_scope:<number> model:<turbo or gpt4>` - Start an internet-connected chat with GPT, connected to Google and Wolfram.
+```bash
+cp sample.env .env
+# Edit .env, then:
+docker compose up --build -d
+docker compose logs -f
+```
 
-### Custom Indexes Commands  
-- `/index add file:<file> or link:<link>` - Use a document or use a link to create/add to your indexes.
-- `/index query query:<prompt> nodes:<number> response_mode:<mode>` - Query your current index for a given prompt. GPT will answer based on your current document/index.
-- `/index load user_index:<index> or server_index:<index>` - Load a previously created index you own yourself or an index for the whole server.
-- `/index compose` - Combine multiple saved indexes into one or upgrade existing indexes into Deep Compositions.
-- `/index reset` - Reset and delete all of your saved indexes.
-- `/index add_discord channel:<discord channel>` - Create an add an index based on a Discord channel.
-- `/index discord_backup` - Use the last 3000 messages of every channel on your Discord server as an index. Needs both an admin and an index role.
-- `/index chat user_index:<user_index> search_index:<search_index>` - Chat with your documents that you've indexed previously!
+The container runs as UID/GID `10001`, includes FFmpeg, and persists data in a named volume. Existing bind-mounted data must be writable by this user. To include optional integrations, set the `FULL` build argument to `true` in Compose. The existing `/opt/gpt3discord/etc/environment` mount location remains supported.
 
-### DALL-E Commands  
-- `/dalle draw <prompt>` - Have DALL-E 3 generate images based on a prompt.
-- `/dalle draw_old <prompt>` - Have DALL-E 2 generate images based on a prompt.
-- `/dalle optimize <image prompt text>` - Optimize a given prompt text for DALL-E image generation.
+CI builds both base and full images on pull requests. Registry publication is limited to releases or an explicit manual workflow and uses GitHub Container Registry authentication provided by Actions. PyPI publication uses a configured trusted publisher; see the release workflow for its required environment.
 
-### System and Settings  
-- `/system settings` - Display settings for the model (temperature, top_p, etc).
-- `/system settings <setting> <value>` - Change a model setting to a new value. Has autocomplete support, certain settings will have autocompleted values too.
-- `/system usage` - Estimate current usage details (based on Davinci).
-- `/system settings low_usage_mode True/False` - Turn low usage mode on and off. If on, it will use the curie-001 model, and if off, it will use the Davinci-003 model.
-- `/system delete-conversation-threads` - Delete all threads related to this bot across all servers.
-- `/system local-size` - Get the size of the local `/dalleimages` folder.
-- `/system clear-local` - Delete all the contents of `/dalleimages`.
+## Upgrade from v12
 
-# Step-by-Step Guides for GPTDiscord  
-[**GPTDiscord Guides**](https://github.com/Kav-K/GPTDiscord/tree/main/detailed_guides)  
-If you follow the link above, you will find detailed step-by-step guides that will help you install and set up your GPTDiscord bot and its features quickly and easily. If you encounter any issues or have suggestions for improving the guides, you can join the [**Discord Server**](https://discord.gg/WvAHXDMS7Q), and we will try to help you. Please keep in mind that the maintainers are volunteers and will try to assist you on their schedule.  
-*The number and content of the guides are constantly adapted to current requirements.*
+1. Back up `.env`, SQLite databases, pickles, local indexes, and stored vectors. Upgrade in a fresh Python 3.11–3.13 virtual environment; do not reuse the old pinned package set.
+2. Install the core or the extras you use. Set `ENABLE_INDEXING=true` to enable document indexing. The basic bot and `/web` need no legacy search libraries.
+3. Keep `OPENAI_TOKEN` or rename it to `OPENAI_API_KEY`. Review model overrides and role settings. Retired preview models saved in bot settings are migrated to current defaults.
+4. Set `DATA_DIR` and, if previously used, `SHARE_DIR` to your existing writable data locations. Custom prompt/openers files can still be supplied through `SHARE_DIR`.
+5. Rebuild document indexes when changing embedding models. **Ada and embedding-3 vectors occupy different vector spaces even at the same dimension.** New Pinecone embedding namespaces keep these separate; selecting `text-embedding-ada-002` retains the legacy namespace. Re-ingest historical text to use the newer embeddings. Old local LlamaIndex storage may also need re-ingestion after the library upgrade.
+6. Rebuild Docker images and check file ownership for existing volumes. Automatic deployment to the old hardcoded SSH host and formatter force-pushes have been removed. Configure deployment separately for your own host.
 
-# Our Amazing Contributors ⭐  
-[![Contributors](https://contrib.rocks/image?repo=Kav-K/GPTDiscord)](https://github.com/Kav-K/GPTDiscord)
+Image variation commands for retired DALL·E models report that the operation is unavailable. Current image generation is supported; this release does not claim a general image-editing workflow.
 
-Improve this markdown, correct any spelling errors, and let me know what you change.
+The local usage total is an **estimate**, not an OpenAI invoice. Known text models use separate input, cached-input, and output token rates. Unknown models are logged and excluded rather than billed at an unrelated legacy rate. Image/audio/tool fees are not included in this token estimate; use your provider's usage dashboard for billing.
+
+## Development and verification
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pip check
+python -m ruff check .
+python -m pytest -q -m 'not integration'
+python -m build
+python -m twine check dist/*
+```
+
+Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; restricted networks should allow its vocabulary host or provide a populated `TIKTOKEN_CACHE_DIR`. Paid integration tests only run when explicitly enabled:
+
+```bash
+RUN_LIVE_OPENAI_TESTS=1 python -m pytest -m integration
+```
+
+CI checks Python 3.11–3.13, Windows/macOS smoke tests, optional integration installs/imports, and wheel contents outside the checkout. Publishing and deployment credentials are not needed for pull requests.
+
+Historical feature guides remain in [detailed_guides](detailed_guides/); their screenshots and setup details may describe older releases. Use this README and `sample.env` for current installation and API configuration. [Contributions](CONTRIBUTING.md) are welcome under the [MIT license](LICENSE).
