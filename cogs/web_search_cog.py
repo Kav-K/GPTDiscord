@@ -14,12 +14,12 @@ from openai import (
 
 from models.openai_model import Models
 from services.environment_service import EnvService
+from services.access_service import has_any_role
 from services.responses_service import (
     ResponsesError,
     ResponsesService,
     discord_messages,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +62,7 @@ class WebSearchCog(discord.Cog):
         self, ctx: discord.ApplicationContext, question: str, model: str = None
     ):
         allowed_mentions = discord.AllowedMentions.none()
-        if self.search_roles != [None] and not any(
-            role.name.lower() in self.search_roles
-            for role in getattr(ctx.user, "roles", [])
-        ):
+        if not has_any_role(ctx, self.search_roles):
             await ctx.respond(
                 "You need a configured SEARCH_ROLES role to use web search.",
                 ephemeral=True,

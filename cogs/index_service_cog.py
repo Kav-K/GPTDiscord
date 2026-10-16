@@ -9,6 +9,7 @@ import openai
 from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
+from services.access_service import message_has_access
 from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.index_model import Index_handler
@@ -92,6 +93,8 @@ class IndexService(discord.Cog, name="IndexService"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
+        if not await message_has_access(message):
+            return
         # Check for self
         if message.author == self.bot.user:
             return

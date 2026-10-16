@@ -3,6 +3,7 @@ import re
 import aiohttp
 
 from services.environment_service import EnvService
+from services.access_service import has_any_role
 from typing import Callable
 
 ADMIN_ROLES = EnvService.get_admin_roles()
@@ -16,109 +17,50 @@ ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 
 class Check:
     @staticmethod
-    def check_admin_roles() -> Callable:
+    def _role_check(configured):
         async def inner(ctx: discord.ApplicationContext):
-            if ADMIN_ROLES == [None]:
+            roles = configured()
+            if has_any_role(ctx, roles):
                 return True
-
-            if not any(role.name.lower() in ADMIN_ROLES for role in ctx.user.roles):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {ADMIN_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
+            labels = [
+                str(role).strip()
+                for role in roles
+                if role is not None and str(role).strip()
+            ]
+            labels = [f"<@&{role}>" if role.isdecimal() else role for role in labels]
+            await ctx.respond(
+                "You don't have permission. Required roles: " + ", ".join(labels),
+                ephemeral=True,
+                delete_after=10,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return False
 
         return inner
+
+    @staticmethod
+    def check_admin_roles() -> Callable:
+        return Check._role_check(lambda: ADMIN_ROLES)
 
     @staticmethod
     def check_dalle_roles() -> Callable:
-        async def inner(ctx: discord.ApplicationContext):
-            if DALLE_ROLES == [None]:
-                return True
-            if not any(role.name.lower() in DALLE_ROLES for role in ctx.user.roles):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {DALLE_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
-
-        return inner
+        return Check._role_check(lambda: DALLE_ROLES)
 
     @staticmethod
     def check_gpt_roles() -> Callable:
-        async def inner(ctx: discord.ApplicationContext):
-            if GPT_ROLES == [None]:
-                return True
-            if not any(role.name.lower() in GPT_ROLES for role in ctx.user.roles):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {GPT_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
-
-        return inner
+        return Check._role_check(lambda: GPT_ROLES)
 
     @staticmethod
     def check_index_roles() -> Callable:
-        async def inner(ctx: discord.ApplicationContext):
-            if INDEX_ROLES == [None]:
-                return True
-            if not any(role.name.lower() in INDEX_ROLES for role in ctx.user.roles):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {INDEX_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
-
-        return inner
+        return Check._role_check(lambda: INDEX_ROLES)
 
     @staticmethod
     def check_translator_roles() -> Callable:
-        async def inner(ctx: discord.ApplicationContext):
-            if TRANSLATOR_ROLES == [None]:
-                return True
-            if not any(
-                role.name.lower() in TRANSLATOR_ROLES for role in ctx.user.roles
-            ):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {TRANSLATOR_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
-
-        return inner
+        return Check._role_check(lambda: TRANSLATOR_ROLES)
 
     @staticmethod
     def check_search_roles() -> Callable:
-        async def inner(ctx: discord.ApplicationContext):
-            if SEARCH_ROLES == [None]:
-                return True
-            if not any(role.name.lower() in SEARCH_ROLES for role in ctx.user.roles):
-                await ctx.defer(ephemeral=True)
-                await ctx.respond(
-                    f"You don't have permission, list of roles is {SEARCH_ROLES}",
-                    ephemeral=True,
-                    delete_after=10,
-                )
-                return False
-            return True
-
-        return inner
+        return Check._role_check(lambda: SEARCH_ROLES)
 
 
 class UrlCheck:
