@@ -1067,9 +1067,25 @@ class TextService:
         return None
 
     @staticmethod
-    async def process_conversation_edit(converser_cog, after, original_message):
+    async def process_conversation_edit(
+        converser_cog,
+        after,
+        original_message,
+        USER_INPUT_API_KEYS=False,
+        USER_KEY_DB=None,
+    ):
+        if after.channel.id not in converser_cog.conversation_threads:
+            return
         if after.author.id in converser_cog.redo_users:
             if after.id == original_message.get(after.author.id, None):
+                user_api_key = None
+                if USER_INPUT_API_KEYS:
+                    user_api_key = await TextService.get_user_api_key(
+                        after.author.id, after, USER_KEY_DB
+                    )
+                    if not user_api_key:
+                        return
+
                 response_message = converser_cog.redo_users[after.author.id].response
                 ctx = converser_cog.redo_users[after.author.id].ctx
                 await response_message.edit(content="Redoing prompt 🔄...")
@@ -1092,7 +1108,7 @@ class TextService:
                             after.channel.id
                         ].history.append(
                             EmbeddedConversationItem(
-                                f"\n{after.author.display_name}: {after.content}<|endofstatement|>\n",
+                                f"\n{after.author.display_name}: {edited_content}<|endofstatement|>\n",
                                 0,
                             )
                         )
@@ -1118,6 +1134,7 @@ class TextService:
                     response_message=response_message,
                     overrides=overrides,
                     model=converser_cog.conversation_threads[after.channel.id].model,
+                    custom_api_key=user_api_key,
                     edited_request=True,
                 )
 

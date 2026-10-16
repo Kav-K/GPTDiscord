@@ -68,6 +68,8 @@ OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 # OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
+Automatic model selection follows `OPENAI_MODEL`, or `gpt-6.1-sol` when it is unset. A supported model saved through `/system settings` takes precedence across restarts; existing supported saved choices are preserved. Resetting all system settings or turning low-usage mode off resumes automatic selection.
+
 `OPENAI_BASE_URL` supports compatible providers. Only configure endpoints you trust with your API credentials. Core chat keeps the Chat Completions response shape; `/web` requires a provider implementing Responses and native web search.
 
 ## Optional integrations

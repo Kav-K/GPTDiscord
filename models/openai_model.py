@@ -297,11 +297,21 @@ class Model:
             if "max_conversation_length" in SETTINGS_DB
             else 100000
         )  # The maximum number of conversation items to keep in memory
-        self.model = (
-            SETTINGS_DB["model"]
-            if "model" in SETTINGS_DB and SETTINGS_DB["model"] in Models.TEXT_MODELS
-            else EnvService.get_openai_model() or Models.DEFAULT
-        )
+        configured_model = EnvService.get_openai_model()
+        saved_model = SETTINGS_DB.get("model")
+        if saved_model in Models.TEXT_MODELS or (
+            configured_model is not None and saved_model == configured_model
+        ):
+            # Keep supported legacy choices: old databases cannot distinguish
+            # an administrator's selection from a startup-written default.
+            self._apply_model(saved_model)
+        else:
+            # Only explicit selections belong in persisted model settings.
+            # Fresh/reset installations should follow configuration and future
+            # catalog defaults instead of pinning their first startup's model.
+            if "model" in SETTINGS_DB:
+                del SETTINGS_DB["model"]
+            self._apply_model(configured_model or Models.DEFAULT)
         self._low_usage_mode = False
         self.usage_service = usage_service
         self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
@@ -560,11 +570,11 @@ class Model:
                 raise ValueError("Value must be either `true` or `false`!")
             value = str(value).lower() == "true"
         self._low_usage_mode = value
-        self.model = (
-            Models.LOW_USAGE_MODEL
-            if value
-            else (EnvService.get_openai_model() or Models.DEFAULT)
-        )
+        if value:
+            self.model = Models.LOW_USAGE_MODEL
+        else:
+            self._apply_model(EnvService.get_openai_model() or Models.DEFAULT)
+            SETTINGS_DB.pop("model", None)
         self.max_tokens = 1900 if value else 4000
         self.model_max_tokens = self.max_tokens
 
@@ -574,6 +584,11 @@ class Model:
 
     @model.setter
     def model(self, model):
+        self._apply_model(model)
+        SETTINGS_DB["model"] = model
+
+    def _apply_model(self, model):
+        """Apply capabilities without turning a startup default into a choice."""
         if model not in Models.TEXT_MODELS and model != EnvService.get_openai_model():
             raise ValueError(f"Invalid model, must be one of: {Models.TEXT_MODELS}")
         self._model = model
@@ -582,8 +597,6 @@ class Model:
         self._max_tokens = min(
             self._max_tokens or 4000, Models.get_max_output_tokens(model)
         )
-        SETTINGS_DB["model"] = model
-
         self._summarize_threshold = min(
             ModelLimits.MAX_SUMMARIZE_THRESHOLD,
             max(
