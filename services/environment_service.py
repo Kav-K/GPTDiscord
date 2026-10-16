@@ -3,6 +3,8 @@ import sys
 import traceback
 from pathlib import Path
 from typing import Union
+from urllib.parse import urlsplit
+from urllib.request import getproxies, proxy_bypass
 
 from dotenv import load_dotenv
 from sqlitedict import SqliteDict
@@ -467,6 +469,19 @@ class EnvService:
             return github_token
         except Exception:
             return None
+
+    @staticmethod
+    def get_http_proxy(url):
+        """Respect environment proxies without importing target-host netrc auth."""
+        parsed = urlsplit(url)
+        authority = parsed.netloc.rsplit("@", 1)[-1]
+        if not parsed.hostname or proxy_bypass(authority):
+            return None
+        return getproxies().get(parsed.scheme)
+
+    @staticmethod
+    def get_discord_proxy():
+        return EnvService.get_http_proxy("https://discord.com")
 
     @staticmethod
     def get_openai_token():

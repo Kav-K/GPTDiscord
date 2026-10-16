@@ -11,6 +11,7 @@ import aiohttp
 import discord
 import aiofiles
 import tiktoken
+from services.discord_attachment_service import save_attachment
 from functools import partial
 from typing import List, Optional
 from pathlib import Path
@@ -330,7 +331,7 @@ class Index_handler:
                 suffix=suffix, dir=temp_path, delete=False
             ) as temp_file:
                 try:
-                    await file.save(temp_file.name)
+                    await save_attachment(file, temp_file.name)
 
                     filename = file.filename
 
@@ -749,7 +750,7 @@ class Index_handler:
                 async with aiofiles.tempfile.NamedTemporaryFile(
                     suffix=suffix, dir=temp_path, delete=False
                 ) as temp_file:
-                    await file.save(temp_file.name)
+                    await save_attachment(file, temp_file.name)
                     index = await self.loop.run_in_executor(
                         None,
                         partial(

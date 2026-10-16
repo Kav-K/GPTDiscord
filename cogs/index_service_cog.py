@@ -225,6 +225,8 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
         await self.index_handler.start_index_chat(
             ctx, model, temperature, top_p, user_api_key=user_api_key
         )
@@ -326,7 +328,6 @@ class IndexService(discord.Cog, name="IndexService"):
     async def set_index_link_recurse_command(
         self, ctx, link: str = None, depth: int = 1
     ):
-        await ctx.defer()
         """Command handler to set a file as your personal index"""
         if not link:
             await ctx.respond("Please provide a link")
@@ -340,6 +341,8 @@ class IndexService(discord.Cog, name="IndexService"):
             if not user_api_key:
                 return
 
+        await ctx.defer()
+
         await self.index_handler.set_link_index_recurse(
             ctx, link, depth, user_api_key=user_api_key
         )
@@ -347,7 +350,6 @@ class IndexService(discord.Cog, name="IndexService"):
     async def set_index_command(
         self, ctx, file: discord.Attachment = None, link: str = None
     ):
-        await ctx.defer()
         """Command handler to set a file as your personal index"""
         if not file and not link:
             await ctx.respond("Please provide a file or a link")
@@ -367,6 +369,8 @@ class IndexService(discord.Cog, name="IndexService"):
             if not user_api_key:
                 return
 
+        await ctx.defer()
+
         if file:
             await self.index_handler.set_file_index(
                 ctx, file, user_api_key=user_api_key
@@ -380,7 +384,6 @@ class IndexService(discord.Cog, name="IndexService"):
         self, ctx, channel: discord.TextChannel = None, message_limit: int = 2500
     ):
         """Command handler to set a channel as your personal index"""
-        await ctx.defer()
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -389,6 +392,8 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
 
         await self.index_handler.set_discord_index(
             ctx, channel, user_api_key=user_api_key, message_limit=message_limit
@@ -407,7 +412,6 @@ class IndexService(discord.Cog, name="IndexService"):
 
     async def discord_backup_command(self, ctx, message_limit: int = 2500):
         """Command handler to backup the entire server"""
-        await ctx.defer()
 
         user_api_key = None
         if USER_INPUT_API_KEYS:
@@ -416,6 +420,8 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
         await self.index_handler.backup_discord(
             ctx, user_api_key=user_api_key, message_limit=message_limit
         )
@@ -459,6 +465,8 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
         await self.index_handler.load_index(ctx, index, server, search, user_api_key)
 
     async def query_command(
@@ -480,6 +488,8 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
 
         # Check the opener for bad content.
         if PRE_MODERATE:
@@ -506,5 +516,7 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
 
         await self.index_handler.compose(ctx, name, user_api_key)

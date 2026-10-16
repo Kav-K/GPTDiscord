@@ -23,6 +23,8 @@ class SearchResponse:
     model: str
     usage: dict[str, Any]
     search_calls: int
+    web_tool_calls: int = 0
+    unknown_search_actions: int = 0
 
 
 class ResponsesError(RuntimeError):
@@ -61,12 +63,18 @@ def parse_search_response(response) -> SearchResponse:
     citation_numbers = {}
     texts = []
     search_calls = 0
+    web_tool_calls = 0
+    unknown_search_actions = 0
     for item in _get(response, "output", []) or []:
         if _get(item, "type") == "web_search_call":
+            web_tool_calls += 1
             # Only search actions incur search tool charges; opening/finding in a
             # page does not. Some API versions omit action, so do not estimate it.
-            if _get(_get(item, "action", {}), "type") == "search":
+            action_type = _get(_get(item, "action"), "type")
+            if action_type == "search":
                 search_calls += 1
+            elif action_type is None:
+                unknown_search_actions += 1
         if _get(item, "type") != "message":
             continue
         for content in _get(item, "content", []) or []:
@@ -125,6 +133,8 @@ def parse_search_response(response) -> SearchResponse:
         model=_get(response, "model", ""),
         usage=dict(usage),
         search_calls=search_calls,
+        web_tool_calls=web_tool_calls,
+        unknown_search_actions=unknown_search_actions,
     )
 
 

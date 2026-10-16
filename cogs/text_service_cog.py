@@ -18,6 +18,7 @@ from models.embed_statics_model import EmbedStatics
 from models.image_understanding_model import ImageUnderstandingModel
 from models.openai_model import Models, Override
 from services.environment_service import EnvService
+from services.discord_attachment_service import read_attachment_bytes
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
 from models.user_model import Thread, EmbeddedConversationItem, Instruction
@@ -751,7 +752,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     attachments.append(_file)
                 elif content_type.startswith("text/"):
                     # Decoding a text file to use in the prompt
-                    text = (await _file.read()).decode("utf-8")
+                    text = (await read_attachment_bytes(_file)).decode("utf-8")
                     amended_message += text
 
         # Process the message if the user is in a conversation
@@ -996,7 +997,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 type = "user"
 
         if instruction_file:
-            bytestring = await instruction_file.read()
+            bytestring = await read_attachment_bytes(instruction_file)
             file_instruction = bytestring.decode("utf-8")
         if instruction and instruction_file:
             instruction = f"{file_instruction}\n\n{instruction}"
@@ -1067,7 +1068,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         if prompt_file:
-            bytestring = await prompt_file.read()
+            bytestring = await read_attachment_bytes(prompt_file)
             file_prompt = bytestring.decode("utf-8")
         if prompt and prompt_file:
             prompt = f"{file_prompt}\n\n{prompt}"

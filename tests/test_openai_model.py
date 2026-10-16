@@ -31,7 +31,7 @@ def model(monkeypatch, tmp_path):
 @pytest.fixture
 def fake_api(monkeypatch):
     """Replace the network boundary, preserving async context-manager semantics."""
-    queued, calls = [], []
+    queued, calls, session_options = [], [], []
 
     class Response:
         def __init__(self, payload, status):
@@ -59,10 +59,12 @@ def fake_api(monkeypatch):
             payload, status = queued.pop(0)
             return Response(payload, status)
 
-    monkeypatch.setattr(
-        openai_model.aiohttp, "ClientSession", lambda **kwargs: Session()
-    )
-    return SimpleNamespace(queued=queued, calls=calls)
+    def session_factory(**kwargs):
+        session_options.append(kwargs)
+        return Session()
+
+    monkeypatch.setattr(openai_model.aiohttp, "ClientSession", session_factory)
+    return SimpleNamespace(queued=queued, calls=calls, session_options=session_options)
 
 
 def completion(content="OK"):
@@ -318,18 +320,23 @@ def test_selecting_large_model_preserves_user_output_budget(model):
 
 
 @pytest.mark.asyncio
-async def test_discord_transcription_awaits_attachment_read(model, fake_api):
+async def test_discord_transcription_uses_proxy_aware_attachment_read(
+    model, fake_api, monkeypatch
+):
     from unittest.mock import Mock
 
     file = Mock(spec=openai_model.discord.Attachment)
     file.filename = "voice.ogg"
     file.content_type = "audio/ogg"
-    file.read = AsyncMock(return_value=b"test audio")
+    file.read = AsyncMock()
+    read_attachment = AsyncMock(return_value=b"test audio")
+    monkeypatch.setattr(openai_model, "read_attachment_bytes", read_attachment)
     fake_api.queued.append(({"text": "Hello"}, 200))
     assert (
         await model.send_transcription_request(file, temperature_override=0) == "Hello"
     )
-    file.read.assert_awaited_once()
+    read_attachment.assert_awaited_once_with(file)
+    file.read.assert_not_awaited()
     assert fake_api.calls[0][0].endswith("/audio/transcriptions")
     fields = {
         field[0]["name"]: field[2] for field in fake_api.calls[0][1]["data"]._fields
@@ -358,3 +365,85 @@ async def test_insufficient_quota_is_not_retried(model, fake_api):
     with pytest.raises(OpenAIAPIError, match="Quota exhausted"):
         await model.send_request("Hello", None)
     assert len(fake_api.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_all_api_sessions_honor_environment_proxies(model, fake_api, monkeypatch):
+    import discord
+    from unittest.mock import Mock
+
+    choose_proxy = Mock(return_value="http://proxy.test:8080")
+    monkeypatch.setattr(openai_model.EnvService, "get_http_proxy", choose_proxy)
+
+    fake_api.queued.extend(
+        [(completion(), 200), (completion(), 200), ({"text": "Hello"}, 200)]
+    )
+    await model.send_request("Hello", None)
+    await model.send_test_request("user-test-key")
+    audio = discord.File(io.BytesIO(b"audio"), filename="voice.wav")
+    try:
+        await model.send_transcription_request(audio)
+    finally:
+        audio.close()
+    assert len(fake_api.session_options) == 3
+    assert all(
+        not options.get("trust_env", False) for options in fake_api.session_options
+    )
+    assert all(call[1]["proxy"] == "http://proxy.test:8080" for call in fake_api.calls)
+    assert [call.args[0] for call in choose_proxy.call_args_list] == [
+        call[0] for call in fake_api.calls
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_kind", ["chat", "key_validation", "transcription"])
+async def test_target_netrc_credentials_never_conflict_with_bearer_auth(
+    model, monkeypatch, tmp_path, request_kind
+):
+    """Exercise real aiohttp auth/proxy processing, stopping before any socket."""
+    import aiohttp
+    import discord
+
+    netrc = tmp_path / "test.netrc"
+    netrc.write_text(
+        "machine example.invalid login offline-netrc-user password offline-netrc-password\n"
+    )
+    netrc.chmod(0o600)
+    monkeypatch.setenv("NETRC", str(netrc))
+    proxy = "http://proxy.invalid:8080"
+    monkeypatch.setattr(openai_model.EnvService, "get_http_proxy", lambda url: proxy)
+    observed = []
+
+    class RequestReachedTransport(Exception):
+        pass
+
+    async def intercept_connection(connector, request, **kwargs):
+        observed.append(request)
+        raise RequestReachedTransport()
+
+    monkeypatch.setattr(aiohttp.TCPConnector, "connect", intercept_connection)
+
+    # Confirm the fixture reproduces the external library's credential conflict.
+    async with aiohttp.ClientSession(trust_env=True) as session:
+        with pytest.raises(ValueError, match="AUTHORIZATION"):
+            await session.post(
+                "https://example.invalid/v1/chat/completions",
+                headers={"Authorization": "Bearer offline-test-key"},
+                proxy=proxy,
+            )
+    assert observed == []
+
+    with pytest.raises(RequestReachedTransport):
+        if request_kind == "chat":
+            await model.send_request("Hello", None)
+        elif request_kind == "key_validation":
+            await model.send_test_request("offline-test-key")
+        else:
+            audio = discord.File(io.BytesIO(b"audio"), filename="voice.wav")
+            try:
+                await model.send_transcription_request(audio)
+            finally:
+                audio.close()
+    assert len(observed) == 1
+    assert observed[0].headers["Authorization"].startswith("Bearer ")
+    assert str(observed[0].proxy) == proxy

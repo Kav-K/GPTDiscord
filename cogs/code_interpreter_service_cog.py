@@ -18,6 +18,7 @@ from models.embed_statics_model import EmbedStatics
 from services.agent_service import agent_output_text, create_chat_agent, create_chat_llm
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
+from services.discord_attachment_service import read_attachment_bytes
 from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
 
@@ -143,7 +144,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     filename = posixpath.basename(file.filename)
                     uploaded_path = await self.sessions[
                         message.channel.id
-                    ].upload_file_async(filename, await file.read())
+                    ].upload_file_async(filename, await read_attachment_bytes(file))
                     prompt += (
                         f"\n{{The user has just uploaded a file to {uploaded_path}}}"
                     )
@@ -348,7 +349,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         temperature,
         top_p,
     ):
-        await ctx.defer()
         user_api_key = None
         if USER_INPUT_API_KEYS:
             from services.text_service import TextService
@@ -359,6 +359,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             if not user_api_key:
                 return
 
+        await ctx.defer()
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,

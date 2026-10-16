@@ -739,7 +739,6 @@ class Commands(discord.Cog, name="Commands"):
     ):
         if not await self._require_integration(ctx, "index_cog"):
             return
-        await ctx.defer()
         await self.index_cog.load_index_command(
             ctx, user_index, server_index, search_index
         )
@@ -784,7 +783,6 @@ class Commands(discord.Cog, name="Commands"):
     ):
         if not await self._require_integration(ctx, "index_cog"):
             return
-        await ctx.defer()
         await self.index_cog.index_chat_command(ctx, model, temperature, top_p)
 
     @add_to_group("index")
@@ -970,7 +968,6 @@ class Commands(discord.Cog, name="Commands"):
     ):
         if not await self._require_integration(ctx, "index_cog"):
             return
-        await ctx.defer()
         await self.index_cog.query_command(
             ctx,
             query,
