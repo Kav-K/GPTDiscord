@@ -1263,7 +1263,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if guild_id is not None and self.bot.get_guild(guild_id) is None:
             install_url = discord.utils.oauth_url(
                 self.bot.user.id,
-                permissions=discord.Permissions(8),
+                permissions=discord.Permissions(
+                    view_channel=True,
+                    send_messages=True,
+                    send_messages_in_threads=True,
+                    read_message_history=True,
+                    create_public_threads=True,
+                    create_private_threads=True,
+                    embed_links=True,
+                    attach_files=True,
+                    manage_threads=True,
+                ),
                 guild=discord.Object(id=guild_id),
                 scopes=("bot", "applications.commands"),
                 disable_guild_select=True,

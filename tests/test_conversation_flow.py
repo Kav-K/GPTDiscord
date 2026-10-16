@@ -720,6 +720,20 @@ async def test_conversation_start_without_gateway_guild_stops_before_work_and_ex
     assert query["guild_id"] == [str(GUILD)]
     assert set(query["scope"][0].split()) == {"bot", "applications.commands"}
     assert query["disable_guild_select"] == ["true"]
+    permissions = discord.Permissions(int(query["permissions"][0]))
+    assert permissions.administrator is False
+    for name in (
+        "view_channel",
+        "send_messages",
+        "send_messages_in_threads",
+        "read_message_history",
+        "create_public_threads",
+        "create_private_threads",
+        "embed_links",
+        "attach_files",
+        "manage_threads",
+    ):
+        assert getattr(permissions, name), f"The installation must permit {name}"
     flow.ctx.defer.assert_not_awaited()
     key_lookup.assert_not_awaited()
     file_lookup.assert_not_awaited()
