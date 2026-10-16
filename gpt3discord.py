@@ -59,7 +59,13 @@ async def main():
     activity = discord.Activity(
         type=discord.ActivityType.watching, name="for /help, /gpt, and /web"
     )
-    bot = Bot(intents=discord.Intents.all(), command_prefix="!", activity=activity)
+    bot = Bot(
+        intents=discord.Intents.all(),
+        command_prefix="!",
+        activity=activity,
+        proxy=EnvService.get_discord_proxy(),
+        auto_sync_commands=False,
+    )
     usage_service = UsageService(data_path)
     model = Model(usage_service)
     message_queue, deletion_queue, pickle_queue = (

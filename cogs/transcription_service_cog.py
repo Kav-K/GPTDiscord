@@ -38,9 +38,6 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
     async def transcribe_link_command(
         self, ctx: discord.ApplicationContext, link: str, temperature: float
     ):
-        # Check if this discord file is an instance of mp3, mp4, mpeg, mpga, m4a, wav, or webm.
-        await ctx.defer()
-
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -48,6 +45,8 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
 
         if await UrlCheck.check_youtube_link(link):
             # We need to download the youtube video and save it to a temporary file
@@ -148,9 +147,6 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
         file: discord.Attachment,
         temperature: float,
     ):
-        # Check if this discord file is an instance of mp3, mp4, mpeg, mpga, m4a, wav, or webm.
-        await ctx.defer()
-
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -158,6 +154,8 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             )
             if not user_api_key:
                 return
+
+        await ctx.defer()
 
         if not file.filename.endswith(
             (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")

@@ -14,6 +14,7 @@ import discord
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from services.environment_service import EnvService
+from services.discord_attachment_service import read_attachment_bytes
 from PIL import Image
 from sqlitedict import SqliteDict
 
@@ -761,12 +762,15 @@ class Model:
         giveup=lambda error: isinstance(error, OpenAIAPIError) and not error.retryable,
     )
     async def _post_json(self, endpoint, payload, custom_api_key=None):
+        url = f"{self.openai_base_url}/{endpoint.lstrip('/')}"
         async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            raise_for_status=False,
+            timeout=aiohttp.ClientTimeout(total=300),
         ) as session:
             async with session.post(
-                f"{self.openai_base_url}/{endpoint.lstrip('/')}",
+                url,
                 json=payload,
+                proxy=EnvService.get_http_proxy(url),
                 headers=self._request_headers(custom_api_key),
             ) as response:
                 try:
@@ -1064,7 +1068,7 @@ class Model:
             "model", os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-mini-transcribe")
         )
         if isinstance(file, discord.Attachment):
-            content = await file.read()
+            content = await read_attachment_bytes(file)
             content_type = file.content_type or "application/octet-stream"
         else:
             content = await asyncio.to_thread(file.fp.read)
@@ -1077,11 +1081,14 @@ class Model:
         )
         if temperature_override is not None:
             data.add_field("temperature", str(temperature_override))
+        url = f"{self.openai_base_url}/audio/transcriptions"
         async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=300)
+            raise_for_status=False,
+            timeout=aiohttp.ClientTimeout(total=300),
         ) as session:
             async with session.post(
-                f"{self.openai_base_url}/audio/transcriptions",
+                url,
+                proxy=EnvService.get_http_proxy(url),
                 headers=self._request_headers(custom_api_key),
                 data=data,
             ) as resp:
@@ -1134,11 +1141,14 @@ class Model:
     async def send_test_request(api_key):
         # Called only after the user explicitly submits a key for validation.
         selected_model = EnvService.get_openai_model() or Models.LOW_USAGE_MODEL
+        url = f"{EnvService.get_openai_base_url().rstrip('/')}/chat/completions"
         async with aiohttp.ClientSession(
-            raise_for_status=False, timeout=aiohttp.ClientTimeout(total=60)
+            raise_for_status=False,
+            timeout=aiohttp.ClientTimeout(total=60),
         ) as session:
             async with session.post(
-                f"{EnvService.get_openai_base_url().rstrip('/')}/chat/completions",
+                url,
+                proxy=EnvService.get_http_proxy(url),
                 json={
                     "model": selected_model,
                     "messages": [{"role": "user", "content": "Reply OK."}],

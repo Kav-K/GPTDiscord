@@ -19,6 +19,7 @@ from models.openai_model import Model, Override, Models, OpenAIAPIError
 from models.user_model import EmbeddedConversationItem, RedoUser
 from services.environment_service import EnvService
 from services.moderations_service import Moderation
+from services.discord_attachment_service import save_attachment
 from utils.image_attachments import image_references_to_discord_payload
 from utils.api_errors import openai_error_message
 
@@ -798,7 +799,7 @@ class TextService:
                             async with aiofiles.tempfile.NamedTemporaryFile(
                                 delete=False
                             ) as temp_file:
-                                await file.save(temp_file.name)
+                                await save_attachment(file, temp_file.name)
                                 try:
                                     (
                                         image_caption,
@@ -1044,19 +1045,26 @@ class TextService:
 
     @staticmethod
     async def get_user_api_key(user_id, ctx, USER_KEY_DB):
-        user_api_key = None if user_id not in USER_KEY_DB else USER_KEY_DB[user_id]
-        if user_api_key is None or user_api_key == "":
-            modal = SetupModal(user_key_db=USER_KEY_DB)
-            if isinstance(ctx, discord.ApplicationContext):
-                await ctx.send_modal(modal)
-                await ctx.send_followup(
-                    "You must set up your API key before using this command."
-                )
+        user_api_key = USER_KEY_DB.get(user_id)
+        if user_api_key:
+            return user_api_key
+
+        guidance = (
+            "Run `/setup` to save your OpenAI API key, then try this command again."
+        )
+        if isinstance(ctx, discord.ApplicationContext):
+            # Discord permits a modal only as the initial interaction response.
+            # A caller that already deferred must direct the user to a fresh
+            # /setup interaction instead of attempting another initial response.
+            if ctx.response.is_done():
+                await ctx.send_followup(guidance, ephemeral=True)
             else:
-                await ctx.reply(
-                    "You must set up your API key before typing in a GPT powered channel, type `/setup` to enter your API key."
-                )
-        return user_api_key
+                await ctx.send_modal(SetupModal(user_key_db=USER_KEY_DB))
+        else:
+            await ctx.reply(
+                "Run `/setup` to save your OpenAI API key before typing in a GPT powered channel."
+            )
+        return None
 
     @staticmethod
     async def process_conversation_edit(converser_cog, after, original_message):
@@ -1296,7 +1304,9 @@ class SetupModal(discord.ui.Modal):
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
+        # Slash-opened modals have no source message to update. Request a
+        # private thinking response instead of modal_submit's default type 6.
+        await interaction.response.defer(ephemeral=True, invisible=False)
         try:
             await Model.send_test_request(api_key)
         except Exception:

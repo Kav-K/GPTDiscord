@@ -96,6 +96,44 @@ async def test_search_uses_native_responses_with_bounded_live_search():
     assert result.usage["input_tokens"] == 100
     assert result.usage["input_tokens_details"]["cached_tokens"] == 20
     assert result.search_calls == 1
+    assert result.web_tool_calls == 2
+    assert result.unknown_search_actions == 0
+
+
+def test_web_invocations_are_separate_from_billable_search_actions():
+    response = api_response()
+    response["output"].insert(
+        0, {"type": "web_search_call", "action": {"type": "find_in_page"}}
+    )
+    response["output"].insert(
+        0, {"type": "web_search_call", "action": {"type": "future_action"}}
+    )
+    result = parse_search_response(response)
+    assert result.web_tool_calls == 4
+    assert result.search_calls == 1
+    assert result.unknown_search_actions == 0
+    assert result.citations
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        {"type": "web_search_call"},
+        {"type": "web_search_call", "action": None},
+        {"type": "web_search_call", "action": {}},
+        {"type": "web_search_call", "action": {"type": None}},
+        SimpleNamespace(type="web_search_call"),
+        SimpleNamespace(type="web_search_call", action=SimpleNamespace()),
+    ],
+)
+def test_omitted_web_action_metadata_does_not_guess_billing(item):
+    response = api_response()
+    response["output"] = [item, response["output"][-1]]
+    result = parse_search_response(response)
+    assert result.web_tool_calls == 1
+    assert result.unknown_search_actions == 1
+    assert result.search_calls == 0
+    assert result.citations
 
 
 @pytest.mark.asyncio

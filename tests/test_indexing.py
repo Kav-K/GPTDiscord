@@ -269,8 +269,9 @@ async def test_index_chat_requires_and_forwards_personal_key(integrations, monke
     monkeypatch.setattr(module.TextService, "get_user_api_key", key_lookup)
     cog = module.IndexService(SimpleNamespace(), None, None)
     cog.index_handler.start_index_chat = AsyncMock()
-    ctx = SimpleNamespace(user=SimpleNamespace(id=42))
+    ctx = SimpleNamespace(user=SimpleNamespace(id=42), defer=AsyncMock())
     await cog.index_chat_command(ctx, "gpt-6-luna", 0, 1)
+    ctx.defer.assert_awaited_once()
     cog.index_handler.start_index_chat.assert_awaited_once_with(
         ctx,
         "gpt-6-luna",

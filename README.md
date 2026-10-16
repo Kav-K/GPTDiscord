@@ -45,6 +45,8 @@ The same code installs as the `gpt3discord` console command. Prompt files and co
 
 Enable the **Server Members** and **Message Content** privileged gateway intents for the Discord application; invite the bot with the `bot` and `applications.commands` OAuth scopes and permissions to read/send messages, attach files, embed links, and create/use threads. Review the role controls in `sample.env` before inviting it to a public server. Debug guild/channel IDs are optional.
 
+Startup synchronizes commands only in `ALLOWED_GUILDS`, preserving global registrations and commands in other servers.
+
 Keep credentials in an untracked `.env` or your hosting platform's secret store. GitHub credentials are unnecessary to run the basic bot or its tests. No passwords are required.
 
 ### Model and project settings
@@ -118,11 +120,13 @@ python -m build
 python -m twine check dist/*
 ```
 
-Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; restricted networks should allow its vocabulary host or provide a populated `TIKTOKEN_CACHE_DIR`. Paid integration tests only run when explicitly enabled:
+Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; a populated `TIKTOKEN_CACHE_DIR` avoids that download. If network or cache access fails, local token estimates use conservative UTF-8 byte counts until restart, with one warning and no further download attempts. API-reported usage still determines usage accounting. Paid integration tests only run when explicitly enabled:
 
 ```bash
 RUN_LIVE_OPENAI_TESTS=1 python -m pytest -m integration
 ```
+
+For broader live checks with `OPENAI_API_KEY` already in the environment, run `python -m tests.live_openai_smoke --run-live` from a fresh process. This makes at most one request per feature, caps text output at 512 tokens, and generates one low-quality image. Use `--features chat,web` to select checks; image/audio/tool charges still apply. The JSON report contains response shapes and usage counters, without credentials or generated content.
 
 CI checks Python 3.11–3.13, Windows/macOS smoke tests, optional integration installs/imports, and wheel contents outside the checkout. Publishing and deployment credentials are not needed for pull requests.
 

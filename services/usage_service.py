@@ -1,11 +1,33 @@
 import asyncio
 import logging
+import threading
 from collections import defaultdict
 from pathlib import Path
 
 import aiofiles
 from typing import Literal
 import tiktoken
+from requests import RequestException
+
+_tokenizer_unavailable = False
+_tokenizer_lock = threading.Lock()
+
+
+def _load_tokenizer():
+    global _tokenizer_unavailable
+    with _tokenizer_lock:
+        if _tokenizer_unavailable:
+            return None
+        try:
+            # Successful encodings are already cached by tiktoken itself.
+            return tiktoken.get_encoding("cl100k_base")
+        except (RequestException, OSError):
+            _tokenizer_unavailable = True
+            logging.getLogger(__name__).warning(
+                "Tokenizer vocabulary unavailable; using conservative UTF-8 byte counts "
+                "for local token estimates until the bot restarts. API usage accounting is unchanged."
+            )
+            return None
 
 
 class UsageService:
@@ -26,7 +48,7 @@ class UsageService:
         # tiktoken downloads its vocabulary on first use; importing the bot and
         # assembling its cogs must not require network access.
         if self._tokenizer is None:
-            self._tokenizer = tiktoken.get_encoding("cl100k_base")
+            self._tokenizer = _load_tokenizer()
         return self._tokenizer
 
     COST_MAPPING = {
@@ -186,7 +208,11 @@ class UsageService:
         return usage
 
     def count_tokens(self, text):
-        res = self.tokenizer.encode(text)
+        tokenizer = self.tokenizer
+        if tokenizer is None:
+            # Byte-level BPE tokens cannot outnumber the original UTF-8 bytes.
+            return len(text.encode("utf-8"))
+        res = tokenizer.encode(text)
         return len(res)
 
     async def update_usage_image(self, image_size):
@@ -223,6 +249,8 @@ class UsageService:
 
     @staticmethod
     def count_tokens_static(text):
-        tokenizer = tiktoken.get_encoding("cl100k_base")
+        tokenizer = _load_tokenizer()
+        if tokenizer is None:
+            return len(text.encode("utf-8"))
         res = tokenizer.encode(text)
         return len(res)

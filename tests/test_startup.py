@@ -90,6 +90,7 @@ def forbid_network(*args, **kwargs):
 socket.create_connection = forbid_network
 async def fake_start(self, token, *args, **kwargs):
     assert token == "test-discord-token"
+    assert self.auto_sync_commands is False
     assert self.get_cog("GPT3ComCon") is not None
     assert self.get_cog("WebSearchCog") is not None
     assert self.get_cog("IndexService") is None

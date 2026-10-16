@@ -277,7 +277,6 @@ class SearchService(discord.Cog, name="SearchService"):
         temperature=0,
         top_p=1,
     ):
-        await ctx.defer()
         user_api_key = None
         if USER_INPUT_API_KEYS:
             from services.text_service import TextService
@@ -286,6 +285,7 @@ class SearchService(discord.Cog, name="SearchService"):
             if not user_api_key:
                 return
 
+        await ctx.defer()
         embed_title = f"{ctx.user.name}'s internet-connected conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
@@ -371,15 +371,6 @@ class SearchService(discord.Cog, name="SearchService"):
         followup_user=None,
     ):
         """Command handler for the search command"""
-        await ctx.defer() if not redo else None
-
-        # Check the opener for bad content.
-        if PRE_MODERATE:
-            from services.moderations_service import Moderation
-
-            if await Moderation.simple_moderate_and_respond(query, ctx):
-                return
-
         user_api_key = None
         if USER_INPUT_API_KEYS:
             from services.text_service import TextService
@@ -388,6 +379,16 @@ class SearchService(discord.Cog, name="SearchService"):
                 ctx.user.id, ctx, USER_KEY_DB
             )
             if not user_api_key:
+                return
+
+        if not redo:
+            await ctx.defer()
+
+        # Check the opener for bad content.
+        if PRE_MODERATE:
+            from services.moderations_service import Moderation
+
+            if await Moderation.simple_moderate_and_respond(query, ctx):
                 return
 
         if (

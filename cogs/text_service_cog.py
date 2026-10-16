@@ -18,6 +18,7 @@ from models.embed_statics_model import EmbedStatics
 from models.image_understanding_model import ImageUnderstandingModel
 from models.openai_model import Models, Override
 from services.environment_service import EnvService
+from services.discord_attachment_service import read_attachment_bytes
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
 from models.user_model import Thread, EmbeddedConversationItem, Instruction
@@ -320,21 +321,27 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         print("Syncing commands...")
 
-        try:
-            await self.bot.sync_commands(
-                commands=None,
-                method="individual",
-                force=True,
-                guild_ids=ALLOWED_GUILDS,
-                register_guild_commands=True,
-                check_guilds=[],
-                delete_existing=True,
-            )
-        except:
-            traceback.print_exc()
-            print(
-                "There was a failure during command syncing. This might mean that the bot may not be in a guild that it expects to be in anymore, or it is in guilds without the guild ID being added to ALLOWED_GUILDS."
-            )
+        commands = list(self.bot.pending_application_commands)
+        guild_ids = list(dict.fromkeys(ALLOWED_GUILDS))
+        # Multicog groups can start without guild_ids. Normalize the original
+        # commands too: Pycord's diff reads those objects rather than the copies
+        # made by register_commands. Never invoke its global-first sync helper.
+        for command in commands:
+            command.guild_ids = guild_ids.copy()
+        for guild_id in guild_ids if commands else []:
+            try:
+                await self.bot.register_commands(
+                    commands=commands,
+                    guild_id=guild_id,
+                    method="bulk",
+                    force=False,
+                    delete_existing=True,
+                )
+            except Exception:
+                traceback.print_exc()
+                print(
+                    f"Command registration failed for configured guild {guild_id}. Check that the bot belongs to this guild and has permission to register commands."
+                )
         print("Commands synced")
 
         # Start an inline async loop that runs every 10 seconds to save the conversation history to a pickle file
@@ -751,7 +758,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     attachments.append(_file)
                 elif content_type.startswith("text/"):
                     # Decoding a text file to use in the prompt
-                    text = (await _file.read()).decode("utf-8")
+                    text = (await read_attachment_bytes(_file)).decode("utf-8")
                     amended_message += text
 
         # Process the message if the user is in a conversation
@@ -996,7 +1003,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 type = "user"
 
         if instruction_file:
-            bytestring = await instruction_file.read()
+            bytestring = await read_attachment_bytes(instruction_file)
             file_instruction = bytestring.decode("utf-8")
         if instruction and instruction_file:
             instruction = f"{file_instruction}\n\n{instruction}"
@@ -1044,6 +1051,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         from_message_context=None,
         prompt_file: discord.Attachment = None,
         model=None,
+        prompt_token_limit=None,
+        prompt_limit_message=None,
     ):
         """Command handler. Requests and returns a generation with no extras to the completion endpoint
 
@@ -1066,8 +1075,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        if is_context:
+            await ctx.defer(ephemeral=private)
+
         if prompt_file:
-            bytestring = await prompt_file.read()
+            bytestring = await read_attachment_bytes(prompt_file)
             file_prompt = bytestring.decode("utf-8")
         if prompt and prompt_file:
             prompt = f"{file_prompt}\n\n{prompt}"
@@ -1083,13 +1101,17 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
-        user_api_key = None
-        if USER_INPUT_API_KEYS:
-            user_api_key = await TextService.get_user_api_key(user.id, ctx, USER_KEY_DB)
-            if not user_api_key:
+        if prompt_token_limit is not None:
+            tokens = self.model.usage_service.count_tokens(prompt)
+            if tokens > prompt_token_limit:
+                await ctx.respond(
+                    prompt_limit_message.format(
+                        tokens=tokens, limit=prompt_token_limit
+                    ),
+                    ephemeral=True,
+                    delete_after=10,
+                )
                 return
-
-        await ctx.defer(ephemeral=private) if is_context else None
 
         # If premoderation is enabled, check
         if PRE_MODERATE:
@@ -1132,6 +1154,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         """
         user = ctx.user
 
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(user.id, ctx, USER_KEY_DB)
+            if not user_api_key:
+                return
+
+        await ctx.defer(ephemeral=private)
+
         text = await self.mention_to_username(ctx, text.strip())
         instruction = await self.mention_to_username(ctx, instruction.strip())
 
@@ -1141,14 +1171,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 f"Instruction must be at least {self.model.prompt_min_length} characters long"
             )
             return
-
-        user_api_key = None
-        if USER_INPUT_API_KEYS:
-            user_api_key = await TextService.get_user_api_key(user.id, ctx, USER_KEY_DB)
-            if not user_api_key:
-                return
-
-        await ctx.defer(ephemeral=private)
 
         if PRE_MODERATE:
             if await Moderation.simple_moderate_and_respond(instruction + text, ctx):
@@ -1495,7 +1517,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     async def ask_gpt_action(self, ctx, message: discord.Message):
         """Message command. Return the message"""
-        prompt = await self.mention_to_username(ctx, message.content)
+        prompt = message.content
         await self.ask_command(
             ctx,
             prompt=prompt,
@@ -1504,56 +1526,39 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     async def paraphrase_action(self, ctx, message: discord.Message):
         """Message command. paraphrase the current message content"""
-        user = ctx.user
-        prompt = await self.mention_to_username(ctx, message.content)
+        prompt = message.content
         from_other_action = prompt + "\nParaphrased:"
 
         # Construct the paraphrase prompt
         prompt = f"Paraphrase the following text. Maintain roughly the same text length after paraphrasing and the same tone of voice: {prompt} \nParaphrased:"
 
-        tokens = self.model.usage_service.count_tokens(prompt)
-        if tokens > self.model.max_tokens - 1000:
-            await ctx.respond(
-                f"This message is too long to paraphrase.",
-                ephemeral=True,
-                delete_after=10,
-            )
-            return
-
         await self.ask_command(
             ctx,
             prompt=prompt,
             from_other_action=from_other_action,
+            prompt_token_limit=self.model.max_tokens - 1000,
+            prompt_limit_message="This message is too long to paraphrase.",
         )
 
     async def elaborate_action(self, ctx, message: discord.Message):
         """Message command. elaborate on the subject of the current message content"""
-        user = ctx.user
-        prompt = await self.mention_to_username(ctx, message.content)
+        prompt = message.content
         from_other_action = prompt + "\nElaboration:"
 
         # Construct the paraphrase prompt
         prompt = f"Elaborate with more information about the subject of the following message. Be objective and detailed and respond with elaborations only about the subject(s) of the message: {prompt} \n\nElaboration:"
 
-        tokens = self.model.usage_service.count_tokens(prompt)
-        if tokens > self.model.max_tokens - 500:
-            await ctx.respond(
-                f"This message is too long to elaborate on.",
-                ephemeral=True,
-                delete_after=10,
-            )
-            return
-
         await self.ask_command(
             ctx,
             prompt=prompt,
             from_other_action=from_other_action,
+            prompt_token_limit=self.model.max_tokens - 500,
+            prompt_limit_message="This message is too long to elaborate on.",
         )
 
     async def summarize_action(self, ctx, message: discord.Message):
         """Message command. elaborate on the subject of the current message content"""
-        user = ctx.user
-        prompt = await self.mention_to_username(ctx, message.content)
+        prompt = message.content
         from_other_action = (
             "Message at message link: " + message.jump_url + "\nSummarized:"
         )
@@ -1561,19 +1566,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         # Construct the paraphrase prompt
         prompt = f"Summarize the following message, be as short and concise as possible: {prompt} \n\nSummary:"
 
-        tokens = self.model.usage_service.count_tokens(prompt)
-        if tokens > self.model.max_tokens - 300:
-            await ctx.respond(
-                f"Your prompt is too long. It has {tokens} tokens, but the maximum is {self.model.max_tokens-300}.",
-                ephemeral=True,
-                delete_after=10,
-            )
-            return
-
         await self.ask_command(
             ctx,
             prompt=prompt,
             from_other_action=from_other_action,
+            prompt_token_limit=self.model.max_tokens - 300,
+            prompt_limit_message="Your prompt is too long. It has {tokens} tokens, but the maximum is {limit}.",
         )
 
 
