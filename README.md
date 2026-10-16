@@ -49,6 +49,12 @@ Startup synchronizes commands only in `ALLOWED_GUILDS`, preserving global regist
 
 Keep credentials in an untracked `.env` or your hosting platform's secret store. GitHub credentials are unnecessary to run the basic bot or its tests. No passwords are required.
 
+### Role restrictions
+
+Set `BOT_ACCESS_ROLE_IDS` to a comma-separated list of Discord role IDs to restrict bot access. The restriction applies to commands, buttons, modal submissions, autocomplete, and messages processed by the bot. Members must hold one of those exact roles; administrator status and matching role names do not bypass it. Direct messages are denied while this restriction is enabled. Leave the setting unset to retain the existing per-feature role controls.
+
+Per-feature settings such as `GPT_ROLES`, `ADMIN_ROLES`, and `SEARCH_ROLES` accept role IDs or case-insensitive names. Their checks still apply alongside the access restriction. To allow a restricted role to use every feature, put its ID in each applicable role setting as well. Role IDs continue to work when Discord's role-name cache is unavailable and remain valid after a role is renamed. Restart the bot after changing these settings.
+
 ### Model and project settings
 
 ```dotenv

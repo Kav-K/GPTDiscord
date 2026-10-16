@@ -18,6 +18,7 @@ from models.search_model import Search
 from services.agent_service import agent_output_text, create_chat_agent, create_chat_llm
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
+from services.access_service import message_has_access
 from services.indexing_service import create_index_context, read_web_documents
 from models.openai_model import Models
 from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
@@ -151,6 +152,8 @@ class SearchService(discord.Cog, name="SearchService"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
+        if not await message_has_access(message):
+            return
         # Check if the message is from a bot.
         if message.author.id == self.bot.user.id:
             return

@@ -10,6 +10,7 @@ from pathlib import Path
 from platform import system
 
 from services.environment_service import EnvService
+from services.access_service import get_access_role_ids, install_access_gate
 
 __version__ = "13.0.0"
 
@@ -36,6 +37,7 @@ async def main():
     if not EnvService.get_openai_token() and not EnvService.get_user_input_api_keys():
         raise ValueError("Set OPENAI_API_KEY (or the legacy OPENAI_TOKEN).")
     EnvService.get_allowed_guilds()
+    get_access_role_ids()  # Validate restrictions before opening state or connecting.
     data_path = EnvService.environment_path_with_fallback("DATA_DIR")
     data_path.mkdir(parents=True, exist_ok=True)
     (EnvService.save_path() / "pickles").mkdir(parents=True, exist_ok=True)
@@ -66,6 +68,7 @@ async def main():
         proxy=EnvService.get_discord_proxy(),
         auto_sync_commands=False,
     )
+    install_access_gate(bot)
     usage_service = UsageService(data_path)
     model = Model(usage_service)
     message_queue, deletion_queue, pickle_queue = (

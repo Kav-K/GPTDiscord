@@ -18,6 +18,7 @@ from models.embed_statics_model import EmbedStatics
 from models.image_understanding_model import ImageUnderstandingModel
 from models.openai_model import Models, Override
 from services.environment_service import EnvService
+from services.access_service import has_any_role, member_has_access, message_has_access
 from services.discord_attachment_service import read_attachment_bytes
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
@@ -235,6 +236,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.Cog.listener()
     async def on_member_join(self, member):
         """When members join send welcome message if enabled"""
+        if not member_has_access(member):
+            return
         if self.model.welcome_message_enabled:
             query = f"Please generate a welcome message for {member.name} who has just joined the server."
 
@@ -684,6 +687,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.Cog.listener()
     async def on_message_edit(self, before, after):
         """When a message is edited run moderation if enabled, and process if it a prompt that should be redone"""
+        if not await message_has_access(after):
+            return
 
         if after.author.id == self.bot.user.id:
             return
@@ -707,6 +712,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     @discord.Cog.listener()
     async def on_message(self, message: discord.Message):
         """On a new message check if it should be moderated then process it for conversation"""
+        if not await message_has_access(message):
+            return
         if message.author == self.bot.user:
             return
 
@@ -728,8 +735,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not hasattr(message.author, "roles"):
                 pass
             # Verify that the user is not in a role that can bypass moderation
-            elif CHAT_BYPASS_ROLES == [None] or not any(
-                role.name.lower() in CHAT_BYPASS_ROLES for role in message.author.roles
+            elif CHAT_BYPASS_ROLES == [None] or not has_any_role(
+                message, CHAT_BYPASS_ROLES
             ):
                 # Create a timestamp that is 0.5 seconds from now
                 timestamp = (
@@ -787,8 +794,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 return
 
             # Check if any of the message author's role names are in BOT_TAGGABLE_ROLES, if not, return
-            if BOT_TAGGABLE_ROLES != [None] and not any(
-                role.name.lower() in BOT_TAGGABLE_ROLES for role in message.author.roles
+            if BOT_TAGGABLE_ROLES != [None] and not has_any_role(
+                message, BOT_TAGGABLE_ROLES
             ):
                 return
 
@@ -993,9 +1000,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Check if any of the message author's role names are in CHANNEL_INSTRUCTION_ROLES, if not, continue as user
         if type == "channel" and mode in ["set", "clear"]:
-            if CHANNEL_INSTRUCTION_ROLES != [None] and not any(
-                role.name.lower() in CHANNEL_INSTRUCTION_ROLES
-                for role in ctx.author.roles
+            if CHANNEL_INSTRUCTION_ROLES != [None] and not has_any_role(
+                ctx, CHANNEL_INSTRUCTION_ROLES
             ):
                 await ctx.respond(
                     "You don't have permisson to set the channel instruction. Defaulting to setting a user instruction"
@@ -1293,9 +1299,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             # Check if the user is permitted to start a conversation in full channels
             # check if any of the user role names match CHANNEL_CHAT_ROLES
             if CHANNEL_CHAT_ROLES and CHANNEL_CHAT_ROLES != [None]:
-                if not any(
-                    role.name.lower() in CHANNEL_CHAT_ROLES for role in ctx.user.roles
-                ):
+                if not has_any_role(ctx, CHANNEL_CHAT_ROLES):
                     await ctx.respond(
                         "You are not permitted to start a conversation in this channel."
                     )

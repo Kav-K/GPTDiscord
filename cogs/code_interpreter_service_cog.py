@@ -18,6 +18,7 @@ from models.embed_statics_model import EmbedStatics
 from services.agent_service import agent_output_text, create_chat_agent, create_chat_llm
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
+from services.access_service import message_has_access
 from services.discord_attachment_service import read_attachment_bytes
 from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
 
@@ -55,6 +56,8 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
 
     @discord.Cog.listener()
     async def on_message(self, message):
+        if not await message_has_access(message):
+            return
         # Check if the message is from a bot.
         if message.author == self.bot.user:
             return
