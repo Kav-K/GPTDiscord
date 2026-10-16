@@ -31,10 +31,11 @@ def test_openai_configuration(monkeypatch):
 
 
 def test_discord_proxy_respects_configured_egress_and_no_proxy(monkeypatch):
-    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:8080")
     monkeypatch.delenv("https_proxy", raising=False)
-    monkeypatch.setenv("NO_PROXY", "")
     monkeypatch.delenv("no_proxy", raising=False)
+    # Windows environment names are case-insensitive: clear aliases first.
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:8080")
+    monkeypatch.setenv("NO_PROXY", "")
     assert EnvService.get_discord_proxy() == "http://proxy.example:8080"
     monkeypatch.setenv("NO_PROXY", "discord.com")
     assert EnvService.get_discord_proxy() is None
