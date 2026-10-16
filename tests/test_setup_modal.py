@@ -44,7 +44,7 @@ async def test_current_keys_are_validated_then_saved_per_user(setup_modal, key):
 
     await modal_type.callback(modal, interaction)
 
-    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True, invisible=False)
     validate.assert_awaited_once_with(key)
     assert modal.USER_KEY_DB == {42: key}
     modal.USER_KEY_DB.commit.assert_called_once()

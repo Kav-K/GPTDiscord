@@ -1304,7 +1304,9 @@ class SetupModal(discord.ui.Modal):
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
+        # Slash-opened modals have no source message to update. Request a
+        # private thinking response instead of modal_submit's default type 6.
+        await interaction.response.defer(ephemeral=True, invisible=False)
         try:
             await Model.send_test_request(api_key)
         except Exception:

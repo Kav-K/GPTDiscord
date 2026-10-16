@@ -173,3 +173,106 @@ async def test_transcription_saved_key_defers_once_and_uses_only_personal_key(
         attachment, 0, "personal-key"
     )
     result_message.edit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "validation_fails", [False, True], ids=["valid-key", "rejected-key"]
+)
+async def test_slash_origin_setup_modal_defers_with_private_message_payload(
+    text_service, monkeypatch, validation_fails
+):
+    """Exercise Pycord's actual modal-submit response serialization offline."""
+    from unittest.mock import Mock
+    from discord.webhook.async_ import async_context
+
+    state = SimpleNamespace(
+        http=SimpleNamespace(
+            _HTTPClient__session=object(),
+            proxy=None,
+            proxy_auth=None,
+            token="offline-bot-token",
+        ),
+        _get_guild=lambda guild_id: None,
+    )
+    interaction = discord.Interaction(
+        state=state,
+        data={
+            "id": "123456789012345678",
+            "type": discord.InteractionType.modal_submit.value,
+            "token": "offline-interaction-token",
+            "version": 1,
+            "application_id": "987654321098765432",
+            "user": {
+                "id": "42",
+                "username": "OfflineTester",
+                "discriminator": "0000",
+                "avatar": None,
+            },
+            "data": {"custom_id": "setup", "components": []},
+        },
+    )
+    assert interaction.message is None  # Opened by a slash command, not a component.
+    adapter = SimpleNamespace(
+        create_interaction_response=AsyncMock(return_value={"interaction": {}})
+    )
+    key = "offline-candidate-key"
+    existing_key = "offline-existing-key"
+
+    class KeyDatabase(dict):
+        commit = Mock()
+
+    database = KeyDatabase({42: existing_key, 43: "another-user-key"})
+    modal = SimpleNamespace(children=[SimpleNamespace(value=key)], USER_KEY_DB=database)
+
+    observed_at_validation = {}
+
+    async def validate(candidate):
+        # Record ordering here and assert afterward: callback intentionally catches
+        # provider exceptions, which would otherwise swallow test assertions too.
+        observed_at_validation.update(
+            response_done=interaction.response.is_done(),
+            response_count=adapter.create_interaction_response.await_count,
+            response_payload=(
+                adapter.create_interaction_response.await_args.kwargs
+                if adapter.create_interaction_response.await_args
+                else None
+            ),
+            saved_key=database[42],
+        )
+        if validation_fails:
+            raise ValueError(f"Rejected {candidate}; private-account-details")
+
+    validation = AsyncMock(side_effect=validate)
+    followup = AsyncMock()
+    monkeypatch.setattr(text_service.Model, "send_test_request", validation)
+    monkeypatch.setattr(discord.Webhook, "send", followup)
+    context_token = async_context.set(adapter)
+    try:
+        await text_service.SetupModal.callback(modal, interaction)
+    finally:
+        async_context.reset(context_token)
+
+    assert observed_at_validation["response_done"] is True
+    assert observed_at_validation["response_count"] == 1
+    payload = observed_at_validation["response_payload"]
+    assert (
+        payload["type"]
+        == discord.InteractionResponseType.deferred_channel_message.value
+    )
+    assert payload["data"] == {"flags": 64}
+    assert observed_at_validation["saved_key"] == existing_key
+    validation.assert_awaited_once_with(key)
+    followup.assert_awaited_once()
+    assert followup.await_args.kwargs["ephemeral"] is True
+    assert key not in followup.await_args.args[0]
+    assert "private-account-details" not in followup.await_args.args[0]
+    assert database[43] == "another-user-key"
+    if validation_fails:
+        assert "could not validate" in followup.await_args.args[0]
+        assert database[42] == existing_key
+        database.commit.assert_not_called()
+    else:
+        assert "successfully validated" in followup.await_args.args[0]
+        assert database[42] == key
+        database.commit.assert_called_once()
