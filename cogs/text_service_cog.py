@@ -309,6 +309,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             assert isinstance(self.full_conversation_history, dict)
             assert isinstance(self.conversation_threads, dict)
             assert isinstance(self.conversation_thread_owners, dict)
+            self.full_conversation_history = defaultdict(
+                list, self.full_conversation_history
+            )
+            self.conversation_thread_owners = defaultdict(
+                list, self.conversation_thread_owners
+            )
             for thread in self.conversation_threads.values():
                 if thread.model not in Models.TEXT_MODELS and (
                     thread.model != EnvService.get_openai_model()
@@ -694,7 +700,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
 
         # Moderation
-        if not isinstance(after.channel, discord.DMChannel):
+        if after.guild is not None:
             if (
                 after.guild.id in Moderation.moderation_queues
                 and Moderation.moderation_queues[after.guild.id] is not None
@@ -707,7 +713,13 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     Moderation(after, timestamp)
                 )  # TODO Don't proceed if message was deleted!
 
-        await TextService.process_conversation_edit(self, after, original_message)
+        await TextService.process_conversation_edit(
+            self,
+            after,
+            original_message,
+            USER_INPUT_API_KEYS=USER_INPUT_API_KEYS,
+            USER_KEY_DB=USER_KEY_DB,
+        )
 
     @discord.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -720,8 +732,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         if message.author.bot:
             return
 
-        # Check if the message is a discord system message
-        if message.type != discord.MessageType.default:
+        # Discord replies are ordinary conversation turns too.
+        if message.type not in (
+            discord.MessageType.default,
+            discord.MessageType.reply,
+        ):
             return
 
         # Moderations service is done here.
@@ -778,9 +793,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             amended_message=amended_message,
         )
         if conversation_processed:
-            print("Processed a conversation message in server", message.guild.name)
+            guild_name = (
+                getattr(message.guild, "name", None)
+                or (getattr(message, "_raw_data", None) or {}).get("guild_id")
+                or "Direct messages"
+            )
+            print("Processed a conversation message in server", guild_name)
             self.usage_service.update_usage_memory(
-                message.guild.name, "conversation_message", 1
+                guild_name, "conversation_message", 1
             )
             original_message[message.author.id] = message.id
 
@@ -1236,6 +1256,38 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             frequency_penalty (float): Sets the frequency penalty override
             presence_penalty (float): Sets the presence penalty override
         """
+
+        guild_id = getattr(ctx.guild, "id", None) or getattr(
+            getattr(ctx, "interaction", None), "guild_id", None
+        )
+        if guild_id is not None and self.bot.get_guild(guild_id) is None:
+            install_url = discord.utils.oauth_url(
+                self.bot.user.id,
+                permissions=discord.Permissions(
+                    view_channel=True,
+                    send_messages=True,
+                    send_messages_in_threads=True,
+                    read_message_history=True,
+                    create_public_threads=True,
+                    create_private_threads=True,
+                    embed_links=True,
+                    attach_files=True,
+                    manage_threads=True,
+                ),
+                guild=discord.Object(id=guild_id),
+                scopes=("bot", "applications.commands"),
+                disable_guild_select=True,
+            )
+            await ctx.respond(
+                "I'm not receiving messages from this server, so conversations "
+                "cannot receive replies. Ask a server administrator to "
+                f"[reinstall GPTDiscord as a server bot]({install_url}), "
+                "approving both bot and slash-command access for this server. "
+                "Then try `/gpt converse` again.",
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
 
         user = ctx.user
 

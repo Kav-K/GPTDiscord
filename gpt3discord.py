@@ -89,6 +89,14 @@ async def main():
     @bot.event
     async def on_ready():
         logger.info("Logged in as %s", bot.user)
+        for guild_id in EnvService.get_allowed_guilds():
+            if bot.get_guild(guild_id) is None:
+                logger.warning(
+                    "Configured guild %s is absent from Discord gateway state. "
+                    "Text conversations require installing this bot in that guild "
+                    "with the bot and applications.commands scopes.",
+                    guild_id,
+                )
 
     @bot.event
     async def on_application_command_error(ctx, error):
