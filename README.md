@@ -45,6 +45,8 @@ The same code installs as the `gpt3discord` console command. Prompt files and co
 
 Enable the **Server Members** and **Message Content** privileged gateway intents for the Discord application; invite the bot with the `bot` and `applications.commands` OAuth scopes and permissions to read/send messages, attach files, embed links, and create/use threads. Review the role controls in `sample.env` before inviting it to a public server. Debug guild/channel IDs are optional.
 
+Startup synchronizes commands only in `ALLOWED_GUILDS`, preserving global registrations and commands in other servers.
+
 Keep credentials in an untracked `.env` or your hosting platform's secret store. GitHub credentials are unnecessary to run the basic bot or its tests. No passwords are required.
 
 ### Model and project settings

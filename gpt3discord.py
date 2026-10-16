@@ -64,6 +64,7 @@ async def main():
         command_prefix="!",
         activity=activity,
         proxy=EnvService.get_discord_proxy(),
+        auto_sync_commands=False,
     )
     usage_service = UsageService(data_path)
     model = Model(usage_service)
