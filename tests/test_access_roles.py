@@ -321,3 +321,59 @@ asyncio.run(gpt3discord.main())
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "ACCESS_GATE_INSTALLED" in result.stdout
+
+
+@pytest.mark.asyncio
+async def test_global_everyone_role_authorizes_raw_messages_and_fresh_edit_membership(
+    monkeypatch,
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    item = message([])
+    assert await message_has_access(item)
+    item._state.http.get_member.assert_not_awaited()
+    edit = message(None, member_field=False)
+    edit._state.http.get_member.return_value = {"roles": []}
+    assert await message_has_access(edit)
+    edit._state.http.get_member.assert_awaited_once_with(GUILD, 42)
+    assert has_any_role(edit, [str(GUILD)])
+    assert edit._raw_data["member"]["roles"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("roles", [None, {}, "", [True], ["invalid"]])
+async def test_global_everyone_role_rejects_invalid_raw_and_rest_membership(
+    monkeypatch, roles
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    assert not await message_has_access(message(roles))
+    edit = message(None, member_field=False)
+    edit._state.http.get_member.return_value = {"roles": roles}
+    assert not await message_has_access(edit)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("guild_id", [None, "", "invalid", 0, -1, True])
+@pytest.mark.parametrize("member_field", [False, True])
+async def test_global_everyone_role_rejects_missing_or_invalid_message_guild(
+    monkeypatch, guild_id, member_field
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    item = message([], member_field=member_field)
+    item._raw_data["guild_id"] = guild_id
+    assert not await message_has_access(item)
+    item._state.http.get_member.assert_not_awaited()
+
+
+def test_global_everyone_role_authorizes_only_valid_join_membership(monkeypatch):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    member = SimpleNamespace(
+        guild=SimpleNamespace(id=GUILD), _roles=SnowflakeList([]), bot=False
+    )
+    assert member_has_access(member)
+    for roles in (None, "", {}, [True], ["invalid"]):
+        member._roles = roles
+        assert not member_has_access(member)
+    member._roles = SnowflakeList([])
+    for guild_id in (None, "", "invalid", 0, -1, True):
+        member.guild = SimpleNamespace(id=guild_id)
+        assert not member_has_access(member)

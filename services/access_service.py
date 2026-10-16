@@ -105,12 +105,21 @@ def has_any_role(subject, configured_roles):
     )
 
 
+def _has_required_role(guild_id, roles, required):
+    # @everyone's role ID is the guild ID, omitted from Discord member roles.
+    # Infer it only from a valid guild and an explicitly valid membership list.
+    guild_roles = _role_ids([guild_id])
+    if roles is None or guild_roles is None:
+        return False
+    return bool(required.intersection(roles | guild_roles))
+
+
 def _payload_has_access(payload, required):
     if not payload.get("guild_id"):
         return False
     member = payload.get("member")
     roles = _role_ids(member.get("roles")) if isinstance(member, dict) else None
-    return roles is not None and bool(required.intersection(roles))
+    return _has_required_role(payload.get("guild_id"), roles, required)
 
 
 async def message_has_access(message):
@@ -120,16 +129,14 @@ async def message_has_access(message):
         return True
     raw = getattr(message, "_raw_data", None)
     raw = raw if isinstance(raw, dict) else {}
-    guild_id = raw.get("guild_id") or getattr(
-        getattr(message, "guild", None), "id", None
-    )
+    guild_id = raw.get("guild_id", getattr(getattr(message, "guild", None), "id", None))
     author = getattr(message, "author", None)
-    if not guild_id or author is None or getattr(author, "bot", False):
+    if _role_ids([guild_id]) is None or author is None or getattr(author, "bot", False):
         return False
     member = raw.get("member")
     if isinstance(member, dict) and "roles" in member:
         roles = _role_ids(member["roles"])
-        return roles is not None and bool(required.intersection(roles))
+        return _has_required_role(guild_id, roles, required)
     # Partial edit events need a current membership lookup, never cached role names.
     try:
         member = await message._state.http.get_member(int(guild_id), int(author.id))
@@ -149,7 +156,7 @@ async def message_has_access(message):
             "roles": sorted(roles),
         },
     }
-    return bool(required.intersection(roles))
+    return _has_required_role(guild_id, roles, required)
 
 
 def member_has_access(member):
@@ -160,7 +167,7 @@ def member_has_access(member):
     if not getattr(member, "guild", None) or getattr(member, "bot", False):
         return False
     roles = _role_ids(getattr(member, "_roles", None))
-    return roles is not None and bool(required.intersection(roles))
+    return _has_required_role(getattr(member.guild, "id", None), roles, required)
 
 
 async def _deny_interaction(bot, data, required):

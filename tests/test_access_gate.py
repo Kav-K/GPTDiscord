@@ -269,3 +269,48 @@ async def test_installation_snapshots_config_and_preserves_message_member_parser
     gateway.original.assert_called_once_with(authorized)
     for name, parser in untouched.items():
         assert gateway.state.parsers[name] is parser
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", [2, 3, 4, 5])
+async def test_global_everyone_role_accepts_valid_empty_member_roles(
+    gateway, monkeypatch, kind
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    install_access_gate(gateway.bot)
+    payload = interaction_payload(kind, [])
+
+    gateway.state.parsers["INTERACTION_CREATE"](payload)
+    await asyncio.sleep(0)
+
+    gateway.original.assert_called_once_with(payload)
+    gateway.dispatch.assert_called_once()
+    gateway.adapter.create_interaction_response.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("guild_id", [None, "", "invalid", "0", "-1", True])
+async def test_global_everyone_role_requires_valid_guild_metadata(
+    gateway, monkeypatch, guild_id
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    install_access_gate(gateway.bot)
+    payload = interaction_payload(2, [])
+    payload["guild_id"] = guild_id
+    gateway.state.parsers["INTERACTION_CREATE"](payload)
+    await drain_denial(gateway)
+    assert_no_application_dispatch(gateway)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("roles", [None, "", {}, [True], ["invalid"]])
+async def test_global_everyone_role_does_not_infer_missing_or_invalid_membership(
+    gateway, monkeypatch, roles
+):
+    monkeypatch.setenv("BOT_ACCESS_ROLE_IDS", str(GUILD))
+    install_access_gate(gateway.bot)
+    payload = interaction_payload(2)
+    payload["member"]["roles"] = roles
+    gateway.state.parsers["INTERACTION_CREATE"](payload)
+    await drain_denial(gateway)
+    assert_no_application_dispatch(gateway)
