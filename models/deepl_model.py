@@ -1,8 +1,9 @@
 import os
-import traceback
 
 import aiohttp
 import backoff
+
+from services.environment_service import EnvService
 
 COUNTRY_CODES = {
     "EN": "English",
@@ -39,8 +40,7 @@ class TranslationModel:
 
     def backoff_handler(details):
         print(
-            f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries calling function {details['target']} | "
-            f"{details['exception'].status}: {details['exception'].message}"
+            f"DeepL retry {details['tries']} after HTTP {details['exception'].status}"
         )
 
     @backoff.on_exception(
@@ -50,35 +50,41 @@ class TranslationModel:
         base=5,
         max_tries=4,
         on_backoff=backoff_handler,
+        giveup=lambda error: error.status != 429 and error.status < 500,
     )
     async def send_translate_request(self, text, translate_language, formality):
-        async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with aiohttp.ClientSession(
+            raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60)
+        ) as session:
             payload = {
-                "text": text,
+                "text": [text],
                 "target_lang": translate_language,
                 "formality": "default" if formality is None else formality,
             }
-            # Instead of sending as json, we want to send as regular post params
             headers = {
                 "Authorization": f"DeepL-Auth-Key {self.deepl_token}",
             }
+            host = (
+                "api-free.deepl.com"
+                if (self.deepl_token or "").endswith(":fx")
+                else "api.deepl.com"
+            )
             async with session.post(
-                "https://api-free.deepl.com/v2/translate",
-                params=payload,
+                f"https://{host}/v2/translate",
+                json=payload,
                 headers=headers,
+                proxy=EnvService.get_http_proxy(f"https://{host}/v2/translate"),
             ) as resp:
                 response = await resp.json()
-                print(response)
-
                 try:
                     return (
                         response["translations"][0]["text"],
                         response["translations"][0]["detected_source_language"],
                     )
-                except Exception:
-                    print(response)
-                    traceback.print_exc()
-                    return response
+                except (KeyError, IndexError, TypeError) as error:
+                    raise ValueError(
+                        "DeepL returned an invalid translation response"
+                    ) from error
 
     @staticmethod
     def get_all_country_names(lower=False):

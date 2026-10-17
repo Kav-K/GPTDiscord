@@ -412,10 +412,9 @@ async def test_rest_provider_failure_is_one_attempt_without_changing_gateway_ret
     monkeypatch.setattr(module.aiohttp, "ClientSession", lambda **kwargs: Session())
     monkeypatch.setattr(module.EnvService, "get_http_proxy", lambda _: None)
     monkeypatch.setattr(backoff._async.asyncio, "sleep", AsyncMock())
-    model = SimpleNamespace(
-        openai_base_url="https://offline-provider.invalid/v1",
-        _request_headers=lambda _: {},
-    )
+    model = module.Model.__new__(module.Model)
+    model.openai_base_url = "https://offline-provider.invalid/v1"
+    model._request_headers = lambda _: {}
 
     async def generate(value, **kwargs):
         return await module.Model._post_json(

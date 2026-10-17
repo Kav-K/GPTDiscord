@@ -164,11 +164,32 @@ def test_persistence_tracks_vector_space_and_reads_legacy_archives(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "deep,multistep", [(False, False), (True, False), (False, True)]
+)
 async def test_search_builds_and_queries_real_mock_index_without_live_calls(
-    integrations, monkeypatch
+    integrations, monkeypatch, deep, multistep
 ):
     module = importlib.import_module("models.search_model")
     context = mock_context(integrations)
+    import llama_index.core.settings
+
+    class ForbiddenGlobalLLM(MockLLM):
+        def predict(self, *args, **kwargs):
+            raise AssertionError(
+                "A query used the global account instead of its request context"
+            )
+
+    class SearchMockLLM(MockLLM):
+        def predict(self, prompt, **kwargs):
+            if "num_choices" in kwargs:
+                return '[{"choice": 1, "reason": "Relevant source"}]'
+            return super().predict(prompt, **kwargs)
+
+    monkeypatch.setattr(
+        llama_index.core.settings.Settings, "_llm", ForbiddenGlobalLLM()
+    )
+    context.llm = SearchMockLLM(max_tokens=4, callback_manager=context.callback_manager)
     calls = []
 
     def create_context(**kwargs):
@@ -227,14 +248,18 @@ async def test_search_builds_and_queries_real_mock_index_without_live_calls(
         "personal-key",
         2,
         4,
-        False,
+        deep,
         "compact",
         "gpt-6-luna",
+        multistep=multistep,
     )
     assert calls == [{"api_key": "personal-key", "model": "gpt-6-luna"}]
     assert refined == "latest release"
     assert str(response) == "text text text text"
-    assert response.source_nodes[0].metadata["URL"] == "https://example.com"
+    assert any(
+        node.metadata.get("URL") == "https://example.com"
+        for node in response.source_nodes
+    )
     assert usage.update_usage.await_count == 2
 
 

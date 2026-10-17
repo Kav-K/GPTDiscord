@@ -158,7 +158,7 @@ def test_native_tokenizer_behavior_is_unchanged(
     assert service.count_tokens("é🐈") == 2
     load_encoding.assert_called_once_with("cl100k_base")
     assert UsageService.count_tokens_static("static prompt") == 2
-    native.encode.assert_called_with("static prompt")
+    native.encode.assert_called_with("static prompt", disallowed_special=())
     assert not caplog.records
 
     # A successful encoding is not cached globally by UsageService: another
@@ -169,6 +169,44 @@ def test_native_tokenizer_behavior_is_unchanged(
         usage_service.tiktoken, "get_encoding", Mock(return_value=replacement)
     )
     assert UsageService.count_tokens_static("changed encoding") == 1
+
+
+def test_token_estimates_accept_literal_special_markers(
+    tokenizer_state, monkeypatch, tmp_path
+):
+    # A real, fully local tokenizer reproduces tiktoken's default rejection of
+    # marker strings without downloading a vocabulary or contacting an API.
+    encoding = usage_service.tiktoken.Encoding(
+        name="offline-test",
+        pat_str=r"(?s).",
+        mergeable_ranks={bytes([value]): value for value in range(256)},
+        special_tokens={"<|endoftext|>": 256},
+    )
+    prompt = "Explain the literal <|endoftext|> marker in this source file."
+    with pytest.raises(ValueError, match="disallowed special token"):
+        encoding.encode(prompt)
+    monkeypatch.setattr(
+        usage_service.tiktoken, "get_encoding", Mock(return_value=encoding)
+    )
+    expected = len(prompt.encode("utf-8"))
+    assert UsageService(tmp_path).count_tokens(prompt) == expected
+    assert UsageService.count_tokens_static(prompt) == expected
+
+
+@pytest.mark.asyncio
+async def test_instances_sharing_a_usage_file_do_not_lose_concurrent_updates(tmp_path):
+    alias = tmp_path / "alias"
+    alias.symlink_to(tmp_path, target_is_directory=True)
+    first, second = UsageService(tmp_path), UsageService(alias)
+    await asyncio.gather(
+        *(
+            service.update_usage_from_response(
+                {"input_tokens": 1_000_000, "output_tokens": 0}, "gpt-6.1-sol"
+            )
+            for service in [first, second] * 10
+        )
+    )
+    assert await first.get_usage() == 40
 
 
 @pytest.mark.asyncio

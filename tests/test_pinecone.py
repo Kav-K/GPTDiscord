@@ -24,7 +24,7 @@ async def test_long_messages_use_sdk_metadata_and_model_namespaces():
         assert call.kwargs["namespace"] == "text-embedding-3-small"
         record = call.kwargs["vectors"][0]
         assert len(record["id"]) == 64
-        assert record["metadata"]["conversation_id"] == 12
+        assert record["metadata"]["conversation_id"] == "12"
         assert record["metadata"]["timestamp"] == 100
         records.append(record)
     assert "".join(record["metadata"]["text"] for record in records) == text
@@ -50,3 +50,33 @@ def test_query_sorts_text_and_reads_legacy_record_ids():
     assert index.query.call_args.kwargs["include_metadata"] is True
     service.get_all_for_conversation(1)
     assert len(index.query.call_args.kwargs["vector"]) == 1536
+
+
+def test_snowflake_filters_preserve_thread_identity_without_rounded_legacy_fallback():
+    first = 1560736974896234498
+    second = first + 1
+    assert float(first) == float(second)  # Numeric metadata cannot separate them.
+    index = Mock()
+    index.query.return_value = {"matches": []}
+    service = PineconeService(index, embedding_model="text-embedding-3-small")
+    for thread_id in (first, second):
+        record = service._record("A private turn", [0.1], thread_id)
+        assert record["metadata"]["conversation_id"] == str(thread_id)
+        service.get_n_similar(thread_id, [0.0] * 1536)
+        assert index.query.call_args.kwargs["filter"] == {
+            "conversation_id": str(thread_id)
+        }
+        service.get_all_conversation_items(thread_id)
+        assert index.query.call_args.kwargs["filter"] == {
+            "conversation_id": str(thread_id)
+        }
+        service.get_all_for_conversation(thread_id)
+        assert index.query.call_args.kwargs["filter"] == {
+            "conversation_id": str(thread_id)
+        }
+    assert service._conversation_filter(12) == {
+        "$or": [
+            {"conversation_id": "12"},
+            {"conversation_id": 12},
+        ]
+    }

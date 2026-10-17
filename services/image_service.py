@@ -1,22 +1,16 @@
 import asyncio
-import random
-import tempfile
-import traceback
-from io import BytesIO
+import logging
 
-import aiohttp
 import discord
-from PIL import Image
 
-from models.user_model import RedoUser
 from models.openai_model import OpenAIAPIError
+from models.user_model import RedoUser
 from utils.api_errors import openai_error_message
+
+logger = logging.getLogger(__name__)
 
 
 class ImageService:
-    def __init__(self):
-        pass
-
     @staticmethod
     async def encapsulated_send(
         image_service_cog,
@@ -31,32 +25,14 @@ class ImageService:
         quality=None,
         image_size=None,
         style=None,
+        control_lock=None,
     ):
-        """service function that takes input and returns an image generation
-
-        Args:
-            image_service_cog (Cog): The cog which contains draw related commands
-            user_id (int): A discord user id
-            prompt (string): Prompt for the model
-            ctx (ApplicationContext): A discord ApplicationContext, from an interaction
-            response_message (Message, optional): A discord message. Defaults to None.
-            vary (bool, optional): If the image is a variation of another one. Defaults to None.
-            draw_from_optimizer (bool, optional): If the prompt is passed from the optimizer command. Defaults to None.
-            custom_api_key (str, optional): User defined OpenAI API key. Defaults to None.
-        """
-        await asyncio.sleep(0)
-        # send the prompt to the model
-        from_context = isinstance(ctx, discord.ApplicationContext)
-
+        """Generate an image and bind its controls to the delivered message."""
+        file = None
         try:
-            if not dalle_3:
-                file, image_urls = await image_service_cog.model.send_image_request_old(
-                    ctx,
-                    prompt,
-                    vary=vary if not draw_from_optimizer else None,
-                    custom_api_key=custom_api_key,
-                )
-            else:
+            if vary and not draw_from_optimizer:
+                raise ValueError("Image variations have been retired")
+            if dalle_3:
                 file, image_urls = await image_service_cog.model.send_image_request(
                     ctx,
                     prompt,
@@ -65,91 +41,46 @@ class ImageService:
                     style,
                     custom_api_key=custom_api_key,
                 )
-
-        # Error catching for API errors
-        except aiohttp.ClientResponseError as e:
-            message = (
-                f"The API returned an invalid response: **{e.status}: {e.message}**"
-            )
-            if not from_context:
-                await ctx.channel.send(message)
             else:
-                await ctx.respond(message, ephemeral=True)
-            return
-
-        except OpenAIAPIError as error:
-            message = openai_error_message(error)
-            if not from_context:
-                await ctx.channel.send(message)
-            else:
-                await ctx.respond(message, ephemeral=True)
-            return
-
-        except ValueError as e:
-            message = f"Error: {e}. Please try again with a different prompt."
-            if not from_context:
-                await ctx.channel.send(message)
-            else:
-                await ctx.respond(message, ephemeral=True)
-
-            return
-
-        # Start building an embed to send to the user with the results of the image generation
-        embed = discord.Embed(
-            title=(
-                "Image Generation Results"
-                if not vary
-                else (
-                    "Image Generation Results (Varying)"
-                    if not draw_from_optimizer
-                    else "Image Generation Results (Drawing from Optimizer)"
-                )
-            ),
-            description=f"{prompt}",
-            color=0xC730C7,
-        )
-
-        # Add the image file to the embed
-        embed.set_image(url=f"attachment://{file.filename}")
-
-        if not response_message:  # Original generation case
-            # Start an interaction with the user, we also want to send data embed=embed, file=file,
-            # view=SaveView(image_urls, image_service_cog, image_service_cog.converser_cog)
-            result_message = (
-                await ctx.channel.send(
-                    embed=embed,
-                    file=file,
-                )
-                if not from_context
-                else await ctx.respond(embed=embed, file=file)
-            )
-
-            await result_message.edit(
-                view=SaveView(
+                file, image_urls = await image_service_cog.model.send_image_request_old(
                     ctx,
-                    image_urls,
-                    image_service_cog,
-                    image_service_cog.converser_cog,
-                    result_message,
+                    prompt,
                     custom_api_key=custom_api_key,
-                    dalle_3=dalle_3,
                 )
+            embed = discord.Embed(
+                title="Image Generation Results",
+                description=prompt[:4096],
+                color=0xC730C7,
             )
-
-            image_service_cog.converser_cog.users_to_interactions[user_id] = []
-            image_service_cog.converser_cog.users_to_interactions[user_id].append(
-                result_message.id
-            )
-
-            # Get the actual result message object
-            if from_context:
-                result_message = await ctx.fetch_message(result_message.id)
-
-            image_service_cog.redo_users[user_id] = RedoUser(
+            embed.set_image(url=f"attachment://{file.filename}")
+            if response_message is None:
+                message = (
+                    await ctx.respond(embed=embed, file=file)
+                    if isinstance(ctx, discord.ApplicationContext)
+                    else await ctx.channel.send(embed=embed, file=file)
+                )
+                if isinstance(message, discord.Interaction):
+                    message = await message.original_response()
+                if isinstance(
+                    message, (discord.WebhookMessage, discord.InteractionMessage)
+                ):
+                    # Image controls outlive Discord's 15-minute interaction
+                    # token. Reuse its payload with bot-authenticated editing.
+                    message = discord.Message(
+                        state=image_service_cog.bot._connection,
+                        channel=message.channel,
+                        data=message._raw_data,
+                    )
+            else:
+                # Pycord otherwise retains every old attachment on each Retry.
+                message = await response_message.edit(
+                    embed=embed, file=file, attachments=[]
+                )
+            request = RedoUser(
                 prompt=prompt,
                 message=ctx,
                 ctx=ctx,
-                response=result_message,
+                response=message,
                 instruction=None,
                 paginator=None,
                 dalle_3=dalle_3,
@@ -157,75 +88,36 @@ class ImageService:
                 image_size=image_size,
                 style=style,
             )
-
+            await message.edit(
+                view=SaveView(
+                    ctx,
+                    image_urls,
+                    image_service_cog,
+                    image_service_cog.converser_cog,
+                    message,
+                    dalle_3=dalle_3,
+                    request=request,
+                    owner_id=user_id,
+                    control_lock=control_lock,
+                )
+            )
+            image_service_cog.redo_users[user_id] = request
+            image_service_cog.converser_cog.users_to_interactions[user_id] = [
+                message.id
+            ]
+            return message
+        except OpenAIAPIError as error:
+            message = openai_error_message(error)
+        except Exception as error:
+            logger.warning("Image generation failed (%s)", type(error).__name__)
+            message = "The image could not be generated. Please try again later."
+        finally:
+            if isinstance(file, discord.File):
+                file.close()
+        if isinstance(ctx, discord.ApplicationContext):
+            await ctx.respond(message, ephemeral=True)
         else:
-            if not vary:  # Editing case
-                message = await response_message.edit(
-                    embed=embed,
-                    file=file,
-                )
-                await message.edit(
-                    view=SaveView(
-                        ctx,
-                        image_urls,
-                        image_service_cog,
-                        image_service_cog.converser_cog,
-                        message,
-                        custom_api_key=custom_api_key,
-                        dalle_3=dalle_3,
-                    )
-                )
-            else:  # Varying case
-                if not draw_from_optimizer:
-                    result_message = await response_message.edit_original_response(
-                        content="Image variation completed!",
-                        embed=embed,
-                        file=file,
-                    )
-                    await result_message.edit(
-                        view=SaveView(
-                            ctx,
-                            image_urls,
-                            image_service_cog,
-                            image_service_cog.converser_cog,
-                            result_message,
-                            True,
-                            custom_api_key=custom_api_key,
-                        )
-                    )
-
-                else:
-                    result_message = await response_message.edit_original_response(
-                        content="I've drawn the optimized prompt!",
-                        embed=embed,
-                        file=file,
-                    )
-                    await result_message.edit(
-                        view=SaveView(
-                            ctx,
-                            image_urls,
-                            image_service_cog,
-                            image_service_cog.converser_cog,
-                            result_message,
-                            custom_api_key=custom_api_key,
-                        )
-                    )
-
-                    image_service_cog.redo_users[user_id] = RedoUser(
-                        prompt=prompt,
-                        message=ctx,
-                        ctx=ctx,
-                        response=result_message,
-                        instruction=None,
-                        paginator=None,
-                    )
-
-                image_service_cog.converser_cog.users_to_interactions[user_id].append(
-                    response_message.id
-                )
-                image_service_cog.converser_cog.users_to_interactions[user_id].append(
-                    result_message.id
-                )
+            await ctx.channel.send(message)
 
 
 class SaveView(discord.ui.View):
@@ -240,198 +132,137 @@ class SaveView(discord.ui.View):
         only_save=None,
         custom_api_key=None,
         dalle_3=False,
+        *,
+        request=None,
+        owner_id=None,
+        control_lock=None,
     ):
-        super().__init__(
-            timeout=3600 if not only_save else None
-        )  # 1 hour timeout for Retry, Save
+        super().__init__(timeout=None if only_save else 3600)
         self.ctx = ctx
         self.image_urls = image_urls
         self.cog = cog
-        self.no_retry = no_retry
         self.converser_cog = converser_cog
         self.message = message
-        self.custom_api_key = custom_api_key
+        self.request = request
+        self.owner_id = owner_id
         self.dalle_3 = dalle_3
-        for x in range(1, len(image_urls) + 1):
-            self.add_item(SaveButton(x, image_urls[x - 1]))
-        if not only_save:
-            if not no_retry:
-                self.add_item(
-                    RedoButton(
-                        self.cog,
-                        converser_cog=self.converser_cog,
-                        custom_api_key=self.custom_api_key,
-                    )
-                )
+        self.lock = control_lock if control_lock is not None else asyncio.Lock()
+        for number, reference in enumerate(image_urls, 1):
+            self.add_item(SaveButton(number, reference))
+        if not only_save and not no_retry and request is not None:
+            self.add_item(RedoButton())
 
-    # On the timeout event, override it and we want to clear the items.
     async def on_timeout(self):
-        # Save all the SaveButton items, then clear all the items, then add back the SaveButton items, then
-        # update the message
-        self.clear_items()
-
-        # Create a new view with the same params as this one, but pass only_save=True
-        new_view = SaveView(
+        view = SaveView(
             self.ctx,
             self.image_urls,
             self.cog,
             self.converser_cog,
             self.message,
-            self.no_retry,
             only_save=True,
         )
-
-        # Set the view of the message to the new view
         try:
-            await self.ctx.edit(view=new_view)
-        except:
+            await self.message.edit(view=view)
+        except discord.HTTPException:
             pass
 
 
-class VaryButton(discord.ui.Button):
-    def __init__(self, number, image_url, cog, converser_cog, custom_api_key):
-        super().__init__(
-            style=discord.ButtonStyle.blurple,
-            label="Vary " + str(number),
-            custom_id="vary_button" + str(random.randint(10000000, 99999999)),
-        )
-        self.number = number
-        self.image_url = image_url
-        self.cog = cog
-        self.converser_cog = converser_cog
-        self.custom_api_key = custom_api_key
-
-    async def callback(self, interaction: discord.Interaction):
-        user_id = interaction.user.id
-        interaction_id = interaction.message.id
-
-        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
-            if len(self.converser_cog.users_to_interactions[user_id]) >= 2:
-                interaction_id2 = interaction.id
-                if (
-                    interaction_id2
-                    not in self.converser_cog.users_to_interactions[user_id]
-                ):
-                    await interaction.response.send_message(
-                        content="You can not vary images in someone else's chain!",
-                        ephemeral=True,
-                    )
-            else:
-                await interaction.response.send_message(
-                    content="You can only vary for images that you generated yourself!",
-                    ephemeral=True,
-                )
-            return
-
-        if user_id in self.cog.redo_users:
-            response_message = await interaction.response.send_message(
-                content="Varying image number " + str(self.number) + "..."
-            )
-            self.converser_cog.users_to_interactions[user_id].append(
-                response_message.message.id
-            )
-            self.converser_cog.users_to_interactions[user_id].append(
-                response_message.id
-            )
-            prompt = self.cog.redo_users[user_id].prompt
-
-            asyncio.ensure_future(
-                ImageService.encapsulated_send(
-                    self.cog,
-                    user_id,
-                    prompt,
-                    interaction.message,
-                    response_message=response_message,
-                    vary=self.image_url,
-                    custom_api_key=self.custom_api_key,
-                )
-            )
-
-
 class SaveButton(discord.ui.Button["SaveView"]):
-    def __init__(self, number: int, image_url: str):
-        super().__init__(
-            style=discord.ButtonStyle.gray,
-            label="Save " + str(number),
-            custom_id="save_button" + str(random.randint(1000000, 9999999)),
-        )
-        self.number = number
+    def __init__(self, number, image_url):
+        super().__init__(style=discord.ButtonStyle.gray, label=f"Save {number}")
         self.image_url = image_url
 
     async def callback(self, interaction: discord.Interaction):
-        # If the image url doesn't start with "http", then we need to read the file from the URI, and then send the
-        # file to the user as an attachment.
         try:
-            if not self.image_url.startswith("http"):
-                with open(self.image_url, "rb") as f:
-                    image = Image.open(BytesIO(f.read()))
-                    temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                    image.save(temp_file.name)
-
-                    await interaction.response.send_message(
-                        content="Here is your image for download (open original and save)",
-                        file=discord.File(temp_file.name),
-                        ephemeral=True,
-                    )
-            else:
+            if self.image_url.startswith(("https://", "http://")):
                 await interaction.response.send_message(
                     f"You can directly download this image from {self.image_url}",
                     ephemeral=True,
                 )
-        except Exception as e:
-            await interaction.response.send_message(f"Error: {e}", ephemeral=True)
-            traceback.print_exc()
+            else:
+                await interaction.response.defer(ephemeral=True, invisible=False)
+                # Generated sources are already PNG files; upload the source
+                # directly instead of leaking a temporary copy per download.
+                file = discord.File(self.image_url)
+                try:
+                    await interaction.followup.send(
+                        "Here is your image for download (open original and save)",
+                        file=file,
+                        ephemeral=True,
+                    )
+                finally:
+                    file.close()
+        except Exception as error:
+            logger.warning("Image download unavailable (%s)", type(error).__name__)
+            await interaction.respond(
+                "This image is no longer available to download.", ephemeral=True
+            )
 
 
 class RedoButton(discord.ui.Button["SaveView"]):
-    def __init__(self, cog, converser_cog, custom_api_key):
+    def __init__(self):
         super().__init__(
             style=discord.ButtonStyle.danger,
             label="Retry",
             custom_id="redo_button_draw_main",
         )
-        self.cog = cog
-        self.converser_cog = converser_cog
-        self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
-        user_id = interaction.user.id
-        interaction_id = interaction.message.id
-
-        if interaction_id not in self.converser_cog.users_to_interactions[user_id]:
+        view = self.view
+        if (
+            interaction.user.id != view.owner_id
+            or interaction.message.id != view.message.id
+            or interaction.channel.id != view.message.channel.id
+        ):
             await interaction.response.send_message(
-                content="You can only retry for the last prompt that you generated yourself!",
-                ephemeral=True,
+                "You can only retry images that you generated yourself!", ephemeral=True
             )
             return
-
-        # We have passed the intial check of if the interaction belongs to the user
-        if user_id in self.cog.redo_users:
-            # Get the message and the prompt and call encapsulated_send
-            ctx = self.cog.redo_users[user_id].ctx
-            prompt = self.cog.redo_users[user_id].prompt
-            response_message = self.cog.redo_users[user_id].response
-            dalle_3 = self.cog.redo_users[user_id].dalle_3
-            quality = self.cog.redo_users[user_id].quality
-            image_size = self.cog.redo_users[user_id].image_size
-            style = self.cog.redo_users[user_id].style
-            message = await interaction.response.send_message(
-                "Regenerating the image for your original prompt, check the original message.",
-                ephemeral=True,
+        if view.lock.locked():
+            await interaction.response.send_message(
+                "Please wait for the current image request to finish.", ephemeral=True
             )
-            self.converser_cog.users_to_interactions[user_id].append(message.id)
+            return
+        async with view.lock:
+            from cogs.image_service_cog import (
+                USER_INPUT_API_KEYS,
+                USER_KEY_DB,
+                PRE_MODERATE,
+            )
+            from services.moderations_service import Moderation
+            from services.text_service import TextService
 
-            asyncio.ensure_future(
-                ImageService.encapsulated_send(
-                    self.cog,
-                    user_id,
-                    prompt,
-                    ctx,
-                    response_message,
-                    custom_api_key=self.custom_api_key,
-                    dalle_3=dalle_3,
-                    quality=quality,
-                    image_size=image_size,
-                    style=style,
+            ctx = discord.ApplicationContext(view.cog.bot, interaction)
+            user_api_key = None
+            if USER_INPUT_API_KEYS:
+                user_api_key = await TextService.get_user_api_key(
+                    interaction.user.id, ctx, USER_KEY_DB
                 )
-            )
+                if not user_api_key:
+                    return
+            await ctx.defer(invisible=True)
+            request = view.request
+            try:
+                if PRE_MODERATE and await Moderation.simple_moderate_and_respond(
+                    request.prompt, ctx
+                ):
+                    return
+                await ImageService.encapsulated_send(
+                    view.cog,
+                    view.owner_id,
+                    request.prompt,
+                    ctx,
+                    response_message=interaction.message,
+                    custom_api_key=user_api_key,
+                    dalle_3=request.dalle_3,
+                    quality=request.quality,
+                    image_size=request.image_size,
+                    style=request.style,
+                    control_lock=view.lock,
+                )
+            except Exception as error:
+                logger.warning("Image retry failed (%s)", type(error).__name__)
+                await ctx.respond(
+                    "The image could not be regenerated. Please try again later.",
+                    ephemeral=True,
+                )

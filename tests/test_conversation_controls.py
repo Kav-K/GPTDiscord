@@ -435,3 +435,80 @@ async def test_private_retry_cannot_target_public_redo_replaced_during_provider_
     assert_private_initial(flow, interaction)
     assert not flow.cog.awaiting_responses
     assert not flow.cog.awaiting_thread_responses
+
+
+@pytest.mark.asyncio
+async def test_opener_retry_belongs_to_owner_and_uses_their_current_personal_key(
+    conversation, monkeypatch
+):
+    flow = conversation
+    text = importlib.import_module("services.text_service")
+    monkeypatch.setattr(flow.module, "USER_INPUT_API_KEYS", True)
+    keys = {MEMBER: "offline-initial-owner-key"}
+    monkeypatch.setattr(flow.module, "USER_KEY_DB", keys)
+    flow.answers.append("The original opener answer.")
+    await flow.cog.converse_command(
+        flow.ctx,
+        draw=False,
+        opener="Remember my opener codeword ORCHID.",
+        opener_file=None,
+        private=False,
+        minimal=True,
+        model="gpt-6.1-sol",
+        temperature=None,
+        top_p=None,
+        frequency_penalty=None,
+        presence_penalty=None,
+    )
+    channel = next(iter(flow.cog.conversation_threads))
+    thread = flow.cog.conversation_threads[channel]
+    assert MEMBER in flow.cog.redo_users
+    assert BOT not in flow.cog.redo_users
+    redo = flow.cog.redo_users[MEMBER]
+    # Discord delivery remains bound to the actual bot-authored opener message.
+    assert redo.ctx.author.id == BOT
+    assert redo.user.id == MEMBER
+    assert text.TextService.current_turn(flow.cog, redo, channel)
+    initial_count = thread.count
+    keys[MEMBER] = "offline-rotated-owner-key"
+    flow.answers.append("The replacement opener answer.")
+    interaction = component_interaction(flow, redo.response)
+    adapter = StrictInteractionAdapter()
+    token = async_context.set(adapter)
+    try:
+        await text.RedoButton(
+            flow.cog,
+            model="gpt-4o-mini",
+            from_ask_command=False,
+            from_edit_command=False,
+            custom_api_key="obsolete-view-key",
+        ).callback(interaction)
+    finally:
+        async_context.reset(token)
+
+    assert interaction.response.is_done()
+    assert adapter.initial[interaction.id]["data"]["flags"] & 64
+    assert len(flow.provider_calls) == 2
+    assert (
+        flow.provider_calls[-1]["headers"]["Authorization"]
+        == "Bearer offline-rotated-owner-key"
+    )
+    messages = flow.provider_calls[-1]["json"]["messages"]
+    assert any(
+        item["role"] == "user" and "ORCHID" in item["content"] for item in messages
+    )
+    assert not any(
+        "The original opener answer." in item["content"] for item in messages
+    )
+    assert len(thread.history) == 3
+    assert "The replacement opener answer." in thread.history[-1].text
+    assert thread.count == initial_count
+    assert flow.cog.full_conversation_history[channel] == [
+        "Remember my opener codeword ORCHID.",
+        "The replacement opener answer.",
+    ]
+    assert (
+        flow.messages[redo.response.id]["content"] == "The replacement opener answer."
+    )
+    assert not flow.cog.awaiting_responses
+    assert not flow.cog.awaiting_thread_responses

@@ -1,15 +1,11 @@
 import asyncio
 import datetime
-import json
-import re
 import traceback
-from collections import defaultdict
 from contextlib import nullcontext
 
 import aiofiles
 import aiohttp
 import discord
-import requests
 from discord.ext import pages
 import unidecode
 
@@ -157,16 +153,12 @@ class TextService:
             redo_request (bool, optional): If we're redoing a previous prompt. Defaults to False.
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
-        new_prompt, _new_prompt_clean = (
-            (
-                prompt  # + "\n" + BOT_NAME
-                if not from_ask_command and not from_edit_command and not redo_request
-                else prompt
-            ),
-            prompt,
-        )
+        new_prompt = prompt
 
-        stop = f"{ctx.author.display_name if user is None else user.display_name}:"
+        # The opener is delivered through a bot-authored message, but its
+        # request, retry and personal credentials still belong to the human.
+        request_user = user or ctx.author
+        stop = f"{request_user.display_name}:"
 
         # A concurrent request by this author can replace the global redo entry
         # while the provider is running. Keep the validated reply and paginator
@@ -174,7 +166,7 @@ class TextService:
         replacement_redo = None
         replacement_paginator = None
         if response_message is not None:
-            replacement_redo = converser_cog.redo_users.get(ctx.author.id)
+            replacement_redo = converser_cog.redo_users.get(request_user.id)
             if (
                 replacement_redo is None
                 or replacement_redo.ctx is not ctx
@@ -216,14 +208,12 @@ class TextService:
                 expected_thread.history = original_history[:-1]
                 if edited_request:
                     expected_thread.history[-1] = EmbeddedConversationItem(
-                        f"\n{ctx.author.display_name}: {prompt}<|endofstatement|>\n",
+                        f"\n{request_user.display_name}: {prompt}<|endofstatement|>\n",
                         0,
                     )
                 new_prompt = "".join(item.text for item in expected_thread.history)
 
-            user_displayname = (
-                ctx.author.display_name if not user else user.display_name
-            )
+            user_displayname = request_user.display_name
 
             # Pinecone is enabled, we will create embeddings for this conversation.
             if (
@@ -413,7 +403,7 @@ class TextService:
 
                         await converser_cog.end_conversation(ctx)
                         converser_cog.remove_awaiting(
-                            ctx.author.id, ctx.channel.id, False, False
+                            request_user.id, ctx.channel.id, False, False
                         )
                         return
                 else:
@@ -429,8 +419,8 @@ class TextService:
             )
 
             # Set some variables if a user or channel has a system instruction set
-            if ctx.author.id in converser_cog.instructions:
-                system_instruction = converser_cog.instructions[ctx.author.id].prompt
+            if request_user.id in converser_cog.instructions:
+                system_instruction = converser_cog.instructions[request_user.id].prompt
                 usage_message = "***Added user instruction to prompt***"
                 tokens += converser_cog.usage_service.count_tokens(system_instruction)
             elif ctx.channel.id in converser_cog.instructions:
@@ -462,6 +452,7 @@ class TextService:
                     presence_penalty_override=overrides.presence_penalty,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
+                    system_instruction=system_instruction,
                 )
 
             elif from_edit_command:
@@ -561,9 +552,6 @@ class TextService:
             ):
                 conversation_id = ctx.channel.id
 
-                # A cleaner version for the convo history
-                response_text_clean = str(response_text)
-
                 # Create an embedding and timestamp for the prompt
                 response_text = (
                     "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n"
@@ -581,26 +569,27 @@ class TextService:
                 )
 
                 # Create and upsert the embedding for  the conversation id, prompt, timestamp
-                embedding = (
-                    await converser_cog.pinecone_service.upsert_conversation_embedding(
-                        converser_cog.model,
-                        conversation_id,
-                        response_text,
-                        timestamp,
-                        custom_api_key=custom_api_key,
-                    )
+                await converser_cog.pinecone_service.upsert_conversation_embedding(
+                    converser_cog.model,
+                    conversation_id,
+                    response_text,
+                    timestamp,
+                    custom_api_key=custom_api_key,
                 )
 
             # Cleanse again
             response_text = converser_cog.cleanse_response(response_text)
 
-            full_history = converser_cog.full_conversation_history[ctx.channel.id]
-            if replacing_turn and len(full_history) >= 2:
-                full_history[-1] = response_text
-                if edited_request:
-                    full_history[-2] = prompt
-            else:
-                full_history.append(response_text)
+            # Standalone/private asks and edits must never enter a shared
+            # conversation transcript or become downloadable by its owner.
+            if expected_thread is not None:
+                full_history = converser_cog.full_conversation_history[ctx.channel.id]
+                if replacing_turn and len(full_history) >= 2:
+                    full_history[-1] = response_text
+                    if edited_request:
+                        full_history[-2] = prompt
+                else:
+                    full_history.append(response_text)
 
             # escape any other mentions like @here or @everyone
             response_text = discord.utils.escape_mentions(response_text)
@@ -681,6 +670,7 @@ class TextService:
                     response=response_message,
                     paginator=paginator,
                 )
+                redo.user = request_user
                 redo.add_interaction(response_message.id)
                 TextService.bind_turn(
                     converser_cog,
@@ -688,7 +678,7 @@ class TextService:
                     expected_thread,
                     standalone=expected_thread is None,
                 )
-                converser_cog.redo_users[ctx.author.id] = redo
+                converser_cog.redo_users[request_user.id] = redo
 
             # We are doing a redo, edit the message.
             else:
@@ -738,7 +728,7 @@ class TextService:
             )
 
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
             return True
 
@@ -750,17 +740,17 @@ class TextService:
             else:
                 await ctx.reply(embed=embed)
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
-        except asyncio.exceptions.TimeoutError as e:
+        except asyncio.exceptions.TimeoutError:
             embed = EmbedStatics.get_api_timeout_embed()
             if from_context:
                 await ctx.send_followup(embed=embed)
             else:
                 await ctx.reply(embed=embed)
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
         except OpenAIAPIError as error:
@@ -770,7 +760,7 @@ class TextService:
             else:
                 await ctx.reply(message)
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
         # Error catching for local model/input validation errors
@@ -783,7 +773,7 @@ class TextService:
             else:
                 await ctx.reply(e)
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
 
         # General catch case for everything
@@ -796,7 +786,7 @@ class TextService:
                 pass
 
             converser_cog.remove_awaiting(
-                ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
+                request_user.id, ctx.channel.id, from_ask_command, from_edit_command
             )
             traceback.print_exc()
 
@@ -1474,6 +1464,7 @@ class RedoButton(discord.ui.Button["ConversationView"]):
                         prompt=redo.prompt,
                         instruction=redo.instruction,
                         ctx=redo.ctx,
+                        user=getattr(redo, "user", None),
                         model=thread.model if thread is not None else self.model,
                         response_message=redo.response,
                         custom_api_key=user_api_key,

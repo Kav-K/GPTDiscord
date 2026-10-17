@@ -783,6 +783,7 @@ async def run(args, report, directory):
     fixture_ids = set()
     recovery_fixtures = {}
     recovery_poll_calls = 0
+    scheduled_turn_completed = False
     resources = OwnedDiscordResources(bot, args.guild_id, args.channel_id)
 
     def check(name, **details):
@@ -800,7 +801,7 @@ async def run(args, report, directory):
         return payload
 
     async def dispatch_payload(event, payload):
-        nonlocal recovery_poll_calls
+        nonlocal recovery_poll_calls, scheduled_turn_completed
         if recovery_mode:
             require(event == "MESSAGE_CREATE", "recovery_does_not_synthesize_edits")
             require(
@@ -821,8 +822,19 @@ async def run(args, report, directory):
                     len(recovery_fixtures) <= limits["requests"],
                     "recovery_fixture_budget",
                 )
+                if extended and recovery_poll_calls == 0:
+                    # Arm the registered fixture before starting the real loop.
+                    # Its first tick owns this turn; later ticks stay beyond
+                    # the run's deadline so remaining stages can be bounded.
+                    recovery.interval = 3600
+                    start_worker()
+                    async with asyncio.timeout(120):
+                        while recovery._cursor(thread.id) < message.id:
+                            await asyncio.sleep(0.05)
+                    scheduled_turn_completed = True
+                else:
+                    await asyncio.wait_for(recovery.poll_once(), timeout=120)
                 recovery_poll_calls += 1
-                await asyncio.wait_for(recovery.poll_once(), timeout=120)
             require(
                 bot.get_guild(args.guild_id) is None, "recovery_gateway_cache_changed"
             )
@@ -905,6 +917,57 @@ async def run(args, report, directory):
         )
         return payload["content"]
 
+    async def turn(content, expected, calls, history_items, name, *, reply=False):
+        payload = await fixture(
+            content, reply_to=cog.redo_users[args.member_id].response if reply else None
+        )
+        await dispatch_payload("MESSAGE_CREATE", payload)
+        output = await response_content()
+        require(
+            expected in output.upper() and len(provider.calls) == calls,
+            name + "_contract",
+        )
+        require(len(conversation.history) == history_items, name + "_history")
+        details = {"history_items": history_items, "output_characters": len(output)}
+        if reply:
+            details["reconstructed_message_type"] = 19
+        check(name, **details)
+        return payload, output
+
+    async def start_conversation(member, *, private=False):
+        context = StartContext(
+            parent,
+            discord.Member(data=member, guild=guild, state=bot._connection),
+            member,
+            record_starter,
+        )
+        await cog.converse_command(
+            context,
+            draw=False,
+            opener=None,
+            opener_file=None,
+            private=private,
+            minimal=True,
+            model=args.model,
+            temperature=None,
+            top_p=None,
+            frequency_penalty=None,
+            presence_penalty=None,
+            use_threads=True,
+        )
+
+    def install_fixture_reader():
+        bot.http.logs_from = RecoveryFixtureReader(
+            original_logs_from,
+            thread_id=thread.id,
+            guild_id=args.guild_id,
+            bot_id=bot.user.id,
+            member_id=args.member_id,
+            fixtures=recovery_fixtures,
+            membership=membership,
+            max_fixtures=limits["requests"],
+        )
+
     def control_button(response, custom_id):
         view = bot._connection._view_store._synced_message_views.get(response.id)
         require(view is not None, "response_controls_missing")
@@ -949,6 +1012,140 @@ async def run(args, report, directory):
             and conversation.history == history_before,
             "stale_retry_after_end_generated",
         )
+
+    async def extended_checks(word):
+        nonlocal thread, conversation, recovery_fixtures
+        public_response = cog.redo_users[args.member_id].response
+        retry = control_button(public_response, "conversation_redo")
+        previous_history = [item.text for item in conversation.history]
+        full_history_size = len(cog.full_conversation_history[thread.id])
+        previous_count = conversation.count
+        await invoke_control(retry, public_response)
+        retried_output = await response_content()
+        require(
+            len(provider.calls) == 4
+            and "VERIFIED_" + word in retried_output.upper()
+            and cog.redo_users[args.member_id].response.id == public_response.id,
+            "retry_visible_answer_contract",
+        )
+        require(
+            provider.calls[3]["message_roles"] == provider.calls[2]["message_roles"]
+            and provider.calls[3]["message_roles"][-1] == "user"
+            and len(provider.calls[3]["message_roles"]) == 6,
+            "retry_payload_includes_previous_answer",
+        )
+        require(
+            len(conversation.history) == len(previous_history)
+            and [item.text for item in conversation.history[:-1]]
+            == previous_history[:-1]
+            and retried_output.strip() in conversation.history[-1].text
+            and conversation.count == previous_count
+            and len(cog.full_conversation_history[thread.id]) == full_history_size
+            and retried_output.strip() in cog.full_conversation_history[thread.id][-1],
+            "retry_memory_replacement_contract",
+        )
+        check(
+            "retry_latest_turn",
+            provider_calls_added=1,
+            memory_replaced=True,
+        )
+        await end_and_check_stale_retry()
+        check(
+            "public_end_and_stale_retry",
+            provider_calls_added=0,
+            archived=True,
+        )
+
+        require(
+            parent.permissions_for(guild.me).create_private_threads,
+            "bot_private_thread_permission",
+        )
+        original_private_start = bot.http.start_thread_without_message
+
+        async def record_private_thread(channel_id, **kwargs):
+            nonlocal owned_thread_id
+            require(
+                channel_id == args.channel_id and len(resources.threads) == 1,
+                "private_thread_creation_scope",
+            )
+            payload = await original_private_start(channel_id, **kwargs)
+            resources.thread(payload, "owned_private_thread")
+            owned_thread_id = int(payload["id"])
+            report["created"]["private_thread_id"] = owned_thread_id
+            return payload
+
+        bot.http.start_thread_without_message = record_private_thread
+        await start_conversation(await membership(), private=True)
+        private_data = await bot.http.get_channel(owned_thread_id)
+        require(
+            private_data["type"] == discord.ChannelType.private_thread.value
+            and owned_thread_id in cog.conversation_threads
+            and setup_calls == {"prepare": 2, "watch": 2},
+            "private_thread_start_contract",
+        )
+        thread = discord.Thread(guild=guild, state=bot._connection, data=private_data)
+        from discord.http import Route
+
+        actual_thread_member = await bot.http.request(
+            Route(
+                "GET",
+                "/channels/{channel_id}/thread-members/{user_id}",
+                channel_id=thread.id,
+                user_id=args.member_id,
+            )
+        )
+        require(
+            int(actual_thread_member.get("user_id", 0)) == args.member_id
+            and int(actual_thread_member.get("id", 0)) == thread.id,
+            "private_owner_not_thread_member",
+        )
+        conversation = cog.conversation_threads[thread.id]
+        require(
+            conversation.model == args.model,
+            "private_chosen_model_not_stored",
+        )
+        recovery_fixtures = {}
+        install_fixture_reader()
+        check(
+            "private_start_and_explicit_membership",
+            thread_type=12,
+            owner_member_verified=True,
+        )
+        private_word = "PRIVATE" + secrets.token_hex(6).upper()
+        await turn(
+            f"My private verification word is {private_word}. Remember it. Reply only STORED.",
+            "STORED",
+            5,
+            3,
+            "private_first_turn",
+        )
+        _, private_output = await turn(
+            "Reply with only my private verification word from earlier.",
+            private_word,
+            6,
+            5,
+            "private_two_turn_memory",
+            reply=True,
+        )
+        require(
+            word not in private_output.upper() and conversation.count == 2,
+            "private_memory_isolation_contract",
+        )
+        await end_and_check_stale_retry()
+        check(
+            "private_end_and_stale_retry",
+            provider_calls_added=0,
+            archived=True,
+        )
+        report["extended_recovery"] = {
+            "status": "passed",
+            "private_thread_tested": True,
+            "explicit_private_membership_tested": True,
+            "retry_memory_tested": True,
+            "end_callbacks_tested": True,
+            "closed_retry_provider_calls": 0,
+            "acknowledgement_transport": "synthetic_local_adapter",
+        }
 
     async def cleanup():
         results = await resources.cleanup()
@@ -1046,12 +1243,17 @@ async def run(args, report, directory):
                     recovery.path.parent.resolve() == directory.resolve(),
                     "recovery_database_not_isolated",
                 )
-                # Each production poll is explicitly driven by this harness.
-                # An automatic first poll could consume a bot fixture before
-                # its simulated authorship is registered, or overlap a stage.
+                # Setup must not read bot fixtures before their simulated
+                # authorship is registered. Extended mode starts the actual
+                # worker for its first armed turn; other polls are explicit.
+                start_worker = recovery.start
                 recovery.start = lambda: None
                 report["recovery"].update(
-                    poll_driver="bounded_manual_poll_once",
+                    poll_driver=(
+                        "scheduled_first_turn_then_manual"
+                        if extended
+                        else "bounded_manual_poll_once"
+                    ),
                     worker_lifecycle_tested=False,
                 )
                 original_prepare = recovery.prepare_context
@@ -1098,26 +1300,7 @@ async def run(args, report, directory):
                 return payload
 
             bot.http.start_thread_with_message = record_thread
-            context = StartContext(
-                parent,
-                discord.Member(data=current_member, guild=guild, state=bot._connection),
-                current_member,
-                record_starter,
-            )
-            await cog.converse_command(
-                context,
-                draw=False,
-                opener=None,
-                opener_file=None,
-                private=False,
-                minimal=True,
-                model=args.model,
-                temperature=None,
-                top_p=None,
-                frequency_penalty=None,
-                presence_penalty=None,
-                use_threads=True,
-            )
+            await start_conversation(current_member)
             require(owned_thread_id is not None, "public_thread_not_created")
             thread_payload = await bot.http.get_channel(owned_thread_id)
             require(
@@ -1147,16 +1330,7 @@ async def run(args, report, directory):
                     database_isolated=True,
                 )
                 original_logs_from = bot.http.logs_from
-                bot.http.logs_from = RecoveryFixtureReader(
-                    original_logs_from,
-                    thread_id=owned_thread_id,
-                    guild_id=args.guild_id,
-                    bot_id=bot.user.id,
-                    member_id=args.member_id,
-                    fixtures=recovery_fixtures,
-                    membership=membership,
-                    max_fixtures=limits["requests"],
-                )
+                install_fixture_reader()
             else:
                 guild._add_thread(thread)
             require(
@@ -1181,61 +1355,32 @@ async def run(args, report, directory):
                 )
 
             word = "SMOKE" + secrets.token_hex(6).upper()
-            first = await fixture(
-                f"My verification word is {word}. Remember it. Reply only STORED."
-            )
-            await dispatch_payload("MESSAGE_CREATE", first)
-            first_output = await response_content()
-            require(
-                "STORED" in first_output.upper() and len(provider.calls) == 1,
-                "first_turn_contract",
-            )
-            require(len(conversation.history) == 3, "first_turn_history")
-            check(
+            await turn(
+                f"My verification word is {word}. Remember it. Reply only STORED.",
+                "STORED",
+                1,
+                3,
                 "first_turn",
-                history_items=len(conversation.history),
-                output_characters=len(first_output),
             )
-
-            second = await fixture(
+            second, _ = await turn(
                 "Reply with only my verification word from earlier.",
-                reply_to=cog.redo_users[args.member_id].response,
-            )
-            await dispatch_payload("MESSAGE_CREATE", second)
-            second_output = await response_content()
-            require(
-                word in second_output.upper() and len(provider.calls) == 2,
-                "multi_turn_memory_contract",
-            )
-            require(len(conversation.history) == 5, "second_turn_history")
-            check(
+                word,
+                2,
+                5,
                 "second_turn_memory",
-                history_items=len(conversation.history),
-                output_characters=len(second_output),
-                reconstructed_message_type=19,
+                reply=True,
             )
 
             if recovery_mode:
-                third = await fixture(
+                third, _ = await turn(
                     "Reply only VERIFIED_ followed by my verification word from earlier.",
-                    reply_to=cog.redo_users[args.member_id].response,
-                )
-                await dispatch_payload("MESSAGE_CREATE", third)
-                third_output = await response_content()
-                require(
-                    "VERIFIED_" + word in third_output.upper()
-                    and len(provider.calls) == 3,
-                    "recovery_third_turn_memory_contract",
-                )
-                require(
-                    len(conversation.history) == 7 and conversation.count == 3,
-                    "recovery_third_turn_history",
-                )
-                check(
+                    "VERIFIED_" + word,
+                    3,
+                    7,
                     "third_turn_memory",
-                    history_items=len(conversation.history),
-                    output_characters=len(third_output),
+                    reply=True,
                 )
+                require(conversation.count == 3, "recovery_third_turn_history")
                 before = copy.deepcopy(conversation.history)
                 duplicate = copy.deepcopy(third)
                 duplicate["content"] = (
@@ -1274,185 +1419,7 @@ async def run(args, report, directory):
                 )
                 report["recovery_transport_tested"] = True
                 if extended:
-                    public_response = cog.redo_users[args.member_id].response
-                    retry = control_button(public_response, "conversation_redo")
-                    previous_history = [item.text for item in conversation.history]
-                    full_history_size = len(cog.full_conversation_history[thread.id])
-                    previous_count = conversation.count
-                    await invoke_control(retry, public_response)
-                    retried_output = await response_content()
-                    require(
-                        len(provider.calls) == 4
-                        and "VERIFIED_" + word in retried_output.upper()
-                        and cog.redo_users[args.member_id].response.id
-                        == public_response.id,
-                        "retry_visible_answer_contract",
-                    )
-                    require(
-                        provider.calls[3]["message_roles"]
-                        == provider.calls[2]["message_roles"]
-                        and provider.calls[3]["message_roles"][-1] == "user"
-                        and len(provider.calls[3]["message_roles"]) == 6,
-                        "retry_payload_includes_previous_answer",
-                    )
-                    require(
-                        len(conversation.history) == len(previous_history)
-                        and [item.text for item in conversation.history[:-1]]
-                        == previous_history[:-1]
-                        and retried_output.strip() in conversation.history[-1].text
-                        and conversation.count == previous_count
-                        and len(cog.full_conversation_history[thread.id])
-                        == full_history_size
-                        and retried_output.strip()
-                        in cog.full_conversation_history[thread.id][-1],
-                        "retry_memory_replacement_contract",
-                    )
-                    check(
-                        "retry_latest_turn",
-                        provider_calls_added=1,
-                        memory_replaced=True,
-                    )
-                    await end_and_check_stale_retry()
-                    check(
-                        "public_end_and_stale_retry",
-                        provider_calls_added=0,
-                        archived=True,
-                    )
-
-                    require(
-                        parent.permissions_for(guild.me).create_private_threads,
-                        "bot_private_thread_permission",
-                    )
-                    original_private_start = bot.http.start_thread_without_message
-
-                    async def record_private_thread(channel_id, **kwargs):
-                        nonlocal owned_thread_id
-                        require(
-                            channel_id == args.channel_id
-                            and len(resources.threads) == 1,
-                            "private_thread_creation_scope",
-                        )
-                        payload = await original_private_start(channel_id, **kwargs)
-                        resources.thread(payload, "owned_private_thread")
-                        owned_thread_id = int(payload["id"])
-                        report["created"]["private_thread_id"] = owned_thread_id
-                        return payload
-
-                    bot.http.start_thread_without_message = record_private_thread
-                    private_member = await membership()
-                    private_context = StartContext(
-                        parent,
-                        discord.Member(
-                            data=private_member, guild=guild, state=bot._connection
-                        ),
-                        private_member,
-                        record_starter,
-                    )
-                    await cog.converse_command(
-                        private_context,
-                        draw=False,
-                        opener=None,
-                        opener_file=None,
-                        private=True,
-                        minimal=True,
-                        model=args.model,
-                        temperature=None,
-                        top_p=None,
-                        frequency_penalty=None,
-                        presence_penalty=None,
-                        use_threads=True,
-                    )
-                    private_data = await bot.http.get_channel(owned_thread_id)
-                    require(
-                        private_data["type"] == discord.ChannelType.private_thread.value
-                        and owned_thread_id in cog.conversation_threads
-                        and setup_calls == {"prepare": 2, "watch": 2},
-                        "private_thread_start_contract",
-                    )
-                    thread = discord.Thread(
-                        guild=guild, state=bot._connection, data=private_data
-                    )
-                    from discord.http import Route
-
-                    actual_thread_member = await bot.http.request(
-                        Route(
-                            "GET",
-                            "/channels/{channel_id}/thread-members/{user_id}",
-                            channel_id=thread.id,
-                            user_id=args.member_id,
-                        )
-                    )
-                    require(
-                        int(actual_thread_member.get("user_id", 0)) == args.member_id
-                        and int(actual_thread_member.get("id", 0)) == thread.id,
-                        "private_owner_not_thread_member",
-                    )
-                    conversation = cog.conversation_threads[thread.id]
-                    require(
-                        conversation.model == args.model,
-                        "private_chosen_model_not_stored",
-                    )
-                    recovery_fixtures = {}
-                    bot.http.logs_from = RecoveryFixtureReader(
-                        original_logs_from,
-                        thread_id=thread.id,
-                        guild_id=args.guild_id,
-                        bot_id=bot.user.id,
-                        member_id=args.member_id,
-                        fixtures=recovery_fixtures,
-                        membership=membership,
-                        max_fixtures=limits["requests"],
-                    )
-                    check(
-                        "private_start_and_explicit_membership",
-                        thread_type=12,
-                        owner_member_verified=True,
-                    )
-                    private_word = "PRIVATE" + secrets.token_hex(6).upper()
-                    private_first = await fixture(
-                        f"My private verification word is {private_word}. Remember it. Reply only STORED."
-                    )
-                    await dispatch_payload("MESSAGE_CREATE", private_first)
-                    require(
-                        "STORED" in (await response_content()).upper()
-                        and len(provider.calls) == 5,
-                        "private_first_turn_contract",
-                    )
-                    private_second = await fixture(
-                        "Reply with only my private verification word from earlier.",
-                        reply_to=cog.redo_users[args.member_id].response,
-                    )
-                    await dispatch_payload("MESSAGE_CREATE", private_second)
-                    private_output = await response_content()
-                    require(
-                        private_word in private_output.upper()
-                        and word not in private_output.upper()
-                        and len(provider.calls) == 6
-                        and len(conversation.history) == 5
-                        and conversation.count == 2,
-                        "private_memory_isolation_contract",
-                    )
-                    check(
-                        "private_two_turn_memory",
-                        provider_calls_added=2,
-                        history_items=5,
-                        isolated=True,
-                    )
-                    await end_and_check_stale_retry()
-                    check(
-                        "private_end_and_stale_retry",
-                        provider_calls_added=0,
-                        archived=True,
-                    )
-                    report["extended_recovery"] = {
-                        "status": "passed",
-                        "private_thread_tested": True,
-                        "explicit_private_membership_tested": True,
-                        "retry_memory_tested": True,
-                        "end_callbacks_tested": True,
-                        "closed_retry_provider_calls": 0,
-                        "acknowledgement_transport": "synthetic_local_adapter",
-                    }
+                    await extended_checks(word)
                 require(
                     os.environ.get("BOT_ACCESS_ROLE_IDS") == args.restriction,
                     "production_restriction_changed",
@@ -1524,6 +1491,13 @@ async def run(args, report, directory):
             try:
                 await asyncio.wait_for(recovery.close(), timeout=30)
                 report["recovery"]["worker_closed"] = True
+                drained = not recovery._active and not recovery._poll_tasks
+                stopped = recovery._task is None or recovery._task.done()
+                require(drained and stopped, "recovery_tasks_not_drained")
+                report["recovery"]["tasks_drained"] = True
+                report["recovery"]["worker_lifecycle_tested"] = (
+                    scheduled_turn_completed and stopped and drained
+                )
             except Exception as error:
                 report.update(status="failed", failure=failure_shape(error))
                 report["recovery"]["worker_closed"] = False

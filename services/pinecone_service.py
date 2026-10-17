@@ -47,7 +47,9 @@ class PineconeService:
         ).hexdigest()
         metadata = {"text": text}
         if conversation_id is not None:
-            metadata["conversation_id"] = conversation_id
+            # Pinecone numbers are float64; Discord snowflakes exceed the
+            # exact integer range and must remain strings to isolate threads.
+            metadata["conversation_id"] = str(conversation_id)
         if timestamp is not None:
             metadata["timestamp"] = timestamp
         if chunk_index is not None:
@@ -59,13 +61,22 @@ class PineconeService:
             vectors=[self._record(text, embeddings)], namespace=self.namespace
         )
 
+    @staticmethod
+    def _conversation_filter(conversation_id):
+        exact = {"conversation_id": str(conversation_id)}
+        if abs(int(conversation_id)) <= 2**53:
+            # Old numeric metadata is unambiguous only within float64's exact
+            # integer range. Larger legacy IDs must be re-ingested.
+            return {"$or": [exact, {"conversation_id": int(conversation_id)}]}
+        return exact
+
     def get_all_for_conversation(self, conversation_id: int):
         return self.index.query(
             namespace=self.namespace,
             vector=[0.0] * self.DIMENSIONS,
             top_k=100,
             include_metadata=True,
-            filter={"conversation_id": conversation_id},
+            filter=self._conversation_filter(conversation_id),
         )
 
     async def upsert_conversation_embedding(
@@ -96,7 +107,7 @@ class PineconeService:
             vector=embedding,
             top_k=n,
             include_metadata=True,
-            filter={"conversation_id": conversation_id},
+            filter=self._conversation_filter(conversation_id),
         )
         relevant_phrases = [
             (
@@ -114,7 +125,7 @@ class PineconeService:
             vector=[0.0] * self.DIMENSIONS,
             top_k=1000,
             include_metadata=True,
-            filter={"conversation_id": conversation_id},
+            filter=self._conversation_filter(conversation_id),
         )
         matches = sorted(
             response["matches"],

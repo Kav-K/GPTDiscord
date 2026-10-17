@@ -158,7 +158,6 @@ class Moderation:
         pre_mod_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.95, 0.4)
 
         response = await Moderation.simple_moderate(text)
-        print(response)
         flagged = (
             True
             if Moderation.determine_moderation_result(
@@ -402,6 +401,7 @@ class ApproveMessageButton(discord.ui.Button["ModerationAdminView"]):
         self.current_num = current_num
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         # Remove reactions on the message, delete the moderation message
         await self.message.clear_reactions()
         await self.moderation_message[0].delete()
@@ -419,9 +419,10 @@ class DeleteMessageButton(discord.ui.Button["ModerationAdminView"]):
         self.current_num = current_num
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         # Get the user
         await self.message.delete()
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "This message was deleted", ephemeral=True, delete_after=10
         )
         while isinstance(self.moderation_message, tuple):
@@ -446,6 +447,7 @@ class KickUserButton(discord.ui.Button["ModerationAdminView"]):
         self.current_num = current_num
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         # Get the user and kick the user
         try:
             await self.message.author.kick(
@@ -453,7 +455,7 @@ class KickUserButton(discord.ui.Button["ModerationAdminView"]):
             )
         except Exception:
             pass
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "This user was attempted to be kicked", ephemeral=True, delete_after=10
         )
 
@@ -492,6 +494,7 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
         self.source_deleted = source_deleted
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         # Get the user id
         try:
             await self.message.delete()
@@ -506,7 +509,7 @@ class TimeoutUserButton(discord.ui.Button["ModerationAdminView"]):
         except Exception:
             traceback.print_exc()
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"This user was timed out for {self.hours} hour(s)",
             ephemeral=True,
             delete_after=10,

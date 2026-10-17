@@ -1,6 +1,7 @@
 """Offline checks for optional search/crawling and replay behavior."""
 
 import importlib
+import asyncio
 import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -30,7 +31,9 @@ def search_module(monkeypatch, tmp_path):
     return module
 
 
-def test_crawler_uses_model_tokenizer_fallback_and_keeps_url_commas(search_module, monkeypatch):
+def test_crawler_uses_model_tokenizer_fallback_and_keeps_url_commas(
+    search_module, monkeypatch
+):
     module = search_module
     requested_urls = []
     encodings = []
@@ -58,16 +61,28 @@ def test_crawler_uses_model_tokenizer_fallback_and_keeps_url_commas(search_modul
     assert len(requested_urls) == 1
 
 
-def test_long_page_summarization_uses_current_llama_index_context(search_module, monkeypatch):
+def test_long_page_summarization_uses_current_llama_index_context(
+    search_module, monkeypatch
+):
     module = search_module
     import llama_index.core
 
     monkeypatch.setattr(llama_index.core, "global_tokenizer", lambda text: text.split())
-    monkeypatch.setattr(module.tiktoken, "encoding_for_model", lambda model: SimpleNamespace(encode=list))
+    monkeypatch.setattr(
+        module.tiktoken,
+        "encoding_for_model",
+        lambda model: SimpleNamespace(encode=list),
+    )
     monkeypatch.setattr(module.Models, "get_max_tokens", lambda model: 1010)
-    monkeypatch.setattr(module, "read_web_documents", lambda url: [
-        Document(text="A source page about current technology and software releases.")
-    ])
+    monkeypatch.setattr(
+        module,
+        "read_web_documents",
+        lambda url: [
+            Document(
+                text="A source page about current technology and software releases."
+            )
+        ],
+    )
     embedding = MockEmbedding(embed_dim=8)
     llm = MockLLM(max_tokens=4)
     context_calls = []
@@ -76,14 +91,21 @@ def test_long_page_summarization_uses_current_llama_index_context(search_module,
         context_calls.append((api_key, model))
         return SimpleNamespace(
             embed_model=embedding,
-            index_kwargs={"llm": llm, "embed_model": embedding,
-                          "transformations": [SentenceSplitter(chunk_size=128, chunk_overlap=0)]},
+            index_kwargs={
+                "llm": llm,
+                "embed_model": embedding,
+                "transformations": [SentenceSplitter(chunk_size=128, chunk_overlap=0)],
+            },
             query_kwargs={"llm": llm},
         )
 
     monkeypatch.setattr(module, "create_index_context", create_context)
-    wrapper = module.CustomTextRequestWrapper(model=module.Models.DEFAULT, api_key="user-test-key")
-    result = wrapper.get(f"https://example.com, {module.Models.DEFAULT}, What changed, and when?")
+    wrapper = module.CustomTextRequestWrapper(
+        model=module.Models.DEFAULT, api_key="user-test-key"
+    )
+    result = wrapper.get(
+        f"https://example.com, {module.Models.DEFAULT}, What changed, and when?"
+    )
     assert result == "text text text text"
     assert context_calls == [("user-test-key", module.Models.DEFAULT)]
 
@@ -93,7 +115,14 @@ async def test_redo_preserves_selected_model_and_search_modes(search_module):
     module = search_module
     ctx = SimpleNamespace(user=SimpleNamespace(id=123))
     redo = module.RedoSearchUser(
-        ctx, "latest release", 4, 6, "compact", "gpt-6-luna", deep=True, multistep=True,
+        ctx,
+        "latest release",
+        4,
+        6,
+        "compact",
+        "gpt-6-luna",
+        deep=True,
+        multistep=True,
     )
     cog = SimpleNamespace(redo_users={123: redo}, search_command=AsyncMock())
     button = module.RedoButton(ctx, cog)
@@ -102,13 +131,22 @@ async def test_redo_preserves_selected_model_and_search_modes(search_module):
     await button.callback(interaction)
 
     cog.search_command.assert_awaited_once_with(
-        ctx, "latest release", 4, 6, deep=True, redo=True,
-        response_mode="compact", model="gpt-6-luna", multistep=True,
+        ctx,
+        "latest release",
+        4,
+        6,
+        deep=True,
+        redo=True,
+        response_mode="compact",
+        model="gpt-6-luna",
+        multistep=True,
     )
 
 
 @pytest.mark.asyncio
-async def test_search_chat_uses_structured_tool_observations(search_module, monkeypatch):
+async def test_search_chat_uses_structured_tool_observations(
+    search_module, monkeypatch
+):
     module = search_module
     captured = {}
     memory = SimpleNamespace()
@@ -116,7 +154,9 @@ async def test_search_chat_uses_structured_tool_observations(search_module, monk
         memory=memory,
         invoke=lambda inputs: {
             "output": [{"type": "text", "text": "Current answer with a source."}],
-            "intermediate_steps": [(SimpleNamespace(tool="Search-Tool"), "search result")],
+            "intermediate_steps": [
+                (SimpleNamespace(tool="Search-Tool"), "search result")
+            ],
         },
     )
 
@@ -124,20 +164,33 @@ async def test_search_chat_uses_structured_tool_observations(search_module, monk
         captured["tools"] = tools
         return agent
 
-    monkeypatch.setattr(module, "GoogleSearchAPIWrapper", lambda **kwargs: SimpleNamespace(run=lambda query: "results"))
+    monkeypatch.setattr(
+        module,
+        "GoogleSearchAPIWrapper",
+        lambda **kwargs: SimpleNamespace(run=lambda query: "results"),
+    )
     monkeypatch.setattr(module, "create_chat_llm", lambda **kwargs: object())
     monkeypatch.setattr(module, "create_chat_agent", create_agent)
     monkeypatch.setattr(module, "safe_ctx_respond", AsyncMock())
     thread = SimpleNamespace(id=321)
     sent_message = SimpleNamespace(create_thread=AsyncMock(return_value=thread))
-    ctx = SimpleNamespace(user=SimpleNamespace(id=456, name="Dev"), defer=AsyncMock(), send=AsyncMock(return_value=sent_message))
+    ctx = SimpleNamespace(
+        user=SimpleNamespace(id=456, name="Dev"),
+        defer=AsyncMock(),
+        send=AsyncMock(return_value=sent_message),
+    )
     usage = SimpleNamespace(update_usage_memory=lambda *args: None)
-    cog = module.SearchService(SimpleNamespace(user=SimpleNamespace(id=999)), None, usage, None, None)
+    cog = module.SearchService(
+        SimpleNamespace(user=SimpleNamespace(id=999)), None, usage, None, None
+    )
     await cog.search_chat_command(ctx, "gpt-6-luna")
     message = SimpleNamespace(
-        author=SimpleNamespace(id=123), guild=SimpleNamespace(name="Test server"),
+        author=SimpleNamespace(id=123),
+        guild=SimpleNamespace(name="Test server"),
         channel=SimpleNamespace(id=321, trigger_typing=AsyncMock()),
-        type=module.discord.MessageType.default, content="What changed today?", reply=AsyncMock(),
+        type=module.discord.MessageType.default,
+        content="What changed today?",
+        reply=AsyncMock(),
     )
 
     await cog.on_message(message)
@@ -151,18 +204,30 @@ async def test_search_chat_uses_structured_tool_observations(search_module, monk
 
 
 @pytest.mark.asyncio
-async def test_listener_ignores_non_session_messages_before_moderation(search_module, monkeypatch):
+async def test_listener_ignores_non_session_messages_before_moderation(
+    search_module, monkeypatch
+):
     module = search_module
     moderate = AsyncMock()
-    monkeypatch.setitem(sys.modules, "services.moderations_service", SimpleNamespace(
-        Moderation=SimpleNamespace(simple_moderate_and_respond=moderate),
-    ))
+    monkeypatch.setitem(
+        sys.modules,
+        "services.moderations_service",
+        SimpleNamespace(
+            Moderation=SimpleNamespace(simple_moderate_and_respond=moderate),
+        ),
+    )
     monkeypatch.setattr(module, "PRE_MODERATE", True)
-    cog = module.SearchService(SimpleNamespace(user=SimpleNamespace(id=999)), None, None, None, None)
+    cog = module.SearchService(
+        SimpleNamespace(user=SimpleNamespace(id=999)), None, None, None, None
+    )
     message = SimpleNamespace(
-        author=SimpleNamespace(id=123), guild=object(), channel=SimpleNamespace(id=321),
-        type=module.discord.MessageType.default, content="An unrelated server message",
-        reply=AsyncMock(), delete=AsyncMock(),
+        author=SimpleNamespace(id=123),
+        guild=object(),
+        channel=SimpleNamespace(id=321),
+        type=module.discord.MessageType.default,
+        content="An unrelated server message",
+        reply=AsyncMock(),
+        delete=AsyncMock(),
     )
     cog.thread_awaiting_responses.append(321)
 
@@ -174,22 +239,34 @@ async def test_listener_ignores_non_session_messages_before_moderation(search_mo
 
 
 @pytest.mark.asyncio
-async def test_personal_key_session_rejects_other_participants_before_tools(search_module, monkeypatch):
+async def test_personal_key_session_rejects_other_participants_before_tools(
+    search_module, monkeypatch
+):
     module = search_module
     monkeypatch.setattr(module, "USER_INPUT_API_KEYS", True)
     monkeypatch.setattr(module, "PRE_MODERATE", True)
     moderate = AsyncMock()
-    monkeypatch.setitem(sys.modules, "services.moderations_service", SimpleNamespace(
-        Moderation=SimpleNamespace(simple_moderate_and_respond=moderate),
-    ))
-    cog = module.SearchService(SimpleNamespace(user=SimpleNamespace(id=999)), None, None, None, None)
+    monkeypatch.setitem(
+        sys.modules,
+        "services.moderations_service",
+        SimpleNamespace(
+            Moderation=SimpleNamespace(simple_moderate_and_respond=moderate),
+        ),
+    )
+    cog = module.SearchService(
+        SimpleNamespace(user=SimpleNamespace(id=999)), None, None, None, None
+    )
     agent = SimpleNamespace(invoke=Mock())
     cog.chat_agents[321] = agent
     cog.thread_owners[321] = 456
     message = SimpleNamespace(
-        author=SimpleNamespace(id=789), guild=object(), channel=SimpleNamespace(id=321),
-        type=module.discord.MessageType.default, content="Search for me",
-        reply=AsyncMock(), delete=AsyncMock(),
+        author=SimpleNamespace(id=789),
+        guild=object(),
+        channel=SimpleNamespace(id=321),
+        type=module.discord.MessageType.default,
+        content="Search for me",
+        reply=AsyncMock(),
+        delete=AsyncMock(),
     )
 
     await cog.on_message(message)
@@ -198,3 +275,86 @@ async def test_personal_key_session_rejects_other_participants_before_tools(sear
     assert "creator's API key" in message.reply.await_args.args[0]
     agent.invoke.assert_not_called()
     moderate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_premoderation_reserves_search_session_before_a_second_generation(
+    search_module, monkeypatch
+):
+    module = search_module
+    monkeypatch.setattr(module, "message_has_access", AsyncMock(return_value=True))
+    monkeypatch.setattr(module, "PRE_MODERATE", True)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def premoderate(*args):
+        entered.set()
+        await release.wait()
+        return False
+
+    moderate = AsyncMock(side_effect=premoderate)
+    monkeypatch.setitem(
+        sys.modules,
+        "services.moderations_service",
+        SimpleNamespace(
+            Moderation=SimpleNamespace(simple_moderate_and_respond=moderate),
+        ),
+    )
+    cog = module.SearchService(
+        SimpleNamespace(user=SimpleNamespace(id=999)),
+        None,
+        SimpleNamespace(update_usage_memory=lambda *args: None),
+        None,
+        SimpleNamespace(deletion_queue=asyncio.Queue()),
+    )
+    agent = SimpleNamespace(invoke=Mock(return_value={"output": "Answer"}))
+    cog.chat_agents[321] = agent
+
+    def message():
+        return SimpleNamespace(
+            author=SimpleNamespace(id=123, bot=False),
+            guild=SimpleNamespace(name="Test"),
+            channel=SimpleNamespace(id=321, trigger_typing=AsyncMock()),
+            type=module.discord.MessageType.reply,
+            content="What changed today?",
+            reply=AsyncMock(),
+        )
+
+    first, second = message(), message()
+    task = asyncio.create_task(cog.on_message(first))
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        await cog.on_message(second)
+        assert "wait" in second.reply.await_args.args[0].lower()
+        moderate.assert_awaited_once()
+        agent.invoke.assert_not_called()
+    finally:
+        release.set()
+        await asyncio.wait_for(task, 1)
+    agent.invoke.assert_called_once()
+    assert cog.thread_awaiting_responses == []
+
+
+@pytest.mark.asyncio
+async def test_search_reply_failure_releases_session(search_module, monkeypatch):
+    module = search_module
+    monkeypatch.setattr(module, "message_has_access", AsyncMock(return_value=True))
+    cog = module.SearchService(
+        SimpleNamespace(user=SimpleNamespace(id=999)),
+        None,
+        SimpleNamespace(update_usage_memory=lambda *args: None),
+        None,
+        None,
+    )
+    cog.chat_agents[321] = SimpleNamespace(invoke=lambda *args: {"output": "Answer"})
+    message = SimpleNamespace(
+        author=SimpleNamespace(id=123, bot=False),
+        guild=SimpleNamespace(name="Test"),
+        channel=SimpleNamespace(id=321, trigger_typing=AsyncMock()),
+        type=module.discord.MessageType.default,
+        content="What changed today?",
+        reply=AsyncMock(side_effect=RuntimeError("Discord unavailable")),
+    )
+
+    with pytest.raises(RuntimeError, match="Discord unavailable"):
+        await cog.on_message(message)
+    assert cog.thread_awaiting_responses == []

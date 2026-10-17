@@ -44,6 +44,8 @@ def fake_api(monkeypatch):
             return False
 
         async def json(self):
+            if isinstance(self.payload, Exception):
+                raise self.payload
             return self.payload
 
     class Session:
@@ -219,6 +221,40 @@ async def test_modern_vision_includes_first_and_later_images(model, fake_api):
 
 
 @pytest.mark.asyncio
+async def test_scoped_conversation_instruction_preserves_opener_and_history(
+    model, fake_api
+):
+    history = [
+        SimpleNamespace(text="You are a helpful assistant.", image_urls=None),
+        SimpleNamespace(text="\nUser: My question", image_urls=None),
+        SimpleNamespace(text="\nGPTie: Prior answer", image_urls=None),
+        SimpleNamespace(text="\nUser: Follow up", image_urls=None),
+    ]
+    original = [item.text for item in history]
+    fake_api.queued.append((completion(), 200))
+
+    await model.send_chatgpt_chat_request(
+        history,
+        Models.DEFAULT,
+        "GPTie",
+        "User",
+        system_instruction="Answer in Spanish.",
+    )
+
+    messages = fake_api.calls[0][1]["json"]["messages"]
+    assert messages[:2] == [
+        {"role": "developer", "content": original[0]},
+        {"role": "developer", "content": "Answer in Spanish."},
+    ]
+    assert [message["role"] for message in messages[2:]] == [
+        "user",
+        "assistant",
+        "user",
+    ]
+    assert [item.text for item in history] == original
+
+
+@pytest.mark.asyncio
 async def test_json_request_uses_api_json_mode(model, fake_api):
     fake_api.queued.append((completion('{"intent_to_draw": true}'), 200))
     result = await model.send_chatgpt_chat_request(
@@ -365,6 +401,48 @@ async def test_insufficient_quota_is_not_retried(model, fake_api):
     with pytest.raises(OpenAIAPIError, match="Quota exhausted"):
         await model.send_request("Hello", None)
     assert len(fake_api.calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_kind", ["chat", "key_validation", "transcription"])
+@pytest.mark.parametrize(
+    "payload, expected",
+    [
+        (ValueError("invalid JSON"), "non-JSON response"),
+        ([], "invalid JSON response"),
+        ({"error": "Upstream rejected request"}, "Upstream rejected request"),
+    ],
+)
+async def test_all_api_paths_report_invalid_responses_consistently(
+    model, fake_api, request_kind, payload, expected
+):
+    fake_api.queued.append((payload, 400))
+    audio = openai_model.discord.File(io.BytesIO(b"audio"), filename="voice.wav")
+    try:
+        with pytest.raises(OpenAIAPIError, match=expected) as failure:
+            if request_kind == "chat":
+                await model.send_request("Hello", None)
+            elif request_kind == "key_validation":
+                await model.send_test_request("user-test-key")
+            else:
+                await model.send_transcription_request(audio)
+        assert failure.value.status == 400
+        assert len(fake_api.calls) == 1
+        model.usage_service.update_usage_from_response.assert_not_awaited()
+    finally:
+        audio.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response", [{}, {"text": None}, {"text": ["bad"]}])
+async def test_transcription_requires_text_response(model, fake_api, response):
+    fake_api.queued.append((response, 200))
+    audio = openai_model.discord.File(io.BytesIO(b"audio"), filename="voice.wav")
+    try:
+        with pytest.raises(ValueError, match="invalid transcription"):
+            await model.send_transcription_request(audio)
+    finally:
+        audio.close()
 
 
 @pytest.mark.asyncio
