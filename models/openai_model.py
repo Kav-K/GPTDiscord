@@ -6,6 +6,7 @@ import math
 import os
 import re
 import uuid
+from pathlib import Path
 
 import aiohttp
 import backoff
@@ -1225,7 +1226,15 @@ class Model:
         return discord.File(output, filename="generated-images.png"), paths
 
     async def _generate_image_references(
-        self, prompt, quality, image_size, style, count, custom_api_key=None
+        self,
+        prompt,
+        quality,
+        image_size,
+        style,
+        count,
+        custom_api_key=None,
+        *,
+        image_reference=None,
     ):
         if not prompt or not prompt.strip():
             raise ValueError("An image prompt is required")
@@ -1253,16 +1262,19 @@ class Model:
             raise ValueError("Unknown image size")
         if style in ("vivid", "natural"):
             prompt = f"{prompt}\n\nUse a {style} visual style."
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "n": count,
+            "size": image_size,
+            "quality": quality,
+            "output_format": "png",
+        }
+        if image_reference is not None:
+            payload["images"] = [{"image_url": image_reference}]
         response = await self._post_json(
-            "images/generations",
-            {
-                "model": model,
-                "prompt": prompt,
-                "n": count,
-                "size": image_size,
-                "quality": quality,
-                "output_format": "png",
-            },
+            "images/edits" if image_reference is not None else "images/generations",
+            payload,
             custom_api_key,
         )
         references = []
@@ -1295,10 +1307,53 @@ class Model:
             prompt, quality, image_size, style, num_images, custom_api_key
         )
 
+    async def send_image_edit_request(
+        self,
+        ctx,
+        prompt,
+        image_reference,
+        quality=None,
+        image_size=None,
+        style=None,
+        custom_api_key=None,
+    ):
+        """Create a source-guided variation of a locally generated image."""
+        source = Path(image_reference).resolve()
+        if not source.is_relative_to(Path(self.IMAGE_SAVE_PATH).resolve()):
+            raise ValueError("Only locally generated images can be varied")
+
+        def read_source():
+            try:
+                # The JSON Image API accepts image URLs up to 20 MiB, including
+                # base64 expansion. Keep the source below that bound.
+                with source.open("rb") as image:
+                    content = image.read(15_000_000 + 1)
+            except OSError as error:
+                raise ValueError("The source image is no longer available") from error
+            if len(content) > 15_000_000:
+                raise ValueError("The source image is too large to vary")
+            if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise ValueError("The source image must be a generated PNG")
+            return "data:image/png;base64," + base64.b64encode(content).decode("ascii")
+
+        reference = await asyncio.to_thread(read_source)
+        references = await self._generate_image_references(
+            "Create a new variation of the source image. Preserve its subject and "
+            "overall style, but vary the composition and details.\n\n"
+            f"Original prompt: {prompt}",
+            quality,
+            image_size or self.image_size,
+            style,
+            self.num_images,
+            custom_api_key,
+            image_reference=reference,
+        )
+        return await self.save_image_urls_and_return(references, ctx)
+
     async def send_image_request_old(self, ctx, prompt, vary=None, custom_api_key=None):
         if vary:
-            raise ValueError(
-                "DALL-E image variations have been retired. Generate a new image with /draw instead."
+            return await self.send_image_edit_request(
+                ctx, prompt, vary, custom_api_key=custom_api_key
             )
         return await self.send_image_request(
             ctx, prompt, "auto", self.image_size, None, custom_api_key

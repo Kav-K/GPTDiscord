@@ -36,27 +36,20 @@ def test_crawler_uses_model_tokenizer_fallback_and_keeps_url_commas(
 ):
     module = search_module
     requested_urls = []
-    encodings = []
 
     def read_page(url):
         requested_urls.append(url)
         return [Document(text="Readable page content.")]
 
-    def unknown_model(model):
-        raise KeyError(model)
-
-    def get_encoding(name):
-        encodings.append(name)
-        return SimpleNamespace(encode=lambda text: text.split())
-
     monkeypatch.setattr(module, "read_web_documents", read_page)
-    monkeypatch.setattr(module.tiktoken, "encoding_for_model", unknown_model)
-    monkeypatch.setattr(module.tiktoken, "get_encoding", get_encoding)
+    monkeypatch.setattr(
+        module, "index_tokenizer",
+        lambda: SimpleNamespace(encode=lambda text: text.split()),
+    )
 
     wrapper = module.CustomTextRequestWrapper()
     assert wrapper.get("https://example.com/report,a,b") == "Readable page content."
     assert requested_urls == ["https://example.com/report,a,b"]
-    assert encodings == ["o200k_base"]
     assert "invalid URL" in wrapper.get("file:///etc/passwd")
     assert len(requested_urls) == 1
 
@@ -69,9 +62,9 @@ def test_long_page_summarization_uses_current_llama_index_context(
 
     monkeypatch.setattr(llama_index.core, "global_tokenizer", lambda text: text.split())
     monkeypatch.setattr(
-        module.tiktoken,
-        "encoding_for_model",
-        lambda model: SimpleNamespace(encode=list),
+        module,
+        "index_tokenizer",
+        lambda: SimpleNamespace(encode=list),
     )
     monkeypatch.setattr(module.Models, "get_max_tokens", lambda model: 1010)
     monkeypatch.setattr(
@@ -124,14 +117,19 @@ async def test_redo_preserves_selected_model_and_search_modes(search_module):
         deep=True,
         multistep=True,
     )
-    cog = SimpleNamespace(redo_users={123: redo}, search_command=AsyncMock())
+    cog = SimpleNamespace(bot=None, redo_users={123: redo}, search_command=AsyncMock())
     button = module.RedoButton(ctx, cog)
-    interaction = SimpleNamespace(response=SimpleNamespace(send_message=AsyncMock()))
+    interaction = SimpleNamespace(
+        _state=None, user=ctx.user,
+        response=SimpleNamespace(send_message=AsyncMock()),
+    )
 
     await button.callback(interaction)
 
+    new_ctx = cog.search_command.await_args.args[0]
+    assert new_ctx.interaction is interaction
     cog.search_command.assert_awaited_once_with(
-        ctx,
+        new_ctx,
         "latest release",
         4,
         6,

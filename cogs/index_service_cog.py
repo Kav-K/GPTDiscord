@@ -3,6 +3,7 @@ import traceback
 
 import discord
 import os
+import re
 
 import openai
 
@@ -10,6 +11,7 @@ from models.embed_statics_model import EmbedStatics
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.access_service import message_has_access
+from services.agent_service import session_key_is_current
 from services.moderations_service import Moderation
 from services.text_service import TextService
 from models.index_model import Index_handler
@@ -31,12 +33,28 @@ class IndexService(discord.Cog, name="IndexService"):
         bot,
         usage_service,
         deletion_queue,
+        model=None,
+        recovery=None,
     ):
         super().__init__()
         self.bot = bot
-        self.index_handler = Index_handler(bot, usage_service)
+        self.recovery = recovery
+        self.index_handler = Index_handler(
+            bot, usage_service, model=model, recovery=recovery
+        )
         self.thread_awaiting_responses = []
         self.deletion_queue = deletion_queue
+        if recovery is not None:
+            recovery.register_route(
+                "index",
+                channels=lambda: self.index_handler.index_chat_chains,
+                owner_id=lambda channel_id: getattr(
+                    self.index_handler.index_chat_chains.get(channel_id),
+                    "owner_id",
+                    None,
+                ),
+                handler=self._process_message,
+            )
 
     async def process_indexing(self, message, index_type, content=None, link=None):
         """
@@ -50,6 +68,11 @@ class IndexService(discord.Cog, name="IndexService"):
             color=0x808080,
         )
         thinking_embed.set_footer(text="This may take a few seconds.")
+        if index_type == "file":
+            suffix = self.index_handler.get_file_suffix(content.content_type, content.filename)
+            description = self.index_handler.media_description(suffix)
+            if description:
+                thinking_embed.description = description
 
         try:
             thinking_message = await message.reply(embed=thinking_embed)
@@ -94,6 +117,14 @@ class IndexService(discord.Cog, name="IndexService"):
     async def on_message(self, message):
         if not await message_has_access(message):
             return
+        if self.recovery is not None:
+            await self.recovery.dispatch(message, route="index")
+        else:
+            await self._process_message(message)
+
+    async def _process_message(self, message):
+        if not await message_has_access(message):
+            return
         # Check for self
         if message.author == self.bot.user or getattr(message.author, "bot", False):
             return
@@ -133,6 +164,14 @@ class IndexService(discord.Cog, name="IndexService"):
 
         self.thread_awaiting_responses.append(message.channel.id)
         try:
+            ending = message.content.strip().lower() in {"stop", "end", "quit", "exit"}
+            if USER_INPUT_API_KEYS and not ending and not await session_key_is_current(
+                message, getattr(chat, "key_fingerprint", None), USER_KEY_DB
+            ):
+                return
+            if ending:
+                await self.index_handler.execute_index_chat_message(message, message.content.strip())
+                return
             # Pre moderation
             if PRE_MODERATE:
                 if await Moderation.simple_moderate_and_respond(
@@ -169,9 +208,9 @@ class IndexService(discord.Cog, name="IndexService"):
                     )
 
                 # Link operations, allow for user link upload, we connect and download the content at the link.
-                if "http" in prompt:
-                    # Extract the entire link
-                    link = prompt[prompt.find("http") :]
+                link_match = re.search(r"https?://[^\s<>]+", prompt)
+                if link_match:
+                    link = link_match.group().rstrip(".,;!?)")
 
                     indexing_result = await self.process_indexing(
                         message, "link", link=link

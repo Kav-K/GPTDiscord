@@ -15,7 +15,10 @@ from langchain_community.utilities.google_search import GoogleSearchAPIWrapper
 from langchain_core.tools import Tool
 
 from models.embed_statics_model import EmbedStatics
-from services.agent_service import agent_output_text, create_chat_agent, create_chat_llm
+from services.agent_service import (
+    agent_output_text, create_chat_agent, create_chat_llm,
+    personal_key_fingerprint, session_key_is_current,
+)
 from services.deletion_service import Deletion
 from services.environment_service import EnvService
 from services.access_service import message_has_access
@@ -48,14 +51,32 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self.redo_users = {}
         self.chat_agents = {}
         self.thread_owners = {}
+        self.thread_key_fingerprints = {}
         self.thread_awaiting_responses = []
         self.converser_cog = converser_cog
+        self.recovery = getattr(converser_cog, "conversation_recovery", None)
+        if self.recovery is not None:
+            self.recovery.register_route(
+                "code",
+                channels=lambda: self.chat_agents,
+                owner_id=lambda channel_id: self.thread_owners.get(channel_id),
+                handler=self._process_message,
+            )
         self.initial_messages = {}
         self.sessions = {}
+        self._sandbox_tasks = set()
         # Make a mapping of all the country codes and their full country names:
 
     @discord.Cog.listener()
     async def on_message(self, message):
+        if not await message_has_access(message):
+            return
+        if self.recovery is not None:
+            await self.recovery.dispatch(message, route="code")
+        else:
+            await self._process_message(message)
+
+    async def _process_message(self, message):
         if not await message_has_access(message):
             return
         # Check if the message is from a bot.
@@ -106,8 +127,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def _process_session_message(self, message):
-        # Pre moderation
-        if PRE_MODERATE:
+        ending = message.content.strip().lower() in {"stop", "end", "quit", "exit"}
+        if USER_INPUT_API_KEYS and not ending and not await session_key_is_current(
+            message, self.thread_key_fingerprints.get(message.channel.id), USER_KEY_DB
+        ):
+            return
+        # Ending a session remains possible after its key has been revoked.
+        if PRE_MODERATE and not ending:
             from services.moderations_service import Moderation
 
             if await Moderation.simple_moderate_and_respond(message.content, message):
@@ -120,13 +146,15 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
                 session = self.sessions[message.channel.id]
-                await asyncio.to_thread(session.close)
-                await message.reply(
-                    "Code interpreter session ended. Its sandbox and files have been removed."
-                )
+                try:
+                    await asyncio.to_thread(session.close)
+                except Exception:
+                    print("Code interpreter sandbox cleanup failed.")
                 self.sessions.pop(message.channel.id, None)
                 self.chat_agents.pop(message.channel.id)
                 self.thread_owners.pop(message.channel.id, None)
+                self.thread_key_fingerprints.pop(message.channel.id, None)
+                await message.reply("Code interpreter session ended.")
 
                 # close the thread
                 thread = await self.bot.fetch_channel(message.channel.id)
@@ -195,11 +223,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     self.sessions[message.channel.id].get_artifact_names
                 )
 
-            except Exception as e:
-                response = f"Error: {e}"
-                traceback.print_exc()
+            except Exception:
+                print("Code interpreter request failed.")
                 await message.reply(
-                    embed=EmbedStatics.get_code_chat_failure_embed(response)
+                    embed=EmbedStatics.get_code_chat_failure_embed(
+                        "The code interpreter request failed. Please try again or start a new session."
+                    )
                 )
                 return
 
@@ -310,8 +339,10 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             ]
 
         def close(self):
-            self.session.kill()
-            self.sessioned = False
+            try:
+                self.session.kill()
+            finally:
+                self.sessioned = False
 
         def download_file(self, filepath):
             return bytes(
@@ -353,6 +384,23 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         async def upload_file_async(self, path, file):
             return await asyncio.to_thread(self.upload_file_sync, path, file)
 
+    async def _close_sandbox(self, session):
+        if session is None or not session.is_sessioned():
+            return
+        try:
+            await asyncio.wait_for(asyncio.to_thread(session.close), timeout=30)
+        except Exception:
+            print("Code interpreter sandbox cleanup failed.")
+
+    def _close_late_sandbox(self, creation):
+        try:
+            session = creation.result()
+        except BaseException:
+            return
+        cleanup = asyncio.create_task(self._close_sandbox(session))
+        self._sandbox_tasks.add(cleanup)
+        cleanup.add_done_callback(self._sandbox_tasks.discard)
+
     async def code_interpreter_chat_command(
         self,
         ctx: discord.ApplicationContext,
@@ -371,6 +419,20 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 return
 
         await ctx.defer()
+        guild_id = getattr(ctx, "guild_id", None)
+        if self.recovery is not None and self.bot.get_guild(guild_id) is None:
+            prepared = False
+            try:
+                if self.recovery.enabled_for(guild_id):
+                    prepared = await self.recovery.prepare_context(ctx)
+            except Exception:
+                print("Optional chat REST setup failed.")
+            if not prepared:
+                await ctx.respond(
+                    "Discord has not delivered this server's events. Ask the bot operator to check scoped REST recovery before starting this chat.",
+                    ephemeral=True,
+                )
+                return
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
@@ -388,83 +450,111 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         )
         await safe_ctx_respond(ctx=ctx, content="Conversation started.")
 
-        self.sessions[thread.id] = await asyncio.to_thread(self.SessionedCodeExecutor)
+        creation = asyncio.create_task(asyncio.to_thread(self.SessionedCodeExecutor))
+        self._sandbox_tasks.add(creation)
+        creation.add_done_callback(self._sandbox_tasks.discard)
+        try:
+            # A cancelled command cannot cancel or discard a creation still
+            # running in its worker thread; its result must remain recoverable.
+            self.sessions[thread.id] = await asyncio.shield(creation)
 
-        if not self.sessions[thread.id].is_sessioned():
-            await thread.send(
-                "Failed to start code interpreter session. This may be an issue with E2B. Please try again later."
-            )
-            await thread.edit(name="Closed-GPT (Error)")
-            await thread.edit(archived=True)
-            return
+            if not self.sessions[thread.id].is_sessioned():
+                raise RuntimeError("Code interpreter sandbox is unavailable")
 
-        tools = [
-            # The requests tool
-            Tool(
-                name="Code-execution-tool",
-                func=self.sessions[thread.id].execute_code_sync,
-                description="This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
-            ),
-            Tool(
-                name="Install-python-package-tool",
-                func=self.sessions[thread.id].install_python_package,
-                description="This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times.",
-            ),
-            Tool(
-                name="Install-system-package-tool",
-                func=self.sessions[thread.id].install_system_package,
-                description="This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
-            ),
-            Tool(
-                name="Run-command-tool",
-                func=self.sessions[thread.id].run_command_sync,
-                description="This tool allows you to run terminal (bash/unix) commands in the execution environment. The input to the tool is the command to run. An example input can be 'df -h'",
-            ),
-        ]
-
-        # Add google search functionality if the user has google keys set up
-        if GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID:
-            search = GoogleSearchAPIWrapper(
-                google_api_key=GOOGLE_API_KEY,
-                google_cse_id=GOOGLE_SEARCH_ENGINE_ID,
-                k=2,
-            )
-            tools.append(
+            tools = [
+                # The requests tool
                 Tool(
-                    name="Search-Tool",
-                    func=search.run,
-                    description="This tool is useful when you need to answer questions about current events or retrieve information about a topic that may require the internet. The input to this tool is a search query to ask google. Search queries should be less than 8 words. For example, an input could be 'What is the weather like in New York?' and the tool input would be 'weather new york'.",
-                )
-            )
+                    name="Code-execution-tool",
+                    func=self.sessions[thread.id].execute_code_sync,
+                    description="This tool is able to execute Python 3 code. The input to the tool is just the raw python code. The output is the stdout of the code. When using the output of the code execution tool, always make sure to always display the raw output to the user as well.",
+                ),
+                Tool(
+                    name="Install-python-package-tool",
+                    func=self.sessions[thread.id].install_python_package,
+                    description="This tool installs a python package into the execution environment. The input to the tool is a single python package name (e.g 'numpy'). If you need to install multiple python packages, call this tool multiple times.",
+                ),
+                Tool(
+                    name="Install-system-package-tool",
+                    func=self.sessions[thread.id].install_system_package,
+                    description="This tool installs a system package into the system environment. The input to the tool is a single package name (e.g 'htop'). If you need to install multiple system packages, call this tool multiple times.",
+                ),
+                Tool(
+                    name="Run-command-tool",
+                    func=self.sessions[thread.id].run_command_sync,
+                    description="This tool allows you to run terminal (bash/unix) commands in the execution environment. The input to the tool is the command to run. An example input can be 'df -h'",
+                ),
+            ]
 
-        llm = create_chat_llm(
-            model=model,
-            temperature=temperature,
-            top_p=top_p,
-            api_key=user_api_key,
-        )
-        system_message = (
-            "You are an expert programmer that is able to use the tools to your advantage to execute "
-            "python code. Help the user iterate on their code and test it through execution. "
-            "Always provide the full code output when asked for "
-            "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-            "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are "
-            "able to search the internet to find the most up to date algorithms and practices. You are "
-            "also able to run commands in the execution environment such as to work with files, "
-            "make curl requests, or etc. The environment is Linux. When asked to write code that saves "
-            "files, always prefix the file with the artifacts/ folder. For example, if asked to create "
-            "test.txt, in the function call you make to whatever library that creates the file, "
-            "you would use artifacts/test.txt. However, when users upload files, they will by default be "
-            "in /home/user/, so if working with a user file, unless they give you the full path, "
-            "look in /home/user. Always show the output of code execution explicitly and separately at "
-            "the end of the rest of your output. You are also able to install system and python packages "
-            "using your tools. However, the tools can only install one package at a time, if you need to "
-            "install multiple packages, call the tools multiple times. Always first display your code to "
-            "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
-            "to execute code. Never execute code before showing the user the code first."
-        )
-        self.chat_agents[thread.id] = create_chat_agent(llm, tools, system_message)
-        self.thread_owners[thread.id] = ctx.user.id
+            # Add google search functionality if the user has google keys set up
+            if GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID:
+                search = GoogleSearchAPIWrapper(
+                    google_api_key=GOOGLE_API_KEY,
+                    google_cse_id=GOOGLE_SEARCH_ENGINE_ID,
+                    k=2,
+                )
+                tools.append(
+                    Tool(
+                        name="Search-Tool",
+                        func=search.run,
+                        description="This tool is useful when you need to answer questions about current events or retrieve information about a topic that may require the internet. The input to this tool is a search query to ask google. Search queries should be less than 8 words. For example, an input could be 'What is the weather like in New York?' and the tool input would be 'weather new york'.",
+                    )
+                )
+
+            llm = create_chat_llm(
+                model=model,
+                temperature=temperature,
+                top_p=top_p,
+                api_key=user_api_key,
+            )
+            system_message = (
+                "You are an expert programmer that is able to use the tools to your advantage to execute "
+                "python code. Help the user iterate on their code and test it through execution. "
+                "Always provide the full code output when asked for "
+                "when you execute code. Ensure that all your code is formatted with backticks followed by the "
+                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are "
+                "able to search the internet to find the most up to date algorithms and practices. You are "
+                "also able to run commands in the execution environment such as to work with files, "
+                "make curl requests, or etc. The environment is Linux. When asked to write code that saves "
+                "files, always prefix the file with the artifacts/ folder. For example, if asked to create "
+                "test.txt, in the function call you make to whatever library that creates the file, "
+                "you would use artifacts/test.txt. However, when users upload files, they will by default be "
+                "in /home/user/, so if working with a user file, unless they give you the full path, "
+                "look in /home/user. Always show the output of code execution explicitly and separately at "
+                "the end of the rest of your output. You are also able to install system and python packages "
+                "using your tools. However, the tools can only install one package at a time, if you need to "
+                "install multiple packages, call the tools multiple times. Always first display your code to "
+                "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
+                "to execute code. Never execute code before showing the user the code first."
+            )
+            self.chat_agents[thread.id] = create_chat_agent(llm, tools, system_message)
+            self.thread_owners[thread.id] = ctx.user.id
+            if USER_INPUT_API_KEYS:
+                self.thread_key_fingerprints[thread.id] = personal_key_fingerprint(user_api_key)
+            if self.recovery is not None:
+                await self.recovery.watch_thread(thread, new=True)
+        except BaseException as error:
+            self.chat_agents.pop(thread.id, None)
+            self.thread_owners.pop(thread.id, None)
+            self.thread_key_fingerprints.pop(thread.id, None)
+            session = self.sessions.pop(thread.id, None)
+            if session is None:
+                # Even if creation finishes immediately after cancellation,
+                # callbacks run for completed tasks and retrieve that result.
+                creation.add_done_callback(self._close_late_sandbox)
+            else:
+                await self._close_sandbox(session)
+            try:
+                if isinstance(error, Exception):
+                    print("Code interpreter session startup failed.")
+                    await thread.send(
+                        "Failed to start code interpreter session. Check the E2B and OpenAI configuration, then try again."
+                    )
+                await thread.edit(name="Closed-GPT (Error)", archived=True)
+            except Exception:
+                print("Code interpreter failed thread cleanup.")
+            if not isinstance(error, Exception):
+                raise
+
 
 
 class CodeInterpreterDownloadArtifactsView(discord.ui.View):

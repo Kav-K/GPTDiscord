@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
-from llama_index.core import Document, SimpleDirectoryReader
+from llama_index.core import Document, SimpleDirectoryReader, set_global_tokenizer
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.indices.prompt_helper import PromptHelper, ChatPromptHelper
@@ -20,7 +20,8 @@ from llama_index.llms.openai import OpenAIResponses
 
 from models.openai_model import Models
 from services.environment_service import EnvService
-from services.openai_client_service import client_routing
+from services.openai_client_service import client_routing, RequestOpenAI, RequestAsyncOpenAI
+from services.request_context import single_attempt_requests
 from services.usage_service import _load_tokenizer
 
 
@@ -56,6 +57,22 @@ def uses_byte_tokenizer(tokenizer):
 
 
 class IndexEmbedding(OpenAIEmbedding):
+    def __init__(self, **kwargs):
+        # The SDK owns bounded retries; a second LlamaIndex retry loop would
+        # repeat a claimed recovery request even after the SDK stops.
+        kwargs.setdefault("max_retries", 0)
+        super().__init__(**kwargs)
+
+    def _get_client(self):
+        return super()._get_client().with_options(
+            max_retries=0 if single_attempt_requests.get() else 2
+        )
+
+    def _get_aclient(self):
+        return super()._get_aclient().with_options(
+            max_retries=0 if single_attempt_requests.get() else 2
+        )
+
     def _get_credential_kwargs(self, is_async=False):
         return {
             **super()._get_credential_kwargs(is_async),
@@ -64,6 +81,27 @@ class IndexEmbedding(OpenAIEmbedding):
 
 
 class IndexResponses(OpenAIResponses):
+    def __init__(self, **kwargs):
+        key = kwargs.get("api_key") or EnvService.get_openai_token()
+        kwargs["api_key"] = key
+        kwargs.setdefault("api_base", EnvService.get_openai_base_url())
+        kwargs.setdefault("max_retries", 0)
+        clients = {
+            "api_key": key,
+            "base_url": kwargs["api_base"],
+            "timeout": kwargs.get("timeout", 60.0),
+            **client_routing(key),
+        }
+        if kwargs.get("openai_client") is None:
+            kwargs["openai_client"] = RequestOpenAI(
+                **clients, http_client=kwargs.get("http_client")
+            )
+        if kwargs.get("async_openai_client") is None:
+            kwargs["async_openai_client"] = RequestAsyncOpenAI(
+                **clients, http_client=kwargs.get("async_http_client")
+            )
+        super().__init__(**kwargs)
+
     def _get_credential_kwargs(self, is_async=False):
         return {
             **super()._get_credential_kwargs(is_async),
@@ -138,6 +176,9 @@ def create_index_context(api_key=None, model=None, llm=None, embedding_model=Non
         {} if embedding_model == "text-embedding-ada-002" else {"dimensions": 1536}
     )
     tokenizer = index_tokenizer().encode
+    # Tree summaries and tool routers resolve a process-wide tokenizer even
+    # with per-index callbacks. This counter contains no account state.
+    set_global_tokenizer(tokenizer)
     token_counter = TokenCountingHandler(tokenizer=tokenizer)
     if uses_byte_tokenizer(tokenizer):
         token_counter._token_counter = ByteTokenCounter(tokenizer=tokenizer)

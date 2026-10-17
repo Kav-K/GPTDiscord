@@ -18,7 +18,9 @@ def test_import_does_not_start_bot_or_require_tokens(tmp_path):
         capture_output=True,
         check=True,
     )
-    assert "13.0.0" in result.stdout
+    from gpt3discord import __version__
+
+    assert __version__ in result.stdout
     assert not list(tmp_path.iterdir())
 
 

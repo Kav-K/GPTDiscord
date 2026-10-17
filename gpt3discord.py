@@ -12,7 +12,7 @@ from platform import system
 from services.environment_service import EnvService
 from services.access_service import get_access_role_ids, install_access_gate
 
-__version__ = "13.0.0"
+__version__ = "13.1.0"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
@@ -28,6 +28,32 @@ def load_optional_service(module_name, class_name, extra):
             f"Cannot load {class_name}. Install its dependencies with "
             f"pip install 'gpt3discord[{extra}]' and check the integration configuration."
         ) from exc
+
+
+def load_conversation_memory():
+    """Select one explicitly configured backend; basic chat needs neither extra."""
+    url = os.getenv("QDRANT_URL") or None
+    path = os.getenv("QDRANT_PATH") or None
+    key = os.getenv("QDRANT_API_KEY") or None
+    pinecone_token = os.getenv("PINECONE_TOKEN")
+    if pinecone_token and (url or path or key):
+        raise ValueError("Configure either Qdrant or Pinecone conversation memory, not both.")
+    if url and path:
+        raise ValueError("Configure QDRANT_URL or QDRANT_PATH, not both.")
+    if key and not url:
+        raise ValueError("QDRANT_API_KEY requires QDRANT_URL.")
+    if url or path:
+        service = load_optional_service("services.qdrant_service", "QdrantService", "qdrant")
+        return service.from_config(
+            url=url,
+            path=path,
+            api_key=key,
+            collection_name=os.getenv("QDRANT_COLLECTION", "conversation-embeddings"),
+        )
+    if pinecone_token:
+        service = load_optional_service("services.pinecone_service", "PineconeService", "pinecone")
+        return service.from_config(pinecone_token, EnvService.get_pinecone_region())
+    return None
 
 
 async def main():
@@ -77,14 +103,7 @@ async def main():
         asyncio.Queue(),
     )
 
-    pinecone_service = None
-    if os.getenv("PINECONE_TOKEN"):
-        PineconeService = load_optional_service(
-            "services.pinecone_service", "PineconeService", "pinecone"
-        )
-        pinecone_service = PineconeService.from_config(
-            os.environ["PINECONE_TOKEN"], EnvService.get_pinecone_region()
-        )
+    pinecone_service = load_conversation_memory()
 
     @bot.event
     async def on_ready():
@@ -149,7 +168,10 @@ async def main():
         IndexService = load_optional_service(
             "cogs.index_service_cog", "IndexService", "index"
         )
-        bot.add_cog(IndexService(bot, usage_service, deletion_queue))
+        bot.add_cog(IndexService(
+            bot, usage_service, deletion_queue, model=model,
+            recovery=bot.get_cog("GPT3ComCon").conversation_recovery,
+        ))
 
     if EnvService.get_deepl_token():
         from cogs.translation_service_cog import TranslationService
@@ -216,6 +238,8 @@ async def main():
         for worker in workers:
             worker.cancel()
         await asyncio.gather(*workers, return_exceptions=True)
+        if pinecone_service is not None and hasattr(pinecone_service, "close"):
+            await asyncio.to_thread(pinecone_service.close)
 
 
 def _windows_process_running(pid):

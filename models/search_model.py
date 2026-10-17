@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 import traceback
 from datetime import datetime, date
@@ -31,6 +32,10 @@ from services.environment_service import EnvService
 MAX_SEARCH_PRICE = EnvService.get_max_search_price()
 
 
+class SearchError(ValueError):
+    """Actionable search failures that are safe to show in Discord."""
+
+
 class Search:
     def __init__(self, gpt_model, usage_service):
         self.model = gpt_model
@@ -56,7 +61,8 @@ class Search:
             parents=True, exist_ok=True
         )
         # Save the index to file under the user id
-        file = f"{date.today().month}_{date.today().day}_{query[:20]}"
+        name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", query[:20]).strip(" .")
+        file = f"{date.today().month}_{date.today().day}_{name or 'search'}"
 
         persist_index(
             index,
@@ -151,18 +157,26 @@ class Search:
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30)
         ) as session:
-            async with session.get(
-                "https://www.googleapis.com/customsearch/v1",
-                params={
-                    "key": self.google_search_api_key,
-                    "cx": self.google_search_engine_id,
-                    "q": query,
-                },
-            ) as response:
-                if response.status != 200:
-                    raise ValueError(f"Google Search returned HTTP {response.status}.")
-                data = await response.json()
-        links = [item["link"] for item in data.get("items", [])]
+            links = []
+            # Google returns at most ten results per page, while /internet
+            # search permits up to sixteen source pages.
+            for start in range(1, min(max(search_scope, 1), 16) + 1, 10):
+                async with session.get(
+                    "https://www.googleapis.com/customsearch/v1",
+                    params={
+                        "key": self.google_search_api_key,
+                        "cx": self.google_search_engine_id,
+                        "q": query,
+                        "start": start,
+                    },
+                    proxy=EnvService.get_http_proxy("https://www.googleapis.com/customsearch/v1"),
+                ) as response:
+                    if response.status != 200:
+                        raise SearchError(f"Google Search returned HTTP {response.status}.")
+                    data = await response.json()
+                links.extend(item["link"] for item in data.get("items", []))
+                if not data.get("queries", {}).get("nextPage"):
+                    break
         return links[:search_scope], links
 
     async def try_edit(self, message, embed):
@@ -223,7 +237,7 @@ class Search:
             refined_query, search_scope=search_scope
         )
         if not all_links:
-            raise ValueError("Google returned no search results for this question.")
+            raise SearchError("Google returned no search results for this question.")
         if ctx:
             await self.try_edit(
                 in_progress_message,
@@ -255,7 +269,7 @@ class Search:
             except Exception:
                 traceback.print_exc()
         if not documents:
-            raise ValueError(
+            raise SearchError(
                 "None of the search result pages could be read. Try a different query."
             )
         if ctx:
@@ -273,7 +287,7 @@ class Search:
             embedding_tokens, EnvService.get_openai_embedding_model()
         )
         if estimated_price > MAX_SEARCH_PRICE:
-            raise ValueError(
+            raise SearchError(
                 "This search exceeds MAX_SEARCH_PRICE. Try a narrower search scope."
             )
         if ctx:
@@ -311,7 +325,7 @@ class Search:
             )
             synthesizer = get_response_synthesizer(
                 response_mode=response_mode,
-                use_async=True,
+                use_async=False,
                 refine_template=CHAT_REFINE_PROMPT,
                 text_qa_template=self.qaprompt,
                 **context.query_kwargs,

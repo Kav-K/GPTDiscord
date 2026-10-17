@@ -35,6 +35,16 @@ def build_translation_embed(
     return embed
 
 
+def build_translation_embeds(*args):
+    """Keep both source and translated text within Discord's embed limit."""
+    embed = build_translation_embed(*args)
+    description = embed.description
+    for offset in range(0, len(description), 4000):
+        page = discord.Embed.from_dict(embed.to_dict())
+        page.description = description[offset : offset + 4000]
+        yield page
+
+
 class TranslationService(discord.Cog, name="TranslationService"):
     """Cog containing translation commands and retrieval of translation services"""
 
@@ -68,7 +78,6 @@ class TranslationService(discord.Cog, name="TranslationService"):
     async def translate_command(self, ctx, text, target_language, formality):
         """Command handler for the translation command"""
         await ctx.defer()
-        # TODO Add pagination!
 
         if (
             target_language.lower().strip()
@@ -94,15 +103,14 @@ class TranslationService(discord.Cog, name="TranslationService"):
             )
             return
 
-        await ctx.respond(
-            embed=build_translation_embed(
-                text,
-                response,
-                target_language,
-                TranslationModel.get_country_name_from_code(detected_language),
-                ctx.user,
-            )
-        )
+        for embed in build_translation_embeds(
+            text,
+            response,
+            target_language,
+            TranslationModel.get_country_name_from_code(detected_language),
+            ctx.user,
+        ):
+            await ctx.respond(embed=embed)
 
     async def translate_action(self, ctx: discord.ApplicationContext, message):
         await ctx.defer(ephemeral=True)
@@ -213,16 +221,14 @@ class TranslateView(discord.ui.View):
                 self.language,
                 self.formality,
             )
-            await self.message.reply(
-                mention_author=False,
-                embed=build_translation_embed(
-                    self.message.content,
-                    response,
-                    self.language_long,
-                    TranslationModel.get_country_name_from_code(detected_language),
-                    self.requestor,
-                ),
-            )
+            for embed in build_translation_embeds(
+                self.message.content,
+                response,
+                self.language_long,
+                TranslationModel.get_country_name_from_code(detected_language),
+                self.requestor,
+            ):
+                await self.message.reply(mention_author=False, embed=embed)
             await self.selection_message.delete()
         except (aiohttp.ClientError, ValueError):
             await interaction.followup.send(
