@@ -721,3 +721,555 @@ async def test_conversation_start_without_gateway_or_recovery_stops_before_work_
     assert not flow.cog.conversation_threads
     assert not flow.cog.conversation_thread_owners
     assert not flow.cog.full_conversation_history
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_gateway", [False, True])
+async def test_private_channel_conversation_is_rejected_before_posts_or_provider_work(
+    conversation, monkeypatch, missing_gateway
+):
+    flow = conversation
+    if missing_gateway:
+        flow.state._guilds.clear()
+        flow.ctx.guild = None
+        flow.ctx.interaction = SimpleNamespace(guild_id=GUILD)
+    key_lookup = AsyncMock()
+    file_lookup = AsyncMock()
+    monkeypatch.setattr(flow.module, "USER_INPUT_API_KEYS", True)
+    monkeypatch.setattr(flow.module.TextService, "get_user_api_key", key_lookup)
+    monkeypatch.setattr(flow.cog, "load_file", file_lookup)
+
+    await flow.cog.converse_command(
+        flow.ctx,
+        draw=False,
+        opener="This private opener must not become a public channel message.",
+        opener_file="must-not-be-read.txt",
+        private=True,
+        minimal=True,
+        model=None,
+        temperature=None,
+        top_p=None,
+        frequency_penalty=None,
+        presence_penalty=None,
+        use_threads=False,
+    )
+
+    flow.ctx.respond.assert_awaited_once()
+    response = flow.ctx.respond.await_args
+    assert "private thread" in response.args[0]
+    assert response.kwargs["ephemeral"] is True
+    assert response.kwargs["allowed_mentions"].to_dict()["parse"] == []
+    flow.ctx.defer.assert_not_awaited()
+    key_lookup.assert_not_awaited()
+    file_lookup.assert_not_awaited()
+    flow.state.http.send_message.assert_not_awaited()
+    flow.state.http.start_thread_with_message.assert_not_awaited()
+    assert not flow.provider_calls
+    assert not flow.cog.conversation_threads
+    assert not flow.cog.conversation_thread_owners
+    assert not flow.cog.full_conversation_history
+
+
+@pytest.fixture
+def control_responses(monkeypatch):
+    """Keep Pycord's genuine acknowledgement state and simulate only HTTP."""
+    from discord.webhook.async_ import async_context
+
+    adapter = SimpleNamespace(
+        create_interaction_response=AsyncMock(return_value={"interaction": {}})
+    )
+    followup = AsyncMock()
+    monkeypatch.setattr(discord.Webhook, "send", followup)
+    token = async_context.set(adapter)
+    try:
+        yield SimpleNamespace(
+            initial=adapter.create_interaction_response, followup=followup
+        )
+    finally:
+        async_context.reset(token)
+
+
+def end_context(flow, channel, *, actor=MEMBER):
+    interaction = discord.Interaction(
+        state=flow.state,
+        data={
+            "id": "1500000000000000999",
+            "type": discord.InteractionType.application_command.value,
+            "application_id": str(BOT),
+            "token": "offline-control-token",
+            "version": 1,
+            "guild_id": str(GUILD),
+            "channel_id": str(channel),
+            "member": member_payload(actor),
+            "data": {"id": "1500000000000000998", "name": "gpt", "type": 1},
+        },
+    )
+    return discord.ApplicationContext(flow.bot, interaction)
+
+
+def install_end_http(flow, monkeypatch, channel, *, before_lookup=None):
+    # Reuse the actual Discord-shaped payloads that exercise recovery parsing.
+    from tests.test_conversation_recovery import guild_payload, thread_payload
+
+    data = thread_payload(channel)
+
+    async def lookup(identifier):
+        if before_lookup:
+            before_lookup()
+        assert identifier == channel
+        return deepcopy(data)
+
+    async def edit(identifier, **kwargs):
+        assert identifier == channel
+        result = deepcopy(data)
+        result["name"] = kwargs.get("name", result["name"])
+        result["thread_metadata"]["archived"] = kwargs.get("archived", False)
+        return result
+
+    monkeypatch.setattr(flow.state.http, "get_channel", AsyncMock(side_effect=lookup))
+    monkeypatch.setattr(flow.state.http, "edit_channel", AsyncMock(side_effect=edit))
+    monkeypatch.setattr(
+        flow.state.http, "get_guild", AsyncMock(return_value=guild_payload())
+    )
+    monkeypatch.setattr(
+        flow.state.http, "get_roles", AsyncMock(return_value=guild_payload()["roles"])
+    )
+    monkeypatch.setattr(
+        flow.state.http,
+        "get_member",
+        AsyncMock(
+            side_effect=lambda guild, user: member_payload(user, bot=user == BOT)
+        ),
+    )
+    monkeypatch.setattr(
+        flow.bot,
+        "fetch_channel",
+        AsyncMock(side_effect=AssertionError("Use local REST guild")),
+    )
+
+
+@pytest.mark.asyncio
+async def test_cacheless_slash_end_acknowledges_then_resolves_and_archives_real_thread(
+    conversation, control_responses, monkeypatch
+):
+    flow = conversation
+    channel = await flow.start()
+    flow.state._guilds.clear()
+    ctx = end_context(flow, channel)
+    assert isinstance(ctx.channel, discord.PartialMessageable)
+    assert ctx.guild is None
+    lock = flow.cog.conversation_recovery.lock_for(channel)
+    observations = []
+
+    def before_lookup():
+        observations.append(
+            (
+                ctx.response.is_done(),
+                lock.locked(),
+                asyncio.current_task() in flow.cog.conversation_recovery._active,
+            )
+        )
+
+    install_end_http(flow, monkeypatch, channel, before_lookup=before_lookup)
+
+    await flow.cog.end_command(ctx)
+
+    assert observations == [(True, True, True)]
+    assert not lock.locked()
+    assert flow.bot.get_guild(GUILD) is None
+    assert flow.state._guilds == {}
+    flow.bot.fetch_channel.assert_not_awaited()
+    flow.state.http.edit_channel.assert_awaited_once_with(
+        channel, name="Closed-GPT", archived=True, reason=None
+    )
+    assert channel not in flow.cog.conversation_threads
+    assert channel not in flow.cog.conversation_thread_owners[MEMBER]
+    assert not flow.provider_calls
+    assert any(
+        message["embeds"] and message["channel_id"] == str(channel)
+        for message in flow.sent
+    )
+    control_responses.initial.assert_awaited_once()
+    payload = control_responses.initial.await_args.kwargs
+    assert (
+        payload["type"]
+        == discord.InteractionResponseType.deferred_channel_message.value
+    )
+    assert payload["data"] == {"flags": 64}
+    control_responses.followup.assert_awaited_once()
+    assert "ended" in control_responses.followup.await_args.args[0]
+    assert control_responses.followup.await_args.kwargs["ephemeral"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "rejection", ["other-owner", "busy-user", "busy-thread", "locked"]
+)
+async def test_cacheless_slash_end_rejections_are_acknowledged_without_lookup_or_mutation(
+    conversation, control_responses, monkeypatch, rejection
+):
+    flow = conversation
+    channel = await flow.start()
+    original = flow.cog.conversation_threads[channel]
+    flow.state._guilds.clear()
+    actor = MEMBER + 1 if rejection == "other-owner" else MEMBER
+    ctx = end_context(flow, channel, actor=actor)
+    install_end_http(flow, monkeypatch, channel)
+    lock = flow.cog.conversation_recovery.lock_for(channel)
+    if rejection == "busy-user":
+        flow.cog.awaiting_responses.append(MEMBER)
+    elif rejection == "busy-thread":
+        flow.cog.awaiting_thread_responses.append(channel)
+    elif rejection == "locked":
+        await lock.acquire()
+    try:
+        await asyncio.wait_for(flow.cog.end_command(ctx), timeout=1)
+    finally:
+        if rejection == "locked":
+            assert lock.locked()
+            lock.release()
+
+    assert ctx.response.is_done()
+    control_responses.initial.assert_awaited_once()
+    if rejection == "other-owner":
+        assert "own" in control_responses.followup.await_args.args[0]
+    else:
+        assert "wait" in control_responses.initial.await_args.kwargs["data"]["content"]
+    flow.state.http.get_channel.assert_not_awaited()
+    flow.state.http.edit_channel.assert_not_awaited()
+    assert flow.cog.conversation_threads[channel] is original
+    assert flow.cog.conversation_thread_owners[MEMBER] == [channel]
+    assert not flow.provider_calls
+
+
+@pytest.mark.asyncio
+async def test_cacheless_end_lookup_failure_keeps_conversation_and_sanitizes_followup(
+    conversation, control_responses, monkeypatch
+):
+    flow = conversation
+    channel = await flow.start()
+    flow.state._guilds.clear()
+    ctx = end_context(flow, channel)
+    install_end_http(flow, monkeypatch, channel)
+    flow.state.http.get_channel.side_effect = OSError("private-provider-details")
+
+    await flow.cog.end_command(ctx)
+
+    assert channel in flow.cog.conversation_threads
+    assert flow.cog.conversation_thread_owners[MEMBER] == [channel]
+    flow.state.http.edit_channel.assert_not_awaited()
+    assert "verify" in control_responses.followup.await_args.args[0]
+    assert (
+        "private-provider-details" not in control_responses.followup.await_args.args[0]
+    )
+    assert not flow.cog.conversation_recovery.lock_for(channel).locked()
+    assert not flow.provider_calls
+
+
+@pytest.mark.asyncio
+async def test_typed_end_inside_dispatch_lock_archives_without_reacquiring_lock(
+    conversation, monkeypatch
+):
+    flow = conversation
+    channel = await flow.start()
+    install_end_http(flow, monkeypatch, channel)
+
+    await asyncio.wait_for(flow.deliver("end", channel=channel), timeout=2)
+
+    assert channel not in flow.cog.conversation_threads
+    assert channel not in flow.cog.conversation_thread_owners[MEMBER]
+    flow.state.http.get_channel.assert_not_awaited()
+    flow.state.http.edit_channel.assert_awaited_once()
+    assert flow.state.http.edit_channel.await_args.kwargs["archived"] is True
+    assert not flow.cog.conversation_recovery.lock_for(channel).locked()
+    assert not flow.provider_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("join_fails", [False, True])
+async def test_private_conversation_adds_actual_owner_before_registry_or_messages(
+    conversation, monkeypatch, join_fails
+):
+    from tests.test_conversation_recovery import thread_payload
+
+    flow = conversation
+    channel = 1500000000000000800
+    payload = thread_payload(channel)
+    payload["type"] = discord.ChannelType.private_thread.value
+    monkeypatch.setattr(
+        flow.state.http, "start_thread_without_message", AsyncMock(return_value=payload)
+    )
+    cleanup = AsyncMock()
+    monkeypatch.setattr(flow.state.http, "delete_channel", cleanup)
+    observations = []
+
+    async def join(thread, user):
+        observations.append(
+            (thread, user, len(flow.sent), bool(flow.cog.conversation_threads))
+        )
+        if join_fails:
+            raise OSError("Membership was not established")
+
+    monkeypatch.setattr(
+        flow.state.http, "add_user_to_thread", AsyncMock(side_effect=join)
+    )
+    invocation = flow.cog.converse_command(
+        flow.ctx,
+        draw=False,
+        opener=None,
+        opener_file=None,
+        private=True,
+        minimal=True,
+        model=None,
+        temperature=None,
+        top_p=None,
+        frequency_penalty=None,
+        presence_penalty=None,
+    )
+    await invocation
+    if join_fails:
+        cleanup.assert_awaited_once_with(channel)
+        assert not flow.sent
+        assert not flow.cog.conversation_threads
+        assert not flow.cog.conversation_thread_owners
+        flow.ctx.respond.assert_awaited_once()
+        assert "wasn't started" in flow.ctx.respond.await_args.args[0]
+        assert (
+            "Membership was not established" not in flow.ctx.respond.await_args.args[0]
+        )
+        assert flow.ctx.respond.await_args.kwargs["ephemeral"] is True
+    else:
+        cleanup.assert_not_awaited()
+        assert (
+            flow.state.http.start_thread_without_message.await_args.kwargs["type"] == 12
+        )
+        assert channel in flow.cog.conversation_threads
+        assert flow.cog.conversation_thread_owners[MEMBER] == [channel]
+        flow.ctx.respond.assert_awaited_once()
+        assert str(channel) in flow.ctx.respond.await_args.args[0]
+        assert flow.ctx.respond.await_args.kwargs["ephemeral"] is True
+    assert observations == [(channel, MEMBER, 0, False)]
+    assert not flow.provider_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "with_opener", [False, True], ids=["setup-only", "with-opener"]
+)
+async def test_conversation_setup_serializes_incoming_turns_and_rejects_end_controls(
+    conversation, control_responses, monkeypatch, with_opener
+):
+    flow = conversation
+    text_service = importlib.import_module("services.text_service")
+    setup_started, release_setup = asyncio.Event(), asyncio.Event()
+    dispatch_started = asyncio.Event()
+    provider_started, release_provider = asyncio.Event(), asyncio.Event()
+    channel_ids, provider_prompts = [], []
+    active, peak = 0, 0
+    send = flow.state.http.send_message.side_effect
+    original_provider = flow.model.send_chatgpt_chat_request
+    original_dispatch = flow.cog.conversation_recovery.dispatch
+
+    async def blocked_setup(channel, content=None, **kwargs):
+        if channel != PARENT and not channel_ids:
+            channel_ids.append(channel)
+            setup_started.set()
+            await release_setup.wait()
+        return await send(channel, content, **kwargs)
+
+    async def counted_provider(prompt, *args, **kwargs):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        provider_prompts.append(
+            prompt if isinstance(prompt, str) else "".join(item.text for item in prompt)
+        )
+        try:
+            if len(provider_prompts) == 1:
+                provider_started.set()
+                await release_provider.wait()
+            return await original_provider(prompt, *args, **kwargs)
+        finally:
+            active -= 1
+
+    async def observed_dispatch(message, **kwargs):
+        dispatch_started.set()
+        return await original_dispatch(message, **kwargs)
+
+    monkeypatch.setattr(
+        flow.state.http, "send_message", AsyncMock(side_effect=blocked_setup)
+    )
+    monkeypatch.setattr(flow.model, "send_chatgpt_chat_request", counted_provider)
+    monkeypatch.setattr(flow.cog.conversation_recovery, "dispatch", observed_dispatch)
+    flow.answers.extend(
+        ["The opening answer.", "The later answer."]
+        if with_opener
+        else ["The later answer."]
+    )
+    start = asyncio.create_task(
+        flow.cog.converse_command(
+            flow.ctx,
+            draw=False,
+            opener="Opening prompt." if with_opener else None,
+            opener_file=None,
+            private=False,
+            minimal=True,
+            model="gpt-6.1-sol",
+            temperature=None,
+            top_p=None,
+            frequency_penalty=None,
+            presence_penalty=None,
+        )
+    )
+    incoming = None
+    try:
+        await asyncio.wait_for(setup_started.wait(), timeout=1)
+        channel = channel_ids[0]
+        thread = flow.cog.conversation_threads[channel]
+        lock = flow.cog.conversation_recovery.lock_for(channel)
+        assert lock.locked()
+        assert start in flow.cog.conversation_recovery._active
+        assert flow.cog.conversation_thread_owners[MEMBER] == [channel]
+        assert not provider_prompts
+        assert not flow.cog.awaiting_responses
+        assert not flow.cog.awaiting_thread_responses
+
+        # The registry is already visible, but neither external control may close
+        # it while setup is in progress, even before the opener sets busy flags.
+        slash = end_context(flow, channel)
+        await flow.cog.end_command(slash)
+        component = discord.Interaction(
+            state=flow.state,
+            data={
+                "id": "1500000000000000997",
+                "type": 3,
+                "application_id": str(BOT),
+                "token": "offline-setup-button",
+                "version": 1,
+                "guild_id": str(GUILD),
+                "channel_id": str(channel),
+                "member": member_payload(),
+                "data": {"custom_id": "conversation_end", "component_type": 2},
+            },
+        )
+        await text_service.EndConvoButton(flow.cog).callback(component)
+        assert slash.response.is_done() and component.response.is_done()
+        assert control_responses.initial.await_count == 2
+        for call in control_responses.initial.await_args_list:
+            assert call.kwargs["data"]["flags"] & 64
+            assert "wait" in call.kwargs["data"]["content"]
+        assert flow.cog.conversation_threads[channel] is thread
+
+        incoming = asyncio.create_task(
+            flow.deliver("Following prompt.", channel=channel)
+        )
+        await asyncio.wait_for(dispatch_started.wait(), timeout=1)
+        assert not incoming.done()
+        assert not provider_prompts
+        release_setup.set()
+        await asyncio.wait_for(provider_started.wait(), timeout=1)
+        assert active == peak == 1
+        if with_opener:
+            assert "Opening prompt." in provider_prompts[0]
+            assert "Following prompt." not in provider_prompts[0]
+            assert not incoming.done()
+        release_provider.set()
+        await asyncio.wait_for(asyncio.gather(start, incoming), timeout=2)
+
+        assert peak == 1
+        assert len(flow.provider_calls) == (2 if with_opener else 1)
+        assert flow.cog.conversation_threads[channel] is thread
+        history = [item.text for item in thread.history]
+        if with_opener:
+            assert len(history) == 5
+            assert "Opening prompt." in history[1]
+            assert "The opening answer." in history[2]
+            assert "Following prompt." in history[3]
+            assert "The later answer." in history[4]
+            # The queued turn sees the completed opener's actual assistant answer.
+            assert any(
+                item["role"] == "assistant" and "The opening answer." in item["content"]
+                for item in flow.provider_calls[-1]["json"]["messages"]
+            )
+        else:
+            assert len(history) == 3
+            assert "Following prompt." in history[1]
+            assert "The later answer." in history[2]
+        assert not flow.cog.awaiting_responses
+        assert not flow.cog.awaiting_thread_responses
+        assert not lock.locked()
+        assert start not in flow.cog.conversation_recovery._active
+    finally:
+        release_setup.set()
+        release_provider.set()
+        for task in (start, incoming):
+            if task is not None and not task.done():
+                task.cancel()
+        await asyncio.gather(
+            *(task for task in (start, incoming) if task is not None),
+            return_exceptions=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_cancelled_opener_releases_owner_flags_lock_and_shutdown_registration(
+    conversation, monkeypatch
+):
+    flow = conversation
+    entered = asyncio.Event()
+    original_provider = flow.model.send_chatgpt_chat_request
+
+    async def blocked_provider(*args, **kwargs):
+        entered.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(flow.model, "send_chatgpt_chat_request", blocked_provider)
+    start = asyncio.create_task(
+        flow.cog.converse_command(
+            flow.ctx,
+            draw=False,
+            opener="An opening prompt that is cancelled.",
+            opener_file=None,
+            private=False,
+            minimal=True,
+            model="gpt-6.1-sol",
+            temperature=None,
+            top_p=None,
+            frequency_penalty=None,
+            presence_penalty=None,
+        )
+    )
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        channel = next(iter(flow.cog.conversation_threads))
+        lock = flow.cog.conversation_recovery.lock_for(channel)
+        assert MEMBER in flow.cog.awaiting_responses
+        assert channel in flow.cog.awaiting_thread_responses
+        assert lock.locked()
+        assert start in flow.cog.conversation_recovery._active
+        start.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await start
+        assert channel in flow.cog.conversation_threads
+        assert not flow.cog.awaiting_responses
+        assert not flow.cog.awaiting_thread_responses
+        assert not lock.locked()
+        assert start not in flow.cog.conversation_recovery._active
+        assert not flow.provider_calls
+
+        monkeypatch.setattr(flow.model, "send_chatgpt_chat_request", original_provider)
+        flow.answers.append("A later turn can proceed.")
+        await asyncio.wait_for(
+            flow.deliver("Continue after cancellation.", channel=channel), timeout=2
+        )
+        assert len(flow.provider_calls) == 1
+        assert (
+            "A later turn can proceed."
+            in flow.cog.conversation_threads[channel].history[-1].text
+        )
+        assert not flow.cog.awaiting_responses
+        assert not flow.cog.awaiting_thread_responses
+    finally:
+        if not start.done():
+            start.cancel()
+        await asyncio.gather(start, return_exceptions=True)

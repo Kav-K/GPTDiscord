@@ -1,7 +1,7 @@
 """Explicit, bounded REST recovery for conversations absent from the Gateway."""
 
 import asyncio
-from contextlib import closing
+from contextlib import asynccontextmanager, closing
 import hashlib
 import json
 import logging
@@ -19,6 +19,7 @@ from utils.safe_ctx_respond import safe_remove_list
 logger = logging.getLogger(__name__)
 POLL_BATCH = 20
 MAX_THREADS = 20
+MAX_CONCURRENT_THREADS = 4
 HTTP_TIMEOUT = 15
 
 
@@ -77,6 +78,10 @@ class ConversationRecoveryService:
         self._guilds = {}
         self._offset = 0
         self._retry_after = {}
+        self._poll_tasks = {}
+        self._poll_locks = {}
+        self._poll_slots = asyncio.Semaphore(MAX_CONCURRENT_THREADS)
+        self._malformed_notice_after = 0
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS claims (message_id TEXT, revision TEXT, PRIMARY KEY(message_id, revision))"
@@ -154,10 +159,38 @@ class ConversationRecoveryService:
 
     def _save_cursor(self, thread_id, guild_id, message_id):
         with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            previous = db.execute(
+                "SELECT message_id FROM cursors WHERE thread_id = ?", (str(thread_id),)
+            ).fetchone()
+            if previous is not None and int(previous[0]) >= message_id:
+                return
             db.execute(
                 "INSERT INTO cursors VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET message_id = excluded.message_id, guild_id = excluded.guild_id",
                 (str(thread_id), str(guild_id), str(message_id)),
             )
+
+    def _acknowledge(self, thread_id, guild_id, message_id):
+        if self._closed or not self.enabled_for(guild_id) or not self._owned(thread_id):
+            return False
+        self._save_cursor(thread_id, guild_id, message_id)
+        return True
+
+    def _message_records(self, payloads, cursor):
+        records = []
+        for payload in payloads:
+            ids = _role_ids([payload.get("id")]) if isinstance(payload, dict) else None
+            if ids is None:
+                if time.monotonic() >= self._malformed_notice_after:
+                    logger.warning(
+                        "Skipped malformed Discord recovery record without a valid message ID"
+                    )
+                    self._malformed_notice_after = time.monotonic() + 60
+                continue
+            message_id = next(iter(ids))
+            if message_id > cursor:
+                records.append((message_id, payload))
+        return sorted(records, key=lambda record: record[0])
 
     async def _http(self, awaitable):
         return await asyncio.wait_for(awaitable, HTTP_TIMEOUT)
@@ -186,6 +219,22 @@ class ConversationRecoveryService:
             )
         return await message_has_access(message)
 
+    def lock_for(self, thread_id):
+        return self._locks.setdefault(thread_id, asyncio.Lock())
+
+    @asynccontextmanager
+    async def active_control(self):
+        if self._closed:
+            raise RuntimeError("Conversation service is shutting down")
+        task = asyncio.current_task()
+        already_active = task in self._active
+        self._active.add(task)
+        try:
+            yield
+        finally:
+            if not already_active:
+                self._active.discard(task)
+
     async def dispatch(self, message, *, edited=False, source="gateway"):
         if self._closed or source not in ("gateway", "rest"):
             return None
@@ -206,7 +255,7 @@ class ConversationRecoveryService:
             or message.channel.owner_id != self.bot.user.id
         ):
             return None
-        lock = self._locks.setdefault(thread_id, asyncio.Lock())
+        lock = self.lock_for(thread_id)
         async with lock:
             if self._closed or thread_id not in self.cog.conversation_threads:
                 return None
@@ -331,11 +380,16 @@ class ConversationRecoveryService:
             self._save_cursor(thread.id, guild_id, thread.id)
         self.start()
 
-    async def poll_once(self):
+    async def poll_once(self, *, wait=True):
         if self._closed or not any(
             self.enabled_for(guild_id) for guild_id in self.guild_ids
         ):
             return
+        self._poll_tasks = {
+            thread_id: task
+            for thread_id, task in self._poll_tasks.items()
+            if not task.done()
+        }
         ids = [
             thread_id
             for thread_id in self.cog.conversation_threads
@@ -344,13 +398,40 @@ class ConversationRecoveryService:
         if not ids:
             return
         offset = self._offset % len(ids)
-        selected = (ids[offset:] + ids[:offset])[:MAX_THREADS]
-        self._offset = (offset + len(selected)) % len(ids)
-        for thread_id in selected:
-            if self._closed:
-                return
-            if time.monotonic() < self._retry_after.get(thread_id, 0):
+        created = []
+        scanned = 0
+        for thread_id in ids[offset:] + ids[:offset]:
+            if len(self._poll_tasks) >= MAX_THREADS:
+                break
+            scanned += 1
+            if (
+                thread_id in self._poll_tasks
+                or time.monotonic() < self._retry_after.get(thread_id, 0)
+            ):
                 continue
+            task = asyncio.create_task(self._poll_thread(thread_id))
+            self._poll_tasks[thread_id] = task
+            created.append(task)
+        self._offset = (offset + scanned) % len(ids)
+        if wait:
+            try:
+                await asyncio.gather(
+                    *(asyncio.shield(task) for task in self._poll_tasks.values()),
+                    return_exceptions=True,
+                )
+            except asyncio.CancelledError:
+                for task in created:
+                    task.cancel()
+                await asyncio.gather(*created, return_exceptions=True)
+                raise
+
+    async def _poll_thread(self, thread_id):
+        lock = self._poll_locks.setdefault(thread_id, asyncio.Lock())
+        async with lock, self._poll_slots:
+            if self._closed or not any(
+                self.enabled_for(guild_id) for guild_id in self.guild_ids
+            ):
+                return
             try:
                 data = await self._http(self.bot.http.get_channel(thread_id))
                 guild_id = int(data.get("guild_id", 0))
@@ -361,16 +442,16 @@ class ConversationRecoveryService:
                     or int(data.get("owner_id", 0)) != self.bot.user.id
                     or not self._owned(thread_id)
                 ):
-                    continue
+                    return
                 cursor = self._cursor(thread_id)
                 if cursor is None:
                     latest = await self._http(self.bot.http.logs_from(thread_id, 1))
                     # Enrollment uses Discord IDs, independent of the host clock.
                     cursor = int(latest[0]["id"]) if latest else thread_id
                     self._save_cursor(thread_id, guild_id, cursor)
-                    continue
+                    return
                 if data.get("thread_metadata", {}).get("archived", False):
-                    continue
+                    return
                 channel = self._channels.get(thread_id)
                 if (
                     channel is None
@@ -385,23 +466,25 @@ class ConversationRecoveryService:
                 payloads = await self._http(
                     self.bot.http.logs_from(thread_id, POLL_BATCH, after=cursor)
                 )
-                for payload in sorted(payloads, key=lambda item: int(item["id"])):
+                for message_id, payload in self._message_records(payloads, cursor):
                     if self._closed:
                         return
-                    if int(payload["id"]) <= cursor:
+                    author = payload.get("author")
+                    if not isinstance(author, dict):
+                        if not self._acknowledge(thread_id, guild_id, message_id):
+                            break
+                        logger.warning(
+                            "Skipped malformed Discord recovery message %s (author)",
+                            message_id,
+                        )
                         continue
                     if (
-                        payload.get("author", {}).get("bot", False)
+                        author.get("bot", False)
                         or payload.get("webhook_id") is not None
                         or payload.get("type") not in (0, 19)
                     ):
-                        if (
-                            self._closed
-                            or not self.enabled_for(guild_id)
-                            or not self._owned(thread_id)
-                        ):
+                        if not self._acknowledge(thread_id, guild_id, message_id):
                             break
-                        self._save_cursor(thread_id, guild_id, int(payload["id"]))
                         continue
                     payload = {**payload, "guild_id": str(guild_id)}
                     try:
@@ -415,13 +498,8 @@ class ConversationRecoveryService:
                         ValueError,
                         discord.InvalidData,
                     ) as error:
-                        if (
-                            self._closed
-                            or not self.enabled_for(guild_id)
-                            or not self._owned(thread_id)
-                        ):
+                        if not self._acknowledge(thread_id, guild_id, message_id):
                             break
-                        self._save_cursor(thread_id, guild_id, int(payload["id"]))
                         logger.warning(
                             "Skipped unsupported Discord recovery message %s (%s)",
                             payload["id"],
@@ -429,13 +507,8 @@ class ConversationRecoveryService:
                         )
                         continue
                     await self.dispatch(message, source="rest")
-                    if (
-                        self._closed
-                        or not self.enabled_for(guild_id)
-                        or not self._owned(thread_id)
-                    ):
+                    if not self._acknowledge(thread_id, guild_id, message_id):
                         break
-                    self._save_cursor(thread_id, guild_id, int(payload["id"]))
             except asyncio.CancelledError:
                 raise
             except Exception as error:
@@ -460,12 +533,16 @@ class ConversationRecoveryService:
 
     async def _run(self):
         while not self._closed and not self.bot.is_closed():
-            await self.poll_once()
+            await self.poll_once(wait=False)
             await asyncio.sleep(self.interval)
 
     async def close(self):
         self._closed = True
-        active = self._active - {asyncio.current_task()}
+        current = asyncio.current_task()
+        polling = set(self._poll_tasks.values()) - {current}
+        for task in polling - self._active:
+            task.cancel()
+        active = self._active - {current}
         if active:
             try:
                 await asyncio.wait_for(
@@ -479,6 +556,11 @@ class ConversationRecoveryService:
                 for task in active:
                     task.cancel()
                 await asyncio.gather(*active, return_exceptions=True)
+        for task in polling:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*polling, return_exceptions=True)
+        self._poll_tasks.clear()
         if self._task is not None:
             if self._task not in self._active:
                 self._task.cancel()

@@ -63,6 +63,8 @@ For those servers, opt in with `CONVERSATION_RECOVERY_GUILD_IDS`, a comma-separa
 
 Recovery polls immediately on startup, then at a nominal three-second interval. An existing thread's first successful enrollment uses the latest message ID returned by Discord as its baseline. Messages at or before that baseline are skipped, so a post sent after startup but before enrollment may be skipped. Saved cursors keep their position, and new conversations start from their creation IDs. Polling does not recover undelivered edits; send corrections as new messages. Durable cursors in `DATA_DIR/conversation_recovery.sqlite` prevent the same incoming turn from being dispatched again by polling, gateway overlap, or restart. A failure after claiming a turn can leave it unanswered; this provides at-most-once ingress and does not guarantee exactly-once provider billing. See the guide for scope and verification details.
 
+Recovery serves up to four threads concurrently, keeping each thread's messages in order. Opening prompts, Retry, and End share the conversation lock and busy checks. Retry replaces the latest answer in memory as well as on Discord; older turns cannot replace newer conversation history. Private conversations require threads and explicitly add their owner. Conversations backed by Pinecone require corrections as new messages instead of Retry or message edits.
+
 ### Model and project settings
 
 ```dotenv

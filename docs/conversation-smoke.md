@@ -173,6 +173,20 @@ Polling initially handles message creates only. Edits still work
 when Discord delivers their gateway events, but an edit with no gateway event is
 not recovered; send a correction as a new message.
 
+Up to four threads can be served concurrently, with at most twenty pending or
+active thread jobs. Messages within each thread remain ordered. A slow request
+does not stop polling other threads when a worker slot is available. Overlapping
+polls share their existing thread job, and saved cursors cannot move backward.
+
+Setup, opening prompts, Retry, and End use the same lock as incoming messages. Busy clicks
+receive private guidance instead of starting overlapping work. Retry replaces the
+latest answer in both Discord and conversation memory; an older turn cannot
+replace history written by a newer turn. Retry and delivered message edits do
+not increase the user-turn count. Pinecone-backed conversations require
+corrections as new messages because replacing their external vector memory is
+not supported. Private conversations require threads, add their owner explicitly,
+and remove a newly created thread if owner membership cannot be established.
+
 Malformed Discord message payloads that Pycord cannot construct are skipped with
 a sanitized warning so later valid posts can continue to be processed.
 
@@ -184,6 +198,12 @@ after the claim can lose an unanswered turn, and it is not automatically retried
 These are at-most-once ingress guarantees, not a promise of exactly-once OpenAI
 billing or response delivery. Existing conversation pickles and model settings
 are not migrated by this recovery store.
+
+Conversation snapshots are serialized together before disk work. Each pickle
+file is replaced atomically using a private temporary file, so an interrupted
+write cannot truncate its previous snapshot. The four files are not a single
+transaction, and this does not change the periodic save interval or the
+interruption-after-claim limitation above.
 
 To exercise recovery with the installed application, keep both production
 allowlists above in the environment and add `--rest-recovery`. The target must
@@ -208,3 +228,14 @@ true while `gateway_tested` stays false and `human_authorship_simulated` stays
 true. Recovery does not test edit delivery, human Gateway delivery, slash-command
 acknowledgements, or view callbacks. The same provider budget and owned-resource
 cleanup rules apply; recovery source hashes are included in the report.
+
+Add `--extended-rest-recovery` alongside `--rest-recovery` to test Retry and End
+callbacks, a private conversation with verified owner membership, private memory
+isolation, and rejected Retry after closure. This mode allows at most six paid
+requests with 512 output tokens each and 60 KB of aggregate input. It removes
+only the threads, starters, and fixtures created by that run, including after a
+failure. Callback acknowledgements use a local adapter: the provider requests,
+Discord response edits, membership checks, and thread archival are real, while
+human component interactions and slash-command acknowledgements remain untested.
+The extended report records those boundaries and includes the installed pickle
+service hash with the conversation module hashes.

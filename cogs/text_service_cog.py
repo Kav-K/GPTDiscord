@@ -399,116 +399,103 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         return (cond1) and cond2
 
+    async def _conversation_channel(self, ctx):
+        """Resolve a local REST channel when an interaction has no Gateway guild."""
+        channel = ctx.channel
+        if isinstance(channel, (discord.Thread, discord.TextChannel)) and isinstance(
+            channel.guild, discord.Guild
+        ):
+            return channel
+        recovery = self.conversation_recovery
+        payload = await recovery._http(self.bot.http.get_channel(channel.id))
+        guild_id = int(payload.get("guild_id", 0))
+        interaction = getattr(ctx, "interaction", ctx)
+        expected_guild = getattr(ctx.guild, "id", None) or getattr(
+            interaction, "guild_id", None
+        )
+        if (
+            int(payload["id"]) != channel.id
+            or guild_id not in EnvService.get_allowed_guilds()
+            or (expected_guild is not None and guild_id != expected_guild)
+        ):
+            raise ValueError("Conversation channel identity does not match")
+        guild = await recovery._rest_guild(guild_id)
+        if payload["type"] in (
+            discord.ChannelType.public_thread.value,
+            discord.ChannelType.private_thread.value,
+        ):
+            return discord.Thread(guild=guild, state=self.bot._connection, data=payload)
+        if payload["type"] == discord.ChannelType.text.value:
+            return discord.TextChannel(
+                guild=guild, state=self.bot._connection, data=payload
+            )
+        raise ValueError("Unsupported conversation channel type")
+
     async def end_conversation(
         self, ctx, opener_user_id=None, conversation_limit=False
     ):
-        """end the thread of the user interacting with the bot, if the conversation has reached the limit close it for the owner"""
-        normalized_user_id = opener_user_id if opener_user_id else ctx.author.id
-        # Check if the channel is an instance of a thread
-        thread = False
-        if isinstance(ctx.channel, discord.Thread):
-            thread = True
-
-        if (
-            conversation_limit
-        ):  # if we reach the conversation limit we want to close from the channel it was maxed out in
-            channel_id = ctx.channel.id
-        else:
-            try:
-                channel_ids = self.conversation_thread_owners[normalized_user_id]
-                if ctx.channel.id not in channel_ids:
-                    await ctx.reply(
-                        "This is not a conversation thread that you own!",
-                        delete_after=5,
-                    )
-                    return
-
-                if (
-                    normalized_user_id in self.awaiting_responses
-                    or ctx.channel.id in self.awaiting_thread_responses
-                ):
-                    await ctx.reply(
-                        embed=discord.Embed(
-                            title=f"Please wait for a response before ending the conversation.",
-                            color=0x808080,
-                        )
-                    )
-                    return
-
-            except Exception:
-                traceback.print_exc()
-                await ctx.delete(delay=5)
-                await ctx.reply(
-                    "Only the conversation starter can end this.", delete_after=5
+        """Close a conversation; external controls acquire its dispatch lock first."""
+        channel_id = ctx.channel.id
+        user = getattr(ctx, "user", None) or getattr(ctx, "author", None)
+        user_id = opener_user_id if opener_user_id is not None else user.id
+        if channel_id not in self.conversation_threads:
+            await TextService.respond_control(
+                ctx, "This is not a conversation channel."
+            )
+            return
+        if not conversation_limit:
+            if channel_id not in self.conversation_thread_owners.get(user_id, ()):
+                await TextService.respond_control(
+                    ctx, "This is not a conversation thread that you own!"
+                )
+                return
+            if TextService.conversation_busy(self, user_id, channel_id):
+                await TextService.respond_control(
+                    ctx,
+                    "Please wait for the current response before ending the conversation.",
                 )
                 return
 
-        # TODO Possible bug here, if both users have a conversation active and one user tries to end the other, it may
-        # allow them to click the end button on the other person's thread and it will end their own convo.
-        self.conversation_threads.pop(ctx.channel.id)
+        # Component and slash contexts must acknowledge before any REST lookup.
+        if isinstance(ctx, (discord.ApplicationContext, discord.Interaction)):
+            if not ctx.response.is_done():
+                await ctx.response.defer(ephemeral=True, invisible=False)
+        try:
+            channel = await self._conversation_channel(ctx)
+        except Exception as error:
+            print(f"Conversation channel lookup failed: {type(error).__name__}")
+            await TextService.respond_control(
+                ctx,
+                "I couldn't verify this conversation channel. Try again or ask the bot operator.",
+            )
+            return
 
-        if isinstance(
-            ctx, discord.ApplicationContext
-        ):  # When the conversation is ended from the slash command
-            await ctx.respond(
-                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
-                ephemeral=True,
-                delete_after=10,
-            )
-        elif isinstance(
-            ctx, discord.Interaction
-        ):  # When the user ends the conversation from the button
-            await ctx.response.send_message(
-                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
-                ephemeral=True,
-                delete_after=10,
-            )
-        else:  # The case for when the user types "end" in the channel
-            await ctx.reply(
-                "You have ended the conversation with GPT. Start a conversation with /gpt converse",
-                delete_after=10,
-            )
-
-        await ctx.channel.send(
-            embed=EmbedStatics.generate_end_embed(),
-            view=ShareView(self, ctx.channel.id) if thread else None,
+        self.conversation_threads.pop(channel_id)
+        for owner_id, threads in self.conversation_thread_owners.items():
+            if channel_id in threads:
+                threads.remove(channel_id)
+                break
+        await TextService.respond_control(
+            ctx,
+            "You have ended the conversation with GPT. Start a conversation with /gpt converse",
         )
-
-        # Close all conversation threads for the user
-        # If at conversation limit then fetch the owner and close the thread for them
-        if conversation_limit:
+        await channel.send(
+            embed=EmbedStatics.generate_end_embed(),
+            view=(
+                ShareView(self, channel_id)
+                if isinstance(channel, discord.Thread)
+                else None
+            ),
+        )
+        if isinstance(channel, discord.Thread):
             try:
-                owner_id = [
-                    owner
-                    for owner, threads in self.conversation_thread_owners.items()
-                    if channel_id in threads
-                ][0]
-                self.conversation_thread_owners[owner_id].remove(ctx.channel.id)
-                # Attempt to close and lock the thread.
-                if thread:
-                    try:
-                        thread = await self.bot.fetch_channel(channel_id)
-                        await thread.edit(name="Closed-GPT")
-                        await thread.edit(archived=True)
-                    except Exception:
-                        traceback.print_exc()
-            except Exception:
-                traceback.print_exc()
-        else:
-            if normalized_user_id in self.conversation_thread_owners:
-                thread_id = ctx.channel.id
-                self.conversation_thread_owners[normalized_user_id].remove(
-                    ctx.channel.id
+                await channel.edit(name="Closed-GPT", archived=True)
+            except Exception as error:
+                print(f"Conversation archive failed: {type(error).__name__}")
+                await TextService.respond_control(
+                    ctx,
+                    "The conversation has ended, but I couldn't archive its thread. Ask a server moderator to close it.",
                 )
-
-                # Attempt to close and lock the thread.
-                if thread:
-                    try:
-                        thread = await self.bot.fetch_channel(thread_id)
-                        await thread.edit(name="Closed-GPT")
-                        await thread.edit(archived=True)
-                    except Exception:
-                        traceback.print_exc()
 
     async def send_settings_text(self, ctx):
         """compose and return the settings menu to the interacting user"""
@@ -1300,6 +1287,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             presence_penalty (float): Sets the presence penalty override
         """
 
+        if private and not use_threads:
+            await ctx.respond(
+                "Private conversations require a private thread. Keep `use_threads` enabled, "
+                "or set `private` to false for a channel conversation.",
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+
         guild_id = getattr(ctx.guild, "id", None) or getattr(
             getattr(ctx, "interaction", None), "guild_id", None
         )
@@ -1353,6 +1349,29 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     name=embed_title,
                     auto_archive_duration=60,
                 )
+                try:
+                    await thread.add_user(user)
+                except Exception as error:
+                    print(
+                        f"Private conversation membership failed: {type(error).__name__}"
+                    )
+                    try:
+                        await thread.delete()
+                    except Exception as cleanup_error:
+                        print(
+                            f"Private conversation cleanup failed: {type(cleanup_error).__name__}"
+                        )
+                    await ctx.respond(
+                        "I couldn't add you to the private thread, so the conversation wasn't started. "
+                        "Ask a server moderator to check my thread permissions.",
+                        ephemeral=True,
+                    )
+                    return
+                await safe_ctx_respond(
+                    ctx=ctx,
+                    content=f"Your private conversation is ready: <#{thread.id}>.",
+                    ephemeral=True,
+                )
                 target = thread
             else:
                 embed_title = f"{user.name}'s conversation with GPT"
@@ -1404,165 +1423,194 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             embed = discord.Embed(title=embed_title, color=0x808080)
             await ctx.respond(embed=embed)
 
-        model_selection = self.model.model if not model else model
-
-        self.conversation_threads[target.id] = Thread(target.id)
-        self.conversation_threads[target.id].model = model_selection
-        if draw:
-            self.conversation_threads[target.id].drawable = True
-
-        # Set the overrides for the conversation
-        self.conversation_threads[target.id].set_overrides(
-            temperature, top_p, frequency_penalty, presence_penalty
-        )
-
-        if opener or opener_file:
-            user_id_normalized = ctx.author.id
-        else:
-            user_id_normalized = user.id
-        if opener_file:
-            if not opener_file.endswith((".txt", ".json")):
-                opener_file = (
-                    None  # Just start a regular thread if the file fails to load
+        # Setup and its opener share the same lock as incoming turns and controls.
+        # Acquire it before publishing any conversation state to those entrypoints.
+        async with (
+            self.conversation_recovery.lock_for(target.id),
+            self.conversation_recovery.active_control(),
+        ):
+            if target.id in self.conversation_threads:
+                await ctx.respond(
+                    "There is already a conversation in this channel. Please finish that conversation before starting a new one."
                 )
+                return
+            model_selection = self.model.model if not model else model
+
+            self.conversation_threads[target.id] = Thread(target.id)
+            self.conversation_threads[target.id].model = model_selection
+            if draw:
+                self.conversation_threads[target.id].drawable = True
+
+            # Set the overrides for the conversation
+            self.conversation_threads[target.id].set_overrides(
+                temperature, top_p, frequency_penalty, presence_penalty
+            )
+
+            if opener or opener_file:
+                user_id_normalized = ctx.author.id
             else:
-                # Load the file and read it into opener
-                try:
-                    opener_file = re.sub(
-                        ".+(?=[\\//])", "", opener_file
-                    )  # remove paths from the opener file
-                    opener_file = EnvService.find_shared_file(
-                        f"openers{separator}{opener_file}"
-                    )
-                    opener_file = await self.load_file(opener_file, ctx)
-                    try:  # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
-                        opener_file = json.loads(opener_file)
-                        temperature = opener_file.get("temperature", None)
-                        top_p = opener_file.get("top_p", None)
-                        frequency_penalty = opener_file.get("frequency_penalty", None)
-                        presence_penalty = opener_file.get("presence_penalty", None)
-                        self.conversation_threads[target.id].set_overrides(
-                            temperature, top_p, frequency_penalty, presence_penalty
-                        )
-                        if (
-                            not opener
-                        ):  # if we only use opener_file then only pass on opener_file for the opening prompt
-                            opener = opener_file.get("text", "error getting text")
-                        else:
-                            opener = (
-                                opener_file.get("text", "error getting text") + opener
-                            )
-                    except Exception:  # Parse as just regular text
-                        if not opener:
-                            opener = opener_file
-                        else:
-                            opener = opener_file + opener
-                except Exception:
+                user_id_normalized = user.id
+            if opener_file:
+                if not opener_file.endswith((".txt", ".json")):
                     opener_file = (
                         None  # Just start a regular thread if the file fails to load
                     )
+                else:
+                    # Load the file and read it into opener
+                    try:
+                        opener_file = re.sub(
+                            ".+(?=[\\//])", "", opener_file
+                        )  # remove paths from the opener file
+                        opener_file = EnvService.find_shared_file(
+                            f"openers{separator}{opener_file}"
+                        )
+                        opener_file = await self.load_file(opener_file, ctx)
+                        try:  # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
+                            opener_file = json.loads(opener_file)
+                            temperature = opener_file.get("temperature", None)
+                            top_p = opener_file.get("top_p", None)
+                            frequency_penalty = opener_file.get(
+                                "frequency_penalty", None
+                            )
+                            presence_penalty = opener_file.get("presence_penalty", None)
+                            self.conversation_threads[target.id].set_overrides(
+                                temperature, top_p, frequency_penalty, presence_penalty
+                            )
+                            if (
+                                not opener
+                            ):  # if we only use opener_file then only pass on opener_file for the opening prompt
+                                opener = opener_file.get("text", "error getting text")
+                            else:
+                                opener = (
+                                    opener_file.get("text", "error getting text")
+                                    + opener
+                                )
+                        except Exception:  # Parse as just regular text
+                            if not opener:
+                                opener = opener_file
+                            else:
+                                opener = opener_file + opener
+                    except Exception:
+                        opener_file = None  # Just start a regular thread if the file fails to load
 
-        # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
-        if minimal or opener_file or opener:
-            starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
-        elif not Models.supports_vision(model_selection):
-            starting_text = self.CONVERSATION_STARTER_TEXT
-        else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
-            starting_text = self.CONVERSATION_STARTER_TEXT_VISION
+            # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
+            if minimal or opener_file or opener:
+                starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
+            elif not Models.supports_vision(model_selection):
+                starting_text = self.CONVERSATION_STARTER_TEXT
+            else:  # Vision case, dont add the image-ocr image-caption, etc helpers here.
+                starting_text = self.CONVERSATION_STARTER_TEXT_VISION
 
-        if draw:
-            starting_text += self.CONVERSATION_DRAWING_ABILITY_SNIPPET
-        else:
-            starting_text += "Image generation is disabled in this conversation. Ask the user to start a conversation with the `draw` option turned on to enable it."
-        self.conversation_threads[target.id].history.append(
-            EmbeddedConversationItem(starting_text, 0)
-        )
-
-        # Set user as thread owner before sending anything that can error and leave the thread unowned
-        self.conversation_thread_owners[user_id_normalized].append(target.id)
-        if isinstance(target, discord.Thread):
-            await self.conversation_recovery.watch_thread(target, new=True)
-        overrides = self.conversation_threads[target.id].get_overrides()
-
-        await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")
-
-        await target.send(
-            embed=EmbedStatics.generate_conversation_embed(
-                self.conversation_threads, target, opener, overrides
+            if draw:
+                starting_text += self.CONVERSATION_DRAWING_ABILITY_SNIPPET
+            else:
+                starting_text += "Image generation is disabled in this conversation. Ask the user to start a conversation with the `draw` option turned on to enable it."
+            self.conversation_threads[target.id].history.append(
+                EmbeddedConversationItem(starting_text, 0)
             )
-        )
 
-        # send opening
-        if opener:
-            self.conversation_threads[target.id].has_opener = True
-            opener = await self.mention_to_username(ctx, opener)
-            try:
-                target_message = await target.send(
-                    embed=EmbedStatics.generate_opener_embed(opener)
+            # Set user as thread owner before sending anything that can error and leave the thread unowned
+            self.conversation_thread_owners[user_id_normalized].append(target.id)
+            if isinstance(target, discord.Thread):
+                await self.conversation_recovery.watch_thread(target, new=True)
+            overrides = self.conversation_threads[target.id].get_overrides()
+
+            await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")
+
+            await target.send(
+                embed=EmbedStatics.generate_conversation_embed(
+                    self.conversation_threads, target, opener, overrides
                 )
-            except:
-                target_message = await target.send(
-                    embed=EmbedStatics.generate_opener_embed(opener[:1900] + " [...]")
-                )
-            if target.id in self.conversation_threads:
-                self.awaiting_responses.append(user_id_normalized)
-                if not self.pinecone_service:
-                    self.conversation_threads[target.id].history.append(
-                        EmbeddedConversationItem(
-                            f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
-                            0,
+            )
+
+            # send opening
+            if opener:
+                self.conversation_threads[target.id].has_opener = True
+                opener = await self.mention_to_username(ctx, opener)
+                try:
+                    target_message = await target.send(
+                        embed=EmbedStatics.generate_opener_embed(opener)
+                    )
+                except:
+                    target_message = await target.send(
+                        embed=EmbedStatics.generate_opener_embed(
+                            opener[:1900] + " [...]"
                         )
                     )
-                self.awaiting_thread_responses.append(target.id)
+                if target.id in self.conversation_threads:
+                    self.awaiting_responses.append(user_id_normalized)
+                    if not self.pinecone_service:
+                        self.conversation_threads[target.id].history.append(
+                            EmbeddedConversationItem(
+                                f"\n{ctx.author.display_name}: {opener} <|endofstatement|>\n",
+                                0,
+                            )
+                        )
+                    self.awaiting_thread_responses.append(target.id)
 
-                # ... (no other changes in the middle part of the function)
+                    # ... (no other changes in the middle part of the function)
 
-            overrides = Override(
-                overrides["temperature"],
-                overrides["top_p"],
-                overrides["frequency_penalty"],
-                overrides["presence_penalty"],
-            )
+                overrides = Override(
+                    overrides["temperature"],
+                    overrides["top_p"],
+                    overrides["frequency_penalty"],
+                    overrides["presence_penalty"],
+                )
 
-            await TextService.encapsulated_send(
-                self,
-                target.id,
-                (
-                    opener
-                    if target.id not in self.conversation_threads
-                    or self.pinecone_service
-                    else "".join(
-                        [
-                            item.text
-                            for item in self.conversation_threads[target.id].history
-                        ]
+                try:
+                    await TextService.encapsulated_send(
+                        self,
+                        target.id,
+                        (
+                            opener
+                            if target.id not in self.conversation_threads
+                            or self.pinecone_service
+                            else "".join(
+                                [
+                                    item.text
+                                    for item in self.conversation_threads[
+                                        target.id
+                                    ].history
+                                ]
+                            )
+                        ),
+                        target_message,
+                        overrides=overrides,
+                        user=user,
+                        model=self.conversation_threads[target.id].model,
+                        custom_api_key=user_api_key,
+                        is_drawable=draw,
                     )
-                ),
-                target_message,
-                overrides=overrides,
-                user=user,
-                model=self.conversation_threads[target.id].model,
-                custom_api_key=user_api_key,
-                is_drawable=draw,
-            )
-            safe_remove_list(self.awaiting_responses, user_id_normalized)
-            safe_remove_list(self.awaiting_thread_responses, target.id)
+                finally:
+                    safe_remove_list(self.awaiting_responses, user_id_normalized)
+                    safe_remove_list(self.awaiting_thread_responses, target.id)
 
     async def end_command(self, ctx: discord.ApplicationContext):
-        """Command handler. Gets the user's thread and ends it"""
-        await ctx.defer(ephemeral=True)
-        user_id = ctx.user.id
-
-        if ctx.channel.id in self.conversation_threads:
-            try:
-                await self.end_conversation(ctx)
-            except Exception as e:
-                print(e)
-                traceback.print_exc()
-        else:
-            await ctx.respond(
-                "This is not a conversation channel.", ephemeral=True, delete_after=10
+        """End a conversation without racing its active generation or controls."""
+        channel_id, user_id = ctx.channel.id, ctx.user.id
+        if channel_id not in self.conversation_threads:
+            await TextService.respond_control(
+                ctx, "This is not a conversation channel."
             )
+            return
+        lock = TextService.conversation_lock(self, channel_id)
+        if lock.locked() or TextService.conversation_busy(self, user_id, channel_id):
+            await TextService.respond_control(
+                ctx,
+                "Please wait for the current response before ending the conversation.",
+            )
+            return
+        await ctx.defer(ephemeral=True)
+        async with lock:
+            try:
+                async with self.conversation_recovery.active_control():
+                    await self.end_conversation(ctx)
+            except Exception as error:
+                print(f"Conversation end failed: {type(error).__name__}")
+                await TextService.respond_control(
+                    ctx,
+                    "I couldn't finish closing this conversation. Try again or ask the bot operator.",
+                )
 
     async def setup_command(self, ctx: discord.ApplicationContext):
         """Command handler. Opens the setup modal"""

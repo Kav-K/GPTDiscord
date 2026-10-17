@@ -499,7 +499,8 @@ async def test_worker_enrolls_existing_threads_before_its_first_sleep(
     flow = recovery
     events = []
 
-    async def poll():
+    async def poll(**kwargs):
+        assert kwargs == {"wait": False}
         events.append("poll")
 
     async def stop_at_first_sleep(interval):
