@@ -698,4 +698,9 @@ async def test_live_modes_run_real_handlers_with_exact_budgets_and_owned_cleanup
     assert all(item["status"] == "deleted" for item in report["cleanup"])
     if recovery_mode:
         assert bot.get_guild(GUILD) is None
-        assert report["recovery"]["worker_lifecycle_tested"] is False
+        assert report["recovery"]["worker_lifecycle_tested"] is extended
+        assert report["recovery"]["tasks_drained"] is True
+        if extended:
+            assert (
+                report["recovery"]["poll_driver"] == "scheduled_first_turn_then_manual"
+            )

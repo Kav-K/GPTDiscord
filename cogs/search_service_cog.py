@@ -155,7 +155,7 @@ class SearchService(discord.Cog, name="SearchService"):
         if not await message_has_access(message):
             return
         # Check if the message is from a bot.
-        if message.author.id == self.bot.user.id:
+        if getattr(message.author, "bot", False):
             return
 
         # Check if the message is from a guild.
@@ -163,7 +163,7 @@ class SearchService(discord.Cog, name="SearchService"):
             return
 
         # System message
-        if message.type != discord.MessageType.default:
+        if message.type not in (discord.MessageType.default, discord.MessageType.reply):
             return
 
         if message.content.strip().startswith("~"):
@@ -172,8 +172,13 @@ class SearchService(discord.Cog, name="SearchService"):
         if message.channel.id not in self.chat_agents:
             return
 
-        if USER_INPUT_API_KEYS and self.thread_owners.get(message.channel.id) != message.author.id:
-            await message.reply("This session uses its creator's API key. Start your own internet chat session to participate.")
+        if (
+            USER_INPUT_API_KEYS
+            and self.thread_owners.get(message.channel.id) != message.author.id
+        ):
+            await message.reply(
+                "This session uses its creator's API key. Start your own internet chat session to participate."
+            )
             return
 
         # if we are still awaiting a response from the agent, then we don't want to process the message.
@@ -190,86 +195,89 @@ class SearchService(discord.Cog, name="SearchService"):
             await self.converser_cog.deletion_queue.put(original_deletion_message)
             return
 
-        # Pre moderation
-        if PRE_MODERATE:
-            from services.moderations_service import Moderation
+        self.thread_awaiting_responses.append(message.channel.id)
+        try:
+            # Pre moderation
+            if PRE_MODERATE:
+                from services.moderations_service import Moderation
 
-            if await Moderation.simple_moderate_and_respond(message.content, message):
-                await message.delete()
-                return
+                if await Moderation.simple_moderate_and_respond(
+                    message.content, message
+                ):
+                    await message.delete()
+                    return
 
-        prompt = message.content.strip()
+            prompt = message.content.strip()
 
-        # If the message channel is in self.chat_agents, then we delegate the message to the agent.
-        if message.channel.id in self.chat_agents:
-            if prompt.lower() in ["stop", "end", "quit", "exit"]:
-                await message.reply("Ending chat session.")
-                self.chat_agents.pop(message.channel.id)
-                self.thread_owners.pop(message.channel.id, None)
+            # If the message channel is in self.chat_agents, then we delegate the message to the agent.
+            if message.channel.id in self.chat_agents:
+                if prompt.lower() in ["stop", "end", "quit", "exit"]:
+                    await message.reply("Ending chat session.")
+                    self.chat_agents.pop(message.channel.id)
+                    self.thread_owners.pop(message.channel.id, None)
 
-                # close the thread
-                thread = await self.bot.fetch_channel(message.channel.id)
-                await thread.edit(name="Closed-GPT")
-                await thread.edit(archived=True)
-                return
+                    # close the thread
+                    thread = await self.bot.fetch_channel(message.channel.id)
+                    await thread.edit(name="Closed-GPT")
+                    await thread.edit(archived=True)
+                    return
 
-            self.thread_awaiting_responses.append(message.channel.id)
+                try:
+                    await message.channel.trigger_typing()
+                except:
+                    pass
 
-            try:
-                await message.channel.trigger_typing()
-            except:
-                pass
-
-            agent = self.chat_agents[message.channel.id]
-            used_tools = []
-            try:
-                self.usage_service.update_usage_memory(
-                    message.guild.name, "internet_chat_message", 1
-                )
-                result = await asyncio.to_thread(agent.invoke, {"input": prompt})
-                response = agent_output_text(result["output"])
-                tool_labels = {
-                    "Wolfram-Tool": "Wolfram Alpha",
-                    "Search-Tool": "Google Search",
-                    "Web-Crawling-Tool": "Web Crawler",
-                }
-                used_tools = list(dict.fromkeys(
-                    tool_labels.get(action.tool, action.tool)
-                    for action, _ in result.get("intermediate_steps", [])
-                ))
-
-            except Exception as e:
-                response = f"Error: {e}"
-                traceback.print_exc()
-                await message.reply(
-                    embed=EmbedStatics.get_internet_chat_failure_embed(response)
-                )
-                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
-                return
-
-            if len(response) > 2000:
-                embed_pages = EmbedStatics.paginate_chat_embed(response)
-
-                for x, page in enumerate(embed_pages):
-                    if x == 0:
-                        previous_message = await message.reply(embed=page)
-                    else:
-                        previous_message = await previous_message.reply(embed=page)
-
-            else:
-                response = response.replace("\\n", "\n")
-                # Build a response embed
-                response_embed = discord.Embed(
-                    title="",
-                    description=response,
-                    color=0x808080,
-                )
-                if len(used_tools) > 0:
-                    response_embed.set_footer(
-                        text="Used tools: " + ", ".join(used_tools)
+                agent = self.chat_agents[message.channel.id]
+                used_tools = []
+                try:
+                    self.usage_service.update_usage_memory(
+                        message.guild.name, "internet_chat_message", 1
                     )
-                await message.reply(embed=response_embed)
+                    result = await asyncio.to_thread(agent.invoke, {"input": prompt})
+                    response = agent_output_text(result["output"])
+                    tool_labels = {
+                        "Wolfram-Tool": "Wolfram Alpha",
+                        "Search-Tool": "Google Search",
+                        "Web-Crawling-Tool": "Web Crawler",
+                    }
+                    used_tools = list(
+                        dict.fromkeys(
+                            tool_labels.get(action.tool, action.tool)
+                            for action, _ in result.get("intermediate_steps", [])
+                        )
+                    )
 
+                except Exception as e:
+                    response = f"Error: {e}"
+                    traceback.print_exc()
+                    await message.reply(
+                        embed=EmbedStatics.get_internet_chat_failure_embed(response)
+                    )
+                    return
+
+                if len(response) > 2000:
+                    embed_pages = EmbedStatics.paginate_chat_embed(response)
+
+                    for x, page in enumerate(embed_pages):
+                        if x == 0:
+                            previous_message = await message.reply(embed=page)
+                        else:
+                            previous_message = await previous_message.reply(embed=page)
+
+                else:
+                    response = response.replace("\\n", "\n")
+                    # Build a response embed
+                    response_embed = discord.Embed(
+                        title="",
+                        description=response,
+                        color=0x808080,
+                    )
+                    if len(used_tools) > 0:
+                        response_embed.set_footer(
+                            text="Used tools: " + ", ".join(used_tools)
+                        )
+                    await message.reply(embed=response_embed)
+        finally:
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def search_chat_command(

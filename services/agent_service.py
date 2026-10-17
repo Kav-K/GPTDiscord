@@ -1,5 +1,7 @@
 """Current tool-calling agents for the optional chat integrations."""
 
+import json
+
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_classic.memory import ConversationSummaryBufferMemory
 from langchain_core.messages import AIMessage, SystemMessage
@@ -10,6 +12,20 @@ from openai import OpenAI, AsyncOpenAI
 from models.openai_model import Models
 from services.environment_service import EnvService
 from services.openai_client_service import client_routing
+from services.usage_service import UsageService
+
+
+class AgentChatOpenAI(ChatOpenAI):
+    def get_num_tokens_from_messages(self, messages, tools=None, **kwargs):
+        # Agent memory must not require a separate vocabulary download after
+        # producing a paid answer. Reuse the bot's cached, resilient estimates.
+        tokens = 3 + sum(
+            UsageService.count_tokens_static(message.model_dump_json()) + 3
+            for message in messages
+        )
+        if tools:
+            tokens += UsageService.count_tokens_static(json.dumps(tools, default=str))
+        return tokens
 
 
 def create_chat_llm(model, temperature=0, top_p=1, api_key=None, **kwargs):
@@ -23,7 +39,7 @@ def create_chat_llm(model, temperature=0, top_p=1, api_key=None, **kwargs):
     }
     sync_client = OpenAI(**client_kwargs)
     async_client = AsyncOpenAI(**client_kwargs)
-    return ChatOpenAI(
+    return AgentChatOpenAI(
         model=model,
         api_key=key,
         client=sync_client.chat.completions,

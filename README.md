@@ -120,14 +120,18 @@ CI builds both base and full images on pull requests. Registry publication is li
 2. Install the core or the extras you use. Set `ENABLE_INDEXING=true` to enable document indexing. The basic bot and `/web` need no legacy search libraries.
 3. Keep `OPENAI_TOKEN` or rename it to `OPENAI_API_KEY`. Review model overrides and role settings. Retired preview models saved in bot settings are migrated to current defaults.
 4. Set `DATA_DIR` and, if previously used, `SHARE_DIR` to your existing writable data locations. Custom prompt/openers files can still be supplied through `SHARE_DIR`.
-5. Rebuild document indexes when changing embedding models. **Ada and embedding-3 vectors occupy different vector spaces even at the same dimension.** New Pinecone embedding namespaces keep these separate; selecting `text-embedding-ada-002` retains the legacy namespace. Re-ingest historical text to use the newer embeddings. Old local LlamaIndex storage may also need re-ingestion after the library upgrade.
+5. Rebuild document indexes when changing embedding models. **Ada and embedding-3 vectors occupy different vector spaces even at the same dimension.** New Pinecone embedding namespaces keep these separate; selecting `text-embedding-ada-002` retains the legacy namespace. Re-ingest historical text to use the newer embeddings. Legacy Pinecone numeric conversation IDs above `2**53` must also be re-ingested; new records store exact string IDs. Old local LlamaIndex storage may also need re-ingestion after the library upgrade.
 6. Rebuild Docker images and check file ownership for existing volumes. Automatic deployment to the old hardcoded SSH host and formatter force-pushes have been removed. Configure deployment separately for your own host.
+
+Conversation sharing now uses an owner-only private TXT download instead of the obsolete ShareGPT service. Retired `best_of`, `mode`, and `use_org` settings are omitted from the settings UI.
 
 Image variation commands for retired DALL·E models report that the operation is unavailable. Current image generation is supported; this release does not claim a general image-editing workflow.
 
 The local usage total is an **estimate**, not an OpenAI invoice. Known text models use separate input, cached-input, and output token rates. Unknown models are logged and excluded rather than billed at an unrelated legacy rate. Image/audio/tool fees are not included in this token estimate; use your provider's usage dashboard for billing.
 
 ## Development and verification
+
+See the [original-feature validation matrix](docs/feature-validation.md) for live and offline coverage, replaced features, and configuration limits.
 
 ```bash
 python -m pip install -e '.[dev]'
@@ -138,7 +142,7 @@ python -m build
 python -m twine check dist/*
 ```
 
-Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; a populated `TIKTOKEN_CACHE_DIR` avoids that download. If network or cache access fails, local token estimates use conservative UTF-8 byte counts until restart, with one warning and no further download attempts. API-reported usage still determines usage accounting. Paid integration tests only run when explicitly enabled:
+Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; a populated `TIKTOKEN_CACHE_DIR` avoids that download. If network or cache access fails, core chat, basic document Q&A, and optional chat memory use conservative UTF-8 byte counts until restart. Deep tree/router indexing still requires a cached vocabulary because its library internals do not accept the fallback tokenizer. API-reported usage still determines usage accounting. Paid integration tests only run when explicitly enabled:
 
 ```bash
 RUN_LIVE_OPENAI_TESTS=1 python -m pytest -m integration

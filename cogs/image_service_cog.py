@@ -1,11 +1,7 @@
-import asyncio
 import os
-import traceback
+import logging
 
 import discord
-
-# We don't use the converser cog here because we want to be able to redo for the last images and text prompts at the same time
-from sqlitedict import SqliteDict
 
 from services.environment_service import EnvService
 from services.image_service import ImageService
@@ -13,12 +9,10 @@ from services.moderations_service import Moderation
 from services.text_service import TextService
 from utils.safe_ctx_respond import safe_ctx_respond
 
-users_to_interactions = {}
-ALLOWED_GUILDS = EnvService.get_allowed_guilds()
-
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
 PRE_MODERATE = EnvService.get_premoderate()
+logger = logging.getLogger(__name__)
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
@@ -55,43 +49,38 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
             if not user_api_key:
                 return
 
-        await ctx.defer()
-
-        # Check the opener for bad content.
-        if PRE_MODERATE:
-            if await Moderation.simple_moderate_and_respond(prompt, ctx):
-                return
-
-        user = ctx.user
-
-        if user == self.bot.user:
-            return
-
+        await ctx.defer(invisible=False)
         try:
-            asyncio.ensure_future(
-                ImageService.encapsulated_send(
-                    self,
-                    user.id,
-                    prompt,
-                    ctx,
-                    custom_api_key=user_api_key,
-                    dalle_3=True,
-                    quality=quality,
-                    image_size=image_size,
-                    style=style,
-                )
+            if PRE_MODERATE and await Moderation.simple_moderate_and_respond(
+                prompt, ctx
+            ):
+                return
+            if ctx.user == self.bot.user:
+                return
+            message = await ImageService.encapsulated_send(
+                self,
+                ctx.user.id,
+                prompt,
+                ctx,
+                custom_api_key=user_api_key,
+                dalle_3=True,
+                quality=quality,
+                image_size=image_size,
+                style=style,
             )
-            self.usage_service.update_usage_memory(ctx.guild.name, "image_drawn", 1)
+            if message is not None:
+                guild = getattr(ctx.guild, "name", None) or str(
+                    ctx.interaction.guild_id or "DM"
+                )
+                self.usage_service.update_usage_memory(guild, "image_drawn", 1)
 
-        except Exception as e:
-            print(e)
-            traceback.print_exc()
+        except Exception as error:
+            logger.warning("Image command failed (%s)", type(error).__name__)
             await safe_ctx_respond(
                 ctx=ctx,
                 content="Something went wrong. Please try again later.",
                 ephemeral=from_action,
             )
-            await ctx.send_followup(e, ephemeral=from_action)
 
     async def draw_old_command(
         self, ctx: discord.ApplicationContext, prompt: str, from_action=False

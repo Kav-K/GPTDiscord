@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import io
 import pickle
 import re
 import traceback
@@ -28,9 +29,9 @@ from collections import defaultdict
 from sqlitedict import SqliteDict
 
 from services.pickle_service import Pickler
-from services.sharegpt_service import ShareGPTService
 from services.text_service import SetupModal, TextService
 from utils.safe_ctx_respond import safe_ctx_respond, safe_remove_list
+from utils.model_settings import editable_model_settings
 
 original_message = {}
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
@@ -131,9 +132,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Pinecone data
         self.pinecone_service = pinecone_service
-
-        # Sharing service
-        self.sharegpt_service = ShareGPTService()
 
         try:  # TODO Clean this up, this is gross
             conversation_file_path = EnvService.find_shared_file(
@@ -470,9 +468,19 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             )
             return
 
-        self.conversation_threads.pop(channel_id)
+        conversation = self.conversation_threads.pop(channel_id)
+        full_history = self.full_conversation_history.get(channel_id, ())
+        start = getattr(conversation, "transcript_start", None)
+        complete_transcript = type(start) is int and 0 <= start <= len(full_history)
+        history = (
+            full_history[start:]
+            if complete_transcript
+            else [item.text for item in conversation.history[1:]]
+        )
+        transcript_owner = None
         for owner_id, threads in self.conversation_thread_owners.items():
             if channel_id in threads:
+                transcript_owner = owner_id
                 threads.remove(channel_id)
                 break
         await TextService.respond_control(
@@ -482,7 +490,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         await channel.send(
             embed=EmbedStatics.generate_end_embed(),
             view=(
-                ShareView(self, channel_id)
+                ShareView(
+                    channel_id,
+                    transcript_owner,
+                    history,
+                    context_only=not complete_transcript,
+                )
                 if isinstance(channel, discord.Thread)
                 else None
             ),
@@ -498,63 +511,40 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
 
     async def send_settings_text(self, ctx):
-        """compose and return the settings menu to the interacting user"""
+        """Show supported writable settings without credentials or internal state."""
+        names = editable_model_settings(type(self.model))
         embed = discord.Embed(
-            title="GPT3Bot Settings",
+            title="GPTDiscord Settings",
             description="The current settings of the model",
             color=0x00FF00,
         )
-        # Create a two-column embed to display the settings, use \u200b to create a blank space
-        embed.add_field(
-            name="Setting",
-            value="\n".join(
-                [
-                    key
-                    for key in self.model.__dict__.keys()
-                    if key not in self.model._hidden_attributes
-                ]
-            ),
-            inline=True,
-        )
+        embed.add_field(name="Setting", value="\n".join(names), inline=True)
         embed.add_field(
             name="Value",
-            value="\n".join(
-                [
-                    str(value)
-                    for key, value in self.model.__dict__.items()
-                    if key not in self.model._hidden_attributes
-                ]
-            ),
+            value="\n".join(str(getattr(self.model, name)) for name in names),
             inline=True,
         )
+        if Models.is_reasoning(self.model.model):
+            embed.set_footer(
+                text="This reasoning model ignores unsupported sampling settings."
+            )
         await ctx.respond(embed=embed, ephemeral=True)
 
     async def process_settings(self, ctx, parameter, value):
-        """Given a parameter and value set the corresponding parameter in storage to the value"""
-
-        # Check if the parameter is a valid parameter
-        if hasattr(self.model, parameter):
-            # Check if the value is a valid value
-            try:
-                # Set the parameter to the value
-                setattr(self.model, parameter, value)
-                await ctx.respond(
-                    "Successfully set the parameter " + parameter + " to " + value
-                )
-
-                if parameter == "mode":
-                    await ctx.send_followup(
-                        "The mode has been set to "
-                        + value
-                        + ". This has changed the temperature top_p to the mode defaults of "
-                        + str(self.model.temp)
-                        + " and "
-                        + str(self.model.top_p)
-                    )
-            except ValueError as e:
-                await ctx.respond(e)
-        else:
-            await ctx.respond("The parameter is not a valid parameter")
+        """Validate a supported setting through its model property setter."""
+        if parameter not in editable_model_settings(type(self.model)):
+            await ctx.respond(
+                "The parameter is not a supported setting", ephemeral=True
+            )
+            return
+        try:
+            setattr(self.model, parameter, value)
+        except ValueError as error:
+            await ctx.respond(str(error), ephemeral=True)
+            return
+        await ctx.respond(
+            f"Successfully set the parameter {parameter} to {value}", ephemeral=True
+        )
 
     def generate_debug_message(self, prompt, response):
         """create a debug message with a prompt and a response field"""
@@ -912,6 +902,11 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             inline=False,
         )
         embed.add_field(
+            name="/web",
+            value="Search the web with OpenAI and receive source links.",
+            inline=False,
+        )
+        embed.add_field(
             name="/internet search",
             value="Do a one-off internet search assisted by GPT!",
             inline=False,
@@ -943,12 +938,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         embed.add_field(
             name="/dalle draw",
-            value="Use DALL-E2 to draw an image based on a text prompt",
+            value="Generate images with the configured GPT Image model.",
             inline=False,
         )
         embed.add_field(
             name="/dalle optimize",
-            value="Optimize an image prompt for use with DALL-E2, Midjourney, SD, etc.",
+            value="Improve a prompt for image generation.",
             inline=False,
         )
         embed.add_field(
@@ -998,36 +993,43 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def delete_all_conversation_threads_command(
         self, ctx: discord.ApplicationContext
     ):
-        """Command handler. Deletes all threads made by the bot in the current guild"""
-        await ctx.defer()
-
+        """Delete matching active threads only when this bot owns them."""
+        await ctx.defer(ephemeral=True)
+        if ctx.guild is None:
+            await ctx.respond(
+                "Discord isn't delivering this server's thread list. No threads were deleted. "
+                "A server moderator can delete them in Discord.",
+                ephemeral=True,
+            )
+            return
+        deleted = 0
         for thread in ctx.guild.threads:
-            thread_name = thread.name.lower()
-            if "with gpt" in thread_name or "closed-gpt" in thread_name:
-                try:
-                    await thread.delete()
-                except Exception:
-                    pass
-        await ctx.respond("All conversation threads in this server have been deleted.")
+            name = thread.name.lower()
+            if thread.owner_id != self.bot.user.id or not (
+                "with gpt" in name or "closed-gpt" in name
+            ):
+                continue
+            try:
+                await thread.delete()
+                deleted += 1
+            except discord.HTTPException as error:
+                print(f"Conversation thread deletion failed: {type(error).__name__}")
+        await ctx.respond(
+            f"Deleted {deleted} active conversation threads created by this bot.",
+            ephemeral=True,
+        )
 
     async def usage_command(self, ctx):
-        """Command handler. Responds with the current usage of the bot"""
-        await ctx.defer()
+        """Report recorded provider cost without inventing mixed-model token counts."""
+        await ctx.defer(ephemeral=True)
+        usage = await self.usage_service.get_usage()
         embed = discord.Embed(
-            title="GPT3Bot Usage", description="The current usage", color=0x00FF00
+            title="GPTDiscord Usage",
+            description="Recorded API cost estimate. Check your provider dashboard for billed usage.",
+            color=0x00FF00,
         )
-        # 1000 tokens costs 0.02 USD, so we can calculate the total tokens used from the price that we have stored
-        embed.add_field(
-            name="Total tokens used",
-            value=str(int((await self.usage_service.get_usage() / 0.02)) * 1000),
-            inline=False,
-        )
-        embed.add_field(
-            name="Total price",
-            value="$" + str(round(await self.usage_service.get_usage(), 2)),
-            inline=False,
-        )
-        await ctx.respond(embed=embed)
+        embed.add_field(name="Recorded cost", value=f"${usage:.6f}", inline=False)
+        await ctx.respond(embed=embed, ephemeral=True)
 
     async def instruction_command(
         self,
@@ -1067,7 +1069,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             instruction = file_instruction
 
         # If premoderation is enabled, check
-        if PRE_MODERATE:
+        if PRE_MODERATE and mode == "set":
             if await Moderation.simple_moderate_and_respond(instruction, ctx):
                 return
 
@@ -1090,8 +1092,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             except Exception:
                 await ctx.respond("There is no instruction set")
         elif mode == "clear":
-            self.instructions.pop(set_id)
-            await ctx.respond(f"The instruction has been removed for **{type}**")
+            if self.instructions.pop(set_id, None) is None:
+                await ctx.respond("There is no instruction set")
+            else:
+                await ctx.respond(f"The instruction has been removed for **{type}**")
 
     async def ask_command(
         self,
@@ -1337,6 +1341,47 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 return
             user = ctx.user
 
+        # Resolve the saved opener after key setup/acknowledgement and before
+        # moderation or creating a thread. JSON values become local overrides.
+        if opener_file:
+            if not opener_file.endswith((".txt", ".json")):
+                opener_file = (
+                    None  # Just start a regular thread if the file fails to load
+                )
+            else:
+                # Load the file and read it into opener
+                try:
+                    opener_file = re.sub(
+                        ".+(?=[\\//])", "", opener_file
+                    )  # remove paths from the opener file
+                    opener_file = EnvService.find_shared_file(
+                        f"openers{separator}{opener_file}"
+                    )
+                    opener_file = await self.load_file(opener_file, ctx)
+                    try:  # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
+                        opener_file = json.loads(opener_file)
+                        temperature = opener_file.get("temperature", None)
+                        top_p = opener_file.get("top_p", None)
+                        frequency_penalty = opener_file.get("frequency_penalty", None)
+                        presence_penalty = opener_file.get("presence_penalty", None)
+                        if (
+                            not opener
+                        ):  # if we only use opener_file then only pass on opener_file for the opening prompt
+                            opener = opener_file.get("text", "error getting text")
+                        else:
+                            opener = (
+                                opener_file.get("text", "error getting text") + opener
+                            )
+                    except Exception:  # Parse as just regular text
+                        if not opener:
+                            opener = opener_file
+                        else:
+                            opener = opener_file + opener
+                except Exception:
+                    opener_file = (
+                        None  # Just start a regular thread if the file fails to load
+                    )
+
         # Check the opener for bad content.
         if PRE_MODERATE and opener is not None:
             if await Moderation.simple_moderate_and_respond(opener, ctx):
@@ -1437,6 +1482,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             model_selection = self.model.model if not model else model
 
             self.conversation_threads[target.id] = Thread(target.id)
+            self.conversation_threads[target.id].transcript_start = len(
+                self.full_conversation_history.get(target.id, ())
+            )
             self.conversation_threads[target.id].model = model_selection
             if draw:
                 self.conversation_threads[target.id].drawable = True
@@ -1450,49 +1498,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 user_id_normalized = ctx.author.id
             else:
                 user_id_normalized = user.id
-            if opener_file:
-                if not opener_file.endswith((".txt", ".json")):
-                    opener_file = (
-                        None  # Just start a regular thread if the file fails to load
-                    )
-                else:
-                    # Load the file and read it into opener
-                    try:
-                        opener_file = re.sub(
-                            ".+(?=[\\//])", "", opener_file
-                        )  # remove paths from the opener file
-                        opener_file = EnvService.find_shared_file(
-                            f"openers{separator}{opener_file}"
-                        )
-                        opener_file = await self.load_file(opener_file, ctx)
-                        try:  # Try opening as json, if it fails it'll just pass the whole txt or json to the opener
-                            opener_file = json.loads(opener_file)
-                            temperature = opener_file.get("temperature", None)
-                            top_p = opener_file.get("top_p", None)
-                            frequency_penalty = opener_file.get(
-                                "frequency_penalty", None
-                            )
-                            presence_penalty = opener_file.get("presence_penalty", None)
-                            self.conversation_threads[target.id].set_overrides(
-                                temperature, top_p, frequency_penalty, presence_penalty
-                            )
-                            if (
-                                not opener
-                            ):  # if we only use opener_file then only pass on opener_file for the opening prompt
-                                opener = opener_file.get("text", "error getting text")
-                            else:
-                                opener = (
-                                    opener_file.get("text", "error getting text")
-                                    + opener
-                                )
-                        except Exception:  # Parse as just regular text
-                            if not opener:
-                                opener = opener_file
-                            else:
-                                opener = opener_file + opener
-                    except Exception:
-                        opener_file = None  # Just start a regular thread if the file fails to load
-
             # Append the starter text for gpt to the user's history so it gets concatenated with the prompt later
             if minimal or opener_file or opener:
                 starting_text = self.CONVERSATION_STARTER_TEXT_MINIMAL
@@ -1557,6 +1562,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     overrides["presence_penalty"],
                 )
 
+                self.full_conversation_history[target.id].append(opener)
                 try:
                     await TextService.encapsulated_send(
                         self,
@@ -1720,61 +1726,64 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
 
 class ShareView(discord.ui.View):
-    def __init__(
-        self,
-        converser_cog,
-        conversation_id,
-    ):
-        super().__init__(timeout=3600)  # 1 hour interval to share the conversation.
-        self.converser_cog = converser_cog
-        self.conversation_id = conversation_id
-        self.add_item(ShareButton(converser_cog, conversation_id))
+    def __init__(self, conversation_id, owner_id, history, *, context_only=False):
+        super().__init__(timeout=3600)
+        self.add_item(
+            ShareButton(conversation_id, owner_id, history, context_only=context_only)
+        )
 
     async def on_timeout(self):
-        # Remove the button from the view/message
         self.clear_items()
 
 
 class ShareButton(discord.ui.Button["ShareView"]):
-    def __init__(self, converser_cog, conversation_id):
+    def __init__(self, conversation_id, owner_id, history, *, context_only=False):
         super().__init__(
             style=discord.ButtonStyle.green,
-            label="Share Conversation",
+            label="Download Conversation",
             custom_id="share_conversation",
         )
-        self.converser_cog = converser_cog
         self.conversation_id = conversation_id
+        self.owner_id = owner_id
+        self.history = tuple(history)
+        self.context_only = context_only
 
     async def callback(self, interaction: discord.Interaction):
-        # Get the user
-        try:
-            id = await self.converser_cog.sharegpt_service.format_and_share(
-                self.converser_cog.full_conversation_history[self.conversation_id],
-                (
-                    self.converser_cog.bot.user.default_avatar.url
-                    if not self.converser_cog.bot.user.avatar
-                    else self.converser_cog.bot.user.avatar.url
-                ),
-            )
-            url = f"https://shareg.pt/{id}"
-            await interaction.response.send_message(
-                embed=EmbedStatics.get_conversation_shared_embed(url)
-            )
-        except ValueError as e:
-            traceback.print_exc()
-            await interaction.response.send_message(
-                embed=EmbedStatics.get_conversation_share_failed_embed(
-                    "The ShareGPT API returned an error: " + str(e)
-                ),
-                ephemeral=True,
-                delete_after=15,
+        if (
+            interaction.user.id != self.owner_id
+            or interaction.channel.id != self.conversation_id
+        ):
+            await TextService.respond_control(
+                interaction, "Only the conversation owner can download this transcript."
             )
             return
-        except Exception as e:
-            traceback.print_exc()
-            await interaction.response.send_message(
-                embed=EmbedStatics.get_conversation_share_failed_embed(str(e)),
-                ephemeral=True,
-                delete_after=15,
+        await interaction.response.defer(ephemeral=True, invisible=False)
+        if not self.history:
+            await interaction.followup.send(
+                "There are no conversation messages to download.", ephemeral=True
             )
             return
+        # A failed generation can leave consecutive human entries. Preserve
+        # their order without guessing alternating speaker roles.
+        text = "\n\n".join(str(message) for message in self.history)
+        if self.context_only:
+            text = (
+                "Recovered conversation context. Earlier turns may have been summarized.\n\n"
+                + text
+            )
+        data = text.encode("utf-8")
+        limit = interaction.attachment_size_limit or getattr(
+            interaction.guild, "filesize_limit", 10 * 1024 * 1024
+        )
+        if len(data) > limit:
+            await interaction.followup.send(
+                "This transcript exceeds Discord's upload limit.", ephemeral=True
+            )
+            return
+        with io.BytesIO(data) as stream:
+            await interaction.followup.send(
+                file=discord.File(
+                    stream, filename=f"conversation-{self.conversation_id}.txt"
+                ),
+                ephemeral=True,
+            )

@@ -65,6 +65,12 @@ jobs:
       - run: python -m pip install --upgrade pip ".[dev]"
       - run: python -m build
       - run: python -m twine check dist/*
+      - name: Test conversation diagnostics from the source distribution
+        run: |
+          sdist_dir=$(mktemp -d)
+          tar -xzf dist/*.tar.gz -C "$sdist_dir" --strip-components=1
+          cd "$sdist_dir"
+          python -m pytest -q tests/test_conversation_smoke.py
       - name: Install built wheel independently of the source tree
         run: |
           python -m venv /tmp/wheel-test

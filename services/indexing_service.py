@@ -1,22 +1,58 @@
 """Per-request LlamaIndex configuration shared by optional data and search tools."""
 
 from dataclasses import dataclass
+import asyncio
 import json
 from pathlib import Path
+import tempfile
 from urllib.parse import urljoin, urlparse
 
+import aiohttp
 import requests
-import tiktoken
 from bs4 import BeautifulSoup
-from llama_index.core import Document
+from llama_index.core import Document, SimpleDirectoryReader
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.indices.prompt_helper import PromptHelper, ChatPromptHelper
+from llama_index.core.utilities.token_counting import TokenCounter
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAIResponses
 
 from models.openai_model import Models
 from services.environment_service import EnvService
 from services.openai_client_service import client_routing
+from services.usage_service import _load_tokenizer
+
+
+class ByteTokenizer:
+    """Conservative local estimates when the vocabulary cannot be downloaded."""
+
+    def encode(self, text, **kwargs):
+        return list(text.encode("utf-8"))
+
+    def decode(self, tokens):
+        return bytes(tokens).decode("utf-8", errors="replace")
+
+
+def index_tokenizer():
+    return _load_tokenizer() or ByteTokenizer()
+
+
+class ByteTokenCounter(TokenCounter):
+    def estimate_tokens_in_messages(self, messages):
+        # LlamaIndex's default counter neglects its tokenizer when counting
+        # content blocks. Count the serialized messages conservatively instead.
+        return sum(
+            self.get_string_tokens(message.model_dump_json()) + 3
+            for message in messages
+        )
+
+    async def aestimate_tokens_in_messages(self, messages):
+        return self.estimate_tokens_in_messages(messages)
+
+
+def uses_byte_tokenizer(tokenizer):
+    return isinstance(getattr(tokenizer, "__self__", None), ByteTokenizer)
 
 
 class IndexEmbedding(OpenAIEmbedding):
@@ -36,10 +72,7 @@ class IndexResponses(OpenAIResponses):
 
     @property
     def _tokenizer(self):
-        try:
-            return tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            return tiktoken.get_encoding("o200k_base")
+        return index_tokenizer()
 
 
 @dataclass
@@ -55,12 +88,33 @@ class IndexContext:
             "llm": self.llm,
             "embed_model": self.embed_model,
             "callback_manager": self.callback_manager,
-            "transformations": [SentenceSplitter(chunk_size=1024, chunk_overlap=20)],
+            "transformations": [
+                SentenceSplitter(
+                    chunk_size=1024,
+                    chunk_overlap=20,
+                    tokenizer=self.token_counter.tokenizer,
+                )
+            ],
         }
 
     @property
     def query_kwargs(self):
-        return {"llm": self.llm, "callback_manager": self.callback_manager}
+        tokenizer = self.token_counter.tokenizer
+        prompt_helper = PromptHelper.from_llm_metadata(
+            self.llm.metadata, tokenizer=tokenizer
+        )
+        chat_prompt_helper = ChatPromptHelper.from_llm_metadata(
+            self.llm.metadata, tokenizer=tokenizer
+        )
+        if uses_byte_tokenizer(tokenizer):
+            prompt_helper._token_counter = ByteTokenCounter(tokenizer=tokenizer)
+            chat_prompt_helper._token_counter = ByteTokenCounter(tokenizer=tokenizer)
+        return {
+            "llm": self.llm,
+            "callback_manager": self.callback_manager,
+            "prompt_helper": prompt_helper,
+            "chat_prompt_helper": chat_prompt_helper,
+        }
 
 
 def create_index_context(api_key=None, model=None, llm=None, embedding_model=None):
@@ -83,9 +137,10 @@ def create_index_context(api_key=None, model=None, llm=None, embedding_model=Non
     embed_kwargs = (
         {} if embedding_model == "text-embedding-ada-002" else {"dimensions": 1536}
     )
-    token_counter = TokenCountingHandler(
-        tokenizer=tiktoken.get_encoding("cl100k_base").encode
-    )
+    tokenizer = index_tokenizer().encode
+    token_counter = TokenCountingHandler(tokenizer=tokenizer)
+    if uses_byte_tokenizer(tokenizer):
+        token_counter._token_counter = ByteTokenCounter(tokenizer=tokenizer)
     callbacks = CallbackManager([token_counter])
     return IndexContext(
         llm=IndexResponses(
@@ -118,6 +173,25 @@ def read_web_documents(url):
     return [
         Document(text=soup.get_text(" ", strip=True), metadata={"URL": response.url})
     ]
+
+
+async def read_pdf_documents(url):
+    """Download and parse a PDF without blocking Discord or retaining its bytes."""
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30)
+    ) as session:
+        async with session.get(url, proxy=EnvService.get_http_proxy(url)) as response:
+            response.raise_for_status()
+            data = await response.read()
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "document.pdf"
+        path.write_bytes(data)
+        documents = await asyncio.to_thread(
+            lambda: SimpleDirectoryReader(input_files=[str(path)]).load_data()
+        )
+    for document in documents:
+        document.metadata["URL"] = url
+    return documents
 
 
 class RecursiveWebReader:

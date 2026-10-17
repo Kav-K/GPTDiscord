@@ -14,7 +14,7 @@ class EmbedStatics:
         """Given a response text make embed pages and return a list of the pages."""
 
         response_text = [
-            response_text[i : i + 3500] for i in range(0, len(response_text), 7000)
+            response_text[i : i + 3500] for i in range(0, len(response_text), 3500)
         ]
         pages = []
         first = False

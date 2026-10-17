@@ -59,7 +59,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         if not await message_has_access(message):
             return
         # Check if the message is from a bot.
-        if message.author == self.bot.user:
+        if getattr(message.author, "bot", False):
             return
 
         # Check if the message is from a guild.
@@ -67,7 +67,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return
 
         # System message
-        if message.type != discord.MessageType.default:
+        if message.type not in (discord.MessageType.default, discord.MessageType.reply):
             return
 
         if message.content.strip().startswith("~"):
@@ -76,8 +76,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         if message.channel.id not in self.chat_agents:
             return
 
-        if USER_INPUT_API_KEYS and self.thread_owners.get(message.channel.id) != message.author.id:
-            await message.reply("This session uses its creator's API key. Start your own code interpreter session to participate.")
+        if (
+            USER_INPUT_API_KEYS
+            and self.thread_owners.get(message.channel.id) != message.author.id
+        ):
+            await message.reply(
+                "This session uses its creator's API key. Start your own code interpreter session to participate."
+            )
             return
 
         # if we are still awaiting a response from the agent, then we don't want to process the message.
@@ -94,6 +99,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             await self.converser_cog.deletion_queue.put(original_deletion_message)
             return
 
+        self.thread_awaiting_responses.append(message.channel.id)
+        try:
+            await self._process_session_message(message)
+        finally:
+            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
+
+    async def _process_session_message(self, message):
         # Pre moderation
         if PRE_MODERATE:
             from services.moderations_service import Moderation
@@ -107,11 +119,12 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         # If the message channel is in self.chat_agents, then we delegate the message to the agent.
         if message.channel.id in self.chat_agents:
             if prompt.lower() in ["stop", "end", "quit", "exit"]:
-                session = self.sessions.pop(message.channel.id)
+                session = self.sessions[message.channel.id]
                 await asyncio.to_thread(session.close)
                 await message.reply(
                     "Code interpreter session ended. Its sandbox and files have been removed."
                 )
+                self.sessions.pop(message.channel.id, None)
                 self.chat_agents.pop(message.channel.id)
                 self.thread_owners.pop(message.channel.id, None)
 
@@ -166,8 +179,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                         except discord.HTTPException:
                             pass
 
-            self.thread_awaiting_responses.append(message.channel.id)
-
             try:
                 await message.channel.trigger_typing()
             except:
@@ -190,7 +201,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 await message.reply(
                     embed=EmbedStatics.get_code_chat_failure_embed(response)
                 )
-                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
                 return
 
             artifacts_available = len(artifact_names) > 0
@@ -236,8 +246,6 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                         else None
                     ),
                 )
-
-            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     class SessionedCodeExecutor:
         ARTIFACT_DIRECTORY = "/home/user/artifacts"
@@ -490,6 +498,16 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
 
     async def callback(self, interaction: discord.Interaction):
         """Send the followup modal"""
+        if (
+            USER_INPUT_API_KEYS
+            and self.code_interpreter_cog.thread_owners.get(self.ctx.channel.id)
+            != interaction.user.id
+        ):
+            await interaction.response.send_message(
+                "Only this session's creator can download its artifacts.",
+                ephemeral=True,
+            )
+            return
         await interaction.response.send_message(
             "Downloading the artifacts: "
             + str(self.artifact_names)

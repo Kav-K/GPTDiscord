@@ -49,6 +49,11 @@ Source = "https://github.com/Kav-K/GPTDiscord"
 # only when installing this integration. The core also supports SDK 3.x.
 index = [
   "beautifulsoup4>=4.15,<5",
+  "docx2txt>=0.9,<1",
+  "EbookLib>=0.20,<1",
+  "html2text>=2025.4.15,<2027",
+  "openpyxl>=3.1.5,<4",
+  "python-pptx>=1.0.2,<2",
   "google-api-python-client>=2.201,<3",
   "wolframalpha>=5.1.4,<6",
   "langchain-classic>=1.0.8,<2",
@@ -101,6 +106,7 @@ only-include = ["gpt3discord.py", "cogs", "models", "services", "utils"]
 [tool.hatch.build.targets.sdist]
 include = [
   "/cogs", "/models", "/services", "/utils", "/tests", "/openers",
+  "/scripts", "/docs",
   "/gpt3discord.py", "/pyproject.toml", "/README.md", "/LICENSE",
   "/requirements*.txt", "/Dockerfile", "/docker-compose.yml", "/sample.env",
   "/*_pretext*.txt", "/conversation_drawing_ability*_snippet.txt",

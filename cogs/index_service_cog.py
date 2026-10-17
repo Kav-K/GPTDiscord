@@ -79,7 +79,6 @@ class IndexService(discord.Cog, name="IndexService"):
             )
             failure_embed.set_thumbnail(url="https://i.imgur.com/hbdBZfG.png")
             await message.reply(embed=failure_embed)
-            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
             return False
 
         success_embed = discord.Embed(
@@ -96,10 +95,10 @@ class IndexService(discord.Cog, name="IndexService"):
         if not await message_has_access(message):
             return
         # Check for self
-        if message.author == self.bot.user:
+        if message.author == self.bot.user or getattr(message.author, "bot", False):
             return
 
-        if message.type != discord.MessageType.default:
+        if message.type not in (discord.MessageType.default, discord.MessageType.reply):
             return
 
         # Check if the message is from a guild.
@@ -132,93 +131,96 @@ class IndexService(discord.Cog, name="IndexService"):
             await self.deletion_queue.put(original_deletion_message)
             return
 
-        # Pre moderation
-        if PRE_MODERATE:
-            if await Moderation.simple_moderate_and_respond(message.content, message):
-                await message.delete()
-                return
-
-        prompt = message.content.strip()
-
-        if await self.index_handler.get_is_in_index_chat(message):
-            self.thread_awaiting_responses.append(message.channel.id)
-
-            try:
-                await message.channel.trigger_typing()
-            except:
-                pass
-
-            # Handle file uploads
-            file = message.attachments[0] if len(message.attachments) > 0 else None
-
-            # File operations, allow for user file upload
-            if file:
-                indexing_result = await self.process_indexing(
-                    message, "file", content=file
-                )
-
-                if not indexing_result:
-                    safe_remove_list(self.thread_awaiting_responses, message.channel.id)
+        self.thread_awaiting_responses.append(message.channel.id)
+        try:
+            # Pre moderation
+            if PRE_MODERATE:
+                if await Moderation.simple_moderate_and_respond(
+                    message.content, message
+                ):
+                    await message.delete()
                     return
 
-                prompt += (
-                    "\n{System Message: the user has just uploaded the file "
-                    + str(file.filename)
-                    + "\n"
-                )
+            prompt = message.content.strip()
 
-            # Link operations, allow for user link upload, we connect and download the content at the link.
-            if "http" in prompt:
-                # Extract the entire link
-                link = prompt[prompt.find("http") :]
+            if await self.index_handler.get_is_in_index_chat(message):
 
-                indexing_result = await self.process_indexing(
-                    message, "link", link=link
-                )
+                try:
+                    await message.channel.trigger_typing()
+                except:
+                    pass
 
-                if not indexing_result:
-                    safe_remove_list(self.thread_awaiting_responses, message.channel.id)
-                    return
+                # Handle file uploads
+                file = message.attachments[0] if len(message.attachments) > 0 else None
 
-                prompt += (
-                    "\n{System Message: you have just indexed the link "
-                    + str(link)
-                    + "}"
-                )
-            try:
-                chat_result = await self.index_handler.execute_index_chat_message(
-                    message, prompt
-                )
-            except openai.BadRequestError:
-                traceback.print_exc()
-                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
-                await message.reply(
-                    "This model is not supported with connected conversations."
-                )
-                return
-
-            if chat_result:
-                if len(chat_result) > 2000:
-                    embed_pages = EmbedStatics.paginate_chat_embed(chat_result)
-
-                    for x, page in enumerate(embed_pages):
-                        if x == 0:
-                            previous_message = await message.reply(embed=page)
-                        else:
-                            previous_message = previous_message.reply(embed=page)
-
-                else:
-                    chat_result = chat_result.replace("\\n", "\n")
-                    # Build a response embed
-                    response_embed = discord.Embed(
-                        title="",
-                        description=chat_result,
-                        color=0x808080,
+                # File operations, allow for user file upload
+                if file:
+                    indexing_result = await self.process_indexing(
+                        message, "file", content=file
                     )
+
+                    if not indexing_result:
+                        return
+
+                    prompt += (
+                        "\n{System Message: the user has just uploaded the file "
+                        + str(file.filename)
+                        + "\n"
+                    )
+
+                # Link operations, allow for user link upload, we connect and download the content at the link.
+                if "http" in prompt:
+                    # Extract the entire link
+                    link = prompt[prompt.find("http") :]
+
+                    indexing_result = await self.process_indexing(
+                        message, "link", link=link
+                    )
+
+                    if not indexing_result:
+                        return
+
+                    prompt += (
+                        "\n{System Message: you have just indexed the link "
+                        + str(link)
+                        + "}"
+                    )
+                try:
+                    chat_result = await self.index_handler.execute_index_chat_message(
+                        message, prompt
+                    )
+                except openai.BadRequestError:
+                    traceback.print_exc()
                     await message.reply(
-                        embed=response_embed,
+                        "This model is not supported with connected conversations."
                     )
-                safe_remove_list(self.thread_awaiting_responses, message.channel.id)
+                    return
+
+                if chat_result:
+                    if len(chat_result) > 2000:
+                        embed_pages = EmbedStatics.paginate_chat_embed(chat_result)
+
+                        for x, page in enumerate(embed_pages):
+                            if x == 0:
+                                previous_message = await message.reply(embed=page)
+                            else:
+                                previous_message = await previous_message.reply(
+                                    embed=page
+                                )
+
+                    else:
+                        chat_result = chat_result.replace("\\n", "\n")
+                        # Build a response embed
+                        response_embed = discord.Embed(
+                            title="",
+                            description=chat_result,
+                            color=0x808080,
+                        )
+                        await message.reply(
+                            embed=response_embed,
+                        )
+        finally:
+            safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
     async def index_chat_command(self, ctx, model, temperature, top_p):
         user_api_key = None

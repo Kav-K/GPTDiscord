@@ -315,7 +315,6 @@ class Model:
             self._apply_model(configured_model or Models.DEFAULT)
         self._low_usage_mode = False
         self.usage_service = usage_service
-        self.DAVINCI_ROLES = ["admin", "Admin", "GPT", "gpt"]
         self.image_size = (
             SETTINGS_DB["image_size"]
             if "image_size" in SETTINGS_DB
@@ -334,7 +333,6 @@ class Model:
             if "summarize_threshold" in SETTINGS_DB
             else 5000
         )
-        self.model_max_tokens = 4024
         self.welcome_message_enabled = (
             bool(SETTINGS_DB["welcome_message_enabled"])
             if "welcome_message_enabled" in SETTINGS_DB
@@ -385,12 +383,10 @@ class Model:
         self._num_conversation_lookback = None
         self._num_static_conversation_items = None
         self._welcome_message_enabled = None
-        self.model_max_tokens = None
         self._summarize_threshold = None
         self._summarize_conversations = None
         self._num_images = None
         self._image_size = None
-        self.DAVINCI_ROLES = None
         self.usage_service = None
         self._low_usage_mode = None
         self._model = None
@@ -418,11 +414,9 @@ class Model:
 
         self._hidden_attributes = [
             "usage_service",
-            "DAVINCI_ROLES",
             "custom_image_path",
             "custom_web_root",
             "_hidden_attributes",
-            "model_max_tokens",
             "openai_key",
             "openai_organization",
             "IMAGE_SAVE_PATH",
@@ -577,7 +571,6 @@ class Model:
             self._apply_model(EnvService.get_openai_model() or Models.DEFAULT)
             SETTINGS_DB.pop("model", None)
         self.max_tokens = 1900 if value else 4000
-        self.model_max_tokens = self.max_tokens
 
     @property
     def model(self):
@@ -753,12 +746,6 @@ class Model:
         self._prompt_min_length = value
         SETTINGS_DB["prompt_min_length"] = value
 
-    @staticmethod
-    def backoff_handler_http(details):
-        print(
-            f"Retrying OpenAI request after {details['wait']:0.1f}s ({details['tries']} attempts)"
-        )
-
     def _request_headers(self, custom_api_key=None):
         headers = {"Authorization": f"Bearer {custom_api_key or self.openai_key}"}
         # A user's key can belong to a different organization/project.
@@ -768,6 +755,33 @@ class Model:
             if self.openai_project:
                 headers["OpenAI-Project"] = self.openai_project
         return headers
+
+    @staticmethod
+    async def _read_json_response(response):
+        """Validate responses consistently for JSON and multipart API requests."""
+        try:
+            result = await response.json()
+        except (ValueError, aiohttp.ContentTypeError) as error:
+            raise OpenAIAPIError(
+                "The API returned a non-JSON response", response.status
+            ) from error
+        if not isinstance(result, dict):
+            raise OpenAIAPIError(
+                "The API returned an invalid JSON response", response.status
+            )
+        if response.status >= 400 or "error" in result:
+            error = result.get("error", {})
+            message = (
+                error.get("message", "OpenAI request failed")
+                if isinstance(error, dict)
+                else str(error)
+            )
+            raise OpenAIAPIError(
+                message,
+                response.status,
+                error.get("code") if isinstance(error, dict) else None,
+            )
+        return result
 
     @backoff.on_exception(
         backoff.expo,
@@ -788,29 +802,7 @@ class Model:
                 proxy=EnvService.get_http_proxy(url),
                 headers=self._request_headers(custom_api_key),
             ) as response:
-                try:
-                    result = await response.json()
-                except (ValueError, aiohttp.ContentTypeError) as error:
-                    raise OpenAIAPIError(
-                        "The API returned a non-JSON response", response.status
-                    ) from error
-                if not isinstance(result, dict):
-                    raise OpenAIAPIError(
-                        "The API returned an invalid JSON response", response.status
-                    )
-                if response.status >= 400 or "error" in result:
-                    error = result.get("error", {})
-                    message = (
-                        error.get("message", "OpenAI request failed")
-                        if isinstance(error, dict)
-                        else str(error)
-                    )
-                    raise OpenAIAPIError(
-                        message,
-                        response.status,
-                        error.get("code") if isinstance(error, dict) else None,
-                    )
-                return result
+                return await self._read_json_response(response)
 
     def _chat_payload(
         self,
@@ -1009,6 +1001,7 @@ class Model:
         custom_api_key=None,
         system_prompt_override=None,
         respond_json=None,
+        system_instruction=None,
     ):
         model_selection = model or self.model
         messages = []
@@ -1048,6 +1041,8 @@ class Model:
                     ),
                 }
             )
+        if system_instruction:
+            messages.insert(1, {"role": "system", "content": system_instruction})
         response = await self._send_chat(
             self._chat_payload(
                 model_selection,
@@ -1107,14 +1102,9 @@ class Model:
                 headers=self._request_headers(custom_api_key),
                 data=data,
             ) as resp:
-                response = await resp.json()
-                if resp.status >= 400 or "error" in response:
-                    raise OpenAIAPIError(
-                        response.get("error", {}).get(
-                            "message", "Transcription failed"
-                        ),
-                        resp.status,
-                    )
+                response = await self._read_json_response(resp)
+                if not isinstance(response.get("text"), str):
+                    raise ValueError("The API returned an invalid transcription")
                 return response["text"]
 
     async def send_request(
@@ -1171,14 +1161,7 @@ class Model:
                 },
                 headers={"Authorization": f"Bearer {api_key}"},
             ) as resp:
-                response = await resp.json()
-                if resp.status >= 400 or "error" in response:
-                    raise ValueError(
-                        response.get("error", {}).get(
-                            "message", "Key validation failed"
-                        )
-                    )
-                return response
+                return await Model._read_json_response(resp)
 
     async def save_image_urls_and_return(self, image_urls, ctx):
         """Persist source images and return a Discord-sized contact sheet."""

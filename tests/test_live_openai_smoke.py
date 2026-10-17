@@ -104,6 +104,43 @@ async def test_quota_stops_remaining_features_without_another_call(tmp_path):
     assert "private error text" not in json.dumps(result)
 
 
+async def test_language_and_key_validation_exercise_production_helpers_once(
+    tmp_path, monkeypatch
+):
+    from models.openai_model import Model
+    from services.environment_service import EnvService
+
+    validate = AsyncMock(
+        return_value={
+            "choices": [{"message": {"content": None}}],
+            "usage": {"total_tokens": 4},
+        }
+    )
+    monkeypatch.setattr(Model, "send_test_request", validate)
+    monkeypatch.setattr(
+        EnvService, "get_openai_token", lambda: "offline-validation-key"
+    )
+    model = SimpleNamespace(
+        send_language_detect_request=AsyncMock(
+            return_value={"choices": [{"message": {"content": "French"}}]}
+        )
+    )
+    result = await smoke._run_checks(
+        model,
+        SimpleNamespace(update_usage_from_response=AsyncMock()),
+        tmp_path,
+        ["validate", "language"],
+        tmp_path / "artifacts",
+        lambda outcome: None,
+    )
+    assert [item["status"] for item in result["checks"]] == ["passed", "passed"]
+    validate.assert_awaited_once_with("offline-validation-key")
+    model.send_language_detect_request.assert_awaited_once()
+    assert result["checks"][0]["usage"] == [{"total_tokens": 4}]
+    assert result["checks"][1]["shape"]["expected_language"] is True
+    assert "offline-validation-key" not in json.dumps(result)
+
+
 @pytest.mark.parametrize(
     "action,known,unknown",
     [(None, 0, 1), ({"type": "search"}, 1, 0), ({"type": "open_page"}, 0, 0)],

@@ -33,13 +33,6 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self.usage_service = usage_service
         self.model = model
 
-        # Moderation service data
-        self.moderation_queues = {}
-        self.moderation_alerts_channel = EnvService.get_moderations_alert_channel()
-        self.moderation_enabled_guilds = []
-        self.moderation_tasks = {}
-        self.moderations_launched = []
-
         # Defaults
         self.default_warn_set = ThresholdSet(0.01, 0.05, 0.05, 0.91, 0.1, 0.45, 0.1)
         self.default_delete_set = ThresholdSet(0.26, 0.26, 0.1, 0.95, 0.03, 0.85, 0.4)
@@ -48,9 +41,15 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def on_ready(self):
         """Check moderation service for each guild"""
         for guild in self.bot.guilds:
-            self.get_or_set_warn_set(guild.id)
-            self.get_or_set_delete_set(guild.id)
-            await self.check_and_launch_moderations(guild.id)
+            try:
+                self.get_or_set_warn_set(guild.id)
+                self.get_or_set_delete_set(guild.id)
+                await self.check_and_launch_moderations(guild.id)
+            except Exception as error:
+                print(
+                    f"Could not restore moderation for guild {guild.id} "
+                    f"({type(error).__name__})"
+                )
         print("The moderation service is ready.")
 
     def check_guild_moderated(self, guild_id):
@@ -71,8 +70,8 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         guild_id = str(guild_id)
         key = guild_id + "_warn_set"
         if key not in MOD_DB:
-            MOD_DB[key] = zip(
-                self.default_warn_set.keys, self.default_warn_set.thresholds
+            MOD_DB[key] = dict(
+                zip(self.default_warn_set.keys, self.default_warn_set.thresholds)
             )
             MOD_DB.commit()
         return dict(MOD_DB[key])
@@ -82,8 +81,8 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         guild_id = str(guild_id)
         key = guild_id + "_delete_set"
         if key not in MOD_DB:
-            MOD_DB[key] = zip(
-                self.default_delete_set.keys, self.default_delete_set.thresholds
+            MOD_DB[key] = dict(
+                zip(self.default_delete_set.keys, self.default_delete_set.thresholds)
             )
             MOD_DB.commit()
         return dict(MOD_DB[key])
@@ -92,14 +91,14 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         """Set threshold for warning a message"""
         guild_id = str(guild_id)
         key = guild_id + "_warn_set"
-        MOD_DB[key] = zip(threshold_set.keys, threshold_set.thresholds)
+        MOD_DB[key] = dict(zip(threshold_set.keys, threshold_set.thresholds))
         MOD_DB.commit()
 
     def set_delete_set(self, guild_id, threshold_set):
         """Set threshold for deleting a message"""
         guild_id = str(guild_id)
         key = guild_id + "_delete_set"
-        MOD_DB[key] = zip(threshold_set.keys, threshold_set.thresholds)
+        MOD_DB[key] = dict(zip(threshold_set.keys, threshold_set.thresholds))
         MOD_DB.commit()
 
     def set_guild_moderated(self, guild_id, status=True):
@@ -117,19 +116,30 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def check_and_launch_moderations(self, guild_id, alert_channel_override=None):
         """Create the moderation service"""
         if self.check_guild_moderated(guild_id):
-            Moderation.moderation_queues[guild_id] = asyncio.Queue()
-
             moderations_channel = await self.bot.fetch_channel(
                 self.get_moderated_alert_channel(guild_id)
                 if not alert_channel_override
                 else alert_channel_override
             )
+            if (
+                getattr(getattr(moderations_channel, "guild", None), "id", None)
+                != guild_id
+            ):
+                raise ValueError(
+                    "The moderation alert channel must belong to this guild"
+                )
+            if not self.check_guild_moderated(guild_id):
+                return None
+            existing = Moderation.moderation_tasks.get(guild_id)
+            if existing is not None and not existing.done():
+                return moderations_channel
             warn_set_nums = self.get_or_set_warn_set(guild_id).values()
             delete_set_nums = self.get_or_set_delete_set(guild_id).values()
             warn_set = ThresholdSet(*warn_set_nums)
             delete_set = ThresholdSet(*delete_set_nums)
 
-            Moderation.moderation_tasks[guild_id] = asyncio.ensure_future(
+            Moderation.moderation_queues[guild_id] = asyncio.Queue()
+            Moderation.moderation_tasks[guild_id] = asyncio.create_task(
                 Moderation.process_moderation_queue(
                     Moderation.moderation_queues[guild_id],
                     0.25,
@@ -140,7 +150,8 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
                 )
             )
             print("Launched the moderations service for guild " + str(guild_id))
-            Moderation.moderations_launched.append(guild_id)
+            if guild_id not in Moderation.moderations_launched:
+                Moderation.moderations_launched.append(guild_id)
             return moderations_channel
 
         return None
@@ -149,7 +160,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         self, ctx: discord.ApplicationContext, status: str, alert_channel_id: str
     ):
         """command handler for toggling moderation and setting an alert channel"""
-        await ctx.defer()
+        await ctx.defer(ephemeral=True)
 
         try:
             if alert_channel_id:
@@ -157,6 +168,9 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         except ValueError:
             # the alert_channel_id was passed in as a channel NAME instead of an ID, fetch the ID.
             alert_channel = discord.utils.get(ctx.guild.channels, name=alert_channel_id)
+            if alert_channel is None:
+                await ctx.respond("The alert channel was not found.", ephemeral=True)
+                return
             alert_channel_id = alert_channel.id
 
         if status == "on":
@@ -166,9 +180,16 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
                 return
 
             # Create the moderations service.
-            await self.start_moderations_service(
-                guild_id=ctx.guild_id, alert_channel_id=alert_channel_id
-            )
+            try:
+                await self.start_moderations_service(
+                    guild_id=ctx.guild_id, alert_channel_id=alert_channel_id
+                )
+            except (discord.HTTPException, ValueError):
+                await ctx.respond(
+                    "Choose an accessible moderation alert channel in this server.",
+                    ephemeral=True,
+                )
+                return
             await ctx.respond("Moderations is now enabled for this guild")
 
         elif status == "off":
@@ -181,22 +202,27 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
     async def stop_moderations_service(self, guild_id):
         """Remove guild moderation status and stop the service"""
         self.set_guild_moderated(guild_id, False)
-        Moderation.moderation_tasks[guild_id].cancel()
-        Moderation.moderation_tasks[guild_id] = None
-        Moderation.moderation_queues[guild_id] = None
-        Moderation.moderations_launched.remove(guild_id)
+        task = Moderation.moderation_tasks.pop(guild_id, None)
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        Moderation.moderation_queues.pop(guild_id, None)
+        if guild_id in Moderation.moderations_launched:
+            Moderation.moderations_launched.remove(guild_id)
 
     async def start_moderations_service(self, guild_id, alert_channel_id=None):
         """Set guild moderation and start the service"""
         self.set_guild_moderated(guild_id)
-        moderations_channel = await self.check_and_launch_moderations(
-            guild_id,
-            (
-                Moderation.moderation_alerts_channel
-                if not alert_channel_id
-                else alert_channel_id
-            ),
-        )
+        try:
+            moderations_channel = await self.check_and_launch_moderations(
+                guild_id,
+                int(alert_channel_id or Moderation.moderation_alerts_channel or 0),
+            )
+            if moderations_channel is None:
+                raise ValueError("Moderation was stopped during startup")
+        except BaseException:
+            self.set_guild_moderated(guild_id, False)
+            raise
         self.set_moderated_alert_channel(guild_id, moderations_channel.id)
 
     async def restart_moderations_service(self, ctx):
@@ -232,7 +258,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             title="Moderation Settings",
             description="The moderation settings for this guild for the type: "
             + category,
-            color=discord.Color.yellow() if type == "warn" else discord.Color.red(),
+            color=discord.Color.yellow() if category == "warn" else discord.Color.red(),
         )
 
         # Add each key_value pair in the mod_set to the embed, make them fairly small
@@ -266,7 +292,7 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
         await ctx.defer(ephemeral=True)
 
         # Case for printing the current config
-        if not any(all_args) and config_type != "reset":
+        if all(value is None for value in all_args) and config_type != "reset":
             await ctx.respond(
                 ephemeral=True,
                 embed=await self.build_moderation_settings_embed(
@@ -280,49 +306,35 @@ class ModerationsService(discord.Cog, name="ModerationsService"):
             )
             return
 
-        if config_type == "warn":
-            # Check if no args were
-            warn_set = self.get_or_set_warn_set(ctx.guild_id)
+        if any(value is not None and not 0 <= value <= 1 for value in all_args):
+            await ctx.respond("Thresholds must be between 0 and 1.", ephemeral=True)
+            return
 
-            new_warn_set = ThresholdSet(
-                hate if hate else warn_set["hate"],
-                hate_threatening if hate_threatening else warn_set["hate/threatening"],
-                self_harm if self_harm else warn_set["self-harm"],
-                sexual if sexual else warn_set["sexual"],
-                sexual_minors if sexual_minors else warn_set["sexual/minors"],
-                violence if violence else warn_set["violence"],
-                violence_graphic if violence_graphic else warn_set["violence/graphic"],
-            )
-            self.set_warn_set(ctx.guild_id, new_warn_set)
-            await self.restart_moderations_service(ctx)
-
-        elif config_type == "delete":
-            delete_set = self.get_or_set_delete_set(ctx.guild_id)
-
-            new_delete_set = ThresholdSet(
-                hate if hate else delete_set["hate"],
-                (
-                    hate_threatening
-                    if hate_threatening
-                    else delete_set["hate/threatening"]
-                ),
-                self_harm if self_harm else delete_set["self-harm"],
-                sexual if sexual else delete_set["sexual"],
-                sexual_minors if sexual_minors else delete_set["sexual/minors"],
-                violence if violence else delete_set["violence"],
-                (
-                    violence_graphic
-                    if violence_graphic
-                    else delete_set["violence/graphic"]
-                ),
-            )
-            self.set_delete_set(ctx.guild_id, new_delete_set)
-            await self.restart_moderations_service(ctx)
-
-        elif config_type == "reset":
+        if config_type == "reset":
             self.set_delete_set(ctx.guild_id, self.default_delete_set)
             self.set_warn_set(ctx.guild_id, self.default_warn_set)
+        elif config_type in {"warn", "delete"}:
+            current = (
+                self.get_or_set_warn_set(ctx.guild_id)
+                if config_type == "warn"
+                else self.get_or_set_delete_set(ctx.guild_id)
+            )
+            thresholds = ThresholdSet(
+                *(
+                    old if value is None else value
+                    for value, old in zip(all_args, current.values())
+                )
+            )
+            setter = self.set_warn_set if config_type == "warn" else self.set_delete_set
+            setter(ctx.guild_id, thresholds)
+        else:
+            await ctx.respond("Choose warn, delete, or reset.", ephemeral=True)
+            return
+
+        if self.check_guild_moderated(ctx.guild_id):
             await self.restart_moderations_service(ctx)
+        else:
+            await ctx.respond("Moderation thresholds saved.", ephemeral=True)
 
     async def moderations_test_command(
         self, ctx: discord.ApplicationContext, prompt: str

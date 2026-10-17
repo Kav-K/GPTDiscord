@@ -1,6 +1,5 @@
 import asyncio
 
-import tempfile
 import traceback
 from datetime import datetime, date
 from pathlib import Path
@@ -11,7 +10,6 @@ from llama_index.core import (
     PromptTemplate as QuestionAnswerPrompt,
     VectorStoreIndex,
     Document,
-    SimpleDirectoryReader,
     get_response_synthesizer,
 )
 from llama_index.core.composability import QASummaryQueryEngineBuilder
@@ -23,6 +21,7 @@ from llama_index.core.prompts.chat_prompts import CHAT_REFINE_PROMPT
 from services.indexing_service import (
     create_index_context,
     read_web_documents,
+    read_pdf_documents,
     persist_index,
 )
 from services.agent_service import create_chat_llm, agent_output_text
@@ -145,21 +144,7 @@ class Search:
         return read_web_documents(url)
 
     async def index_pdf(self, url) -> list[Document]:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=30)
-        ) as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                data = await response.read()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            file_path = Path(temp_dir) / "document.pdf"
-            file_path.write_bytes(data)
-            documents = await asyncio.to_thread(
-                lambda: SimpleDirectoryReader(input_files=[str(file_path)]).load_data()
-            )
-        for document in documents:
-            document.metadata["URL"] = url
-        return documents
+        return await read_pdf_documents(url)
 
     async def get_links(self, query, search_scope=2):
         """Search Google with properly encoded query parameters."""
@@ -338,6 +323,7 @@ class Search:
                 query_engine = MultiStepQueryEngine(
                     query_engine=query_engine,
                     query_transform=StepDecomposeQueryTransform(llm=context.llm),
+                    response_synthesizer=synthesizer,
                     index_summary="Provides information from the search result pages.",
                 )
         if ctx:

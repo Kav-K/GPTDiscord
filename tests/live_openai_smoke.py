@@ -29,9 +29,11 @@ import time
 from types import SimpleNamespace
 
 FEATURES = (
+    "validate",
     "chat",
     "edit",
     "summary",
+    "language",
     "json",
     "vision",
     "embeddings",
@@ -173,6 +175,23 @@ async def _run_checks(model, usage, directory, selected, artifact_directory, emi
         return chat_shape(
             await model.send_request("Reply only OK.", None, model=Models.DEFAULT)
         )
+
+    async def validate():
+        # Exercise /setup's actual key-validation path, which caps output at
+        # 128 tokens and does not automatically retry or inherit server scopes.
+        response = await Model.send_test_request(EnvService.get_openai_token())
+        assert response.get("choices") and not response.get("error")
+        usage_events.append(numeric_usage(response.get("usage")))
+        return {"api_key_accepted": True, "choices": len(response["choices"])}
+
+    async def language():
+        result = await model.send_language_detect_request(
+            "Bonjour, je vous souhaite une bonne journée.",
+            "Identify the language of the user's text. Reply only with its English language name.",
+        )
+        shape = chat_shape(result)
+        assert "french" in result["choices"][0]["message"]["content"].lower()
+        return shape | {"expected_language": True}
 
     async def edit():
         return chat_shape(
@@ -331,9 +350,11 @@ async def _run_checks(model, usage, directory, selected, artifact_directory, emi
         return shape
 
     checks = {
+        "validate": validate,
         "chat": chat,
         "edit": edit,
         "summary": summary,
+        "language": language,
         "json": json_check,
         "vision": vision,
         "embeddings": embeddings,

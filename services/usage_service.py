@@ -3,6 +3,7 @@ import logging
 import threading
 from collections import defaultdict
 from pathlib import Path
+from weakref import WeakValueDictionary
 
 import aiofiles
 from typing import Literal
@@ -11,6 +12,7 @@ from requests import RequestException
 
 _tokenizer_unavailable = False
 _tokenizer_lock = threading.Lock()
+_usage_locks = WeakValueDictionary()
 
 
 def _load_tokenizer():
@@ -34,14 +36,19 @@ class UsageService:
     def __init__(self, data_dir: Path):
         data_dir.mkdir(parents=True, exist_ok=True)
         self.usage_file_path = data_dir / "usage.txt"
-        self._usage_lock = asyncio.Lock()
         # If the usage.txt file doesn't currently exist in the directory, create it and write 0.00 to it.
         if not self.usage_file_path.exists():
             with self.usage_file_path.open("w") as f:
                 f.write("0.00")
-                f.close()
         self._tokenizer = None
         self.usage = defaultdict()
+
+    @property
+    def _usage_lock(self):
+        # Main chat, moderation and autocomplete have separate service instances
+        # writing one file. Share a lock per file/loop without retaining old loops.
+        key = (asyncio.get_running_loop(), self.usage_file_path.resolve())
+        return _usage_locks.setdefault(key, asyncio.Lock())
 
     @property
     def tokenizer(self):
@@ -139,7 +146,7 @@ class UsageService:
 
     async def _add_cost(self, price):
         async with self._usage_lock:
-            usage = await self.get_usage()
+            usage = await self._read_usage()
             async with aiofiles.open(self.usage_file_path, "w") as f:
                 await f.write(str(round(usage + price, 8)))
         return price
@@ -202,35 +209,20 @@ class UsageService:
                 await f.write(str(usage))
 
     async def get_usage(self):
+        async with self._usage_lock:
+            return await self._read_usage()
+
+    async def _read_usage(self):
         async with aiofiles.open(self.usage_file_path, "r") as f:
-            usage = float((await f.read()).strip())
-            await f.close()
-        return usage
+            return float((await f.read()).strip())
 
     def count_tokens(self, text):
         tokenizer = self.tokenizer
         if tokenizer is None:
             # Byte-level BPE tokens cannot outnumber the original UTF-8 bytes.
             return len(text.encode("utf-8"))
-        res = tokenizer.encode(text)
+        res = tokenizer.encode(text, disallowed_special=())
         return len(res)
-
-    async def update_usage_image(self, image_size):
-        image_size = image_size.split(" ")[0]
-        if image_size == "1024x1024":
-            price = 0.04
-        elif image_size == "512x512":
-            price = 0.018
-        elif image_size == "256x256":
-            price = 0.016
-        elif image_size == "1792x1024":
-            price = 0.08
-        elif image_size == "1024x1792":
-            price = 0.08
-        else:
-            raise ValueError("Invalid image size")
-
-        return await self._add_cost(price)
 
     def update_usage_memory(self, guild_name, functionality, usage):
         if guild_name in self.usage:
@@ -252,5 +244,5 @@ class UsageService:
         tokenizer = _load_tokenizer()
         if tokenizer is None:
             return len(text.encode("utf-8"))
-        res = tokenizer.encode(text)
+        res = tokenizer.encode(text, disallowed_special=())
         return len(res)

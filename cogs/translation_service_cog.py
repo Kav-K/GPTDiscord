@@ -88,8 +88,10 @@ class TranslationService(discord.Cog, name="TranslationService"):
                 TranslationModel.get_country_code_from_name(target_language),
                 formality,
             )
-        except aiohttp.ClientResponseError as e:
-            await ctx.respond(f"There was an error with the DeepL API: {e.message}")
+        except (aiohttp.ClientError, ValueError):
+            await ctx.respond(
+                "DeepL could not translate this text. Check the configured key and try again."
+            )
             return
 
         await ctx.respond(
@@ -201,6 +203,7 @@ class TranslateView(discord.ui.View):
                 "Please select a language first.", ephemeral=True, delete_after=15
             )
             return
+        await interaction.response.defer()
         try:
             (
                 response,
@@ -221,24 +224,25 @@ class TranslateView(discord.ui.View):
                 ),
             )
             await self.selection_message.delete()
-        except aiohttp.ClientResponseError as e:
-            await interaction.response.send_message(
-                f"There was an error with the DeepL API: {e.message}",
+        except (aiohttp.ClientError, ValueError):
+            await interaction.followup.send(
+                "DeepL could not translate this text. Check the configured key and try again.",
                 ephemeral=True,
                 delete_after=15,
             )
             return
         except discord.errors.HTTPException as e:
-            if e.code == 50035:
-                await interaction.response.send_message(
-                    "Message was too long to translate.",
-                    ephemeral=True,
-                    delete_after=15,
-                )
-                return
-        except Exception as e:
-            await interaction.response.send_message(
-                f"There was an error: {e}", ephemeral=True, delete_after=15
+            await interaction.followup.send(
+                "Message was too long to translate."
+                if e.code == 50035
+                else "The translation could not be delivered. Please try again.",
+                ephemeral=True,
+                delete_after=15,
             )
-            traceback.print_exc()
+        except Exception:
+            await interaction.followup.send(
+                "The translation could not be delivered. Please try again.",
+                ephemeral=True,
+                delete_after=15,
+            )
             return

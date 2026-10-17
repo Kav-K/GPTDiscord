@@ -1,43 +1,75 @@
 import asyncio
-import traceback
-import os
-from functools import partial
 from pathlib import Path
-from yt_dlp import YoutubeDL
-
+import tempfile
 
 import discord
 from discord.ext import pages
+from yt_dlp import YoutubeDL
 
 from models.embed_statics_model import EmbedStatics
 from models.check_model import UrlCheck
+from models.openai_model import OpenAIAPIError
 from services.environment_service import EnvService
 from services.text_service import TextService
+from utils.api_errors import openai_error_message
 
-ALLOWED_GUILDS = EnvService.get_allowed_guilds()
 USER_INPUT_API_KEYS = EnvService.get_user_input_api_keys()
 USER_KEY_DB = EnvService.get_api_db()
+AUDIO_EXTENSIONS = {
+    ".flac",
+    ".mp3",
+    ".mp4",
+    ".mpeg",
+    ".mpga",
+    ".m4a",
+    ".ogg",
+    ".wav",
+    ".webm",
+}
+TRANSCRIPT_PAGE_SIZE = 3500
+
+
+async def transcribe_and_respond(model, ctx, file, temperature, user_api_key):
+    progress = await ctx.respond(embed=EmbedStatics.build_transcribe_progress_embed())
+    try:
+        response = await model.send_transcription_request(
+            file, temperature, user_api_key
+        )
+        if len(response) > TRANSCRIPT_PAGE_SIZE:
+            paginator = pages.Paginator(
+                pages=[
+                    discord.Embed(
+                        title=f"Transcription Page {index // TRANSCRIPT_PAGE_SIZE + 1}",
+                        description=response[index : index + TRANSCRIPT_PAGE_SIZE],
+                    )
+                    for index in range(0, len(response), TRANSCRIPT_PAGE_SIZE)
+                ],
+                timeout=None,
+                author_check=False,
+            )
+            await paginator.respond(ctx.interaction)
+            await progress.delete()
+            return
+        await progress.edit(embed=EmbedStatics.build_transcribe_success_embed(response))
+    except Exception as error:
+        message = (
+            openai_error_message(error)
+            if isinstance(error, OpenAIAPIError)
+            else "Transcription failed. Check the file and try again."
+        )
+        await progress.edit(embed=EmbedStatics.build_transcribe_failed_embed(message))
 
 
 class TranscribeService(discord.Cog, name="TranscribeService"):
-    """Cog containing translation commands and retrieval of transcribe services"""
+    """Transcribe uploaded audio/video and audio extracted from YouTube."""
 
-    def __init__(
-        self,
-        bot,
-        model,
-        usage_service,
-    ):
+    def __init__(self, bot, model, usage_service):
         super().__init__()
         self.bot = bot
         self.model = model
         self.usage_service = usage_service
-        # Make the "audiotemp" folder if it doesn't exist, using pathlib
-        Path("audiotemp").mkdir(parents=True, exist_ok=True)
 
-    async def transcribe_link_command(
-        self, ctx: discord.ApplicationContext, link: str, temperature: float
-    ):
+    async def transcribe_link_command(self, ctx, link, temperature):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -45,18 +77,27 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             )
             if not user_api_key:
                 return
-
         await ctx.defer()
+        try:
+            supported = await asyncio.wait_for(UrlCheck.check_youtube_link(link), 15)
+        except Exception:
+            supported = False
+        if not supported:
+            await ctx.respond(
+                "Please upload a valid YouTube link. Other links are not implemented yet."
+            )
+            return
 
-        if await UrlCheck.check_youtube_link(link):
-            # We need to download the youtube video and save it to a temporary file
-
+        # Every invocation owns its directory, including simultaneous requests
+        # from the same user. The downloaded media is removed on every exit.
+        with tempfile.TemporaryDirectory(prefix="gptdiscord-transcribe-") as directory:
+            output = Path(directory) / "audio.mp3"
             options = {
                 "format": "bestaudio/best",
-                "outtmpl": os.path.join(
-                    "audiotemp/", f"{ctx.user.id}temp.%(ext)s"
-                ),  # save file as the videos title
+                "outtmpl": str(Path(directory) / "audio.%(ext)s"),
                 "quiet": True,
+                "noplaylist": True,
+                "socket_timeout": 20,
                 "postprocessors": [
                     {
                         "key": "FFmpegExtractAudio",
@@ -66,87 +107,26 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
                 ],
             }
 
-            # Delete audiotemp/{str(ctx.user.id)}temp.mp3 if it already exists
-            if Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).exists():
-                Path("audiotemp/{}temp.mp3".format(str(ctx.user.id))).unlink()
-
-            def download_video(url, options):
-                with YoutubeDL(options) as ydl:
-                    ydl.download([url])
+            def download():
+                with YoutubeDL(options) as downloader:
+                    downloader.download([link])
 
             try:
-                await asyncio.get_running_loop().run_in_executor(
-                    None,
-                    partial(
-                        download_video,
-                        link,
-                        options,
-                    ),
-                )
-            except Exception as e:
-                traceback.print_exc()
+                await asyncio.to_thread(download)
+                file = discord.File(output)
+            except Exception:
                 await ctx.respond(
-                    "Failed to download youtube video. Please try again later. "
-                    + str(e)
+                    "Failed to download YouTube audio. Check the link and FFmpeg installation, then try again."
                 )
                 return
-
-        else:
-            await ctx.respond(
-                "Please upload a valid youtube link. Other links are not implemented yet"
-            )
-            return
-
-        # Load the file object from the file_path
-        file_path = Path("audiotemp/{}temp.mp3".format(str(ctx.user.id)))
-        file = discord.File(file_path)
-
-        response_message = await ctx.respond(
-            embed=EmbedStatics.build_transcribe_progress_embed()
-        )
-
-        try:
-            response = await self.model.send_transcription_request(
-                file, temperature, user_api_key
-            )
-            print(response)
-
-            if len(response) > 4080:
-                # Chunk the response into 2048 character chunks, each an embed page
-                chunks = [response[i : i + 2048] for i in range(0, len(response), 2048)]
-                embed_pages = []
-                for chunk in chunks:
-                    embed_pages.append(
-                        discord.Embed(
-                            title="Transcription Page {}".format(len(embed_pages) + 1),
-                            description=chunk,
-                        )
-                    )
-
-                paginator = pages.Paginator(
-                    pages=embed_pages,
-                    timeout=None,
-                    author_check=False,
+            try:
+                await transcribe_and_respond(
+                    self.model, ctx, file, temperature, user_api_key
                 )
+            finally:
+                file.close()
 
-                await paginator.respond(ctx.interaction)
-                await response_message.delete()
-                return
-
-            await response_message.edit(
-                embed=EmbedStatics.build_transcribe_success_embed(response)
-            )
-        except Exception as e:
-            await response_message.edit(
-                embed=EmbedStatics.build_transcribe_failed_embed(str(e))
-            )
-
-    async def transcribe_file_command(
-        self,
-        ctx: discord.ApplicationContext,
-        file: discord.Attachment,
-        temperature: float,
-    ):
+    async def transcribe_file_command(self, ctx, file, temperature):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -154,54 +134,14 @@ class TranscribeService(discord.Cog, name="TranscribeService"):
             )
             if not user_api_key:
                 return
-
         await ctx.defer()
-
-        if not file.filename.endswith(
-            (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")
+        content_type = (file.content_type or "").lower()
+        if Path(file.filename).suffix.lower() not in AUDIO_EXTENSIONS or (
+            content_type
+            and not content_type.startswith(
+                ("audio/", "video/", "application/octet-stream")
+            )
         ):
             await ctx.respond("Please upload a valid audio/video file.")
             return
-
-        # Also check the file metadata in case it is actually an audio/video file but with a weird ending
-        if not file.content_type.startswith(("audio/", "video/")):
-            await ctx.respond("Please upload a valid audio/video file.")
-            return
-
-        response_message = await ctx.respond(
-            embed=EmbedStatics.build_transcribe_progress_embed()
-        )
-
-        try:
-            response = await self.model.send_transcription_request(
-                file, temperature, user_api_key
-            )
-
-            if len(response) > 4080:
-                # Chunk the response into 2048 character chunks, each an embed page
-                chunks = [response[i : i + 2048] for i in range(0, len(response), 2048)]
-                embed_pages = []
-                for chunk in chunks:
-                    embed_pages.append(
-                        discord.Embed(
-                            title="Transcription Page {}".format(len(embed_pages) + 1),
-                            description=chunk,
-                        )
-                    )
-
-                paginator = pages.Paginator(
-                    pages=embed_pages,
-                    timeout=None,
-                    author_check=False,
-                )
-
-                await paginator.respond(ctx.interaction)
-
-            await response_message.edit(
-                embed=EmbedStatics.build_transcribe_success_embed(response)
-            )
-        except Exception as e:
-            traceback.print_exc()
-            await response_message.edit(
-                embed=EmbedStatics.build_transcribe_failed_embed(str(e))
-            )
+        await transcribe_and_respond(self.model, ctx, file, temperature, user_api_key)

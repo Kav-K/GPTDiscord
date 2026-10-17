@@ -2,7 +2,6 @@ import functools
 import os
 import random
 import shutil
-import tempfile
 import traceback
 import asyncio
 from collections import defaultdict
@@ -47,6 +46,7 @@ from services.indexing_service import (
     IndexContext,
     create_index_context,
     read_web_documents,
+    read_pdf_documents,
     RecursiveWebReader,
     persist_index,
     context_for_stored_index,
@@ -109,6 +109,7 @@ def get_and_query(
         query_engine = MultiStepQueryEngine(
             query_engine=query_engine,
             query_transform=StepDecomposeQueryTransform(llm=service_context.llm),
+            response_synthesizer=synthesizer,
             index_summary="Provides information about the indexed documents.",
         )
     return query_engine.query(query)
@@ -246,11 +247,6 @@ class Index_handler:
         "text/x-ruby": ".rb",
         "text/x-perl": ".pl",
         "text/x-shellscript": ".sh",
-    }
-
-    # For when content type doesnt get picked up by discord.
-    secondary_mappings = {
-        ".epub": ".epub",
     }
 
     def __init__(self, bot, usage_service):
@@ -534,6 +530,33 @@ class Index_handler:
     def index_file(
         self, file_path, service_context, suffix=None
     ) -> GPTVectorStoreIndex:
+        suffix = (suffix or Path(file_path).suffix).lower()
+        if suffix in {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".webp",
+            ".psd",
+            ".mp3",
+            ".wav",
+            ".ogg",
+            ".flac",
+            ".mpeg",
+            ".mp4",
+            ".m4a",
+            ".webm",
+        }:
+            raise ValueError(
+                "Image, audio and video indexing is unavailable. Use native vision or "
+                "/transcribe, then index the extracted text."
+            )
+        if suffix in {".doc", ".ppt", ".xls", ".exe", ".jar"}:
+            raise ValueError(
+                "This binary format cannot be indexed. Convert legacy Office files "
+                "to DOCX, PPTX or XLSX, or upload extracted text."
+            )
         if suffix and suffix == ".md":
             from llama_index.readers.file import MarkdownReader
 
@@ -645,22 +668,7 @@ class Index_handler:
         return index
 
     async def index_pdf(self, url) -> list[Document]:
-        # Download the PDF at the url and save it to a tempfile
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.read()
-                    f = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-                    f.write(data)
-                    f.close()
-                else:
-                    return "An error occurred while downloading the PDF."
-        # Get the file path of this tempfile.NamedTemporaryFile
-        # Save this temp file to an actual file that we can put into something else to read it
-        documents = SimpleDirectoryReader(input_files=[f.name]).load_data()
-
-        # Delete the temporary file
-        return documents
+        return await read_pdf_documents(url)
 
     async def index_webpage(self, url, service_context) -> GPTVectorStoreIndex:
         # First try to connect to the URL to see if we can even reach it.
@@ -674,7 +682,10 @@ class Index_handler:
                         )
                     else:
                         # Detect if the link is a PDF, if it is, we load it differently
-                        if response.headers["Content-Type"] == "application/pdf":
+                        if (
+                            "application/pdf"
+                            in response.headers.get("Content-Type", "").lower()
+                        ):
                             documents = await self.index_pdf(url)
                             index = await self.loop.run_in_executor(
                                 None,
@@ -709,18 +720,13 @@ class Index_handler:
         self.index_storage[user_id].reset_indexes(user_id)
 
     def get_file_suffix(self, content_type, filename):
-        print("The content type is " + str(content_type))
         if content_type:
-            # Apply the suffix mappings to the file
             for key, value in self.type_to_suffix_mappings.items():
-                if key in content_type:
+                if key in content_type.lower():
                     return value
-
-        else:
-            for key, value in self.secondary_mappings.items():
-                if key in filename:
-                    return value
-
+        suffix = Path(filename).suffix.lower()
+        if suffix in self.type_to_suffix_mappings.values():
+            return suffix
         return None
 
     async def set_file_index(
@@ -1303,11 +1309,12 @@ class Index_handler:
             Path(EnvService.save_path() / "indexes" / str(ctx.guild.id)).mkdir(
                 parents=True, exist_ok=True
             )
-            index.storage_context.persist(
+            persist_index(
+                index,
                 persist_dir=EnvService.save_path()
                 / "indexes"
                 / str(ctx.guild.id)
-                / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}"
+                / f"{ctx.guild.name.replace(' ', '-')}_{date.today().month}_{date.today().day}",
             )
 
             await ctx.respond(embed=EmbedStatics.get_index_set_success_embed(price))

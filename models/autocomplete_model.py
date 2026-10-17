@@ -1,14 +1,14 @@
 from pathlib import Path
 import os
-import re
 
 import discord
 
 from models.deepl_model import TranslationModel
 from services.moderations_service import ModerationOptions
 from services.usage_service import UsageService
-from models.openai_model import ImageSize, Model, ModelLimits, Models, Mode
+from models.openai_model import ImageSize, Model, ModelLimits, Models
 from services.environment_service import EnvService
+from utils.model_settings import editable_model_settings
 
 usage_service = UsageService(Path(os.environ.get("DATA_DIR", os.getcwd())))
 model = Model(usage_service)
@@ -27,11 +27,7 @@ class Settings_autocompleter:
 
     async def get_settings(ctx: discord.AutocompleteContext):
         """get settings for the settings option"""
-        SETTINGS = [
-            re.sub("^_", "", key)
-            for key in model.__dict__.keys()
-            if key not in model._hidden_attributes
-        ]
+        SETTINGS = editable_model_settings(Model)
         return [
             parameter
             for parameter in SETTINGS
@@ -57,11 +53,10 @@ class Settings_autocompleter:
                     ModelLimits.MIN_NUM_IMAGES, ModelLimits.MAX_NUM_IMAGES + 1
                 )
             ],
-            "mode": Mode.ALL_MODES,
             "model": Models.TEXT_MODELS,
             "low_usage_mode": ["True", "False"],
             "image_size": ImageSize.ALL_SIZES,
-            "summarize_conversation": ["True", "False"],
+            "summarize_conversations": ["True", "False"],
             "welcome_message_enabled": ["True", "False"],
             "num_static_conversation_items": [
                 str(num)
@@ -86,13 +81,12 @@ class Settings_autocompleter:
                 )
             ],
             "type": ["warn", "delete"],
-            "use_org": ["True", "False"],
         }
         options = values.get(ctx.options["parameter"], [])
         if options:
             return _matching_choices(ctx, options)
 
-        await ctx.interaction.response.defer()  # defer so the autocomplete in int values doesn't error but rather just says not found
+        # Autocomplete cannot defer. Pycord acknowledges the returned choices.
         return []
 
     async def get_function_calling_models(ctx: discord.AutocompleteContext):
