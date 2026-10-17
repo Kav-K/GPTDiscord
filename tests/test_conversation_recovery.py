@@ -7,6 +7,7 @@ simulated here. No gateway connection, credentials, or paid requests are used.
 import asyncio
 from collections import defaultdict
 from copy import deepcopy
+from datetime import datetime, timezone
 import pickle
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -330,6 +331,35 @@ async def test_ignored_raw_payload_with_unparseable_reference_does_not_block_nex
     assert len(flow.processed) == 1
 
 
+@pytest.mark.parametrize("broken_part", ["nested-author", "attachment-fields"])
+async def test_unparseable_human_message_is_skipped_without_stalling_later_turns(
+    recovery, monkeypatch, broken_part
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    await flow.service.watch_thread(flow.thread, new=True)
+    broken = message_payload(
+        FIRST, THREAD, "An unsupported human payload", reference=THREAD
+    )
+    if broken_part == "nested-author":
+        broken["referenced_message"] = message_payload(FIRST - 1, THREAD, "")
+        broken["referenced_message"]["author"] = None
+    else:
+        broken["attachments"] = [{"id": str(FIRST + 100)}]
+    with pytest.raises((AttributeError, KeyError, TypeError, ValueError)):
+        discord.Message(state=flow.state, channel=flow.thread, data=deepcopy(broken))
+    allowed = message_payload(FIRST + 1, THREAD, "A later supported human question")
+    logs = AsyncMock(return_value=[allowed, broken])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+
+    await flow.service.poll_once()
+    assert flow.processed == [("create", FIRST + 1, allowed["content"])]
+    flow.member_http.assert_awaited_once_with(GUILD, MEMBER)
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST + 1
+    assert len(flow.processed) == 1
+
+
 async def test_rest_recovery_is_create_only_and_does_not_revise_answers(recovery):
     flow = recovery
     await flow.service.dispatch(flow.message(), source="rest")
@@ -398,7 +428,6 @@ async def test_archived_thread_baselines_then_first_unarchiving_post_is_delivere
     recovery, monkeypatch
 ):
     flow = recovery
-    flow.service._startup_marker = FIRST + 100
     flow.member_http.side_effect = lambda guild, member: member_payload(
         member, bot=member == BOT
     )
@@ -423,31 +452,67 @@ async def test_archived_thread_baselines_then_first_unarchiving_post_is_delivere
     assert len(flow.processed) == 1
 
 
-async def test_message_arriving_after_startup_before_first_poll_is_not_baselined_away(
-    recovery, monkeypatch
+@pytest.mark.parametrize("host_year", [2010, 2090], ids=["clock-behind", "clock-ahead"])
+async def test_first_enrollment_uses_discord_ids_without_consulting_host_wall_clock(
+    recovery, monkeypatch, host_year
 ):
+    from services.conversation_recovery_service import ConversationRecoveryService
+
     flow = recovery
-    flow.service._startup_marker = FIRST
+    clock_reads = []
+
+    def skewed_utcnow():
+        clock_reads.append(host_year)
+        return datetime(host_year, 1, 1, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(discord.utils, "utcnow", skewed_utcnow)
     flow.member_http.side_effect = lambda guild, member: member_payload(
         member, bot=member == BOT
     )
-    old = message_payload(FIRST - 1, THREAD, "Old backlog must stay skipped")
-    new = message_payload(
-        FIRST + 1, THREAD, "A question during startup's first seconds"
-    )
-
-    async def history(channel, limit, **kwargs):
-        return [new] if limit == 1 else [new, old]
-
-    logs = AsyncMock(side_effect=history)
+    old = message_payload(FIRST, THREAD, "Existing backlog before recovery enrollment")
+    new = message_payload(FIRST + 1, THREAD, "The first question after enrollment")
+    logs = AsyncMock(return_value=[old])
     monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    service = ConversationRecoveryService(
+        flow.cog, flow.data_path / f"skew-{host_year}", guild_ids=[GUILD]
+    )
+    try:
+        await service.poll_once()
+        assert flow.processed == []
+        logs.assert_awaited_once_with(THREAD, 1)
 
-    await flow.service.poll_once()
-    assert logs.await_args.kwargs["after"] == FIRST
-    assert flow.processed == [("create", FIRST + 1, new["content"])]
-    await flow.service.poll_once()
-    assert logs.await_args.kwargs["after"] == FIRST + 1
-    assert len(flow.processed) == 1
+        logs.return_value = [new, old]
+        await service.poll_once()
+        assert logs.await_args.kwargs["after"] == FIRST
+        assert flow.processed == [("create", FIRST + 1, new["content"])]
+        await service.poll_once()
+        assert logs.await_args.kwargs["after"] == FIRST + 1
+        assert len(flow.processed) == 1
+        assert clock_reads == [], "Recovery cursors must depend only on Discord IDs"
+    finally:
+        await service.close()
+
+
+async def test_worker_enrolls_existing_threads_before_its_first_sleep(
+    recovery, monkeypatch
+):
+    flow = recovery
+    events = []
+
+    async def poll():
+        events.append("poll")
+
+    async def stop_at_first_sleep(interval):
+        events.append("sleep")
+        assert interval == flow.service.interval
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(flow.service, "poll_once", poll)
+    monkeypatch.setattr(asyncio, "sleep", stop_at_first_sleep)
+    flow.service.start()
+    with pytest.raises(asyncio.CancelledError):
+        await flow.service._task
+    assert events == ["poll", "sleep"]
 
 
 async def test_transient_role_lookup_retains_cursor_and_batch_until_recovery(

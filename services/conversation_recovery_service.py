@@ -77,7 +77,6 @@ class ConversationRecoveryService:
         self._guilds = {}
         self._offset = 0
         self._retry_after = {}
-        self._startup_marker = discord.utils.time_snowflake(discord.utils.utcnow())
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS claims (message_id TEXT, revision TEXT, PRIMARY KEY(message_id, revision))"
@@ -366,11 +365,10 @@ class ConversationRecoveryService:
                 cursor = self._cursor(thread_id)
                 if cursor is None:
                     latest = await self._http(self.bot.http.logs_from(thread_id, 1))
-                    latest_id = int(latest[0]["id"]) if latest else thread_id
-                    cursor = min(latest_id, self._startup_marker)
+                    # Enrollment uses Discord IDs, independent of the host clock.
+                    cursor = int(latest[0]["id"]) if latest else thread_id
                     self._save_cursor(thread_id, guild_id, cursor)
-                    if latest_id <= cursor:
-                        continue
+                    continue
                 if data.get("thread_metadata", {}).get("archived", False):
                     continue
                 channel = self._channels.get(thread_id)
@@ -406,9 +404,30 @@ class ConversationRecoveryService:
                         self._save_cursor(thread_id, guild_id, int(payload["id"]))
                         continue
                     payload = {**payload, "guild_id": str(guild_id)}
-                    message = discord.Message(
-                        state=self.bot._connection, channel=channel, data=payload
-                    )
+                    try:
+                        message = discord.Message(
+                            state=self.bot._connection, channel=channel, data=payload
+                        )
+                    except (
+                        AttributeError,
+                        TypeError,
+                        KeyError,
+                        ValueError,
+                        discord.InvalidData,
+                    ) as error:
+                        if (
+                            self._closed
+                            or not self.enabled_for(guild_id)
+                            or not self._owned(thread_id)
+                        ):
+                            break
+                        self._save_cursor(thread_id, guild_id, int(payload["id"]))
+                        logger.warning(
+                            "Skipped unsupported Discord recovery message %s (%s)",
+                            payload["id"],
+                            type(error).__name__.removesuffix("Error"),
+                        )
+                        continue
                     await self.dispatch(message, source="rest")
                     if (
                         self._closed
@@ -441,8 +460,8 @@ class ConversationRecoveryService:
 
     async def _run(self):
         while not self._closed and not self.bot.is_closed():
-            await asyncio.sleep(self.interval)
             await self.poll_once()
+            await asyncio.sleep(self.interval)
 
     async def close(self):
         self._closed = True

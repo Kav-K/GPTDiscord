@@ -160,12 +160,21 @@ process direct messages, or turn REST membership into an entry in the gateway
 cache. The normal conversation handler remains responsible for provider calls and
 conversation memory.
 
-The poll interval is nominally three seconds; Discord rate limits and provider
-response time can add delay. Existing messages are skipped when recovery first
-adopts an existing thread. Posts created after a newly started conversation can
-be recovered. Polling initially handles message creates only. Edits still work
+The worker polls immediately on startup, then nominally every three seconds;
+Discord rate limits and provider response time can add delay. On first successful
+enrollment of an existing thread, its latest message ID returned by Discord
+becomes the baseline. Messages at or before that baseline are skipped. A post
+made before enrollment completes may therefore be skipped even if it was sent
+after the bot process started. Eligibility begins at successful enrollment, not
+at a host-clock timestamp. Saved durable cursors keep their position across
+restarts, and newly created conversations use their creation IDs rather than
+adopting a latest-message baseline, preserving their first eligible turns.
+Polling initially handles message creates only. Edits still work
 when Discord delivers their gateway events, but an edit with no gateway event is
 not recovered; send a correction as a new message.
+
+Malformed Discord message payloads that Pycord cannot construct are skipped with
+a sanitized warning so later valid posts can continue to be processed.
 
 The service stores only thread/message IDs, cursors, and revision hashes in
 `DATA_DIR/conversation_recovery.sqlite`. Gateway events and polling share the same
