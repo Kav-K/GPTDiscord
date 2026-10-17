@@ -859,6 +859,7 @@ async def test_cacheless_slash_end_acknowledges_then_resolves_and_archives_real_
     assert isinstance(ctx.channel, discord.PartialMessageable)
     assert ctx.guild is None
     lock = flow.cog.conversation_recovery.lock_for(channel)
+    control_task = asyncio.current_task()
     observations = []
 
     def before_lookup():
@@ -866,7 +867,7 @@ async def test_cacheless_slash_end_acknowledges_then_resolves_and_archives_real_
             (
                 ctx.response.is_done(),
                 lock.locked(),
-                asyncio.current_task() in flow.cog.conversation_recovery._active,
+                control_task in flow.cog.conversation_recovery._active,
             )
         )
 
