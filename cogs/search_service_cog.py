@@ -237,7 +237,7 @@ class SearchService(discord.Cog, name="SearchService"):
                     await message.reply("Ending chat session.")
 
                     # close the thread
-                    thread = await self.bot.fetch_channel(message.channel.id)
+                    thread = message.channel
                     await thread.edit(name="Closed-GPT")
                     await thread.edit(archived=True)
                     return

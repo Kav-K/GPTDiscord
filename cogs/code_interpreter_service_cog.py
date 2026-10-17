@@ -157,7 +157,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 await message.reply("Code interpreter session ended.")
 
                 # close the thread
-                thread = await self.bot.fetch_channel(message.channel.id)
+                thread = message.channel
                 await thread.edit(name="Closed-GPT")
                 await thread.edit(archived=True)
                 return

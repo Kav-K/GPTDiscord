@@ -16,6 +16,7 @@ from llama_index.core import Document
 from PIL import Image
 
 from tests.test_indexing import integrations, mock_context  # noqa: F401
+from tests.test_conversation_recovery import recovery, thread_payload  # noqa: F401
 
 
 def contents(index):
@@ -882,3 +883,34 @@ async def test_multilevel_deep_composition_keeps_complete_summary_strings(
     ]
     assert len(summary_nodes) == len(summaries)
     assert set(summary_nodes) == {"Complete summary includes FENNEL."}
+
+
+@pytest.mark.asyncio
+async def test_data_chat_end_uses_authorized_cacheless_discord_thread(
+    integrations, recovery, monkeypatch
+):
+    module = importlib.import_module("models.index_model")
+    assert recovery.bot.get_guild(recovery.guild.id) is None
+    fetch = AsyncMock(
+        side_effect=AssertionError(
+            "A recovered thread must not be fetched through the empty Gateway cache"
+        )
+    )
+    monkeypatch.setattr(recovery.bot, "fetch_channel", fetch)
+    edit = AsyncMock(return_value=thread_payload(archived=True))
+    monkeypatch.setattr(recovery.state.http, "edit_channel", edit)
+    handler = module.Index_handler(recovery.bot, None)
+    handler.index_chat_chains[recovery.thread.id] = SimpleNamespace(
+        owner_id=recovery.message().author.id
+    )
+    message = SimpleNamespace(channel=recovery.thread, reply=AsyncMock())
+
+    result = await handler.execute_index_chat_message(message, "end")
+
+    assert result == "Ended chat session."
+    assert recovery.thread.id not in handler.index_chat_chains
+    message.reply.assert_awaited_once_with("Ending chat session.")
+    edit.assert_awaited_once_with(
+        recovery.thread.id, name="Closed-GPT", archived=True, reason=None
+    )
+    fetch.assert_not_awaited()

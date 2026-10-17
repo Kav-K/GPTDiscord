@@ -342,10 +342,8 @@ class Index_handler:
             await ctx.reply("Ending chat session.")
             self.index_chat_chains.pop(ctx.channel.id)
 
-            # close the thread
-            thread = await self.bot.fetch_channel(ctx.channel.id)
-            await thread.edit(name="Closed-GPT")
-            await thread.edit(archived=True)
+            # Recovery already supplies an authorized thread with its REST guild.
+            await ctx.channel.edit(name="Closed-GPT", archived=True)
             return "Ended chat session."
 
         self.usage_service.update_usage_memory(ctx.guild.name, "index_chat_message", 1)

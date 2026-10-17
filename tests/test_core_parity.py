@@ -254,9 +254,8 @@ async def test_expired_code_sandbox_can_still_end_and_archive(code, monkeypatch)
     cog.sessions[123] = SimpleNamespace(close=Mock(side_effect=RuntimeError("Expired sandbox")))
     cog.chat_agents[123] = object()
     cog.thread_owners[123] = 42
-    thread = SimpleNamespace(edit=AsyncMock())
-    cog.bot.fetch_channel.return_value = thread
-    message = SimpleNamespace(channel=SimpleNamespace(id=123), content="end", reply=AsyncMock())
+    thread = SimpleNamespace(id=123, edit=AsyncMock())
+    message = SimpleNamespace(channel=thread, content="end", reply=AsyncMock())
 
     await cog._process_session_message(message)
 
@@ -642,3 +641,57 @@ async def test_worker_search_tree_summary_preserves_complete_multi_chunk_respons
     assert len(summaries) > 2
     assert response.response == "Complete answer preserves FENNEL."
     assert all("FENNEL" in text for text in summaries)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("integration", ["search", "code"])
+async def test_optional_end_archives_actual_rest_thread_without_gateway_guild(search, code, monkeypatch, integration):
+    from copy import deepcopy
+    from tests.test_conversation_recovery import guild_payload, thread_payload, GUILD, THREAD
+
+    module = search if integration == "search" else code
+    monkeypatch.setattr(module, "PRE_MODERATE", False)
+    monkeypatch.setattr(module, "USER_INPUT_API_KEYS", False)
+    monkeypatch.setattr(module, "message_has_access", AsyncMock(return_value=True))
+    bot = discord.Bot(intents=discord.Intents.none(), auto_sync_commands=False)
+    state = bot._connection
+    guild = discord.Guild(state=state, data=guild_payload())
+    payload = thread_payload()
+    thread = discord.Thread(state=state, guild=guild, data=payload)
+    assert bot.get_guild(GUILD) is None
+
+    async def edit(identifier, **kwargs):
+        assert identifier == THREAD
+        if "name" in kwargs:
+            payload["name"] = kwargs["name"]
+        if "archived" in kwargs:
+            payload["thread_metadata"]["archived"] = kwargs["archived"]
+        return deepcopy(payload)
+
+    http_edit = AsyncMock(side_effect=edit)
+    fetch = AsyncMock(side_effect=AssertionError("An authorized REST Thread must not be fetched again"))
+    monkeypatch.setattr(state.http, "edit_channel", http_edit)
+    monkeypatch.setattr(bot, "fetch_channel", fetch)
+    cls = module.SearchService if integration == "search" else module.CodeInterpreterService
+    cog = cls(bot, None, None, None, None)
+    cog.chat_agents[THREAD] = object()
+    cog.thread_owners[THREAD] = 42
+    session = SimpleNamespace(close=Mock())
+    if integration == "code":
+        cog.sessions[THREAD] = session
+    message = SimpleNamespace(
+        channel=thread, guild=guild, author=SimpleNamespace(id=42, bot=False),
+        type=discord.MessageType.default, content="end", reply=AsyncMock(),
+    )
+    try:
+        await cog._process_message(message)
+        assert not cog.chat_agents and not cog.thread_owners
+        assert payload["name"] == "Closed-GPT"
+        assert payload["thread_metadata"]["archived"] is True
+        assert http_edit.await_count == 2
+        fetch.assert_not_awaited()
+        if integration == "code":
+            session.close.assert_called_once()
+            assert not cog.sessions
+    finally:
+        await bot.close()
