@@ -111,6 +111,11 @@ class TextService:
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
 
         from_context = isinstance(ctx, discord.ApplicationContext)
+        expected_thread = (
+            converser_cog.conversation_threads.get(ctx.channel.id)
+            if not from_ask_command and not from_edit_command
+            else None
+        )
 
         if not instruction:
             tokens = converser_cog.usage_service.count_tokens(new_prompt)
@@ -340,6 +345,12 @@ class TextService:
                 system_instruction = None
                 usage_message = None
 
+            if (
+                expected_thread is not None
+                and converser_cog.conversation_threads.get(ctx.channel.id)
+                is not expected_thread
+            ):
+                return
             if is_chatgpt_conversation:
                 _prompt_with_history = converser_cog.conversation_threads[
                     ctx.channel.id
@@ -381,6 +392,12 @@ class TextService:
                 )
 
             # Clean the request response
+            if (
+                expected_thread is not None
+                and converser_cog.conversation_threads.get(ctx.channel.id)
+                is not expected_thread
+            ):
+                return
 
             # All responses now use chat completions format
             response_text = converser_cog.cleanse_response(
@@ -419,6 +436,12 @@ class TextService:
 
             # If gpt tries writing a user mention try to replace it with their name
             response_text = await converser_cog.mention_to_username(ctx, response_text)
+            if (
+                expected_thread is not None
+                and converser_cog.conversation_threads.get(ctx.channel.id)
+                is not expected_thread
+            ):
+                return
 
             # If the user is conversing, add the GPT response to their conversation history.
             if (
@@ -682,6 +705,7 @@ class TextService:
             message.content.strip() if not amended_message else amended_message.strip()
         )
         conversing = converser_cog.check_conversing(message.channel.id, content)
+        expected_thread = converser_cog.conversation_threads.get(message.channel.id)
 
         # If the user is conversing and they want to end it, end it immediately before we continue any further.
         if conversing and message.content.lower() in converser_cog.END_PROMPTS:
@@ -706,6 +730,11 @@ class TextService:
                     return
 
             prompt = await converser_cog.mention_to_username(message, content)
+            if (
+                converser_cog.conversation_threads.get(message.channel.id)
+                is not expected_thread
+            ):
+                return
 
             if await converser_cog.check_conversation_limit(message):
                 return
@@ -851,6 +880,11 @@ class TextService:
                         )
                         return
 
+                if (
+                    converser_cog.conversation_threads.get(message.channel.id)
+                    is not expected_thread
+                ):
+                    return
                 converser_cog.awaiting_responses.append(message.author.id)
                 converser_cog.awaiting_thread_responses.append(message.channel.id)
 
@@ -1088,6 +1122,8 @@ class TextService:
 
                 response_message = converser_cog.redo_users[after.author.id].response
                 ctx = converser_cog.redo_users[after.author.id].ctx
+                converser_cog.awaiting_responses.append(after.author.id)
+                converser_cog.awaiting_thread_responses.append(after.channel.id)
                 await response_message.edit(content="Redoing prompt 🔄...")
 
                 edited_content = await converser_cog.mention_to_username(

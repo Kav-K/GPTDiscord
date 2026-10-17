@@ -20,6 +20,7 @@ from models.openai_model import Models, Override
 from services.environment_service import EnvService
 from services.access_service import has_any_role, member_has_access, message_has_access
 from services.discord_attachment_service import read_attachment_bytes
+from services.conversation_recovery_service import ConversationRecoveryService
 from services.message_queue_service import Message
 from services.moderations_service import Moderation
 from models.user_model import Thread, EmbeddedConversationItem, Instruction
@@ -220,6 +221,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.EMBED_CUTOFF = 3900
         self.message_queue = message_queue
         self.conversation_thread_owners = defaultdict(list)
+        self.conversation_recovery = ConversationRecoveryService(self, data_path)
+
+    def cog_unload(self):
+        self.bot.loop.create_task(self.conversation_recovery.close())
 
     async def load_file(self, file, ctx):
         """Take filepath, return content or respond if not found"""
@@ -273,60 +278,69 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             debug_guild.get_channel(self.DEBUG_CHANNEL) if debug_guild else None
         )
 
-        print("Attempting to load from pickles")
-        # Try to load self.full_conversation_history, self.conversation_threads, and self.conversation_thread_owners from the `pickles` folder
-        try:
-            with open(
-                EnvService.save_path() / "pickles" / "full_conversation_history.pickle",
-                "rb",
-            ) as f:
-                self.full_conversation_history = pickle.load(f)
-                print("Loaded full_conversation_history")
+        if not getattr(self, "_conversation_state_loaded", False):
+            print("Attempting to load from pickles")
+            # Try to load self.full_conversation_history, self.conversation_threads, and self.conversation_thread_owners from the `pickles` folder
+            try:
+                with open(
+                    EnvService.save_path()
+                    / "pickles"
+                    / "full_conversation_history.pickle",
+                    "rb",
+                ) as f:
+                    self.full_conversation_history = pickle.load(f)
+                    print("Loaded full_conversation_history")
 
-            with open(
-                EnvService.save_path() / "pickles" / "conversation_threads.pickle", "rb"
-            ) as f:
-                self.conversation_threads = pickle.load(f)
-                print("Loaded conversation_threads")
+                with open(
+                    EnvService.save_path() / "pickles" / "conversation_threads.pickle",
+                    "rb",
+                ) as f:
+                    self.conversation_threads = pickle.load(f)
+                    print("Loaded conversation_threads")
 
-            with open(
-                EnvService.save_path()
-                / "pickles"
-                / "conversation_thread_owners.pickle",
-                "rb",
-            ) as f:
-                self.conversation_thread_owners = pickle.load(f)
-                print("Loaded conversation_thread_owners")
+                with open(
+                    EnvService.save_path()
+                    / "pickles"
+                    / "conversation_thread_owners.pickle",
+                    "rb",
+                ) as f:
+                    self.conversation_thread_owners = pickle.load(f)
+                    print("Loaded conversation_thread_owners")
 
-            with open(
-                EnvService.save_path() / "pickles" / "instructions.pickle",
-                "rb",
-            ) as f:
-                self.instructions = pickle.load(f)
-                print("Loaded instructions")
+                with open(
+                    EnvService.save_path() / "pickles" / "instructions.pickle",
+                    "rb",
+                ) as f:
+                    self.instructions = pickle.load(f)
+                    print("Loaded instructions")
 
-            # Reject malformed saved state while allowing empty conversations.
-            assert isinstance(self.full_conversation_history, dict)
-            assert isinstance(self.conversation_threads, dict)
-            assert isinstance(self.conversation_thread_owners, dict)
-            self.full_conversation_history = defaultdict(
-                list, self.full_conversation_history
-            )
-            self.conversation_thread_owners = defaultdict(
-                list, self.conversation_thread_owners
-            )
-            for thread in self.conversation_threads.values():
-                if thread.model not in Models.TEXT_MODELS and (
-                    thread.model != EnvService.get_openai_model()
-                ):
-                    thread.model = self.model.model
+                # Reject malformed saved state while allowing empty conversations.
+                assert isinstance(self.full_conversation_history, dict)
+                assert isinstance(self.conversation_threads, dict)
+                assert isinstance(self.conversation_thread_owners, dict)
+                self.full_conversation_history = defaultdict(
+                    list, self.full_conversation_history
+                )
+                self.conversation_thread_owners = defaultdict(
+                    list, self.conversation_thread_owners
+                )
+                for thread in self.conversation_threads.values():
+                    if thread.model not in Models.TEXT_MODELS and (
+                        thread.model != EnvService.get_openai_model()
+                    ):
+                        thread.model = self.model.model
 
-        except Exception:
-            print("Failed to load existing pickles")
-            self.full_conversation_history = defaultdict(list)
-            self.conversation_threads = {}
-            self.conversation_thread_owners = defaultdict(list)
-            print("Set empty dictionaries, pickles will be saved in the future")
+            except Exception:
+                print("Failed to load existing pickles")
+                self.full_conversation_history = defaultdict(list)
+                self.conversation_threads = {}
+                self.conversation_thread_owners = defaultdict(list)
+                print("Set empty dictionaries, pickles will be saved in the future")
+
+            self._conversation_state_loaded = True
+        recovery = getattr(self, "conversation_recovery", None)
+        if recovery is not None:
+            recovery.start()
 
         print("Syncing commands...")
 
@@ -355,16 +369,23 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Start an inline async loop that runs every 10 seconds to save the conversation history to a pickle file
         print("Starting pickle loop")
-        while True:
-            await asyncio.sleep(15)
-            await self.pickle_queue.put(
-                Pickler(
-                    self.full_conversation_history,
-                    self.conversation_threads,
-                    self.conversation_thread_owners,
-                    self.instructions,
+        if getattr(self, "_pickle_loop_running", False):
+            return
+        self._pickle_loop_running = True
+        try:
+            while True:
+                await asyncio.sleep(15)
+                await self.pickle_queue.put(
+                    Pickler(
+                        self.full_conversation_history,
+                        self.conversation_threads,
+                        self.conversation_thread_owners,
+                        self.instructions,
+                    )
                 )
-            )
+
+        finally:
+            self._pickle_loop_running = False
 
     def check_conversing(self, channel_id, message_content):
         '''given channel id and a message, return true if it's a conversation thread, false if not, or if the message starts with "~"'''
@@ -402,7 +423,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                     )
                     return
 
-                if normalized_user_id in self.awaiting_responses:
+                if (
+                    normalized_user_id in self.awaiting_responses
+                    or ctx.channel.id in self.awaiting_thread_responses
+                ):
                     await ctx.reply(
                         embed=discord.Embed(
                             title=f"Please wait for a response before ending the conversation.",
@@ -692,7 +716,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     # A listener for message edits to redo prompts if they are edited
     @discord.Cog.listener()
     async def on_message_edit(self, before, after):
-        """When a message is edited run moderation if enabled, and process if it a prompt that should be redone"""
+        if not await message_has_access(after):
+            return
+        if after.channel.id in self.conversation_threads:
+            await self.conversation_recovery.dispatch(after, edited=True)
+        else:
+            await self._process_message_edit(after)
+
+    async def _process_message_edit(self, after):
+        """Process one authorized conversation edit under its ingress lock."""
         if not await message_has_access(after):
             return
 
@@ -723,7 +755,15 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
     @discord.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """On a new message check if it should be moderated then process it for conversation"""
+        if not await message_has_access(message):
+            return
+        if message.channel.id in self.conversation_threads:
+            await self.conversation_recovery.dispatch(message)
+        else:
+            await self._process_message(message)
+
+    async def _process_message(self, message, *, conversation_only=False):
+        """Process one authorized message; REST recovery never routes bot tags."""
         if not await message_has_access(message):
             return
         if message.author == self.bot.user:
@@ -803,6 +843,9 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 guild_name, "conversation_message", 1
             )
             original_message[message.author.id] = message.id
+
+        if conversation_only:
+            return conversation_processed
 
         # If the user tagged the bot and the tag wasn't an @here or @everyone, retrieve the message
         if f"<@{self.bot.user.id}>" in message.content and not (
@@ -1260,30 +1303,14 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         guild_id = getattr(ctx.guild, "id", None) or getattr(
             getattr(ctx, "interaction", None), "guild_id", None
         )
-        if guild_id is not None and self.bot.get_guild(guild_id) is None:
-            install_url = discord.utils.oauth_url(
-                self.bot.user.id,
-                permissions=discord.Permissions(
-                    view_channel=True,
-                    send_messages=True,
-                    send_messages_in_threads=True,
-                    read_message_history=True,
-                    create_public_threads=True,
-                    create_private_threads=True,
-                    embed_links=True,
-                    attach_files=True,
-                    manage_threads=True,
-                ),
-                guild=discord.Object(id=guild_id),
-                scopes=("bot", "applications.commands"),
-                disable_guild_select=True,
-            )
+        missing_gateway = guild_id is not None and self.bot.get_guild(guild_id) is None
+        if missing_gateway and (
+            not use_threads or not self.conversation_recovery.enabled_for(guild_id)
+        ):
             await ctx.respond(
-                "I'm not receiving messages from this server, so conversations "
-                "cannot receive replies. Ask a server administrator to "
-                f"[reinstall GPTDiscord as a server bot]({install_url}), "
-                "approving both bot and slash-command access for this server. "
-                "Then try `/gpt converse` again.",
+                "Discord is not delivering this server's messages to me. "
+                "A bot operator can enable thread conversation recovery for this server. "
+                "You can use `/gpt ask` meanwhile.",
                 ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -1298,10 +1325,21 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             if not user_api_key:
                 return
 
-        if private:
-            await ctx.defer(ephemeral=True)
-        elif not private:
-            await ctx.defer()
+        await ctx.defer(ephemeral=private or missing_gateway)
+        if missing_gateway:
+            try:
+                recovered = await self.conversation_recovery.prepare_context(ctx)
+            except Exception as error:
+                print("Conversation REST setup failed", type(error).__name__)
+                recovered = False
+            if not recovered:
+                await ctx.respond(
+                    "I couldn't verify this server's recovery access or channel permissions. "
+                    "Ask the bot operator to check the recovery configuration; `/gpt ask` is still available.",
+                    ephemeral=True,
+                )
+                return
+            user = ctx.user
 
         # Check the opener for bad content.
         if PRE_MODERATE and opener is not None:
@@ -1442,6 +1480,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
 
         # Set user as thread owner before sending anything that can error and leave the thread unowned
         self.conversation_thread_owners[user_id_normalized].append(target.id)
+        if isinstance(target, discord.Thread):
+            await self.conversation_recovery.watch_thread(target, new=True)
         overrides = self.conversation_threads[target.id].get_overrides()
 
         await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")

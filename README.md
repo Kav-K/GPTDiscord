@@ -55,6 +55,14 @@ Set `BOT_ACCESS_ROLE_IDS` to a comma-separated list of Discord role IDs to restr
 
 Per-feature settings such as `GPT_ROLES`, `ADMIN_ROLES`, and `SEARCH_ROLES` accept role IDs or case-insensitive names. Their checks still apply alongside the access restriction. To allow a restricted role to use every feature, put its ID in each applicable role setting as well. Role IDs continue to work when Discord's role-name cache is unavailable and remain valid after a role is renamed. Restart the bot after changing these settings.
 
+### Conversation delivery recovery
+
+Discord can provide working application commands and REST access while omitting a correctly installed server from the bot's gateway connection. Use the [conversation smoke guide](docs/conversation-smoke.md) to distinguish gateway delivery from REST-backed checks.
+
+For those servers, opt in with `CONVERSATION_RECOVERY_GUILD_IDS`, a comma-separated subset of `ALLOWED_GUILDS`. Recovery also requires `BOT_ACCESS_ROLE_IDS`. It checks current member role IDs through REST and polls only active public/private conversation threads owned by this bot and recorded in its conversation registry. Administrator status and matching role names do not bypass the configured role IDs.
+
+Recovery polls immediately on startup, then at a nominal three-second interval. An existing thread's first successful enrollment uses the latest message ID returned by Discord as its baseline. Messages at or before that baseline are skipped, so a post sent after startup but before enrollment may be skipped. Saved cursors keep their position, and new conversations start from their creation IDs. Polling does not recover undelivered edits; send corrections as new messages. Durable cursors in `DATA_DIR/conversation_recovery.sqlite` prevent the same incoming turn from being dispatched again by polling, gateway overlap, or restart. A failure after claiming a turn can leave it unanswered; this provides at-most-once ingress and does not guarantee exactly-once provider billing. See the guide for scope and verification details.
+
 ### Model and project settings
 
 ```dotenv

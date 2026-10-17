@@ -128,6 +128,7 @@ def smoke(monkeypatch):
         member_id=MEMBER,
         restriction=str(ROLE),
         rest_only=False,
+        rest_recovery=False,
     )
     return SimpleNamespace(
         module=module,
@@ -214,3 +215,188 @@ async def test_explicit_rest_only_mode_labels_gateway_untested(smoke, tmp_path):
     assert report["gateway"]["status"] == "skipped"
     assert not smoke.clients
     smoke.hybrid.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_explicit_recovery_requires_confirmed_missing_gateway_then_runs(
+    smoke, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("CONVERSATION_RECOVERY_GUILD_IDS", str(GUILD))
+    smoke.args.rest_recovery = True
+    smoke.scenario["guild_cached"] = False
+    report = {}
+
+    await smoke.module.run_checks(smoke.args, report, tmp_path)
+
+    assert report["gateway_tested"] is False
+    assert report["gateway"]["failure"]["category"] == "gateway_target_guild_missing"
+    assert report["recovery"]["gateway_target_missing_confirmed"] is True
+    assert report["recovery"]["human_authorship_simulated"] is True
+    assert report["recovery"]["edit_delivery_tested"] is False
+    # Only run() can mark the recovery transport tested after actual poll calls.
+    assert report["recovery_transport_tested"] is False
+    assert smoke.events == [("close",), ("hybrid",)]
+    smoke.hybrid.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "configured,category",
+    [
+        (None, "recovery_guilds_required"),
+        ("", "recovery_guilds_required"),
+        ("not-a-guild", "recovery_guilds_invalid"),
+        (f"{GUILD},", "recovery_guilds_invalid"),
+        (str(GUILD + 1), "recovery_target_not_configured"),
+    ],
+)
+async def test_recovery_configuration_rejected_before_any_client_or_provider(
+    smoke, tmp_path, monkeypatch, configured, category
+):
+    smoke.args.rest_recovery = True
+    if configured is None:
+        monkeypatch.delenv("CONVERSATION_RECOVERY_GUILD_IDS", raising=False)
+    else:
+        monkeypatch.setenv("CONVERSATION_RECOVERY_GUILD_IDS", configured)
+
+    with pytest.raises(smoke.module.SmokeFailure, match=category):
+        await smoke.module.run_checks(smoke.args, {}, tmp_path)
+
+    assert not smoke.clients
+    smoke.hybrid.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_recovery_mode_does_not_fake_missing_guild_when_gateway_works(
+    smoke, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("CONVERSATION_RECOVERY_GUILD_IDS", str(GUILD))
+    smoke.args.rest_recovery = True
+    report = {}
+
+    await smoke.module.run_checks(smoke.args, report, tmp_path)
+
+    assert report["status"] == "failed"
+    assert report["failure"]["category"] == "recovery_missing_gateway_not_confirmed"
+    assert report["gateway"]["target_guild_cached"] is True
+    assert report["recovery_transport_tested"] is False
+    assert report["provider"]["attempts"] == []
+    smoke.hybrid.assert_not_awaited()
+
+
+def test_recovery_mode_still_requires_live_opt_in_and_excludes_rest_only(smoke, capsys):
+    with pytest.raises(SystemExit) as error:
+        smoke.module.main(["--rest-recovery"])
+    assert error.value.code == 2
+    assert "--live is required" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as error:
+        smoke.module.main(["--live", "--rest-recovery", "--rest-only"])
+    assert error.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
+    assert not smoke.clients
+    smoke.hybrid.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure", ["timeout", "gateway_closed_before_ready", "client_or_response"]
+)
+async def test_gateway_failures_other_than_observed_missing_guild_cannot_enable_recovery(
+    smoke, tmp_path, monkeypatch, failure
+):
+    monkeypatch.setenv("CONVERSATION_RECOVERY_GUILD_IDS", str(GUILD))
+    smoke.args.rest_recovery = True
+
+    async def failed_preflight(args, report):
+        report["gateway"] = {
+            "ready": True,
+            "target_guild_cached": False,
+            "client_closed": True,
+            "ready_payloads": [{"target_guild_listed": False}],
+            "failure": {"category": failure},
+        }
+        return False
+
+    monkeypatch.setattr(smoke.module, "gateway_preflight", failed_preflight)
+    report = {}
+    await smoke.module.run_checks(smoke.args, report, tmp_path)
+
+    assert report["status"] == "failed"
+    assert report["provider"]["attempts"] == []
+    assert report["recovery_transport_tested"] is False
+    smoke.hybrid.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_recovery_fixture_adapter_reads_real_payload_and_changes_only_registered_own_message(
+    smoke,
+):
+    raw = {
+        "id": str(FIXTURE),
+        "channel_id": str(CHANNEL),
+        "author": {"id": str(BOT), "bot": True},
+        "content": "Bot-authored fixture",
+        "type": 19,
+        "message_reference": {"message_id": str(FIXTURE - 1)},
+    }
+    unrelated = {**raw, "id": str(FIXTURE + 1)}
+    original = AsyncMock(return_value=[raw, unrelated])
+    member = {"user": {"id": str(MEMBER), "bot": False}, "roles": [str(ROLE)]}
+    membership = AsyncMock(return_value=member)
+    reader = smoke.module.RecoveryFixtureReader(
+        original,
+        thread_id=CHANNEL,
+        guild_id=GUILD,
+        bot_id=BOT,
+        member_id=MEMBER,
+        fixtures={FIXTURE: {"content": "Synthetic human prompt"}},
+        membership=membership,
+    )
+
+    result = await reader(CHANNEL, 20, after=FIXTURE - 1)
+
+    original.assert_awaited_once_with(CHANNEL, 20, after=FIXTURE - 1)
+    membership.assert_awaited_once()
+    assert result[0]["author"] == member["user"]
+    assert result[0]["member"] == member
+    assert result[0]["content"] == "Synthetic human prompt"
+    assert result[0]["type"] == 19
+    assert result[0]["message_reference"] == raw["message_reference"]
+    assert result[1] is unrelated
+    assert raw["author"]["bot"] is True
+    assert raw["content"] == "Bot-authored fixture"
+
+
+@pytest.mark.asyncio
+async def test_recovery_fixture_adapter_refuses_out_of_scope_reads_and_human_owned_sources(
+    smoke,
+):
+    original = AsyncMock(
+        return_value=[
+            {
+                "id": str(FIXTURE),
+                "channel_id": str(CHANNEL),
+                "author": {"id": str(MEMBER), "bot": False},
+                "content": "Real human message",
+            }
+        ]
+    )
+    membership = AsyncMock()
+    reader = smoke.module.RecoveryFixtureReader(
+        original,
+        thread_id=CHANNEL,
+        guild_id=GUILD,
+        bot_id=BOT,
+        member_id=MEMBER,
+        fixtures={FIXTURE: {"content": "Synthetic human prompt"}},
+        membership=membership,
+    )
+    for channel, limit in [(CHANNEL + 1, 20), (CHANNEL, 21), (CHANNEL, 0)]:
+        with pytest.raises(smoke.module.SmokeFailure, match="recovery_poll_scope"):
+            await reader(channel, limit)
+    original.assert_not_awaited()
+    with pytest.raises(
+        smoke.module.SmokeFailure, match="recovery_fixture_not_bot_owned"
+    ):
+        await reader(CHANNEL, 20)
+    membership.assert_not_awaited()

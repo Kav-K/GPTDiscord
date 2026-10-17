@@ -93,8 +93,8 @@ async def main():
             if bot.get_guild(guild_id) is None:
                 logger.warning(
                     "Configured guild %s is absent from Discord gateway state. "
-                    "Text conversations require installing this bot in that guild "
-                    "with the bot and applications.commands scopes.",
+                    "Conversation delivery will require REST recovery while "
+                    "Discord omits this guild from its gateway connection.",
                     guild_id,
                 )
 
@@ -208,6 +208,10 @@ async def main():
     try:
         await bot.start(os.environ["DISCORD_TOKEN"])
     finally:
+        conversation = bot.get_cog("GPT3ComCon")
+        recovery = getattr(conversation, "conversation_recovery", None)
+        if recovery is not None:
+            await recovery.close()
         await bot.close()
         for worker in workers:
             worker.cancel()
