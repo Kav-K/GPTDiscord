@@ -12,7 +12,7 @@ OpenAI chat, vision, image generation, transcription, moderation, and web search
 - `/web` uses the **Responses API with native web search** and visible source links for recent information. It needs an OpenAI key with access to the chosen model and web search, with no Google account required. Search tool calls incur additional OpenAI charges.
 - `/dalle draw` keeps the familiar command name and generates images with the current **GPT Image** API. Image bytes are sent as Discord attachments. Retired DALL·E endpoints are no longer used.
 - Transcription and moderation use current OpenAI APIs. Long conversations, per-user keys, server roles, prompt optimization, and saved conversations remain available.
-- Document indexing, Google/Wolfram chat, Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
+- Document indexing, Google/Wolfram chat, Qdrant/Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
 
 The default chat model is `gpt-6.1-sol`, the low-cost helper model is `gpt-6-luna`, and image generation defaults to `gpt-image-2.5-flare`. Availability depends on your OpenAI project. Override models using the environment settings below. Model names and prices change; consult the [OpenAI model catalog](https://developers.openai.com/api/docs/models) and [pricing](https://openai.com/api/pricing/).
 
@@ -59,11 +59,11 @@ Per-feature settings such as `GPT_ROLES`, `ADMIN_ROLES`, and `SEARCH_ROLES` acce
 
 Discord can provide working application commands and REST access while omitting a correctly installed server from the bot's gateway connection. Use the [conversation smoke guide](docs/conversation-smoke.md) to distinguish gateway delivery from REST-backed checks.
 
-For those servers, opt in with `CONVERSATION_RECOVERY_GUILD_IDS`, a comma-separated subset of `ALLOWED_GUILDS`. Recovery also requires `BOT_ACCESS_ROLE_IDS`. It checks current member role IDs through REST and polls only active public/private conversation threads owned by this bot and recorded in its conversation registry. Administrator status and matching role names do not bypass the configured role IDs.
+For those servers, opt in with `CONVERSATION_RECOVERY_GUILD_IDS`, a comma-separated subset of `ALLOWED_GUILDS`. Recovery also requires `BOT_ACCESS_ROLE_IDS`. It checks current member role IDs through REST and polls only explicitly registered conversations: bot-owned public/private threads, index/search/code chat threads, and full-channel conversations deliberately started with `/gpt converse use_threads:false`. Administrator status and matching role names do not bypass the configured role IDs. Free mentions, general moderation, and message edits still require Gateway events.
 
 Recovery polls immediately on startup, then at a nominal three-second interval. An existing thread's first successful enrollment uses the latest message ID returned by Discord as its baseline. Messages at or before that baseline are skipped, so a post sent after startup but before enrollment may be skipped. Saved cursors keep their position, and new conversations start from their creation IDs. Polling does not recover undelivered edits; send corrections as new messages. Durable cursors in `DATA_DIR/conversation_recovery.sqlite` prevent the same incoming turn from being dispatched again by polling, gateway overlap, or restart. A failure after claiming a turn can leave it unanswered; this provides at-most-once ingress and does not guarantee exactly-once provider billing. See the guide for scope and verification details.
 
-Recovery serves up to four threads concurrently, keeping each thread's messages in order. Opening prompts, Retry, and End share the conversation lock and busy checks. Retry replaces the latest answer in memory as well as on Discord; older turns cannot replace newer conversation history. Private conversations require threads and explicitly add their owner. Conversations backed by Pinecone require corrections as new messages instead of Retry or message edits.
+Recovery serves up to four sessions concurrently, keeping each session's messages in order. Full-channel sessions start at the latest message when enrolled, and starting a new session resets that baseline. Opening prompts, Retry, and End share the conversation lock and busy checks. Retry replaces the latest answer in memory as well as on Discord; older turns cannot replace newer conversation history. Private conversations require threads and explicitly add their owner. Conversations backed by Qdrant or Pinecone require corrections as new messages instead of Retry or message edits.
 
 ### Model and project settings
 
@@ -91,11 +91,16 @@ Install the extras you use and configure their keys. Missing configured dependen
 | Document Q&A / indexes | `pip install '.[index]'` | `ENABLE_INDEXING=true` and OpenAI access |
 | Google/Wolfram chat | `pip install '.[search]'` | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`; optionally `WOLFRAM_API_KEY` |
 | Pinecone memory | `pip install '.[pinecone]'` | `PINECONE_TOKEN`, `PINECONE_REGION` (default `us-east-1`) |
+| Qdrant memory | `pip install '.[qdrant]'` | `QDRANT_PATH` for persistent local storage, or `QDRANT_URL` and optional `QDRANT_API_KEY` |
 | E2B code execution | `pip install '.[code]'` | `E2B_API_KEY` |
 | Replicate fallback vision | `pip install '.[replicate]'` | `REPLICATE_API_KEY` |
 | All integrations | `pip install '.[full]'` | Only configure the integrations you intend to enable |
 
-When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept messages from their creator only, so other thread participants cannot spend that person's API credits. Specialized GitHub, YouTube, and Google Docs readers may request an additional reader package when used.
+Configure either Qdrant or Pinecone memory, never both. Leave both unset to keep local conversation summaries. See the [memory guide](detailed_guides/PERMANENT-MEMORY.md) for collection and migration details.
+
+When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept messages from their creator only, so other thread participants cannot spend that person's API credits. Changing or deleting the saved key blocks further work in an existing session; end it and start a new one with the current key.
+
+The index extra includes GitHub and YouTube readers. GitHub repositories use `GITHUB_TOKEN` and their default branch. YouTube videos need an accessible English transcript. Public Google Docs links use text export; upload an exported document for private Docs. Uploaded images use native vision, while supported audio/video uploads use speech transcription before indexing. These media operations incur OpenAI charges; video frames are not indexed. Legacy Office files, SVG, and PSD require conversion first.
 
 LlamaIndex currently requires OpenAI SDK 2.x. Installing its extra selects the current compatible SDK; the core also supports SDK 3.x. Requirements files delegate to `pyproject.toml` so dependencies have one source of truth.
 
@@ -112,7 +117,7 @@ docker compose logs -f
 
 The container runs as UID/GID `10001`, includes FFmpeg, and persists data in a named volume. Existing bind-mounted data must be writable by this user. To include optional integrations, set the `FULL` build argument to `true` in Compose. The existing `/opt/gpt3discord/etc/environment` mount location remains supported.
 
-CI builds both base and full images on pull requests. Registry publication is limited to releases or an explicit manual workflow and uses GitHub Container Registry authentication provided by Actions. PyPI publication uses a configured trusted publisher; see the release workflow for its required environment.
+CI builds both base and full images on pull requests. Registry publication is limited to releases or an explicit manual workflow and uses GitHub Container Registry authentication provided by Actions. PyPI publication uses `PYPI_TOKEN` when configured, with trusted publishing as the fallback when it is unset.
 
 ## Upgrade from v12
 
@@ -125,7 +130,7 @@ CI builds both base and full images on pull requests. Registry publication is li
 
 Conversation sharing now uses an owner-only private TXT download instead of the obsolete ShareGPT service. Retired `best_of`, `mode`, and `use_org` settings are omitted from the settings UI.
 
-Image variation commands for retired DALL·E models report that the operation is unavailable. Current image generation is supported; this release does not claim a general image-editing workflow.
+Generated images offer per-image **Vary** controls using the current GPT Image edit API. This creates a source-guided variation preserving the subject and style; it differs from retired DALL·E random variation sampling. Retry retains the source image. There is no general upload/edit slash command.
 
 The local usage total is an **estimate**, not an OpenAI invoice. Known text models use separate input, cached-input, and output token rates. Unknown models are logged and excluded rather than billed at an unrelated legacy rate. Image/audio/tool fees are not included in this token estimate; use your provider's usage dashboard for billing.
 
@@ -142,7 +147,7 @@ python -m build
 python -m twine check dist/*
 ```
 
-Normal tests mock OpenAI requests and require no credentials. At runtime, tiktoken downloads its vocabulary on first token counting; a populated `TIKTOKEN_CACHE_DIR` avoids that download. If network or cache access fails, core chat, basic document Q&A, and optional chat memory use conservative UTF-8 byte counts until restart. Deep tree/router indexing still requires a cached vocabulary because its library internals do not accept the fallback tokenizer. API-reported usage still determines usage accounting. Paid integration tests only run when explicitly enabled:
+Normal tests mock OpenAI requests and require no credentials. Qdrant tests use real temporary local storage. At runtime, tiktoken downloads its vocabulary on first token counting; a populated `TIKTOKEN_CACHE_DIR` avoids that download. If network or cache access fails, core chat, document Q&A, tree/router composition, crawling, and optional chat memory use conservative UTF-8 byte counts until restart. API-reported usage still determines usage accounting. Paid integration tests only run when explicitly enabled:
 
 ```bash
 RUN_LIVE_OPENAI_TESTS=1 python -m pytest -m integration

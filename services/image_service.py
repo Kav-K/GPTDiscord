@@ -30,10 +30,20 @@ class ImageService:
         """Generate an image and bind its controls to the delivered message."""
         file = None
         try:
-            if vary and not draw_from_optimizer:
-                raise ValueError("Image variations have been retired")
-            if dalle_3:
-                file, image_urls = await image_service_cog.model.send_image_request(
+            model = image_service_cog.model
+            image_reference = vary if not draw_from_optimizer else None
+            if image_reference is not None:
+                file, image_urls = await model.send_image_edit_request(
+                    ctx,
+                    prompt,
+                    image_reference,
+                    quality,
+                    image_size,
+                    style,
+                    custom_api_key=custom_api_key,
+                )
+            elif dalle_3:
+                file, image_urls = await model.send_image_request(
                     ctx,
                     prompt,
                     quality,
@@ -42,13 +52,15 @@ class ImageService:
                     custom_api_key=custom_api_key,
                 )
             else:
-                file, image_urls = await image_service_cog.model.send_image_request_old(
+                file, image_urls = await model.send_image_request_old(
                     ctx,
                     prompt,
                     custom_api_key=custom_api_key,
                 )
             embed = discord.Embed(
-                title="Image Generation Results",
+                title="Image Variation Results"
+                if image_reference
+                else "Image Generation Results",
                 description=prompt[:4096],
                 color=0xC730C7,
             )
@@ -87,6 +99,7 @@ class ImageService:
                 quality=quality,
                 image_size=image_size,
                 style=style,
+                image_reference=image_reference,
             )
             await message.edit(
                 view=SaveView(
@@ -149,8 +162,77 @@ class SaveView(discord.ui.View):
         self.lock = control_lock if control_lock is not None else asyncio.Lock()
         for number, reference in enumerate(image_urls, 1):
             self.add_item(SaveButton(number, reference))
+            if not only_save and request is not None:
+                self.add_item(VaryButton(number, reference))
         if not only_save and not no_retry and request is not None:
             self.add_item(RedoButton())
+
+    async def run(self, interaction: discord.Interaction, *, image_reference=None):
+        if (
+            interaction.user.id != self.owner_id
+            or interaction.message.id != self.message.id
+            or interaction.channel.id != self.message.channel.id
+        ):
+            await interaction.response.send_message(
+                "You can only change images that you generated yourself!",
+                ephemeral=True,
+            )
+            return
+        if self.lock.locked():
+            await interaction.response.send_message(
+                "Please wait for the current image request to finish.", ephemeral=True
+            )
+            return
+        async with self.lock:
+            from cogs.image_service_cog import (
+                USER_INPUT_API_KEYS,
+                USER_KEY_DB,
+                PRE_MODERATE,
+            )
+            from services.moderations_service import Moderation
+            from services.text_service import TextService
+
+            ctx = discord.ApplicationContext(self.cog.bot, interaction)
+            user_api_key = None
+            if USER_INPUT_API_KEYS:
+                user_api_key = await TextService.get_user_api_key(
+                    interaction.user.id, ctx, USER_KEY_DB
+                )
+                if not user_api_key:
+                    return
+            await ctx.defer(invisible=image_reference is None)
+            request = self.request
+            try:
+                if PRE_MODERATE and await Moderation.simple_moderate_and_respond(
+                    request.prompt, ctx
+                ):
+                    return
+                await ImageService.encapsulated_send(
+                    self.cog,
+                    self.owner_id,
+                    request.prompt,
+                    ctx,
+                    response_message=(
+                        interaction.message if image_reference is None else None
+                    ),
+                    vary=(
+                        request.image_reference
+                        if image_reference is None
+                        else image_reference
+                    ),
+                    custom_api_key=user_api_key,
+                    dalle_3=request.dalle_3,
+                    quality=request.quality,
+                    image_size=request.image_size,
+                    style=request.style,
+                    control_lock=self.lock,
+                )
+            except Exception as error:
+                logger.warning("Image control failed (%s)", type(error).__name__)
+                await ctx.respond(
+                    "The image could not be regenerated. Please try again later.",
+                    ephemeral=True,
+                )
 
     async def on_timeout(self):
         view = SaveView(
@@ -208,61 +290,13 @@ class RedoButton(discord.ui.Button["SaveView"]):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        view = self.view
-        if (
-            interaction.user.id != view.owner_id
-            or interaction.message.id != view.message.id
-            or interaction.channel.id != view.message.channel.id
-        ):
-            await interaction.response.send_message(
-                "You can only retry images that you generated yourself!", ephemeral=True
-            )
-            return
-        if view.lock.locked():
-            await interaction.response.send_message(
-                "Please wait for the current image request to finish.", ephemeral=True
-            )
-            return
-        async with view.lock:
-            from cogs.image_service_cog import (
-                USER_INPUT_API_KEYS,
-                USER_KEY_DB,
-                PRE_MODERATE,
-            )
-            from services.moderations_service import Moderation
-            from services.text_service import TextService
+        await self.view.run(interaction)
 
-            ctx = discord.ApplicationContext(view.cog.bot, interaction)
-            user_api_key = None
-            if USER_INPUT_API_KEYS:
-                user_api_key = await TextService.get_user_api_key(
-                    interaction.user.id, ctx, USER_KEY_DB
-                )
-                if not user_api_key:
-                    return
-            await ctx.defer(invisible=True)
-            request = view.request
-            try:
-                if PRE_MODERATE and await Moderation.simple_moderate_and_respond(
-                    request.prompt, ctx
-                ):
-                    return
-                await ImageService.encapsulated_send(
-                    view.cog,
-                    view.owner_id,
-                    request.prompt,
-                    ctx,
-                    response_message=interaction.message,
-                    custom_api_key=user_api_key,
-                    dalle_3=request.dalle_3,
-                    quality=request.quality,
-                    image_size=request.image_size,
-                    style=request.style,
-                    control_lock=view.lock,
-                )
-            except Exception as error:
-                logger.warning("Image retry failed (%s)", type(error).__name__)
-                await ctx.respond(
-                    "The image could not be regenerated. Please try again later.",
-                    ephemeral=True,
-                )
+
+class VaryButton(discord.ui.Button["SaveView"]):
+    def __init__(self, number, image_reference):
+        super().__init__(style=discord.ButtonStyle.blurple, label=f"Vary {number}")
+        self.image_reference = image_reference
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.view.run(interaction, image_reference=self.image_reference)

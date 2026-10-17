@@ -17,6 +17,7 @@ class RedoUser:
         quality=None,
         image_size=None,
         style=None,
+        image_reference=None,
     ):
         self.prompt = prompt
         self.instruction = instruction
@@ -29,6 +30,7 @@ class RedoUser:
         self.quality = quality
         self.image_size = image_size
         self.style = style
+        self.image_reference = image_reference
 
     def add_interaction(self, interaction):
         self.interactions.append(interaction)

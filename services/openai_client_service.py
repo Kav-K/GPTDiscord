@@ -1,8 +1,25 @@
 """Account routing for optional SDK integrations using shared or personal keys."""
 
-from openai import omit
+from openai import AsyncOpenAI, OpenAI, omit
 
 from services.environment_service import EnvService
+from services.request_context import single_attempt_requests
+
+
+class _RequestPolicy:
+    def request(self, cast_to, options, **kwargs):
+        # Enforce per-turn policy on clients constructed before REST recovery.
+        if single_attempt_requests.get():
+            options = options.model_copy(update={"max_retries": 0})
+        return super().request(cast_to, options, **kwargs)
+
+
+class RequestOpenAI(_RequestPolicy, OpenAI):
+    pass
+
+
+class RequestAsyncOpenAI(_RequestPolicy, AsyncOpenAI):
+    pass
 
 
 def client_routing(api_key):

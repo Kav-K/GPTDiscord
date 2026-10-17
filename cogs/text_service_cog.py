@@ -736,7 +736,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             return
         if message.channel.id in self.conversation_threads:
             await self.conversation_recovery.dispatch(message)
-        else:
+        elif self.conversation_recovery._route_for(message.channel.id) is None:
             await self._process_message(message)
 
     async def _process_message(self, message, *, conversation_only=False):
@@ -995,15 +995,34 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     ):
         """Delete matching active threads only when this bot owns them."""
         await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.respond(
-                "Discord isn't delivering this server's thread list. No threads were deleted. "
-                "A server moderator can delete them in Discord.",
-                ephemeral=True,
-            )
-            return
+        guild_id = getattr(ctx.guild, "id", None) or getattr(
+            getattr(ctx, "interaction", None), "guild_id", None
+        )
+        if guild_id is None or self.bot.get_guild(guild_id) is None:
+            recovery = self.conversation_recovery
+            try:
+                if not recovery.enabled_for(guild_id) or not await recovery.prepare_context(ctx):
+                    raise ValueError("Recovery access could not be verified")
+                payload = await recovery._http(self.bot.http.get_active_threads(guild_id))
+                threads = [
+                    discord.Thread(guild=ctx.guild, state=self.bot._connection, data=data)
+                    for data in payload.get("threads", [])
+                    if data.get("type") in (11, 12)
+                    and int(data.get("guild_id", 0)) == guild_id
+                    and not data.get("thread_metadata", {}).get("archived", False)
+                ]
+            except Exception as error:
+                print(f"Conversation thread listing failed: {type(error).__name__}")
+                await ctx.respond(
+                    "I couldn't verify this server's active threads and recovery access. "
+                    "No threads were deleted. A server moderator can delete them in Discord.",
+                    ephemeral=True,
+                )
+                return
+        else:
+            threads = ctx.guild.threads
         deleted = 0
-        for thread in ctx.guild.threads:
+        for thread in threads:
             name = thread.name.lower()
             if thread.owner_id != self.bot.user.id or not (
                 "with gpt" in name or "closed-gpt" in name
@@ -1304,12 +1323,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             getattr(ctx, "interaction", None), "guild_id", None
         )
         missing_gateway = guild_id is not None and self.bot.get_guild(guild_id) is None
-        if missing_gateway and (
-            not use_threads or not self.conversation_recovery.enabled_for(guild_id)
-        ):
+        if missing_gateway and not self.conversation_recovery.enabled_for(guild_id):
             await ctx.respond(
                 "Discord is not delivering this server's messages to me. "
-                "A bot operator can enable thread conversation recovery for this server. "
+                "A bot operator can enable conversation recovery for this server. "
                 "You can use `/gpt ask` meanwhile.",
                 ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none(),
@@ -1340,6 +1357,12 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
                 )
                 return
             user = ctx.user
+
+        if not use_threads and not isinstance(ctx.channel, discord.TextChannel):
+            await ctx.respond(
+                "Full-channel conversations require a server text channel.", ephemeral=True
+            )
+            return
 
         # Resolve the saved opener after key setup/acknowledgement and before
         # moderation or creating a thread. JSON values become local overrides.
@@ -1518,6 +1541,8 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
             self.conversation_thread_owners[user_id_normalized].append(target.id)
             if isinstance(target, discord.Thread):
                 await self.conversation_recovery.watch_thread(target, new=True)
+            else:
+                await self.conversation_recovery.watch_channel(target, new=True)
             overrides = self.conversation_threads[target.id].get_overrides()
 
             await target.send(f"<@{str(ctx.user.id)}> is the thread owner.")

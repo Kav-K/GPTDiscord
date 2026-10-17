@@ -1,18 +1,40 @@
 """Current tool-calling agents for the optional chat integrations."""
 
 import json
+import hashlib
+
+import discord
 
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_classic.memory import ConversationSummaryBufferMemory
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
-from openai import OpenAI, AsyncOpenAI
 
 from models.openai_model import Models
 from services.environment_service import EnvService
-from services.openai_client_service import client_routing
+from services.openai_client_service import (
+    client_routing,
+    RequestOpenAI as _AgentOpenAI,
+    RequestAsyncOpenAI as _AgentAsyncOpenAI,
+)
 from services.usage_service import UsageService
+
+
+def personal_key_fingerprint(key):
+    return hashlib.sha256(key.encode()).digest() if key else None
+
+
+async def session_key_is_current(message, fingerprint, database):
+    """Revoke an old agent's credentials when its creator changes setup."""
+    if fingerprint is not None and fingerprint == personal_key_fingerprint(database.get(message.author.id)):
+        return True
+    guidance = "Your session's API key changed or was removed. Run `/setup` and start a new session. You can still type `end` to close this one."
+    try:
+        await message.author.send(guidance)
+    except discord.HTTPException:
+        await message.reply("Run `/setup` and start a new session to continue.", delete_after=30)
+    return False
 
 
 class AgentChatOpenAI(ChatOpenAI):
@@ -37,8 +59,8 @@ def create_chat_llm(model, temperature=0, top_p=1, api_key=None, **kwargs):
         "base_url": EnvService.get_openai_base_url(),
         **client_routing(key),
     }
-    sync_client = OpenAI(**client_kwargs)
-    async_client = AsyncOpenAI(**client_kwargs)
+    sync_client = _AgentOpenAI(**client_kwargs)
+    async_client = _AgentAsyncOpenAI(**client_kwargs)
     return AgentChatOpenAI(
         model=model,
         api_key=key,

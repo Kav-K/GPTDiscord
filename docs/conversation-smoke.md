@@ -153,9 +153,9 @@ access without a configured role ID. Existing feature-level role and personal AP
 key checks continue to apply. A failed membership lookup does not authorize a
 provider request.
 
-Recovery is limited to active public/private conversation threads owned by this
-bot, present in its conversation registry, and associated with a configured guild
-missing from the gateway. It does not scan arbitrary server channels or threads,
+Recovery covers registered bot-owned public/private conversation and optional
+index/search/code chat threads, plus full-channel conversations explicitly started
+with `/gpt converse use_threads:false`, in configured guilds missing from the gateway. It does not scan arbitrary server channels or threads,
 process direct messages, or turn REST membership into an entry in the gateway
 cache. The normal conversation handler remains responsible for provider calls and
 conversation memory.
@@ -182,7 +182,7 @@ Setup, opening prompts, Retry, and End use the same lock as incoming messages. B
 receive private guidance instead of starting overlapping work. Retry replaces the
 latest answer in both Discord and conversation memory; an older turn cannot
 replace history written by a newer turn. Retry and delivered message edits do
-not increase the user-turn count. Pinecone-backed conversations require
+not increase the user-turn count. Qdrant/Pinecone-backed conversations require
 corrections as new messages because replacing their external vector memory is
 not supported. Private conversations require threads, add their owner explicitly,
 and remove a newly created thread if owner membership cannot be established.
@@ -190,7 +190,13 @@ and remove a newly created thread if owner membership cannot be established.
 Malformed Discord message payloads that Pycord cannot construct are skipped with
 a sanitized warning so later valid posts can continue to be processed.
 
-The service stores only thread/message IDs, cursors, and revision hashes in
+Full-channel enrollment records a channel ID and starts at its latest message,
+so historical channel messages are not replayed. Starting another session resets
+that baseline; restarting the same active session preserves it. Optional routes
+have separate cursor keys and share durable message claims. Polling remains
+restricted to live session registries; it does not discover arbitrary channels.
+
+The service stores only thread/message IDs, enrollment, cursors, and revision hashes in
 `DATA_DIR/conversation_recovery.sqlite`. Gateway events and polling share the same
 conversation lock and durable ingress claims. This prevents the same incoming
 turn from being dispatched again through overlap or restart. An interruption

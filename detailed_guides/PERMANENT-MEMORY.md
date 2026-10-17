@@ -1,27 +1,62 @@
-# Permanent Memory and Conversations
-We are migrating towards using [QDRANT](https://qdrant.tech/) as our vector database backing, we are moving away from pinecone. Qdrant is an excellent vector database choice, and in fact the best one that we've tested and used so far. 
+# Permanent memory and conversations
 
-Permanent memory has now been implemented into the bot, using the OpenAI Ada embeddings endpoint, and Pinecone.  
-  
-Pinecone is a vector database. The OpenAI Ada embeddings endpoint turns pieces of text into embeddings. The way that this feature works is by embedding the user prompts and the GPT responses, storing them in a pinecone index, and then retrieving the most relevant bits of conversation whenever a new user prompt is given in a conversation.  
-  
-**You do NOT need to use pinecone, if you do not define a `PINECONE_TOKEN` in your `.env` file, the bot will default to not using pinecone, and will use conversation summarization as the long term conversation method instead.**  
-  
-To enable permanent memory with pinecone, you must define a `PINECONE_TOKEN` in your `.env` file as follows (along with the other variables too):  
-```env  
-PINECONE_TOKEN="87juwi58-1jk9-9182-9b3c-f84d90e8bshq"  
-```  
-  
-To get a pinecone token, you can sign up for a free pinecone account here: https://app.pinecone.io/ and click the "API Keys" section on the left navbar to find the key. (I am not affiliated with pinecone).  
+Conversations persist locally across restarts. Without a vector backend, long
+conversations use summaries. Qdrant and Pinecone are optional alternatives for
+retrieving older messages through OpenAI embeddings. Configure one backend only.
 
-Permanent memory using pinecone is still in alpha, I will be working on cleaning up this work, adding auto-clearing, and optimizing for stability and reliability, any help and feedback is appreciated (**add me on Discord Kaveen#0001 for pinecone help**)! If at any time you're having too many issues with pinecone, simply remove the `PINECONE_TOKEN` line in your `.env` file and the bot will revert to using conversation summarizations.  
+## Qdrant
 
-Conversations persist even through bot restarts. Bot conversation data is stored locally in a folder called `pickles`. If you find your bot getting slow, delete this folder. A cleaner solution will be implemented in the future.
+Install `pip install 'gpt3discord[qdrant]'`. For embedded persistent storage:
 
-To manually create an index instead of the bot automatically doing it, go to the pinecone dashboard and click "Create Index" on the top right.  
-  
-<center><img src="https://i.imgur.com/L9LXVE0.png"/></center>  
-  
-Then, name the index `conversation-embeddings`, set the dimensions to `1536`, and set the metric to `DotProduct`:  
-  
-<center><img src="https://i.imgur.com/zoeLsrw.png"/></center> 
+```dotenv
+QDRANT_PATH=/var/lib/gptdiscord/qdrant
+```
+
+The directory must be writable by the bot and used by only one running process.
+No account, server, or API key is needed. Alternatively, use an existing server:
+
+```dotenv
+QDRANT_URL=https://your-qdrant-server.example
+QDRANT_API_KEY=your-server-key
+QDRANT_COLLECTION=conversation-embeddings
+```
+
+Use HTTPS for remote servers. Omit the key only if authentication is disabled.
+`QDRANT_URL` and `QDRANT_PATH` are mutually exclusive. Back up embedded storage
+while the bot is stopped, or use your remote server's snapshot facility.
+
+The collection uses unnamed 1536-dimensional vectors and DOT distance. Startup
+creates a missing collection and rejects an incompatible existing collection
+without deleting it. Exact string thread IDs and embedding-model filters isolate
+conversations and vector spaces. Historical third-party Qdrant data and local
+summaries are not automatically imported.
+
+## Pinecone
+
+Install `pip install 'gpt3discord[pinecone]'` and configure:
+
+```dotenv
+PINECONE_TOKEN=your-pinecone-key
+PINECONE_REGION=us-east-1
+```
+
+The bot creates a serverless `conversation-embeddings` index when missing, using
+1536 dimensions and dot-product similarity. New records retain exact string
+thread IDs. Legacy numeric IDs above `2**53` require re-ingestion because their
+exact value cannot be recovered safely.
+
+## Embeddings, retention, and corrections
+
+`OPENAI_EMBEDDING_MODEL` defaults to `text-embedding-3-small`. Embedding requests
+use the shared key or the conversation owner's personal key. Changing models
+requires re-ingesting historical text; equal dimensions do not make vectors
+compatible. Qdrant uses model payload filters; Pinecone uses model namespaces,
+retaining the legacy namespace when `text-embedding-ada-002` is selected.
+
+Vector-backed conversations require corrections as new messages. Retry and
+message editing cannot replace already stored vectors. Ending a conversation
+does not erase its vectors; manage retention through your backend's tools.
+
+Preserve `SHARE_DIR` (falling back to `DATA_DIR`), its pickle files, SQLite
+schemas/data, local indexes, and any configured Qdrant path when upgrading.
+Installing an optional extra does not enable its backend.

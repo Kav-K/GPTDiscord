@@ -337,10 +337,18 @@ async def test_base64_images_are_saved_and_combined_without_downloads(
 
 
 @pytest.mark.asyncio
-async def test_retired_variations_fail_without_network(model, fake_api):
-    with pytest.raises(ValueError, match="retired"):
-        await model.send_image_request_old(None, "A cat", vary="old.png")
-    assert fake_api.calls == []
+async def test_legacy_variation_alias_uses_current_image_edit_path(model, monkeypatch):
+    edit = AsyncMock(return_value=("attachment", ["saved.png"]))
+    monkeypatch.setattr(model, "send_image_edit_request", edit)
+
+    result = await model.send_image_request_old(
+        None, "A cat", vary="saved.png", custom_api_key="current-personal-key"
+    )
+
+    assert result == ("attachment", ["saved.png"])
+    edit.assert_awaited_once_with(
+        None, "A cat", "saved.png", custom_api_key="current-personal-key"
+    )
 
 
 def test_selecting_large_model_preserves_user_output_budget(model):

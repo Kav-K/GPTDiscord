@@ -84,7 +84,8 @@ async def test_context_index_and_chat_query_work_when_vocabulary_network_is_unav
     assert str(response) == "text text text text"
     assert len(response.source_nodes) == 1
     assert attempts == ["cl100k_base"]
-    assert llama_index.core.global_tokenizer is None
+    assert callable(llama_index.core.global_tokenizer)
+    assert isinstance(llama_index.core.global_tokenizer.__self__, service.ByteTokenizer)
     assert context.token_counter.total_embedding_token_count > 0
     assert context.token_counter.total_llm_token_count > 0
 

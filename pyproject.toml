@@ -61,9 +61,11 @@ index = [
   "langchain-core>=1.6.10,<2",
   "langchain-openai>=1.7.2,<2",
   "llama-index-core>=0.14.25,<0.15",
-  "llama-index-embeddings-openai>=0.7,<0.8",
+  "llama-index-embeddings-openai>=0.6,<0.8",
   "llama-index-llms-openai>=0.8.3,<0.9",
   "llama-index-readers-file>=0.7,<0.8",
+  "llama-index-readers-github>=0.12,<0.13",
+  "youtube-transcript-api>=1.2,<2",
 ]
 search = ["gpt3discord[index]"]
 code = [
@@ -75,8 +77,9 @@ code = [
   "langchain-openai>=1.7.2,<2",
 ]
 pinecone = ["pinecone>=10,<11"]
+qdrant = ["qdrant-client>=1.19,<2"]
 replicate = ["replicate>=1.0.7,<2"]
-full = ["gpt3discord[code,index,pinecone,replicate]"]
+full = ["gpt3discord[code,index,pinecone,qdrant,replicate]"]
 dev = [
   "build>=1.6,<2",
   "packaging>=24",

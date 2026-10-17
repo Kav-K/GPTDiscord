@@ -76,6 +76,7 @@ class ConversationRecoveryService:
         self._active = set()
         self._channels = {}
         self._guilds = {}
+        self._routes = {}
         self._offset = 0
         self._retry_after = {}
         self._poll_tasks = {}
@@ -92,6 +93,13 @@ class ConversationRecoveryService:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS versions (message_id TEXT PRIMARY KEY, content_hash TEXT NOT NULL, edited_at REAL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS channel_watches (channel_id TEXT PRIMARY KEY, guild_id TEXT NOT NULL)"
+            )
+            self._full_channels = {
+                int(channel_id): int(guild_id)
+                for channel_id, guild_id in db.execute("SELECT * FROM channel_watches")
+            }
 
     def enabled_for(self, guild_id):
         return (
@@ -100,9 +108,52 @@ class ConversationRecoveryService:
             and self.bot.get_guild(guild_id) is None
         )
 
-    def _owned(self, thread_id):
-        return thread_id in self.cog.conversation_threads and any(
-            thread_id in ids for ids in self.cog.conversation_thread_owners.values()
+    def register_route(self, name, *, channels, owner_id, handler):
+        """Register an optional chat's live state, never discover arbitrary channels."""
+        if not name or ":" in name or name == "conversation" or name in self._routes:
+            raise ValueError("Recovery route names must be unique")
+        self._routes[name] = (channels, owner_id, handler)
+
+    def _registered(self, channel_id, route):
+        if route == "conversation":
+            return channel_id in self.cog.conversation_threads and any(
+                channel_id in ids
+                for ids in self.cog.conversation_thread_owners.values()
+            )
+        registration = self._routes.get(route)
+        if registration is None:
+            return False
+        channels, owner_id, _ = registration
+        if channel_id not in channels():
+            return False
+        owner = owner_id(channel_id)
+        return (
+            isinstance(owner, int)
+            and not isinstance(owner, bool)
+            and owner > 0
+        )
+
+    def _route_for(self, channel_id):
+        routes = [
+            route
+            for route in ("conversation", *self._routes)
+            if self._registered(channel_id, route)
+        ]
+        # Conflicting registries must not pick a provider arbitrarily.
+        return routes[0] if len(routes) == 1 else None
+
+    def _owned(self, channel_id):
+        return self._route_for(channel_id) is not None
+
+    def _valid_channel(self, data, channel_id, guild_id, route):
+        if int(data.get("id", 0)) != channel_id:
+            return False
+        if data.get("type") in (11, 12):
+            return int(data.get("owner_id", 0)) == self.bot.user.id
+        return (
+            route == "conversation"
+            and data.get("type") == 0
+            and self._full_channels.get(channel_id) == guild_id
         )
 
     def _claim(self, message, edited=False):
@@ -150,30 +201,41 @@ class ConversationRecoveryService:
             )
             return True
 
-    def _cursor(self, thread_id):
+    @staticmethod
+    def _cursor_key(thread_id, route):
+        # Keep the original conversation keys so existing cursors migrate in place.
+        return str(thread_id) if route == "conversation" else f"{route}:{thread_id}"
+
+    def _cursor(self, thread_id, route="conversation"):
         with closing(sqlite3.connect(self.path)) as db:
             row = db.execute(
-                "SELECT message_id FROM cursors WHERE thread_id = ?", (str(thread_id),)
+                "SELECT message_id FROM cursors WHERE thread_id = ?",
+                (self._cursor_key(thread_id, route),),
             ).fetchone()
         return int(row[0]) if row else None
 
-    def _save_cursor(self, thread_id, guild_id, message_id):
+    def _save_cursor(self, thread_id, guild_id, message_id, route="conversation"):
+        key = self._cursor_key(thread_id, route)
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             previous = db.execute(
-                "SELECT message_id FROM cursors WHERE thread_id = ?", (str(thread_id),)
+                "SELECT message_id FROM cursors WHERE thread_id = ?", (key,)
             ).fetchone()
             if previous is not None and int(previous[0]) >= message_id:
                 return
             db.execute(
                 "INSERT INTO cursors VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET message_id = excluded.message_id, guild_id = excluded.guild_id",
-                (str(thread_id), str(guild_id), str(message_id)),
+                (key, str(guild_id), str(message_id)),
             )
 
-    def _acknowledge(self, thread_id, guild_id, message_id):
-        if self._closed or not self.enabled_for(guild_id) or not self._owned(thread_id):
+    def _acknowledge(self, thread_id, guild_id, message_id, route="conversation"):
+        if (
+            self._closed
+            or not self.enabled_for(guild_id)
+            or self._route_for(thread_id) != route
+        ):
             return False
-        self._save_cursor(thread_id, guild_id, message_id)
+        self._save_cursor(thread_id, guild_id, message_id, route)
         return True
 
     def _message_records(self, payloads, cursor):
@@ -235,8 +297,12 @@ class ConversationRecoveryService:
             if not already_active:
                 self._active.discard(task)
 
-    async def dispatch(self, message, *, edited=False, source="gateway"):
+    async def dispatch(
+        self, message, *, edited=False, source="gateway", route="conversation"
+    ):
         if self._closed or source not in ("gateway", "rest"):
+            return None
+        if route != "conversation" and (route not in self._routes or edited):
             return None
         if message.author.bot or getattr(message, "webhook_id", None) is not None:
             return None
@@ -245,26 +311,31 @@ class ConversationRecoveryService:
         thread_id, guild_id = message.channel.id, guild_id_of(message)
         if source == "rest" and (edited or not self.enabled_for(guild_id)):
             return None
-        if source == "rest" and (
-            not isinstance(message.channel, discord.Thread)
-            or message.channel.type
-            not in (
-                discord.ChannelType.public_thread,
-                discord.ChannelType.private_thread,
-            )
-            or message.channel.owner_id != self.bot.user.id
-        ):
-            return None
+        if source == "rest":
+            channel = message.channel
+            if isinstance(channel, discord.Thread):
+                if channel.type not in (
+                    discord.ChannelType.public_thread,
+                    discord.ChannelType.private_thread,
+                ) or channel.owner_id != self.bot.user.id:
+                    return None
+            elif not (
+                route == "conversation"
+                and isinstance(channel, discord.TextChannel)
+                and self._full_channels.get(channel.id) == guild_id
+            ):
+                return None
         lock = self.lock_for(thread_id)
         async with lock:
-            if self._closed or thread_id not in self.cog.conversation_threads:
+            if self._closed or self._route_for(thread_id) != route:
                 return None
             if source == "rest":
-                if not self._owned(thread_id) or not await self._fresh_member(
-                    message, guild_id
-                ):
+                if not await self._fresh_member(message, guild_id):
                     return None
-                if not self.enabled_for(guild_id) or not self._owned(thread_id):
+                if (
+                    not self.enabled_for(guild_id)
+                    or self._route_for(thread_id) != route
+                ):
                     return None
             elif not await message_has_access(message):
                 return None
@@ -276,6 +347,8 @@ class ConversationRecoveryService:
             thread_waiting = thread_id in self.cog.awaiting_thread_responses
             request_policy = single_attempt_requests.set(source == "rest")
             try:
+                if route != "conversation":
+                    return await self._routes[route][2](message)
                 if edited:
                     return await self.cog._process_message_edit(message)
                 return await self.cog._process_message(
@@ -361,8 +434,11 @@ class ConversationRecoveryService:
         return True
 
     async def watch_thread(self, thread, new=False):
+        route = self._route_for(thread.id)
+        if route is None:
+            return
         guild_id = getattr(getattr(thread, "guild", None), "id", None)
-        if guild_id is None and self._owned(thread.id):
+        if guild_id is None:
             data = await self._http(self.bot.http.get_channel(thread.id))
             guild_id = int(data.get("guild_id", 0))
             if (
@@ -373,11 +449,59 @@ class ConversationRecoveryService:
             ):
                 return
             thread.guild = await self._rest_guild(guild_id)
-        if not self.enabled_for(guild_id) or not self._owned(thread.id):
+        if (
+            not self.enabled_for(guild_id)
+            or self._route_for(thread.id) != route
+            or not isinstance(thread, discord.Thread)
+            or thread.owner_id != self.bot.user.id
+        ):
             return
         self._channels[thread.id] = thread
-        if new and self._cursor(thread.id) is None:
-            self._save_cursor(thread.id, guild_id, thread.id)
+        if new and self._cursor(thread.id, route) is None:
+            self._save_cursor(thread.id, guild_id, thread.id, route)
+        self.start()
+
+    async def watch_channel(self, channel, new=False):
+        """Enroll only a deliberately started full-channel conversation."""
+        guild_id = getattr(getattr(channel, "guild", None), "id", None)
+        if (
+            guild_id not in self.guild_ids
+            or get_access_role_ids() is None
+            or self._route_for(channel.id) != "conversation"
+            or not isinstance(channel, discord.TextChannel)
+        ):
+            return
+        data = await self._http(self.bot.http.get_channel(channel.id))
+        if (
+            int(data.get("id", 0)) != channel.id
+            or int(data.get("guild_id", 0)) != guild_id
+            or data.get("type") != 0
+        ):
+            return
+        # A channel predates this session. Its creation ID would replay years of
+        # backlog, so baseline at the latest Discord message before enrollment.
+        latest = None
+        if new or self._cursor(channel.id) is None:
+            payloads = await self._http(self.bot.http.logs_from(channel.id, 1))
+            latest = int(payloads[0]["id"]) if payloads else channel.id
+        if (
+            guild_id not in self.guild_ids
+            or get_access_role_ids() is None
+            or self._route_for(channel.id) != "conversation"
+        ):
+            return
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute(
+                "INSERT INTO channel_watches VALUES (?, ?) ON CONFLICT(channel_id) DO UPDATE SET guild_id = excluded.guild_id",
+                (str(channel.id), str(guild_id)),
+            )
+            if latest is not None:
+                db.execute(
+                    "INSERT INTO cursors VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET message_id = excluded.message_id, guild_id = excluded.guild_id",
+                    (str(channel.id), str(guild_id), str(latest)),
+                )
+        self._full_channels[channel.id] = guild_id
+        self._channels[channel.id] = channel
         self.start()
 
     async def poll_once(self, *, wait=True):
@@ -390,11 +514,10 @@ class ConversationRecoveryService:
             for thread_id, task in self._poll_tasks.items()
             if not task.done()
         }
-        ids = [
-            thread_id
-            for thread_id in self.cog.conversation_threads
-            if self._owned(thread_id)
-        ]
+        registered = set(self.cog.conversation_threads)
+        for channels, _, _ in self._routes.values():
+            registered.update(channels())
+        ids = [thread_id for thread_id in sorted(registered) if self._owned(thread_id)]
         if not ids:
             return
         offset = self._offset % len(ids)
@@ -433,22 +556,23 @@ class ConversationRecoveryService:
             ):
                 return
             try:
+                route = self._route_for(thread_id)
+                if route is None:
+                    return
                 data = await self._http(self.bot.http.get_channel(thread_id))
                 guild_id = int(data.get("guild_id", 0))
                 if (
                     not self.enabled_for(guild_id)
-                    or int(data["id"]) != thread_id
-                    or data.get("type") not in (11, 12)
-                    or int(data.get("owner_id", 0)) != self.bot.user.id
-                    or not self._owned(thread_id)
+                    or not self._valid_channel(data, thread_id, guild_id, route)
+                    or self._route_for(thread_id) != route
                 ):
                     return
-                cursor = self._cursor(thread_id)
+                cursor = self._cursor(thread_id, route)
                 if cursor is None:
                     latest = await self._http(self.bot.http.logs_from(thread_id, 1))
                     # Enrollment uses Discord IDs, independent of the host clock.
                     cursor = int(latest[0]["id"]) if latest else thread_id
-                    self._save_cursor(thread_id, guild_id, cursor)
+                    self._save_cursor(thread_id, guild_id, cursor, route)
                     return
                 if data.get("thread_metadata", {}).get("archived", False):
                     return
@@ -459,7 +583,10 @@ class ConversationRecoveryService:
                     or channel.guild.id != guild_id
                 ):
                     guild = await self._rest_guild(guild_id)
-                    channel = discord.Thread(
+                    channel_type = (
+                        discord.TextChannel if data["type"] == 0 else discord.Thread
+                    )
+                    channel = channel_type(
                         guild=guild, state=self.bot._connection, data=data
                     )
                     self._channels[thread_id] = channel
@@ -471,7 +598,7 @@ class ConversationRecoveryService:
                         return
                     author = payload.get("author")
                     if not isinstance(author, dict):
-                        if not self._acknowledge(thread_id, guild_id, message_id):
+                        if not self._acknowledge(thread_id, guild_id, message_id, route):
                             break
                         logger.warning(
                             "Skipped malformed Discord recovery message %s (author)",
@@ -483,7 +610,7 @@ class ConversationRecoveryService:
                         or payload.get("webhook_id") is not None
                         or payload.get("type") not in (0, 19)
                     ):
-                        if not self._acknowledge(thread_id, guild_id, message_id):
+                        if not self._acknowledge(thread_id, guild_id, message_id, route):
                             break
                         continue
                     payload = {**payload, "guild_id": str(guild_id)}
@@ -498,7 +625,7 @@ class ConversationRecoveryService:
                         ValueError,
                         discord.InvalidData,
                     ) as error:
-                        if not self._acknowledge(thread_id, guild_id, message_id):
+                        if not self._acknowledge(thread_id, guild_id, message_id, route):
                             break
                         logger.warning(
                             "Skipped unsupported Discord recovery message %s (%s)",
@@ -506,8 +633,8 @@ class ConversationRecoveryService:
                             type(error).__name__.removesuffix("Error"),
                         )
                         continue
-                    await self.dispatch(message, source="rest")
-                    if not self._acknowledge(thread_id, guild_id, message_id):
+                    await self.dispatch(message, source="rest", route=route)
+                    if not self._acknowledge(thread_id, guild_id, message_id, route):
                         break
             except asyncio.CancelledError:
                 raise
