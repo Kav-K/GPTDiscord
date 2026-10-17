@@ -9,10 +9,8 @@ from collections import deque
 from copy import deepcopy
 import importlib
 import pickle
-import re
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from urllib.parse import parse_qs, urlsplit
 
 import discord
 from pycord.multicog import Bot
@@ -95,6 +93,7 @@ async def conversation(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENAI_API_KEY", "offline-bot-key")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://provider.invalid/v1")
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("CONVERSATION_RECOVERY_GUILD_IDS", raising=False)
     module = importlib.import_module("cogs.text_service_cog")
     text_service = importlib.import_module("services.text_service")
     openai_model = importlib.import_module("models.openai_model")
@@ -408,6 +407,7 @@ async def conversation(monkeypatch, tmp_path):
     try:
         yield flow
     finally:
+        await cog.conversation_recovery.close()
         for view, _ in tuple(state._view_store._views.values()):
             view.stop()
         if bot._tasks:
@@ -678,7 +678,7 @@ async def test_real_bot_authored_messages_do_not_enter_human_conversation(conver
 @pytest.mark.parametrize(
     "partial_context", [False, True], ids=["guild-context", "interaction-guild-id"]
 )
-async def test_conversation_start_without_gateway_guild_stops_before_work_and_explains_installation(
+async def test_conversation_start_without_gateway_or_recovery_stops_before_work_and_explains_operator_action(
     conversation, monkeypatch, partial_context
 ):
     flow = conversation
@@ -709,31 +709,9 @@ async def test_conversation_start_without_gateway_guild_stops_before_work_and_ex
     flow.ctx.respond.assert_awaited_once()
     response = flow.ctx.respond.await_args
     assert response.kwargs["ephemeral"] is True
-    assert "not receiving messages" in response.args[0]
-    assert "server administrator" in response.args[0]
-    link = re.search(
-        r"https://discord\.com/oauth2/authorize\?[^)\s]+", response.args[0]
-    )
-    assert link, "The private failure must provide an actionable installation link"
-    query = parse_qs(urlsplit(link.group()).query)
-    assert query["client_id"] == [str(BOT)]
-    assert query["guild_id"] == [str(GUILD)]
-    assert set(query["scope"][0].split()) == {"bot", "applications.commands"}
-    assert query["disable_guild_select"] == ["true"]
-    permissions = discord.Permissions(int(query["permissions"][0]))
-    assert permissions.administrator is False
-    for name in (
-        "view_channel",
-        "send_messages",
-        "send_messages_in_threads",
-        "read_message_history",
-        "create_public_threads",
-        "create_private_threads",
-        "embed_links",
-        "attach_files",
-        "manage_threads",
-    ):
-        assert getattr(permissions, name), f"The installation must permit {name}"
+    assert "not delivering" in response.args[0]
+    assert "operator" in response.args[0] and "recovery" in response.args[0]
+    assert "/gpt ask" in response.args[0]
     flow.ctx.defer.assert_not_awaited()
     key_lookup.assert_not_awaited()
     file_lookup.assert_not_awaited()

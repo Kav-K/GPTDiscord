@@ -14,6 +14,7 @@ import discord
 # An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from services.environment_service import EnvService
+from services.request_context import single_attempt_requests
 from services.discord_attachment_service import read_attachment_bytes
 from PIL import Image
 from sqlitedict import SqliteDict
@@ -772,7 +773,8 @@ class Model:
         backoff.expo,
         (OpenAIAPIError, aiohttp.ClientConnectionError, asyncio.TimeoutError),
         max_tries=4,
-        giveup=lambda error: isinstance(error, OpenAIAPIError) and not error.retryable,
+        giveup=lambda error: single_attempt_requests.get()
+        or (isinstance(error, OpenAIAPIError) and not error.retryable),
     )
     async def _post_json(self, endpoint, payload, custom_api_key=None):
         url = f"{self.openai_base_url}/{endpoint.lstrip('/')}"

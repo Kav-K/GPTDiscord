@@ -46,6 +46,12 @@ cannot establish gateway health. `gateway_tested` becomes true only after the
 target guild, matching echo, and preflight cleanup succeed. This client has no
 application callbacks and cannot duplicate another running bot's command handling.
 
+A server can have a correct bot installation and working application commands
+while being present in application/REST responses and absent from gateway READY.
+A missing gateway guild therefore requires checking both views of membership and
+message delivery. Reinstalling the application does not establish that the gateway
+now supplies its messages; use the preflight's cache and echo results to verify it.
+
 After preflight, a second client logs in using REST without connecting the gateway,
 fetches the actual guild, roles, channel and member, and creates one genuine public
 thread attached to its own temporary starter. The real conversation start handler creates both the
@@ -127,3 +133,69 @@ sessions. Exit code zero means all checks and cleanup passed. A failed run retur
 one with a report; missing opt-in/configuration returns two without calls. Forced
 process termination can interrupt cleanup; use the recorded resource IDs to remove
 the runner's temporary resources manually.
+
+## Production REST recovery
+
+When a configured server remains absent from the gateway despite working REST
+access, the bot can recover new conversation messages through bounded REST
+polling. Enable it explicitly for selected servers:
+
+```dotenv
+CONVERSATION_RECOVERY_GUILD_IDS=YOUR_CONFIGURED_GUILD_ID
+BOT_ACCESS_ROLE_IDS=YOUR_AUTHORIZED_ROLE_ID
+```
+
+Use positive numeric IDs. Recovery guilds must also appear in `ALLOWED_GUILDS`.
+The recovery service requires the global role restriction and checks current
+membership and exact role IDs through REST before allowing a speaker's message.
+Administrator permissions, server ownership, and a cloned role name do not grant
+access without a configured role ID. Existing feature-level role and personal API
+key checks continue to apply. A failed membership lookup does not authorize a
+provider request.
+
+Recovery is limited to active public/private conversation threads owned by this
+bot, present in its conversation registry, and associated with a configured guild
+missing from the gateway. It does not scan arbitrary server channels or threads,
+process direct messages, or turn REST membership into an entry in the gateway
+cache. The normal conversation handler remains responsible for provider calls and
+conversation memory.
+
+The poll interval is nominally three seconds; Discord rate limits and provider
+response time can add delay. Existing messages are skipped when recovery first
+adopts an existing thread. Posts created after a newly started conversation can
+be recovered. Polling initially handles message creates only. Edits still work
+when Discord delivers their gateway events, but an edit with no gateway event is
+not recovered; send a correction as a new message.
+
+The service stores only thread/message IDs, cursors, and revision hashes in
+`DATA_DIR/conversation_recovery.sqlite`. Gateway events and polling share the same
+conversation lock and durable ingress claims. This prevents the same incoming
+turn from being dispatched again through overlap or restart. An interruption
+after the claim can lose an unanswered turn, and it is not automatically retried.
+These are at-most-once ingress guarantees, not a promise of exactly-once OpenAI
+billing or response delivery. Existing conversation pickles and model settings
+are not migrated by this recovery store.
+
+To exercise recovery with the installed application, keep both production
+allowlists above in the environment and add `--rest-recovery`. The target must
+already appear in `CONVERSATION_RECOVERY_GUILD_IDS`; this mode is mutually exclusive
+with `--rest-only` and still requires `--live`:
+
+```bash
+/path/to/release/venv/bin/python -I scripts/live_conversation_smoke.py --installed --live --rest-recovery \
+  --guild-id GUILD_ID --channel-id TEXT_CHANNEL_ID --member-id MAINTAINER_MEMBER_ID \
+  --model gpt-6.1-sol --report recovery-conversation-smoke-report.json
+```
+
+This mode requires fresh SDK READY evidence that the target guild is missing,
+then runs the real conversation setup and three new turns through recovery polling without
+inserting that guild into the Gateway cache. Each genuine bot-authored fixture
+must first be ignored. A test-local adapter changes only this run's registered
+fixture IDs into simulated human messages using fresh REST membership; the
+production recovery service performs its own role check. The three paid turns
+check conversation memory, and repeated creates through REST and the Gateway
+ingress add no requests. A successful report sets `recovery_transport_tested` to
+true while `gateway_tested` stays false and `human_authorship_simulated` stays
+true. Recovery does not test edit delivery, human Gateway delivery, slash-command
+acknowledgements, or view callbacks. The same provider budget and owned-resource
+cleanup rules apply; recovery source hashes are included in the report.

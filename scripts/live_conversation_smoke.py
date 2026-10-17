@@ -4,6 +4,10 @@ The Discord thread, fixture messages, replies and OpenAI requests are real. Huma
 message authorship and delivery are reconstructed through Pycord's event parser;
 this does not validate a user slash command. By default a separate SDK-only
 gateway preflight must pass before the hybrid application checks can run.
+The explicit --rest-recovery mode instead requires evidence of a missing
+Gateway guild, then exercises the production REST recovery service without
+adding that guild to the Gateway cache. Its human message authorship remains
+simulated through a bounded adapter over this test's own Discord fixtures.
 """
 
 import argparse
@@ -97,6 +101,40 @@ def restricted_roles(value):
     return frozenset(int(part.strip()) for part in parts)
 
 
+def require_recovery_configuration(args):
+    """Require existing operator opt-ins before any recovery diagnostics run."""
+    restricted_roles(os.environ.get("BOT_ACCESS_ROLE_IDS"))
+    value = os.environ.get("CONVERSATION_RECOVERY_GUILD_IDS")
+    require(isinstance(value, str) and bool(value.strip()), "recovery_guilds_required")
+    parts = [part.strip() for part in value.split(",")]
+    require(
+        all(part.isdecimal() and int(part) > 0 for part in parts),
+        "recovery_guilds_invalid",
+    )
+    require(
+        args.guild_id in {int(part) for part in parts}, "recovery_target_not_configured"
+    )
+
+
+def missing_gateway_confirmed(report):
+    """A failed/missing observation must never masquerade as recovery evidence."""
+    details = report.get("gateway", {})
+    return (
+        details.get("ready") is True
+        and details.get("target_guild_cached") is False
+        and details.get("client_closed") is True
+        and details.get("failure", {}).get("category") == "gateway_target_guild_missing"
+        and not any(
+            key in details
+            for key in ("cleanup_failure", "close_failure", "connection_stop_failure")
+        )
+        and any(
+            payload.get("target_guild_listed") is False
+            for payload in details.get("ready_payloads", [])
+        )
+    )
+
+
 class StartContext:
     """REST-backed start-handler adapter, explicitly not a slash interaction."""
 
@@ -121,6 +159,58 @@ class StartContext:
         message = await self.channel.send(*args, **kwargs)
         self.on_starter(message.id)
         return message
+
+
+class RecoveryFixtureReader:
+    """Adapt only this smoke's registered bot fixtures after a real REST read.
+
+    Production recovery/authentication code is not patched. Its own fresh member
+    lookup still authorizes each reconstructed human message before dispatch.
+    """
+
+    def __init__(
+        self, original, *, thread_id, guild_id, bot_id, member_id, fixtures, membership
+    ):
+        self.original = original
+        self.thread_id = thread_id
+        self.guild_id = guild_id
+        self.bot_id = bot_id
+        self.member_id = member_id
+        self.fixtures = fixtures
+        self.membership = membership
+
+    async def __call__(self, channel_id, limit, **kwargs):
+        require(channel_id == self.thread_id and 0 < limit <= 20, "recovery_poll_scope")
+        require(len(self.fixtures) <= MAX_REQUESTS, "recovery_fixture_budget")
+        payloads = await self.original(channel_id, limit, **kwargs)
+        result = []
+        for raw in payloads:
+            selected = self.fixtures.get(int(raw["id"]))
+            if selected is None:
+                result.append(raw)
+                continue
+            require(
+                int(raw["channel_id"]) == self.thread_id
+                and int(raw["author"]["id"]) == self.bot_id
+                and raw["author"].get("bot", False),
+                "recovery_fixture_not_bot_owned",
+            )
+            current = await self.membership()
+            require(
+                int(current["user"]["id"]) == self.member_id
+                and not current["user"].get("bot", False),
+                "recovery_fixture_actor",
+            )
+            result.append(
+                {
+                    **raw,
+                    "guild_id": str(self.guild_id),
+                    "content": selected["content"],
+                    "author": copy.deepcopy(current["user"]),
+                    "member": copy.deepcopy(current),
+                }
+            )
+        return result
 
 
 class BoundedProvider:
@@ -415,7 +505,30 @@ async def gateway_preflight(args, report):
 
 async def run_checks(args, report, directory):
     """Gate application imports and paid calls on the default gateway preflight."""
-    if args.rest_only:
+    if getattr(args, "rest_recovery", False):
+        require_recovery_configuration(args)
+        await gateway_preflight(args, report)
+        report["gateway_tested"] = False
+        report["recovery_transport_tested"] = False
+        if not missing_gateway_confirmed(report):
+            report.update(
+                status="failed",
+                failure={"category": "recovery_missing_gateway_not_confirmed"},
+            )
+            report["provider"] = {
+                "attempts": [],
+                "blocked_attempts": 0,
+                "max_attempts": MAX_REQUESTS,
+            }
+            return
+        report["recovery"] = {
+            "status": "pending",
+            "gateway_target_missing_confirmed": True,
+            "human_authorship_simulated": True,
+            "fixture_transport": "bounded_own_message_rest_adapter",
+            "edit_delivery_tested": False,
+        }
+    elif args.rest_only:
         report["gateway"] = {"status": "skipped", "reason": "explicit_rest_only"}
         report["gateway_tested"] = False
     elif not await gateway_preflight(args, report):
@@ -438,11 +551,18 @@ async def run(args, report, directory):
     from services.environment_service import EnvService
     from services.usage_service import UsageService
 
+    recovery_mode = getattr(args, "rest_recovery", False)
+
     modules = {
         "conversation_cog": text_cog,
         "text_service": sys.modules["services.text_service"],
         "openai_model": sys.modules["models.openai_model"],
     }
+    if recovery_mode:
+        modules.update(
+            conversation_recovery=sys.modules["services.conversation_recovery_service"],
+            request_context=sys.modules["services.request_context"],
+        )
     report["application_source"] = {
         "sha256": {
             name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
@@ -474,6 +594,10 @@ async def run(args, report, directory):
     starter_id = None
     provider = None
     cog = None
+    recovery = None
+    fixture_ids = set()
+    recovery_fixtures = {}
+    recovery_poll_calls = 0
 
     def check(name, **details):
         report["checks"].append({"name": name, "status": "passed", **details})
@@ -490,6 +614,32 @@ async def run(args, report, directory):
         return payload
 
     async def dispatch_payload(event, payload):
+        nonlocal recovery_poll_calls
+        if recovery_mode:
+            require(event == "MESSAGE_CREATE", "recovery_does_not_synthesize_edits")
+            require(
+                int(payload["id"]) in fixture_ids
+                and int(payload["channel_id"]) == owned_thread_id
+                and int(payload["guild_id"]) == args.guild_id,
+                "recovery_fixture_scope",
+            )
+            message = discord.Message(
+                state=bot._connection, channel=thread, data=copy.deepcopy(payload)
+            )
+            if message.author.bot:
+                await recovery.dispatch(message, source="rest")
+            else:
+                require(message.author.id == args.member_id, "recovery_fixture_actor")
+                recovery_fixtures[message.id] = copy.deepcopy(payload)
+                require(
+                    len(recovery_fixtures) <= MAX_REQUESTS, "recovery_fixture_budget"
+                )
+                recovery_poll_calls += 1
+                await asyncio.wait_for(recovery.poll_once(), timeout=120)
+            require(
+                bot.get_guild(args.guild_id) is None, "recovery_gateway_cache_changed"
+            )
+            return message
         # Preserve Pycord parsing/cache behavior, then await the registered real
         # cog listener. No gateway connection or fabricated interaction token.
         dispatched = []
@@ -517,6 +667,7 @@ async def run(args, report, directory):
         current = await membership()
         options = {"reference": reply_to, "mention_author": False} if reply_to else {}
         posted = await thread.send("Smoke input fixture: " + content, **options)
+        fixture_ids.add(posted.id)
         payload = await bot.http.get_message(thread.id, posted.id)
         if reply_to:
             require(
@@ -645,15 +796,22 @@ async def run(args, report, directory):
             }
             current_member = await membership()
             bot_member = await bot.http.get_member(args.guild_id, bot.user.id)
-            # Guild/channel/member objects use actual current REST payloads.
-            guild = bot._connection._add_guild_from_data(
-                {
-                    **guild_payload,
-                    "roles": role_payload,
-                    "channels": [parent_payload],
-                    "members": [bot_member, current_member],
-                }
-            )
+            # Recovery must retain the actual missing-Gateway condition. Local
+            # REST objects are sufficient; never add them to the SDK guild cache.
+            local_data = {
+                **guild_payload,
+                "roles": role_payload,
+                "channels": [parent_payload],
+                "members": [bot_member, current_member],
+            }
+            if recovery_mode:
+                require(
+                    bot.get_guild(args.guild_id) is None,
+                    "recovery_gateway_cache_required_missing",
+                )
+                guild = discord.Guild(state=bot._connection, data=local_data)
+            else:
+                guild = bot._connection._add_guild_from_data(local_data)
             parent = guild.get_channel(args.channel_id)
             require(isinstance(parent, discord.TextChannel), "parsed_parent_type")
             permissions = parent.permissions_for(guild.me)
@@ -691,6 +849,37 @@ async def run(args, report, directory):
                 asyncio.Queue(),
             )
             bot.add_cog(cog)
+            if recovery_mode:
+                recovery = cog.conversation_recovery
+                require(
+                    recovery.enabled_for(args.guild_id), "recovery_service_disabled"
+                )
+                require(
+                    recovery.path.parent.resolve() == directory.resolve(),
+                    "recovery_database_not_isolated",
+                )
+                # Exercise the actual worker lifecycle while keeping each paid
+                # poll explicitly bounded by this script's existing budget.
+                recovery.interval = 3600
+                original_prepare = recovery.prepare_context
+                original_watch = recovery.watch_thread
+                setup_calls = {"prepare": 0, "watch": 0}
+
+                async def record_prepare(ctx):
+                    prepared = await original_prepare(ctx)
+                    require(prepared, "recovery_context_not_prepared")
+                    setup_calls["prepare"] += 1
+                    return prepared
+
+                async def record_watch(target, new=False):
+                    require(
+                        new and target.id == owned_thread_id, "recovery_watch_scope"
+                    )
+                    await original_watch(target, new=new)
+                    setup_calls["watch"] += 1
+
+                recovery.prepare_context = record_prepare
+                recovery.watch_thread = record_watch
 
             def record_starter(message_id):
                 nonlocal starter_id
@@ -745,7 +934,34 @@ async def run(args, report, directory):
             thread = discord.Thread(
                 guild=guild, state=bot._connection, data=thread_payload
             )
-            guild._add_thread(thread)
+            if recovery_mode:
+                require(
+                    setup_calls == {"prepare": 1, "watch": 1},
+                    "recovery_start_handler_setup",
+                )
+                require(
+                    bot.get_guild(args.guild_id) is None,
+                    "recovery_gateway_cache_changed",
+                )
+                require(
+                    recovery._cursor(thread.id) == thread.id, "recovery_initial_cursor"
+                )
+                report["recovery"].update(
+                    context_prepared=True,
+                    thread_watched=True,
+                    database_isolated=True,
+                )
+                bot.http.logs_from = RecoveryFixtureReader(
+                    bot.http.logs_from,
+                    thread_id=owned_thread_id,
+                    guild_id=args.guild_id,
+                    bot_id=bot.user.id,
+                    member_id=args.member_id,
+                    fixtures=recovery_fixtures,
+                    membership=membership,
+                )
+            else:
+                guild._add_thread(thread)
             require(
                 thread.id in cog.conversation_threads, "conversation_start_rejected"
             )
@@ -753,16 +969,19 @@ async def run(args, report, directory):
             require(conversation.model == args.model, "chosen_model_not_stored")
             check("start_handler_selected_model")
 
-            denied = await fixture(
-                "This simulated role-denied input must be ignored.", deny=True
-            )
-            before = copy.deepcopy(conversation.history)
-            await dispatch_payload("MESSAGE_CREATE", denied)
-            require(
-                not provider.calls and conversation.history == before,
-                "role_denial_reached_provider_or_history",
-            )
-            check("role_denied_create", provider_calls=0, role_removal_simulated=True)
+            if not recovery_mode:
+                denied = await fixture(
+                    "This simulated role-denied input must be ignored.", deny=True
+                )
+                before = copy.deepcopy(conversation.history)
+                await dispatch_payload("MESSAGE_CREATE", denied)
+                require(
+                    not provider.calls and conversation.history == before,
+                    "role_denial_reached_provider_or_history",
+                )
+                check(
+                    "role_denied_create", provider_calls=0, role_removal_simulated=True
+                )
 
             word = "SMOKE" + secrets.token_hex(6).upper()
             first = await fixture(
@@ -798,6 +1017,72 @@ async def run(args, report, directory):
                 output_characters=len(second_output),
                 reconstructed_message_type=19,
             )
+
+            if recovery_mode:
+                third = await fixture(
+                    "Reply only VERIFIED_ followed by my verification word from earlier.",
+                    reply_to=cog.redo_users[args.member_id].response,
+                )
+                await dispatch_payload("MESSAGE_CREATE", third)
+                third_output = await response_content()
+                require(
+                    "VERIFIED_" + word in third_output.upper()
+                    and len(provider.calls) == 3,
+                    "recovery_third_turn_memory_contract",
+                )
+                require(
+                    len(conversation.history) == 7 and conversation.count == 3,
+                    "recovery_third_turn_history",
+                )
+                check(
+                    "third_turn_memory",
+                    history_items=len(conversation.history),
+                    output_characters=len(third_output),
+                )
+                before = copy.deepcopy(conversation.history)
+                duplicate = copy.deepcopy(third)
+                duplicate["content"] = (
+                    "Same message ID with changed create content must not regenerate."
+                )
+                duplicate = discord.Message(
+                    state=bot._connection, channel=thread, data=duplicate
+                )
+                await recovery.dispatch(duplicate, source="rest")
+                await recovery.dispatch(duplicate, source="gateway")
+                await recovery.poll_once()
+                require(
+                    len(provider.calls) == 3 and conversation.history == before,
+                    "recovery_duplicate_create_billed",
+                )
+                check(
+                    "recovery_duplicate_create",
+                    provider_calls_added=0,
+                    changed_content=True,
+                    sources=["rest", "gateway"],
+                )
+                require(recovery_poll_calls == 3, "recovery_poll_count")
+                require(
+                    recovery._cursor(thread.id) >= int(third["id"]),
+                    "recovery_cursor_not_saved",
+                )
+                require(
+                    bot.get_guild(args.guild_id) is None,
+                    "recovery_gateway_cache_changed",
+                )
+                report["recovery"].update(
+                    status="passed",
+                    poll_once_calls=recovery_poll_calls + 1,
+                    durable_cursor_saved=True,
+                    duplicate_create_ignored=True,
+                )
+                report["recovery_transport_tested"] = True
+                require(
+                    os.environ.get("BOT_ACCESS_ROLE_IDS") == args.restriction,
+                    "production_restriction_changed",
+                )
+                require(provider.blocked == 0, "unexpected_provider_attempt")
+                report["status"] = "passed"
+                return
 
             # Test revoked-role edit before the authorized edit, using the same
             # cached message ID. The SDK still processes its normal update event.
@@ -858,6 +1143,13 @@ async def run(args, report, directory):
             "max_input_bytes_per_attempt": MAX_INPUT_BYTES,
             "max_total_input_bytes": MAX_TOTAL_INPUT_BYTES,
         }
+        if recovery is not None:
+            try:
+                await asyncio.wait_for(recovery.close(), timeout=30)
+                report["recovery"]["worker_closed"] = True
+            except Exception as error:
+                report.update(status="failed", failure=failure_shape(error))
+                report["recovery"]["worker_closed"] = False
         await cleanup()
         if cog is not None:
             for view in tuple(
@@ -880,10 +1172,16 @@ def main(argv=None):
         "--member-id", type=int, help="Actual human with a configured Maintainer role."
     )
     parser.add_argument("--model", default="gpt-6.1-sol")
-    parser.add_argument(
+    transport = parser.add_mutually_exclusive_group()
+    transport.add_argument(
         "--rest-only",
         action="store_true",
         help="Debug hybrid REST/parser checks without gateway preflight; gateway remains untested.",
+    )
+    transport.add_argument(
+        "--rest-recovery",
+        action="store_true",
+        help="Require a missing Gateway guild and exercise explicitly configured REST recovery; human fixture authorship is simulated.",
     )
     parser.add_argument(
         "--installed",
@@ -924,17 +1222,29 @@ def main(argv=None):
     except SmokeFailure:
         parser.error("a valid existing BOT_ACCESS_ROLE_IDS restriction is required")
     args.restriction = os.environ["BOT_ACCESS_ROLE_IDS"]
+    if args.rest_recovery:
+        try:
+            require_recovery_configuration(args)
+        except SmokeFailure:
+            parser.error(
+                "--rest-recovery requires a valid CONVERSATION_RECOVERY_GUILD_IDS containing --guild-id"
+            )
     report_path = args.report.resolve()
     if report_path.exists() or not report_path.parent.is_dir():
         parser.error("--report must name a new file in an existing directory")
     report = {
         "status": "failed",
         "scope": (
-            "hybrid_rest_parser_listener"
-            if args.rest_only
-            else "gateway_preflight_and_hybrid_rest_parser_listener"
+            "rest_conversation_recovery"
+            if args.rest_recovery
+            else (
+                "hybrid_rest_parser_listener"
+                if args.rest_only
+                else "gateway_preflight_and_hybrid_rest_parser_listener"
+            )
         ),
         "gateway_tested": False,
+        "recovery_transport_tested": False,
         "user_slash_command_tested": False,
         "slash_registration_tested": False,
         "interaction_acknowledgement_tested": False,
