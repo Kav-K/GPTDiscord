@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Existing release tag or commit to build (defaults to this workflow's ref)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref || github.ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -37,5 +44,7 @@ jobs:
         with:
           name: pypi-distributions
           path: dist/
-      # Configure this repository/workflow/environment as a PyPI trusted publisher.
+      # Use the existing API token, or trusted publishing when no token is configured.
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_TOKEN }}
