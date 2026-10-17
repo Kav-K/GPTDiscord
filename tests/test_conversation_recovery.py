@@ -296,6 +296,40 @@ async def test_bot_webhook_and_system_messages_never_lookup_members_or_run_provi
     flow.member_http.assert_not_awaited()
 
 
+@pytest.mark.parametrize("kind", ["bot", "webhook", "system"])
+async def test_ignored_raw_payload_with_unparseable_reference_does_not_block_next_turn(
+    recovery, monkeypatch, kind
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    await flow.service.watch_thread(flow.thread, new=True)
+    ignored = message_payload(
+        FIRST,
+        THREAD,
+        "An ignored fixture with an incomplete embedded reference",
+        bot=kind == "bot",
+        kind=7 if kind == "system" else 0,
+        reference=THREAD,
+    )
+    if kind == "webhook":
+        ignored["webhook_id"] = str(FIRST + 100)
+    ignored["referenced_message"] = message_payload(FIRST - 1, THREAD, "")
+    ignored["referenced_message"]["author"] = None
+    with pytest.raises((AttributeError, TypeError)):
+        discord.Message(state=flow.state, channel=flow.thread, data=deepcopy(ignored))
+    allowed = message_payload(
+        FIRST + 1, THREAD, "The next valid question must be answered"
+    )
+    logs = AsyncMock(return_value=[allowed, ignored])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    await flow.service.poll_once()
+    assert flow.processed == [("create", FIRST + 1, allowed["content"])]
+    flow.member_http.assert_awaited_once_with(GUILD, MEMBER)
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST + 1
+    assert len(flow.processed) == 1
+
+
 async def test_rest_recovery_is_create_only_and_does_not_revise_answers(recovery):
     flow = recovery
     await flow.service.dispatch(flow.message(), source="rest")
@@ -360,6 +394,252 @@ async def test_existing_thread_baselines_without_replay_and_restart_keeps_cursor
         await restarted.close()
 
 
+async def test_archived_thread_baselines_then_first_unarchiving_post_is_delivered_once(
+    recovery, monkeypatch
+):
+    flow = recovery
+    flow.service._startup_marker = FIRST + 100
+    flow.member_http.side_effect = lambda guild, member: member_payload(
+        member, bot=member == BOT
+    )
+    flow.state.http.get_channel.return_value = thread_payload(archived=True)
+    old = message_payload(FIRST, THREAD, "An old question before the bot restarted")
+    new = message_payload(FIRST + 1, THREAD, "The first post reopens this thread")
+    logs = AsyncMock(return_value=[old])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+
+    await flow.service.poll_once()
+    assert flow.processed == []
+    logs.assert_awaited_once_with(THREAD, 1)
+
+    # Discord automatically unarchives a thread when a member sends a message.
+    flow.state.http.get_channel.return_value = thread_payload(archived=False)
+    logs.return_value = [new, old]
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST
+    assert flow.processed == [("create", FIRST + 1, new["content"])]
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST + 1
+    assert len(flow.processed) == 1
+
+
+async def test_message_arriving_after_startup_before_first_poll_is_not_baselined_away(
+    recovery, monkeypatch
+):
+    flow = recovery
+    flow.service._startup_marker = FIRST
+    flow.member_http.side_effect = lambda guild, member: member_payload(
+        member, bot=member == BOT
+    )
+    old = message_payload(FIRST - 1, THREAD, "Old backlog must stay skipped")
+    new = message_payload(
+        FIRST + 1, THREAD, "A question during startup's first seconds"
+    )
+
+    async def history(channel, limit, **kwargs):
+        return [new] if limit == 1 else [new, old]
+
+    logs = AsyncMock(side_effect=history)
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST
+    assert flow.processed == [("create", FIRST + 1, new["content"])]
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST + 1
+    assert len(flow.processed) == 1
+
+
+async def test_transient_role_lookup_retains_cursor_and_batch_until_recovery(
+    recovery, monkeypatch
+):
+    import services.conversation_recovery_service as recovery_module
+
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    clock = SimpleNamespace(now=100.0)
+    monkeypatch.setattr(
+        recovery_module, "time", SimpleNamespace(monotonic=lambda: clock.now)
+    )
+    await flow.service.watch_thread(flow.thread, new=True)
+    payloads = [
+        message_payload(FIRST + 1, THREAD, "Second question must wait for first"),
+        message_payload(FIRST, THREAD, "First question needs a fresh role lookup"),
+    ]
+    logs = AsyncMock(return_value=payloads)
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    flow.member_http.side_effect = TimeoutError("offline transient membership failure")
+    await flow.service.poll_once()
+    assert flow.processed == []
+    assert (
+        flow.member_http.await_count == 1
+    ), "A retryable first message must stop its batch"
+
+    flow.member_http.side_effect = None
+    flow.member_http.return_value = member_payload()
+    clock.now += 120
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == THREAD
+    assert flow.processed == [
+        ("create", FIRST, payloads[1]["content"]),
+        ("create", FIRST + 1, payloads[0]["content"]),
+    ]
+    await flow.service.poll_once()
+    assert len(flow.processed) == 2
+
+
+async def test_post_claim_provider_failure_is_acknowledged_without_second_paid_attempt(
+    recovery, monkeypatch
+):
+    import services.conversation_recovery_service as recovery_module
+
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    clock = SimpleNamespace(now=100.0)
+    monkeypatch.setattr(
+        recovery_module, "time", SimpleNamespace(monotonic=lambda: clock.now)
+    )
+    await flow.service.watch_thread(flow.thread, new=True)
+    payload = message_payload(
+        FIRST, THREAD, "A request whose provider outcome is unknown"
+    )
+    logs = AsyncMock(return_value=[payload])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    flow.cog._process_message.side_effect = TimeoutError("offline provider timeout")
+    await flow.service.poll_once()
+    assert flow.cog._process_message.await_count == 1
+
+    clock.now += 120
+    await flow.service.poll_once()
+    assert flow.cog._process_message.await_count == 1
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST
+    assert flow.cog._process_message.await_count == 1
+
+
+@pytest.mark.parametrize("denial", ["removed-role", "left-guild"])
+async def test_definitive_role_denial_advances_past_denied_message_to_authorized_turn(
+    recovery, monkeypatch, denial
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    await flow.service.watch_thread(flow.thread, new=True)
+    denied = message_payload(FIRST, THREAD, "A member whose required role was removed")
+    allowed = message_payload(
+        FIRST + 1, THREAD, "Another Maintainer can still get a reply"
+    )
+    allowed["author"] = user_payload(MEMBER + 1)
+    allowed["member"] = member_payload(MEMBER + 1)
+    logs = AsyncMock(return_value=[allowed, denied])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+
+    async def lookup(guild, member):
+        if member == MEMBER and denial == "left-guild":
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"),
+                {"code": 10007, "message": "Unknown Member"},
+            )
+        return member_payload(member, roles=[] if member == MEMBER else [MAINTAINER])
+
+    flow.member_http.side_effect = lookup
+    await flow.service.poll_once()
+    assert flow.processed == [("create", FIRST + 1, allowed["content"])]
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == FIRST + 1
+    assert len(flow.processed) == 1
+    assert flow.member_http.await_count == 2
+
+
+async def test_gateway_recovery_during_fresh_role_lookup_does_not_consume_message(
+    recovery, monkeypatch
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    await flow.service.watch_thread(flow.thread, new=True)
+    payload = message_payload(FIRST, THREAD, "A message at the transport transition")
+    logs = AsyncMock(return_value=[payload])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+
+    async def gateway_becomes_available(guild, member):
+        flow.state._guilds[GUILD] = flow.guild
+        return member_payload()
+
+    flow.member_http.side_effect = gateway_becomes_available
+    await flow.service.poll_once()
+    assert flow.processed == []
+    flow.state._guilds.clear()
+    flow.member_http.side_effect = None
+    flow.member_http.return_value = member_payload()
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == THREAD
+    assert flow.processed == [("create", FIRST, payload["content"])]
+    await flow.service.poll_once()
+    assert len(flow.processed) == 1
+
+
+async def test_cancellation_before_role_verification_keeps_message_available_for_retry(
+    recovery, monkeypatch
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    await flow.service.watch_thread(flow.thread, new=True)
+    payload = message_payload(
+        FIRST, THREAD, "A message before an interrupted role lookup"
+    )
+    logs = AsyncMock(return_value=[payload])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    lookup_started = asyncio.Event()
+
+    async def blocked_lookup(guild, member):
+        lookup_started.set()
+        await asyncio.Event().wait()
+
+    flow.member_http.side_effect = blocked_lookup
+    task = asyncio.create_task(flow.service.poll_once())
+    await asyncio.wait_for(lookup_started.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert flow.processed == []
+    flow.member_http.side_effect = None
+    flow.member_http.return_value = member_payload()
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == THREAD
+    assert flow.processed == [("create", FIRST, payload["content"])]
+
+
+@pytest.mark.parametrize(
+    "missing_at", ["watch", "poll"], ids=["new-thread", "cached-thread"]
+)
+async def test_real_sdk_thread_with_missing_guild_is_rebuilt_before_message_parsing(
+    recovery, monkeypatch, missing_at
+):
+    flow = recovery
+    monkeypatch.setattr(flow.service, "start", lambda: None)
+    flow.member_http.side_effect = lambda guild, member: member_payload(
+        member, bot=member == BOT
+    )
+    if missing_at == "watch":
+        flow.thread.guild = None
+        await flow.service.watch_thread(flow.thread, new=True)
+    else:
+        await flow.service.watch_thread(flow.thread, new=True)
+        flow.thread.guild = None  # The watched SDK object lost its guild reference.
+    payload = message_payload(
+        FIRST, THREAD, "A cacheless SDK thread still needs a reply"
+    )
+    logs = AsyncMock(return_value=[payload])
+    monkeypatch.setattr(flow.state.http, "logs_from", logs)
+    await flow.service.poll_once()
+    assert logs.await_args.kwargs["after"] == THREAD
+    assert flow.processed == [("create", FIRST, payload["content"])]
+    handled_message = flow.cog._process_message.await_args.args[0]
+    assert isinstance(handled_message.channel, discord.Thread)
+    assert isinstance(handled_message.guild, discord.Guild)
+    assert handled_message.guild.id == GUILD
+    assert flow.bot.get_guild(GUILD) is None
+
+
 @pytest.mark.parametrize(
     "failure",
     [
@@ -367,7 +647,6 @@ async def test_existing_thread_baselines_without_replay_and_restart_keeps_cursor
         "no-owner-map",
         "foreign-owner",
         "foreign-guild",
-        "archived",
         "text-channel",
     ],
 )
@@ -384,8 +663,6 @@ async def test_only_tracked_bot_owned_active_threads_in_configured_guild_are_pol
         data["owner_id"] = str(MEMBER)
     elif failure == "foreign-guild":
         data["guild_id"] = str(GUILD + 1)
-    elif failure == "archived":
-        data["thread_metadata"]["archived"] = True
     elif failure == "text-channel":
         data["type"] = 0
     flow.state.http.get_channel.return_value = data

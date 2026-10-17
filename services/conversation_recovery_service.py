@@ -12,7 +12,7 @@ import time
 
 import discord
 
-from services.access_service import get_access_role_ids, message_has_access
+from services.access_service import _role_ids, get_access_role_ids, message_has_access
 from services.request_context import single_attempt_requests
 from utils.safe_ctx_respond import safe_remove_list
 
@@ -77,6 +77,7 @@ class ConversationRecoveryService:
         self._guilds = {}
         self._offset = 0
         self._retry_after = {}
+        self._startup_marker = discord.utils.time_snowflake(discord.utils.utcnow())
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS claims (message_id TEXT, revision TEXT, PRIMARY KEY(message_id, revision))"
@@ -167,19 +168,24 @@ class ConversationRecoveryService:
             member = await self._http(
                 self.bot.http.get_member(guild_id, message.author.id)
             )
-            if int(member["user"]["id"]) != message.author.id or member["user"].get(
-                "bot", False
-            ):
+        except discord.NotFound as error:
+            if error.code == 10007:  # Unknown Member: the author has left this guild.
                 return False
-            raw = getattr(message, "_raw_data", None) or {}
-            message._raw_data = {**raw, "guild_id": str(guild_id), "member": member}
-            if isinstance(message.guild, discord.Guild):
-                message.author = discord.Member(
-                    data=member, guild=message.guild, state=self.bot._connection
-                )
-            return await message_has_access(message)
-        except Exception:
+            raise
+        if (
+            int(member["user"]["id"]) != message.author.id
+            or _role_ids(member.get("roles")) is None
+        ):
+            raise ValueError("Recovery member identity or roles do not match")
+        if member["user"].get("bot", False):
             return False
+        raw = getattr(message, "_raw_data", None) or {}
+        message._raw_data = {**raw, "guild_id": str(guild_id), "member": member}
+        if isinstance(message.guild, discord.Guild):
+            message.author = discord.Member(
+                data=member, guild=message.guild, state=self.bot._connection
+            )
+        return await message_has_access(message)
 
     async def dispatch(self, message, *, edited=False, source="gateway"):
         if self._closed or source not in ("gateway", "rest"):
@@ -308,6 +314,17 @@ class ConversationRecoveryService:
 
     async def watch_thread(self, thread, new=False):
         guild_id = getattr(getattr(thread, "guild", None), "id", None)
+        if guild_id is None and self._owned(thread.id):
+            data = await self._http(self.bot.http.get_channel(thread.id))
+            guild_id = int(data.get("guild_id", 0))
+            if (
+                int(data["id"]) != thread.id
+                or data.get("type") not in (11, 12)
+                or int(data.get("owner_id", 0)) != self.bot.user.id
+                or not self.enabled_for(guild_id)
+            ):
+                return
+            thread.guild = await self._rest_guild(guild_id)
         if not self.enabled_for(guild_id) or not self._owned(thread.id):
             return
         self._channels[thread.id] = thread
@@ -343,26 +360,30 @@ class ConversationRecoveryService:
                     or int(data["id"]) != thread_id
                     or data.get("type") not in (11, 12)
                     or int(data.get("owner_id", 0)) != self.bot.user.id
-                    or data.get("thread_metadata", {}).get("archived", False)
                     or not self._owned(thread_id)
                 ):
                     continue
+                cursor = self._cursor(thread_id)
+                if cursor is None:
+                    latest = await self._http(self.bot.http.logs_from(thread_id, 1))
+                    latest_id = int(latest[0]["id"]) if latest else thread_id
+                    cursor = min(latest_id, self._startup_marker)
+                    self._save_cursor(thread_id, guild_id, cursor)
+                    if latest_id <= cursor:
+                        continue
+                if data.get("thread_metadata", {}).get("archived", False):
+                    continue
                 channel = self._channels.get(thread_id)
-                if channel is None:
+                if (
+                    channel is None
+                    or not isinstance(channel.guild, discord.Guild)
+                    or channel.guild.id != guild_id
+                ):
                     guild = await self._rest_guild(guild_id)
                     channel = discord.Thread(
                         guild=guild, state=self.bot._connection, data=data
                     )
                     self._channels[thread_id] = channel
-                cursor = self._cursor(thread_id)
-                if cursor is None:
-                    latest = await self._http(self.bot.http.logs_from(thread_id, 1))
-                    self._save_cursor(
-                        thread_id,
-                        guild_id,
-                        int(latest[0]["id"]) if latest else thread_id,
-                    )
-                    continue
                 payloads = await self._http(
                     self.bot.http.logs_from(thread_id, POLL_BATCH, after=cursor)
                 )
@@ -371,12 +392,31 @@ class ConversationRecoveryService:
                         return
                     if int(payload["id"]) <= cursor:
                         continue
-                    self._save_cursor(thread_id, guild_id, int(payload["id"]))
+                    if (
+                        payload.get("author", {}).get("bot", False)
+                        or payload.get("webhook_id") is not None
+                        or payload.get("type") not in (0, 19)
+                    ):
+                        if (
+                            self._closed
+                            or not self.enabled_for(guild_id)
+                            or not self._owned(thread_id)
+                        ):
+                            break
+                        self._save_cursor(thread_id, guild_id, int(payload["id"]))
+                        continue
                     payload = {**payload, "guild_id": str(guild_id)}
                     message = discord.Message(
                         state=self.bot._connection, channel=channel, data=payload
                     )
                     await self.dispatch(message, source="rest")
+                    if (
+                        self._closed
+                        or not self.enabled_for(guild_id)
+                        or not self._owned(thread_id)
+                    ):
+                        break
+                    self._save_cursor(thread_id, guild_id, int(payload["id"]))
             except asyncio.CancelledError:
                 raise
             except Exception as error:

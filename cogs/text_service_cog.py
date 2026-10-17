@@ -718,7 +718,10 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
     async def on_message_edit(self, before, after):
         if not await message_has_access(after):
             return
-        await self.conversation_recovery.dispatch(after, edited=True)
+        if after.channel.id in self.conversation_threads:
+            await self.conversation_recovery.dispatch(after, edited=True)
+        else:
+            await self._process_message_edit(after)
 
     async def _process_message_edit(self, after):
         """Process one authorized conversation edit under its ingress lock."""

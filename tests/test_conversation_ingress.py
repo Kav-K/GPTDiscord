@@ -468,3 +468,51 @@ async def test_rest_retry_policy_resets_when_dispatch_is_cancelled(ingress):
     await service.dispatch(message(), source="gateway")
     cog._process_message.assert_awaited_once()
     await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allowed", [True, False], ids=["maintainer", "role-revoked"])
+async def test_nonconversation_edits_keep_moderation_without_entering_paid_ingress(
+    ingress,
+    monkeypatch,
+    allowed,
+):
+    _, service, cog = ingress
+    module = importlib.import_module("cogs.text_service_cog")
+    queue = asyncio.Queue()
+    monkeypatch.setattr(module.Moderation, "moderation_queues", {GUILD_ID: queue})
+    cog.model = SimpleNamespace(
+        send_request=AsyncMock(), send_chatgpt_chat_request=AsyncMock()
+    )
+    cog.conversation_recovery = SimpleNamespace(dispatch=AsyncMock())
+
+    async def process_edit(after):
+        return await module.GPT3ComCon._process_message_edit(cog, after)
+
+    cog._process_message_edit = AsyncMock(side_effect=process_edit)
+    before = message(channel_id=THREAD_ID + 500, content="An ordinary server message")
+    after = message(channel_id=THREAD_ID + 500, content="An edited server message")
+    if not allowed:
+        after.author._roles = [MAINTAINER_ROLE]
+        after._raw_data["member"]["roles"] = []
+    conversations_before = cog.conversation_threads.copy()
+
+    await module.GPT3ComCon.on_message_edit(cog, before, after)
+
+    cog.conversation_recovery.dispatch.assert_not_awaited()
+    cog.model.send_request.assert_not_awaited()
+    cog.model.send_chatgpt_chat_request.assert_not_awaited()
+    assert cog.conversation_threads == conversations_before
+    assert cog.awaiting_responses == []
+    assert cog.awaiting_thread_responses == []
+    after.reply.assert_not_awaited()
+    if allowed:
+        cog._process_message_edit.assert_awaited_once_with(after)
+        assert queue.qsize() == 1
+        queued = queue.get_nowait()
+        assert queued.message is after
+        assert isinstance(queued, module.Moderation)
+    else:
+        cog._process_message_edit.assert_not_awaited()
+        assert queue.empty()
+    await service.close()
