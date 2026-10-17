@@ -1,9 +1,10 @@
-import asyncio.exceptions
+import asyncio
 import datetime
 import json
 import re
 import traceback
 from collections import defaultdict
+from contextlib import nullcontext
 
 import aiofiles
 import aiohttp
@@ -31,6 +32,60 @@ image_understanding_model = ImageUnderstandingModel()
 class TextService:
     def __init__(self):
         pass
+
+    @staticmethod
+    def conversation_lock(cog, thread_id):
+        recovery = getattr(cog, "conversation_recovery", None)
+        if recovery is not None:
+            return recovery.lock_for(thread_id)
+        locks = getattr(cog, "_conversation_control_locks", None)
+        if locks is None:
+            locks = cog._conversation_control_locks = {}
+        return locks.setdefault(thread_id, asyncio.Lock())
+
+    @staticmethod
+    def conversation_busy(cog, user_id, thread_id):
+        return (
+            user_id in cog.awaiting_responses
+            or thread_id in cog.awaiting_thread_responses
+        )
+
+    @staticmethod
+    async def respond_control(ctx, text, *, ephemeral=True):
+        if isinstance(ctx, discord.ApplicationContext):
+            if ctx.response.is_done():
+                return await ctx.send_followup(text, ephemeral=ephemeral)
+            return await ctx.respond(text, ephemeral=ephemeral)
+        if isinstance(ctx, discord.Interaction):
+            if ctx.response.is_done():
+                return await ctx.followup.send(text, ephemeral=ephemeral)
+            return await ctx.response.send_message(text, ephemeral=ephemeral)
+        return await ctx.reply(text)
+
+    @staticmethod
+    def current_turn(cog, redo, channel_id):
+        """A reply can replace only the current, successfully completed turn."""
+        if redo.ctx.channel.id != channel_id or redo.response.channel.id != channel_id:
+            return False
+        expected = getattr(redo, "conversation_thread", None)
+        if expected is None:
+            return bool(getattr(redo, "standalone_request", False))
+        if cog.conversation_threads.get(channel_id) is not expected:
+            return False
+        tail = getattr(redo, "conversation_tail", ())
+        return (
+            len(tail) == 2
+            and len(expected.history) >= 2
+            and all(
+                actual is bound for actual, bound in zip(expected.history[-2:], tail)
+            )
+        )
+
+    @staticmethod
+    def bind_turn(cog, redo, thread, *, standalone=False):
+        redo.conversation_thread = thread
+        redo.standalone_request = standalone
+        redo.conversation_tail = tuple(thread.history[-2:]) if thread else ()
 
     @staticmethod
     async def trigger_thinking(message: discord.Message, is_drawing=None):
@@ -103,12 +158,33 @@ class TextService:
             from_action (bool, optional): If the function is being called from a message action. Defaults to False.
         """
         new_prompt, _new_prompt_clean = (
-            prompt  # + "\n" + BOT_NAME
-            if not from_ask_command and not from_edit_command and not redo_request
-            else prompt
-        ), prompt
+            (
+                prompt  # + "\n" + BOT_NAME
+                if not from_ask_command and not from_edit_command and not redo_request
+                else prompt
+            ),
+            prompt,
+        )
 
         stop = f"{ctx.author.display_name if user is None else user.display_name}:"
+
+        # A concurrent request by this author can replace the global redo entry
+        # while the provider is running. Keep the validated reply and paginator
+        # bound to this request throughout completion.
+        replacement_redo = None
+        replacement_paginator = None
+        if response_message is not None:
+            replacement_redo = converser_cog.redo_users.get(ctx.author.id)
+            if (
+                replacement_redo is None
+                or replacement_redo.ctx is not ctx
+                or replacement_redo.ctx.channel.id != ctx.channel.id
+                or replacement_redo.response.id != response_message.id
+                or replacement_redo.response.channel.id != ctx.channel.id
+                or response_message.channel.id != ctx.channel.id
+            ):
+                return False
+            replacement_paginator = replacement_redo.paginator
 
         from_context = isinstance(ctx, discord.ApplicationContext)
         expected_thread = (
@@ -116,6 +192,16 @@ class TextService:
             if not from_ask_command and not from_edit_command
             else None
         )
+        replacing_turn = expected_thread is not None and (
+            redo_request or edited_request
+        )
+        original_history = list(expected_thread.history) if replacing_turn else None
+        original_full_history = (
+            list(converser_cog.full_conversation_history[ctx.channel.id])
+            if replacing_turn
+            else None
+        )
+        replacement_completed = False
 
         if not instruction:
             tokens = converser_cog.usage_service.count_tokens(new_prompt)
@@ -125,6 +211,16 @@ class TextService:
             ) + converser_cog.usage_service.count_tokens(instruction)
 
         try:
+            if replacing_turn:
+                # Regenerate from the user turn, never from the answer being replaced.
+                expected_thread.history = original_history[:-1]
+                if edited_request:
+                    expected_thread.history[-1] = EmbeddedConversationItem(
+                        f"\n{ctx.author.display_name}: {prompt}<|endofstatement|>\n",
+                        0,
+                    )
+                new_prompt = "".join(item.text for item in expected_thread.history)
+
             user_displayname = (
                 ctx.author.display_name if not user else user.display_name
             )
@@ -173,7 +269,7 @@ class TextService:
                             ].history
                         ]
                     )
-                    converser_cog.redo_users[ctx.author.id].prompt = new_prompt
+                    replacement_redo.prompt = new_prompt
                 else:
                     # Create and upsert the embedding for  the conversation id, prompt, timestamp
                     await converser_cog.pinecone_service.upsert_conversation_embedding(
@@ -449,16 +545,12 @@ class TextService:
                 and not from_ask_command
                 and not converser_cog.pinecone_service
             ):
-                if not redo_request:
-                    converser_cog.conversation_threads[ctx.channel.id].history.append(
-                        EmbeddedConversationItem(
-                            "\n"
-                            + BOT_NAME
-                            + str(response_text)
-                            + "<|endofstatement|>\n",
-                            0,
-                        )
+                converser_cog.conversation_threads[ctx.channel.id].history.append(
+                    EmbeddedConversationItem(
+                        "\n" + BOT_NAME + str(response_text) + "<|endofstatement|>\n",
+                        0,
                     )
+                )
 
             # Embeddings case!
             elif (
@@ -502,9 +594,13 @@ class TextService:
             # Cleanse again
             response_text = converser_cog.cleanse_response(response_text)
 
-            converser_cog.full_conversation_history[ctx.channel.id].append(
-                response_text
-            )
+            full_history = converser_cog.full_conversation_history[ctx.channel.id]
+            if replacing_turn and len(full_history) >= 2:
+                full_history[-1] = response_text
+                if edited_request:
+                    full_history[-2] = prompt
+            else:
+                full_history.append(response_text)
 
             # escape any other mentions like @here or @everyone
             response_text = discord.utils.escape_mentions(response_text)
@@ -577,7 +673,7 @@ class TextService:
                                 custom_api_key=custom_api_key,
                             ),
                         )
-                converser_cog.redo_users[ctx.author.id] = RedoUser(
+                redo = RedoUser(
                     prompt=new_prompt if not converser_cog.pinecone_service else prompt,
                     instruction=instruction,
                     ctx=ctx,
@@ -585,13 +681,18 @@ class TextService:
                     response=response_message,
                     paginator=paginator,
                 )
-                converser_cog.redo_users[ctx.author.id].add_interaction(
-                    response_message.id
+                redo.add_interaction(response_message.id)
+                TextService.bind_turn(
+                    converser_cog,
+                    redo,
+                    expected_thread,
+                    standalone=expected_thread is None,
                 )
+                converser_cog.redo_users[ctx.author.id] = redo
 
             # We are doing a redo, edit the message.
             else:
-                paginator = converser_cog.redo_users.get(ctx.author.id).paginator
+                paginator = replacement_paginator
                 if isinstance(paginator, pages.Paginator):
                     embed_pages = await converser_cog.paginate_embed(response_text)
                     view = ConversationView(
@@ -619,6 +720,18 @@ class TextService:
                             )
                         )
 
+                redo = replacement_redo
+                if edited_request:
+                    redo.prompt = prompt
+                TextService.bind_turn(
+                    converser_cog,
+                    redo,
+                    expected_thread,
+                    standalone=expected_thread is None,
+                )
+
+            replacement_completed = True
+
             await converser_cog.send_debug_message(
                 converser_cog.generate_debug_message(prompt, response),
                 converser_cog.debug_channel,
@@ -627,6 +740,7 @@ class TextService:
             converser_cog.remove_awaiting(
                 ctx.author.id, ctx.channel.id, from_ask_command, from_edit_command
             )
+            return True
 
         # Error catching for AIOHTTP Errors
         except aiohttp.ClientResponseError as e:
@@ -686,11 +800,23 @@ class TextService:
             )
             traceback.print_exc()
 
-            try:
-                await converser_cog.end_conversation(ctx)
-            except Exception:
-                pass
+            if not replacing_turn:
+                try:
+                    await converser_cog.end_conversation(ctx)
+                except Exception:
+                    pass
             return
+        finally:
+            if (
+                replacing_turn
+                and not replacement_completed
+                and converser_cog.conversation_threads.get(ctx.channel.id)
+                is expected_thread
+            ):
+                expected_thread.history = original_history
+                converser_cog.full_conversation_history[ctx.channel.id] = (
+                    original_full_history
+                )
 
     @staticmethod
     async def process_conversation_message(
@@ -1110,72 +1236,57 @@ class TextService:
     ):
         if after.channel.id not in converser_cog.conversation_threads:
             return
-        if after.author.id in converser_cog.redo_users:
-            if after.id == original_message.get(after.author.id, None):
-                user_api_key = None
-                if USER_INPUT_API_KEYS:
-                    user_api_key = await TextService.get_user_api_key(
-                        after.author.id, after, USER_KEY_DB
-                    )
-                    if not user_api_key:
-                        return
-
-                response_message = converser_cog.redo_users[after.author.id].response
-                ctx = converser_cog.redo_users[after.author.id].ctx
-                converser_cog.awaiting_responses.append(after.author.id)
-                converser_cog.awaiting_thread_responses.append(after.channel.id)
-                await response_message.edit(content="Redoing prompt 🔄...")
-
-                edited_content = await converser_cog.mention_to_username(
-                    after, after.content
-                )
-
-                if after.channel.id in converser_cog.conversation_threads:
-                    # Remove the last two elements from the history array and add the new <username>: prompt
-                    converser_cog.conversation_threads[after.channel.id].history = (
-                        converser_cog.conversation_threads[after.channel.id].history[
-                            :-2
-                        ]
-                    )
-
-                    pinecone_dont_reinsert = None
-                    if not converser_cog.pinecone_service:
-                        converser_cog.conversation_threads[
-                            after.channel.id
-                        ].history.append(
-                            EmbeddedConversationItem(
-                                f"\n{after.author.display_name}: {edited_content}<|endofstatement|>\n",
-                                0,
-                            )
-                        )
-
-                    converser_cog.conversation_threads[after.channel.id].count += 1
-
-                conversation_overrides = converser_cog.conversation_threads[
-                    after.channel.id
-                ].get_overrides()
-
-                overrides = Override(
-                    conversation_overrides["temperature"],
-                    conversation_overrides["top_p"],
-                    conversation_overrides["frequency_penalty"],
-                    conversation_overrides["presence_penalty"],
-                )
-
-                await TextService.encapsulated_send(
-                    converser_cog,
-                    id=after.channel.id,
-                    prompt=edited_content,
-                    ctx=ctx,
-                    response_message=response_message,
-                    overrides=overrides,
-                    model=converser_cog.conversation_threads[after.channel.id].model,
-                    custom_api_key=user_api_key,
-                    edited_request=True,
-                )
-
-                if not converser_cog.pinecone_service:
-                    converser_cog.redo_users[after.author.id].prompt = edited_content
+        redo = converser_cog.redo_users.get(after.author.id)
+        if (
+            redo is None
+            or after.id != original_message.get(after.author.id)
+            or after.id != getattr(redo.ctx, "id", None)
+            or not TextService.current_turn(converser_cog, redo, after.channel.id)
+            or getattr(redo, "conversation_thread", None) is None
+        ):
+            return
+        if converser_cog.pinecone_service:
+            await after.reply(
+                "Edits cannot replace stored vector memory. Send your correction as a new message."
+            )
+            return
+        user_api_key = None
+        if USER_INPUT_API_KEYS:
+            user_api_key = await TextService.get_user_api_key(
+                after.author.id, after, USER_KEY_DB
+            )
+            if not user_api_key:
+                return
+        edited_content = await converser_cog.mention_to_username(after, after.content)
+        # Role/key and mention lookups can yield while the conversation is ended.
+        if not TextService.current_turn(converser_cog, redo, after.channel.id):
+            return
+        thread = redo.conversation_thread
+        values = thread.get_overrides()
+        overrides = Override(
+            values["temperature"],
+            values["top_p"],
+            values["frequency_penalty"],
+            values["presence_penalty"],
+        )
+        converser_cog.awaiting_responses.append(after.author.id)
+        converser_cog.awaiting_thread_responses.append(after.channel.id)
+        try:
+            await TextService.encapsulated_send(
+                converser_cog,
+                id=after.channel.id,
+                prompt=edited_content,
+                ctx=redo.ctx,
+                response_message=redo.response,
+                overrides=overrides,
+                model=thread.model,
+                custom_api_key=user_api_key,
+                edited_request=True,
+            )
+        finally:
+            converser_cog.remove_awaiting(
+                after.author.id, after.channel.id, False, False
+            )
 
 
 #
@@ -1245,27 +1356,42 @@ class EndConvoButton(discord.ui.Button["ConversationView"]):
         self.converser_cog = converser_cog
 
     async def callback(self, interaction: discord.Interaction):
-        # Get the user
         user_id = interaction.user.id
-        if (
-            user_id in self.converser_cog.conversation_thread_owners
-            and interaction.channel.id
-            in self.converser_cog.conversation_thread_owners[user_id]
-        ):
-            try:
-                await self.converser_cog.end_conversation(
-                    interaction, opener_user_id=interaction.user.id
-                )
-            except Exception as e:
-                print(e)
-                traceback.print_exc()
-                await interaction.response.send_message(
-                    e, ephemeral=True, delete_after=30
-                )
-        else:
-            await interaction.response.send_message(
-                "This is not your conversation to end!", ephemeral=True, delete_after=10
+        channel_id = interaction.channel.id
+        cog = self.converser_cog
+        if channel_id not in cog.conversation_thread_owners.get(user_id, ()):
+            await TextService.respond_control(
+                interaction, "This is not your conversation to end!"
             )
+            return
+        lock = TextService.conversation_lock(cog, channel_id)
+        if lock.locked() or TextService.conversation_busy(cog, user_id, channel_id):
+            await TextService.respond_control(
+                interaction,
+                "Please wait for the current response before ending the conversation.",
+            )
+            return
+        async with lock:
+            if channel_id not in cog.conversation_threads:
+                await TextService.respond_control(
+                    interaction, "This conversation has already ended."
+                )
+                return
+            await TextService.respond_control(
+                interaction, "Closing this conversation..."
+            )
+            try:
+                recovery = getattr(cog, "conversation_recovery", None)
+                async with recovery.active_control() if recovery else nullcontext():
+                    await self.converser_cog.end_conversation(
+                        interaction, opener_user_id=interaction.user.id
+                    )
+            except Exception as error:
+                print(f"Conversation end failed: {type(error).__name__}")
+                await TextService.respond_control(
+                    interaction,
+                    "I couldn't finish closing this conversation. Try again or ask the bot operator.",
+                )
 
 
 class RedoButton(discord.ui.Button["ConversationView"]):
@@ -1284,41 +1410,89 @@ class RedoButton(discord.ui.Button["ConversationView"]):
         self.custom_api_key = custom_api_key
 
     async def callback(self, interaction: discord.Interaction):
-        # Get the user
         user_id = interaction.user.id
-        if user_id in self.converser_cog.redo_users and self.converser_cog.redo_users[
-            user_id
-        ].in_interaction(interaction.message.id):
-            # Get the message and the prompt and call encapsulated_send
-            prompt = self.converser_cog.redo_users[user_id].prompt
-            instruction = self.converser_cog.redo_users[user_id].instruction
-            ctx = self.converser_cog.redo_users[user_id].ctx
-            response_message = self.converser_cog.redo_users[user_id].response
+        channel_id = interaction.channel.id
+        cog = self.converser_cog
+        redo = cog.redo_users.get(user_id)
+        if (
+            redo is None
+            or not redo.in_interaction(interaction.message.id)
+            or not TextService.current_turn(cog, redo, channel_id)
+        ):
+            await TextService.respond_control(
+                interaction,
+                "You can only retry your latest completed prompt in its original conversation.",
+            )
+            return
+        if redo.conversation_thread is not None and cog.pinecone_service:
+            await TextService.respond_control(
+                interaction,
+                "Retry cannot replace stored vector memory. Send your correction as a new message.",
+            )
+            return
+        lock = TextService.conversation_lock(cog, channel_id)
+        if lock.locked() or TextService.conversation_busy(cog, user_id, channel_id):
+            await TextService.respond_control(
+                interaction, "Please wait for the current response before retrying."
+            )
+            return
+        async with lock:
+            if not TextService.current_turn(cog, redo, channel_id):
+                await TextService.respond_control(
+                    interaction,
+                    "This prompt is no longer the latest conversation turn.",
+                )
+                return
+            # Read the current key, never the credential captured by an old view.
+            from cogs.text_service_cog import USER_INPUT_API_KEYS, USER_KEY_DB
 
-            await interaction.response.send_message(
-                "Retrying your original request...", ephemeral=True, delete_after=15
+            user_api_key = USER_KEY_DB.get(user_id) if USER_INPUT_API_KEYS else None
+            if USER_INPUT_API_KEYS and not user_api_key:
+                await TextService.respond_control(
+                    interaction, "Run `/setup` to save your OpenAI API key, then retry."
+                )
+                return
+            await TextService.respond_control(
+                interaction, "Retrying your original request..."
             )
-
-            await TextService.encapsulated_send(
-                self.converser_cog,
-                overrides=Override(None, None, None, None),
-                id=user_id,
-                prompt=prompt,
-                instruction=instruction,
-                ctx=ctx,
-                model=self.model,
-                response_message=response_message,
-                custom_api_key=self.custom_api_key,
-                redo_request=True,
-                from_ask_command=self.from_ask_command,
-                from_edit_command=self.from_edit_command,
-            )
-        else:
-            await interaction.response.send_message(
-                "You can only redo the most recent prompt that you sent yourself.",
-                ephemeral=True,
-                delete_after=10,
-            )
+            cog.awaiting_responses.append(user_id)
+            cog.awaiting_thread_responses.append(channel_id)
+            thread = redo.conversation_thread
+            values = thread.get_overrides() if thread is not None else {}
+            try:
+                recovery = getattr(cog, "conversation_recovery", None)
+                async with recovery.active_control() if recovery else nullcontext():
+                    await TextService.encapsulated_send(
+                        cog,
+                        overrides=Override(
+                            values.get("temperature"),
+                            values.get("top_p"),
+                            values.get("frequency_penalty"),
+                            values.get("presence_penalty"),
+                        ),
+                        id=channel_id if thread is not None else user_id,
+                        prompt=redo.prompt,
+                        instruction=redo.instruction,
+                        ctx=redo.ctx,
+                        model=thread.model if thread is not None else self.model,
+                        response_message=redo.response,
+                        custom_api_key=user_api_key,
+                        redo_request=True,
+                        from_ask_command=self.from_ask_command,
+                        from_edit_command=self.from_edit_command,
+                    )
+            except RuntimeError:
+                if recovery is None or not recovery._closed:
+                    raise
+                await TextService.respond_control(
+                    interaction,
+                    "The bot is shutting down. Please try again after it restarts.",
+                )
+            finally:
+                if user_id in cog.awaiting_responses:
+                    cog.awaiting_responses.remove(user_id)
+                if channel_id in cog.awaiting_thread_responses:
+                    cog.awaiting_thread_responses.remove(channel_id)
 
 
 #

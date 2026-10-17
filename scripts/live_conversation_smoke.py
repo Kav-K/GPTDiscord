@@ -28,9 +28,11 @@ import tempfile
 from urllib.request import getproxies, proxy_bypass
 
 MAX_REQUESTS = 3
+EXTENDED_MAX_REQUESTS = 6
 OUTPUT_TOKENS = 512
 MAX_INPUT_BYTES = 12_000
 MAX_TOTAL_INPUT_BYTES = 30_000
+EXTENDED_MAX_TOTAL_INPUT_BYTES = 60_000
 GATEWAY_TIMEOUT = 90
 GATEWAY_ECHO_TIMEOUT = 12
 GATEWAY_REST_TIMEOUT = 8
@@ -58,6 +60,156 @@ class DiscardOutput:
 
     def flush(self):
         pass
+
+
+def limits_for(args):
+    extended = getattr(args, "extended_rest_recovery", False)
+    require(
+        not extended or getattr(args, "rest_recovery", False),
+        "extended_requires_rest_recovery",
+    )
+    return {
+        "requests": EXTENDED_MAX_REQUESTS if extended else MAX_REQUESTS,
+        "input_bytes": (
+            EXTENDED_MAX_TOTAL_INPUT_BYTES if extended else MAX_TOTAL_INPUT_BYTES
+        ),
+        "timeout": 720 if extended else 480,
+    }
+
+
+class SyntheticAcknowledgement:
+    """Local callback acknowledgement; never sends an interaction webhook."""
+
+    def __init__(self):
+        self.done = False
+        self.count = 0
+        self.private_only = True
+
+    def is_done(self):
+        return self.done
+
+    async def send_message(self, *args, **kwargs):
+        self.done = True
+        self.count += 1
+        self.private_only &= kwargs.get("ephemeral") is True
+
+    async def defer(self, **kwargs):
+        self.done = True
+        self.count += 1
+        self.private_only &= kwargs.get("ephemeral") is True
+
+    async def send(self, *args, **kwargs):
+        await self.send_message(*args, **kwargs)
+
+
+def control_interaction(bot, thread, response, member, custom_id):
+    """Real SDK context with synthetic acknowledgements, no human interaction."""
+    import discord
+
+    interaction = discord.Interaction(
+        state=bot._connection,
+        data={
+            "id": str(response.id),
+            "type": 3,
+            "application_id": str(bot.user.id),
+            "token": "synthetic-smoke-no-webhook-token",
+            "version": 1,
+            "guild_id": str(thread.guild.id),
+            "channel_id": str(thread.id),
+            "member": copy.deepcopy(member),
+            "data": {"custom_id": custom_id, "component_type": 2},
+        },
+    )
+    interaction._guild = thread.guild
+    interaction.channel = thread
+    interaction.user = discord.Member(
+        data=member, guild=thread.guild, state=bot._connection
+    )
+    interaction.message = response
+    acknowledgement = SyntheticAcknowledgement()
+    interaction._cs_response = interaction._cs_followup = acknowledgement
+    return interaction, acknowledgement
+
+
+class OwnedDiscordResources:
+    """Track exact fixture IDs and reverify ownership before every deletion."""
+
+    def __init__(self, bot, guild_id, parent_id):
+        self.bot, self.guild_id, self.parent_id = bot, guild_id, parent_id
+        self.threads = {}
+        self.starters = {}
+
+    def thread(self, payload, label="owned_thread"):
+        import discord
+
+        identifier = int(payload["id"])
+        require(
+            int(payload["owner_id"]) == self.bot.user.id
+            and int(payload["parent_id"]) == self.parent_id
+            and int(payload["guild_id"]) == self.guild_id
+            and payload["type"]
+            in (
+                discord.ChannelType.public_thread.value,
+                discord.ChannelType.private_thread.value,
+            )
+            and identifier not in self.threads
+            and len(self.threads) < 2,
+            "created_thread_scope",
+        )
+        self.threads[identifier] = label
+
+    def starter(self, identifier):
+        require(not self.starters and identifier > 0, "unexpected_second_starter")
+        self.starters[identifier] = "owned_starter"
+
+    async def cleanup(self):
+        import discord
+
+        results = []
+        for identifier, label in self.threads.items():
+            try:
+                current = await asyncio.wait_for(
+                    self.bot.http.get_channel(identifier), 30
+                )
+                require(
+                    int(current["owner_id"]) == self.bot.user.id
+                    and int(current["parent_id"]) == self.parent_id
+                    and int(current["guild_id"]) == self.guild_id,
+                    "cleanup_thread_ownership",
+                )
+                await asyncio.wait_for(
+                    self.bot.http.delete_channel(
+                        identifier, reason="GPTDiscord conversation smoke cleanup"
+                    ),
+                    30,
+                )
+                results.append({"resource": label, "status": "deleted"})
+            except discord.NotFound:
+                results.append({"resource": label, "status": "already_absent"})
+            except Exception as error:
+                results.append(
+                    {"resource": label, "status": "failed", **failure_shape(error)}
+                )
+        for identifier, label in self.starters.items():
+            try:
+                current = await asyncio.wait_for(
+                    self.bot.http.get_message(self.parent_id, identifier), 30
+                )
+                require(
+                    int(current["author"]["id"]) == self.bot.user.id,
+                    "cleanup_starter_ownership",
+                )
+                await asyncio.wait_for(
+                    self.bot.http.delete_message(self.parent_id, identifier), 30
+                )
+                results.append({"resource": label, "status": "deleted"})
+            except discord.NotFound:
+                results.append({"resource": label, "status": "already_absent"})
+            except Exception as error:
+                results.append(
+                    {"resource": label, "status": "failed", **failure_shape(error)}
+                )
+        return results
 
 
 def require(condition, category):
@@ -169,7 +321,16 @@ class RecoveryFixtureReader:
     """
 
     def __init__(
-        self, original, *, thread_id, guild_id, bot_id, member_id, fixtures, membership
+        self,
+        original,
+        *,
+        thread_id,
+        guild_id,
+        bot_id,
+        member_id,
+        fixtures,
+        membership,
+        max_fixtures=MAX_REQUESTS,
     ):
         self.original = original
         self.thread_id = thread_id
@@ -178,10 +339,11 @@ class RecoveryFixtureReader:
         self.member_id = member_id
         self.fixtures = fixtures
         self.membership = membership
+        self.max_fixtures = max_fixtures
 
     async def __call__(self, channel_id, limit, **kwargs):
         require(channel_id == self.thread_id and 0 < limit <= 20, "recovery_poll_scope")
-        require(len(self.fixtures) <= MAX_REQUESTS, "recovery_fixture_budget")
+        require(len(self.fixtures) <= self.max_fixtures, "recovery_fixture_budget")
         payloads = await self.original(channel_id, limit, **kwargs)
         result = []
         for raw in payloads:
@@ -216,7 +378,14 @@ class RecoveryFixtureReader:
 class BoundedProvider:
     """Bound actual HTTP attempts, including failures; bypass automatic retries."""
 
-    def __init__(self, model, selected_model):
+    def __init__(
+        self,
+        model,
+        selected_model,
+        *,
+        max_requests=MAX_REQUESTS,
+        max_input_bytes=MAX_TOTAL_INPUT_BYTES,
+    ):
         from models.openai_model import Model
 
         self.original = Model._post_json.__wrapped__.__get__(model, Model)
@@ -224,17 +393,25 @@ class BoundedProvider:
         self.calls = []
         self.total_input_bytes = 0
         self.blocked = 0
+        self.max_requests = max_requests
+        self.max_input_bytes = max_input_bytes
 
     async def __call__(self, endpoint, payload, custom_api_key=None):
         input_bytes = len(json.dumps(payload.get("messages", [])).encode("utf-8"))
+        roles = [message.get("role") for message in payload.get("messages", [])]
         allowed = (
             endpoint == "chat/completions"
             and payload.get("model") == self.selected_model
-            and len(self.calls) < MAX_REQUESTS
+            and len(self.calls) < self.max_requests
             and input_bytes <= MAX_INPUT_BYTES
-            and self.total_input_bytes + input_bytes <= MAX_TOTAL_INPUT_BYTES
+            and self.total_input_bytes + input_bytes <= self.max_input_bytes
             and not payload.get("tools")
             and payload.get("n", 1) == 1
+            and bool(roles)
+            and all(
+                role in {"developer", "system", "user", "assistant", "tool"}
+                for role in roles
+            )
         )
         if not allowed:
             self.blocked += 1
@@ -248,7 +425,11 @@ class BoundedProvider:
             "missing_output_budget",
         )
         self.total_input_bytes += input_bytes
-        item = {"input_bytes": input_bytes, "selected_model": True}
+        item = {
+            "input_bytes": input_bytes,
+            "selected_model": True,
+            "message_roles": roles,
+        }
         self.calls.append(item)
         try:
             response = await asyncio.wait_for(
@@ -505,6 +686,7 @@ async def gateway_preflight(args, report):
 
 async def run_checks(args, report, directory):
     """Gate application imports and paid calls on the default gateway preflight."""
+    limits = limits_for(args)
     if getattr(args, "rest_recovery", False):
         require_recovery_configuration(args)
         await gateway_preflight(args, report)
@@ -518,7 +700,7 @@ async def run_checks(args, report, directory):
             report["provider"] = {
                 "attempts": [],
                 "blocked_attempts": 0,
-                "max_attempts": MAX_REQUESTS,
+                "max_attempts": limits["requests"],
             }
             return
         report["recovery"] = {
@@ -536,7 +718,7 @@ async def run_checks(args, report, directory):
         report["provider"] = {
             "attempts": [],
             "blocked_attempts": 0,
-            "max_attempts": MAX_REQUESTS,
+            "max_attempts": limits["requests"],
         }
         return
     await run(args, report, directory)
@@ -552,11 +734,14 @@ async def run(args, report, directory):
     from services.usage_service import UsageService
 
     recovery_mode = getattr(args, "rest_recovery", False)
+    extended = getattr(args, "extended_rest_recovery", False)
+    limits = limits_for(args)
 
     modules = {
         "conversation_cog": text_cog,
         "text_service": sys.modules["services.text_service"],
         "openai_model": sys.modules["models.openai_model"],
+        "pickle_service": sys.modules["services.pickle_service"],
     }
     if recovery_mode:
         modules.update(
@@ -598,6 +783,7 @@ async def run(args, report, directory):
     fixture_ids = set()
     recovery_fixtures = {}
     recovery_poll_calls = 0
+    resources = OwnedDiscordResources(bot, args.guild_id, args.channel_id)
 
     def check(name, **details):
         report["checks"].append({"name": name, "status": "passed", **details})
@@ -632,7 +818,8 @@ async def run(args, report, directory):
                 require(message.author.id == args.member_id, "recovery_fixture_actor")
                 recovery_fixtures[message.id] = copy.deepcopy(payload)
                 require(
-                    len(recovery_fixtures) <= MAX_REQUESTS, "recovery_fixture_budget"
+                    len(recovery_fixtures) <= limits["requests"],
+                    "recovery_fixture_budget",
                 )
                 recovery_poll_calls += 1
                 await asyncio.wait_for(recovery.poll_once(), timeout=120)
@@ -665,7 +852,11 @@ async def run(args, report, directory):
 
     async def fixture(content, *, deny=False, reply_to=None):
         current = await membership()
-        options = {"reference": reply_to, "mention_author": False} if reply_to else {}
+        options = (
+            {"reference": reply_to.to_reference(), "mention_author": False}
+            if reply_to
+            else {}
+        )
         posted = await thread.send("Smoke input fixture: " + content, **options)
         fixture_ids.add(posted.id)
         payload = await bot.http.get_message(thread.id, posted.id)
@@ -714,67 +905,59 @@ async def run(args, report, directory):
         )
         return payload["content"]
 
+    def control_button(response, custom_id):
+        view = bot._connection._view_store._synced_message_views.get(response.id)
+        require(view is not None, "response_controls_missing")
+        matching = [item for item in view.children if item.custom_id == custom_id]
+        require(len(matching) == 1, "response_control_missing")
+        return matching[0]
+
+    async def invoke_control(button, response):
+        interaction, acknowledgement = control_interaction(
+            bot, thread, response, await membership(), button.custom_id
+        )
+        await asyncio.wait_for(button.callback(interaction), timeout=120)
+        require(
+            acknowledgement.is_done() and acknowledgement.private_only,
+            "control_synthetic_private_acknowledgement",
+        )
+        require(bot.get_guild(args.guild_id) is None, "recovery_gateway_cache_changed")
+        report["view_callbacks_tested"] = True
+        report["view_callback_invocation"] = (
+            "direct_sdk_context_synthetic_acknowledgement"
+        )
+        return acknowledgement
+
+    async def end_and_check_stale_retry():
+        response = cog.redo_users[args.member_id].response
+        retry = control_button(response, "conversation_redo")
+        end = control_button(response, "conversation_end")
+        calls_before = len(provider.calls)
+        history_before = copy.deepcopy(conversation.history)
+        await invoke_control(end, response)
+        remote = await bot.http.get_channel(thread.id)
+        require(
+            remote["thread_metadata"]["archived"] is True
+            and thread.id not in cog.conversation_threads
+            and thread.id not in cog.conversation_thread_owners.get(args.member_id, []),
+            "end_did_not_close_owned_thread",
+        )
+        await invoke_control(retry, response)
+        require(
+            len(provider.calls) == calls_before
+            and provider.blocked == 0
+            and conversation.history == history_before,
+            "stale_retry_after_end_generated",
+        )
+
     async def cleanup():
-        results = []
-        if owned_thread_id is not None:
-            try:
-                current = await asyncio.wait_for(
-                    bot.http.get_channel(owned_thread_id), 30
-                )
-                require(
-                    int(current["owner_id"]) == bot.user.id
-                    and int(current["parent_id"]) == args.channel_id
-                    and int(current["guild_id"]) == args.guild_id,
-                    "cleanup_thread_ownership",
-                )
-                await asyncio.wait_for(
-                    bot.http.delete_channel(
-                        owned_thread_id, reason="GPTDiscord conversation smoke cleanup"
-                    ),
-                    30,
-                )
-                results.append({"resource": "owned_thread", "status": "deleted"})
-            except discord.NotFound:
-                results.append({"resource": "owned_thread", "status": "already_absent"})
-            except Exception as error:
-                results.append(
-                    {
-                        "resource": "owned_thread",
-                        "status": "failed",
-                        **failure_shape(error),
-                    }
-                )
-        if starter_id is not None:
-            try:
-                current = await asyncio.wait_for(
-                    bot.http.get_message(args.channel_id, starter_id), 30
-                )
-                require(
-                    int(current["author"]["id"]) == bot.user.id,
-                    "cleanup_starter_ownership",
-                )
-                await asyncio.wait_for(
-                    bot.http.delete_message(args.channel_id, starter_id), 30
-                )
-                results.append({"resource": "owned_starter", "status": "deleted"})
-            except discord.NotFound:
-                results.append(
-                    {"resource": "owned_starter", "status": "already_absent"}
-                )
-            except Exception as error:
-                results.append(
-                    {
-                        "resource": "owned_starter",
-                        "status": "failed",
-                        **failure_shape(error),
-                    }
-                )
+        results = await resources.cleanup()
         report["cleanup"] = results
         if any(item["status"] == "failed" for item in results):
             report["status"] = "failed"
 
     try:
-        async with asyncio.timeout(480):
+        async with asyncio.timeout(limits["timeout"]):
             # login() performs the actual GET /users/@me; never connect gateway.
             await bot.login(os.environ["DISCORD_TOKEN"])
             require(bot.user.bot, "bot_token_required")
@@ -834,7 +1017,12 @@ async def run(args, report, directory):
             model = Model(usage)
             model.max_tokens = OUTPUT_TOKENS
             model.summarize_conversations = False
-            provider = BoundedProvider(model, args.model)
+            provider = BoundedProvider(
+                model,
+                args.model,
+                max_requests=limits["requests"],
+                max_input_bytes=limits["input_bytes"],
+            )
             model._post_json = provider
             cog = text_cog.GPT3ComCon(
                 bot,
@@ -858,9 +1046,14 @@ async def run(args, report, directory):
                     recovery.path.parent.resolve() == directory.resolve(),
                     "recovery_database_not_isolated",
                 )
-                # Exercise the actual worker lifecycle while keeping each paid
-                # poll explicitly bounded by this script's existing budget.
-                recovery.interval = 3600
+                # Each production poll is explicitly driven by this harness.
+                # An automatic first poll could consume a bot fixture before
+                # its simulated authorship is registered, or overlap a stage.
+                recovery.start = lambda: None
+                report["recovery"].update(
+                    poll_driver="bounded_manual_poll_once",
+                    worker_lifecycle_tested=False,
+                )
                 original_prepare = recovery.prepare_context
                 original_watch = recovery.watch_thread
                 setup_calls = {"prepare": 0, "watch": 0}
@@ -885,6 +1078,7 @@ async def run(args, report, directory):
                 nonlocal starter_id
                 require(starter_id is None, "unexpected_second_starter")
                 starter_id = message_id
+                resources.starter(message_id)
                 report["created"] = {"starter_id": starter_id}
 
             original_start = bot.http.start_thread_with_message
@@ -898,6 +1092,7 @@ async def run(args, report, directory):
                     "thread_creation_scope",
                 )
                 payload = await original_start(channel_id, message_id, **kwargs)
+                resources.thread(payload)
                 owned_thread_id = int(payload["id"])
                 report["created"]["thread_id"] = owned_thread_id
                 return payload
@@ -951,14 +1146,16 @@ async def run(args, report, directory):
                     thread_watched=True,
                     database_isolated=True,
                 )
+                original_logs_from = bot.http.logs_from
                 bot.http.logs_from = RecoveryFixtureReader(
-                    bot.http.logs_from,
+                    original_logs_from,
                     thread_id=owned_thread_id,
                     guild_id=args.guild_id,
                     bot_id=bot.user.id,
                     member_id=args.member_id,
                     fixtures=recovery_fixtures,
                     membership=membership,
+                    max_fixtures=limits["requests"],
                 )
             else:
                 guild._add_thread(thread)
@@ -1076,6 +1273,186 @@ async def run(args, report, directory):
                     duplicate_create_ignored=True,
                 )
                 report["recovery_transport_tested"] = True
+                if extended:
+                    public_response = cog.redo_users[args.member_id].response
+                    retry = control_button(public_response, "conversation_redo")
+                    previous_history = [item.text for item in conversation.history]
+                    full_history_size = len(cog.full_conversation_history[thread.id])
+                    previous_count = conversation.count
+                    await invoke_control(retry, public_response)
+                    retried_output = await response_content()
+                    require(
+                        len(provider.calls) == 4
+                        and "VERIFIED_" + word in retried_output.upper()
+                        and cog.redo_users[args.member_id].response.id
+                        == public_response.id,
+                        "retry_visible_answer_contract",
+                    )
+                    require(
+                        provider.calls[3]["message_roles"]
+                        == provider.calls[2]["message_roles"]
+                        and provider.calls[3]["message_roles"][-1] == "user"
+                        and len(provider.calls[3]["message_roles"]) == 6,
+                        "retry_payload_includes_previous_answer",
+                    )
+                    require(
+                        len(conversation.history) == len(previous_history)
+                        and [item.text for item in conversation.history[:-1]]
+                        == previous_history[:-1]
+                        and retried_output.strip() in conversation.history[-1].text
+                        and conversation.count == previous_count
+                        and len(cog.full_conversation_history[thread.id])
+                        == full_history_size
+                        and retried_output.strip()
+                        in cog.full_conversation_history[thread.id][-1],
+                        "retry_memory_replacement_contract",
+                    )
+                    check(
+                        "retry_latest_turn",
+                        provider_calls_added=1,
+                        memory_replaced=True,
+                    )
+                    await end_and_check_stale_retry()
+                    check(
+                        "public_end_and_stale_retry",
+                        provider_calls_added=0,
+                        archived=True,
+                    )
+
+                    require(
+                        parent.permissions_for(guild.me).create_private_threads,
+                        "bot_private_thread_permission",
+                    )
+                    original_private_start = bot.http.start_thread_without_message
+
+                    async def record_private_thread(channel_id, **kwargs):
+                        nonlocal owned_thread_id
+                        require(
+                            channel_id == args.channel_id
+                            and len(resources.threads) == 1,
+                            "private_thread_creation_scope",
+                        )
+                        payload = await original_private_start(channel_id, **kwargs)
+                        resources.thread(payload, "owned_private_thread")
+                        owned_thread_id = int(payload["id"])
+                        report["created"]["private_thread_id"] = owned_thread_id
+                        return payload
+
+                    bot.http.start_thread_without_message = record_private_thread
+                    private_member = await membership()
+                    private_context = StartContext(
+                        parent,
+                        discord.Member(
+                            data=private_member, guild=guild, state=bot._connection
+                        ),
+                        private_member,
+                        record_starter,
+                    )
+                    await cog.converse_command(
+                        private_context,
+                        draw=False,
+                        opener=None,
+                        opener_file=None,
+                        private=True,
+                        minimal=True,
+                        model=args.model,
+                        temperature=None,
+                        top_p=None,
+                        frequency_penalty=None,
+                        presence_penalty=None,
+                        use_threads=True,
+                    )
+                    private_data = await bot.http.get_channel(owned_thread_id)
+                    require(
+                        private_data["type"] == discord.ChannelType.private_thread.value
+                        and owned_thread_id in cog.conversation_threads
+                        and setup_calls == {"prepare": 2, "watch": 2},
+                        "private_thread_start_contract",
+                    )
+                    thread = discord.Thread(
+                        guild=guild, state=bot._connection, data=private_data
+                    )
+                    from discord.http import Route
+
+                    actual_thread_member = await bot.http.request(
+                        Route(
+                            "GET",
+                            "/channels/{channel_id}/thread-members/{user_id}",
+                            channel_id=thread.id,
+                            user_id=args.member_id,
+                        )
+                    )
+                    require(
+                        int(actual_thread_member.get("user_id", 0)) == args.member_id
+                        and int(actual_thread_member.get("id", 0)) == thread.id,
+                        "private_owner_not_thread_member",
+                    )
+                    conversation = cog.conversation_threads[thread.id]
+                    require(
+                        conversation.model == args.model,
+                        "private_chosen_model_not_stored",
+                    )
+                    recovery_fixtures = {}
+                    bot.http.logs_from = RecoveryFixtureReader(
+                        original_logs_from,
+                        thread_id=thread.id,
+                        guild_id=args.guild_id,
+                        bot_id=bot.user.id,
+                        member_id=args.member_id,
+                        fixtures=recovery_fixtures,
+                        membership=membership,
+                        max_fixtures=limits["requests"],
+                    )
+                    check(
+                        "private_start_and_explicit_membership",
+                        thread_type=12,
+                        owner_member_verified=True,
+                    )
+                    private_word = "PRIVATE" + secrets.token_hex(6).upper()
+                    private_first = await fixture(
+                        f"My private verification word is {private_word}. Remember it. Reply only STORED."
+                    )
+                    await dispatch_payload("MESSAGE_CREATE", private_first)
+                    require(
+                        "STORED" in (await response_content()).upper()
+                        and len(provider.calls) == 5,
+                        "private_first_turn_contract",
+                    )
+                    private_second = await fixture(
+                        "Reply with only my private verification word from earlier.",
+                        reply_to=cog.redo_users[args.member_id].response,
+                    )
+                    await dispatch_payload("MESSAGE_CREATE", private_second)
+                    private_output = await response_content()
+                    require(
+                        private_word in private_output.upper()
+                        and word not in private_output.upper()
+                        and len(provider.calls) == 6
+                        and len(conversation.history) == 5
+                        and conversation.count == 2,
+                        "private_memory_isolation_contract",
+                    )
+                    check(
+                        "private_two_turn_memory",
+                        provider_calls_added=2,
+                        history_items=5,
+                        isolated=True,
+                    )
+                    await end_and_check_stale_retry()
+                    check(
+                        "private_end_and_stale_retry",
+                        provider_calls_added=0,
+                        archived=True,
+                    )
+                    report["extended_recovery"] = {
+                        "status": "passed",
+                        "private_thread_tested": True,
+                        "explicit_private_membership_tested": True,
+                        "retry_memory_tested": True,
+                        "end_callbacks_tested": True,
+                        "closed_retry_provider_calls": 0,
+                        "acknowledgement_transport": "synthetic_local_adapter",
+                    }
                 require(
                     os.environ.get("BOT_ACCESS_ROLE_IDS") == args.restriction,
                     "production_restriction_changed",
@@ -1118,7 +1495,7 @@ async def run(args, report, directory):
                 "edited_turn_memory_contract",
             )
             require(
-                len(conversation.history) == 5 and conversation.count == 3,
+                len(conversation.history) == 5 and conversation.count == 2,
                 "edited_turn_replaced_history",
             )
             check(
@@ -1138,10 +1515,10 @@ async def run(args, report, directory):
         report["provider"] = {
             "attempts": provider.calls if provider else [],
             "blocked_attempts": provider.blocked if provider else 0,
-            "max_attempts": MAX_REQUESTS,
+            "max_attempts": limits["requests"],
             "max_output_tokens_per_attempt": OUTPUT_TOKENS,
             "max_input_bytes_per_attempt": MAX_INPUT_BYTES,
-            "max_total_input_bytes": MAX_TOTAL_INPUT_BYTES,
+            "max_total_input_bytes": limits["input_bytes"],
         }
         if recovery is not None:
             try:
@@ -1184,6 +1561,11 @@ def main(argv=None):
         help="Require a missing Gateway guild and exercise explicitly configured REST recovery; human fixture authorship is simulated.",
     )
     parser.add_argument(
+        "--extended-rest-recovery",
+        action="store_true",
+        help="With --rest-recovery, allow up to six paid attempts and test Retry/End callbacks plus a real private conversation. Callback acknowledgements are simulated.",
+    )
+    parser.add_argument(
         "--installed",
         action="store_true",
         help="Use this interpreter's installed application; requires python -I.",
@@ -1194,6 +1576,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not args.live:
         parser.error("--live is required; no calls were made")
+    if args.extended_rest_recovery and not args.rest_recovery:
+        parser.error("--extended-rest-recovery requires --rest-recovery")
     if args.installed and not sys.flags.isolated:
         parser.error("--installed requires invoking Python with -I")
     if not all(
@@ -1235,7 +1619,11 @@ def main(argv=None):
     report = {
         "status": "failed",
         "scope": (
-            "rest_conversation_recovery"
+            (
+                "extended_rest_conversation_recovery"
+                if args.extended_rest_recovery
+                else "rest_conversation_recovery"
+            )
             if args.rest_recovery
             else (
                 "hybrid_rest_parser_listener"

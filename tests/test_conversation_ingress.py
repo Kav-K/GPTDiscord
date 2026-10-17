@@ -353,7 +353,7 @@ async def test_owner_cannot_end_shared_thread_while_another_maintainer_is_waitin
     assert THREAD_ID in cog.conversation_threads
     assert cog.conversation_thread_owners[OWNER_ID] == [THREAD_ID, THREAD_ID + 1]
     ctx.reply.assert_awaited_once()
-    assert "wait" in ctx.reply.await_args.kwargs["embed"].title.lower()
+    assert "wait" in ctx.reply.await_args.args[0].lower()
     await service.close()
 
 
