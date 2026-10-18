@@ -408,7 +408,6 @@ async def test_optional_chats_register_prepare_and_enroll_scoped_recovery(monkey
     monkeypatch.setattr(module, "create_chat_llm", lambda **kwargs: object())
     monkeypatch.setattr(module, "create_chat_agent", lambda *args, **kwargs: SimpleNamespace(memory=SimpleNamespace()))
     if integration == "search":
-        monkeypatch.setattr(module, "WOLFRAM_API_KEY", None)
         monkeypatch.setattr(module, "GoogleSearchAPIWrapper", lambda **kwargs: SimpleNamespace(run=lambda query: "result"))
     recovery = SimpleNamespace(
         register_route=Mock(), enabled_for=lambda guild_id: guild_id == 1,

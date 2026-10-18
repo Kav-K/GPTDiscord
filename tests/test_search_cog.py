@@ -27,7 +27,6 @@ def search_module(monkeypatch, tmp_path):
     module = importlib.import_module("cogs.search_service_cog")
     monkeypatch.setattr(module, "USER_INPUT_API_KEYS", False)
     monkeypatch.setattr(module, "PRE_MODERATE", False)
-    monkeypatch.setattr(module, "WOLFRAM_API_KEY", None)
     return module
 
 

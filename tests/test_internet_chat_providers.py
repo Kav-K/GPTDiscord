@@ -31,7 +31,6 @@ def internet(monkeypatch, tmp_path):
     monkeypatch.setattr(module, "PRE_MODERATE", False)
     monkeypatch.setattr(module, "GOOGLE_API_KEY", None)
     monkeypatch.setattr(module, "GOOGLE_SEARCH_ENGINE_ID", None)
-    monkeypatch.setattr(module, "WOLFRAM_API_KEY", None)
     monkeypatch.setattr(module, "safe_ctx_respond", AsyncMock())
     return module
 
