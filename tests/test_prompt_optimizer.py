@@ -212,7 +212,6 @@ async def test_retry_preserves_active_chat_and_uses_original_prompt_with_current
     redo = object()
     flow.cog.conversation_threads[PARENT] = conversation
     flow.cog.redo_users[MEMBER] = redo
-    flow.cog.users_to_interactions[MEMBER] = [123]
     message = await publish(flow, "The original raw prompt")
     view = published_view(flow, message)
     flow.optimizer_module.USER_KEY_DB[MEMBER] = "rotated-personal-key"
@@ -230,7 +229,6 @@ async def test_retry_preserves_active_chat_and_uses_original_prompt_with_current
     assert flow.cog.conversation_threads[PARENT] is conversation
     assert conversation.history is history
     assert flow.cog.redo_users[MEMBER] is redo
-    assert flow.cog.users_to_interactions[MEMBER] == [123]
     flow.optimizer_module.TextService.encapsulated_send.assert_not_awaited()
 
 
@@ -279,7 +277,6 @@ async def test_draw_delivers_real_image_followup_and_complete_image_retry_metada
     image_bytes = source.read_bytes()
     attachment = discord.File(io.BytesIO(image_bytes), filename="generated-images.png")
     flow.image_cog.converser_cog = flow.cog
-    flow.image_cog.redo_users = {}
 
     async def generate(ctx, prompt, quality, image_size, style, **kwargs):
         assert ctx.interaction is interaction
@@ -307,7 +304,18 @@ async def test_draw_delivers_real_image_followup_and_complete_image_retry_metada
         assert request.args[1:] == (message.content, "auto", "1024x1024", "vivid")
         assert request.kwargs == {"custom_api_key": "current-image-key"}
         assert flow.adapter.uploads == [("generated-images.png", image_bytes)]
-        redo = flow.image_cog.redo_users[MEMBER]
+        image_module = importlib.import_module("services.image_service")
+        image_views = {
+            stored_view.message.id: stored_view
+            for stored_view in flow.state._view_store._synced_message_views.values()
+            if isinstance(stored_view, image_module.SaveView)
+        }
+        assert len(image_views) == 1
+        image_view = next(iter(image_views.values()))
+        redo = image_view.request
+        assert image_view.owner_id == MEMBER
+        assert redo.response.id == image_view.message.id
+        assert redo.response.channel.id == image_view.message.channel.id
         assert isinstance(redo.response, discord.Message)
         assert redo.response.id != interaction.id
         assert redo.prompt == message.content
@@ -317,16 +325,7 @@ async def test_draw_delivers_real_image_followup_and_complete_image_retry_metada
         assert len(redo.response.attachments) == 1
         assert redo.response.attachments[0].filename == "generated-images.png"
         fetch.assert_not_awaited()
-        assert redo.response.id in flow.cog.users_to_interactions[MEMBER]
-        image_module = importlib.import_module("services.image_service")
-        image_views = [
-            stored_view
-            for stored_view, _ in flow.state._view_store._views.values()
-            if isinstance(stored_view, image_module.SaveView)
-            and stored_view.message.id == redo.response.id
-        ]
-        assert image_views
-        assert getattr(image_views[0], "custom_api_key", None) is None
+        assert getattr(image_view, "custom_api_key", None) is None
         assert flow.messages[redo.response.id]["components"]
     finally:
         attachment.close()

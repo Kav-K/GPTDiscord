@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class DrawDallEService(discord.Cog, name="DrawDallEService"):
-    """Cog containing a draw commands and file management for saved images"""
+    """Generate images and manage their saved files."""
 
     def __init__(
         self, bot, usage_service, model, message_queue, deletion_queue, converser_cog
@@ -29,7 +29,6 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         self.deletion_queue = deletion_queue
         self.converser_cog = converser_cog
         print("Draw service initialized")
-        self.redo_users = {}
 
     async def draw_command(
         self,
@@ -40,7 +39,7 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
         style: str,
         from_action=False,
     ):
-        """With an ApplicationContext and prompt, send a dalle image to the invoked channel. Ephemeral if from an action"""
+        """Generate an image in the invoked channel."""
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -80,19 +79,6 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                 content="Something went wrong. Please try again later.",
                 ephemeral=from_action,
             )
-
-    async def draw_old_command(
-        self, ctx: discord.ApplicationContext, prompt: str, from_action=False
-    ):
-        """Keep the original slash command as an alias for current image generation."""
-        await self.draw_command(
-            ctx,
-            prompt,
-            quality="auto",
-            image_size="1024x1024",
-            style="vivid",
-            from_action=from_action,
-        )
 
     async def draw_action(self, ctx, message):
         """decoupler to handle context actions for the draw command"""

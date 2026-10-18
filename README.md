@@ -134,7 +134,9 @@ CI builds both base and full images on pull requests. Registry publication is li
 
 Conversation sharing now uses an owner-only private TXT download instead of the obsolete ShareGPT service. Retired `best_of`, `mode`, and `use_org` settings are no longer loaded or written. Old entries are ignored and removed when system settings are reset; conversations, indexes, and user API keys are preserved. API retirement decisions follow [OpenAI's API deprecations](https://developers.openai.com/api/docs/deprecations), reviewed on October 18, 2026.
 
-Generated images offer per-image **Vary** controls using the current GPT Image edit API. This creates a source-guided variation preserving the subject and style; it differs from retired DALL·E random variation sampling. Retry retains the source image. There is no general upload/edit slash command.
+Use `/dalle draw` to generate images and `/dalle optimize` to refine a prompt before drawing. The redundant `/dalle draw_old` alias has been removed. The message context menu also offers **Draw**.
+
+Generated images offer per-image **Vary** controls using the current GPT Image edit API. This creates a source-guided variation preserving the subject and style; it differs from retired DALL·E random variation sampling. Retry retains the source image. **Save** remains available after generation controls expire. There is no general upload/edit slash command.
 
 Image sizes are `auto`, square `1024x1024`, landscape `1536x1024`, or portrait `1024x1536`. Saved `256x256` and `512x512` settings migrate to `1024x1024`.
 

@@ -169,6 +169,7 @@ async def test_vary_adds_new_image_and_retry_retains_original_source_with_fresh_
     source = str(flow.generated[0][0])
     flow.image_model.send_image_request.reset_mock()
     flow.image_configuration.USER_KEY_DB[MEMBER] = "rotated-variation-key"
+    existing_messages = set(flow.messages)
 
     await vary(view).callback(click(flow, original))
 
@@ -181,13 +182,15 @@ async def test_vary_adds_new_image_and_retry_retains_original_source_with_fresh_
         "natural",
     )
     assert edit.await_args.kwargs == {"custom_api_key": "rotated-variation-key"}
-    request = flow.image_cog.redo_users[MEMBER]
+    new_messages = set(flow.messages) - existing_messages
+    assert len(new_messages) == 1
+    variant_view = current_view(flow, SimpleNamespace(id=new_messages.pop()))
+    request = variant_view.request
     variant = request.response
     assert variant.id != original.id
     assert request.image_reference == source
     assert flow.messages[original.id] == unchanged
     assert len(variant.attachments) == 1
-    variant_view = current_view(flow, variant)
     assert variant_view.lock is view.lock
     flow.image_configuration.USER_KEY_DB[MEMBER] = "rotated-again-key"
 
@@ -308,9 +311,12 @@ async def test_varying_variant_uses_its_own_output_and_timeout_keeps_download(
 ):
     flow = variations
     message = await flow.publish_image()
+    existing_messages = set(flow.messages)
     await vary(current_view(flow, message)).callback(click(flow, message))
-    variant = flow.image_cog.redo_users[MEMBER].response
-    variant_view = current_view(flow, variant)
+    new_messages = set(flow.messages) - existing_messages
+    assert len(new_messages) == 1
+    variant_view = current_view(flow, SimpleNamespace(id=new_messages.pop()))
+    variant = variant_view.message
     variant_source = str(flow.generated[1][0])
 
     await vary(variant_view).callback(click(flow, variant))

@@ -19,7 +19,6 @@ class ImageService:
         ctx,
         response_message=None,
         vary=None,
-        draw_from_optimizer=None,
         custom_api_key=None,
         quality=None,
         image_size=None,
@@ -30,7 +29,7 @@ class ImageService:
         file = None
         try:
             model = image_service_cog.model
-            image_reference = vary if not draw_from_optimizer else None
+            image_reference = vary
             if image_reference is not None:
                 file, image_urls = await model.send_image_edit_request(
                     ctx,
@@ -95,20 +94,14 @@ class ImageService:
             )
             await message.edit(
                 view=SaveView(
-                    ctx,
                     image_urls,
                     image_service_cog,
-                    image_service_cog.converser_cog,
                     message,
                     request=request,
                     owner_id=user_id,
                     control_lock=control_lock,
                 )
             )
-            image_service_cog.redo_users[user_id] = request
-            image_service_cog.converser_cog.users_to_interactions[user_id] = [
-                message.id
-            ]
             return message
         except OpenAIAPIError as error:
             message = openai_error_message(error)
@@ -127,24 +120,18 @@ class ImageService:
 class SaveView(discord.ui.View):
     def __init__(
         self,
-        ctx,
         image_urls,
         cog,
-        converser_cog,
         message,
-        no_retry=False,
         only_save=None,
-        custom_api_key=None,
         *,
         request=None,
         owner_id=None,
         control_lock=None,
     ):
         super().__init__(timeout=None if only_save else 3600)
-        self.ctx = ctx
         self.image_urls = image_urls
         self.cog = cog
-        self.converser_cog = converser_cog
         self.message = message
         self.request = request
         self.owner_id = owner_id
@@ -153,7 +140,7 @@ class SaveView(discord.ui.View):
             self.add_item(SaveButton(number, reference))
             if not only_save and request is not None:
                 self.add_item(VaryButton(number, reference))
-        if not only_save and not no_retry and request is not None:
+        if not only_save and request is not None:
             self.add_item(RedoButton())
 
     async def run(self, interaction: discord.Interaction, *, image_reference=None):
@@ -224,10 +211,8 @@ class SaveView(discord.ui.View):
 
     async def on_timeout(self):
         view = SaveView(
-            self.ctx,
             self.image_urls,
             self.cog,
-            self.converser_cog,
             self.message,
             only_save=True,
         )
