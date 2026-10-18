@@ -63,7 +63,6 @@ class DrawDallEService(discord.Cog, name="DrawDallEService"):
                 prompt,
                 ctx,
                 custom_api_key=user_api_key,
-                dalle_3=True,
                 quality=quality,
                 image_size=image_size,
                 style=style,

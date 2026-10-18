@@ -39,7 +39,7 @@ async def test_send_req(model):
 async def test_send_req_gpt(model):
     prompt = "how many hours are in a day?"
     res = await model.send_request(
-        prompt, None, is_chatgpt_request=True, model="gpt-4o-mini"
+        prompt, None, model="gpt-4o-mini"
     )
     assert "24" in res["choices"][0]["message"]["content"]
 
@@ -49,7 +49,7 @@ async def test_send_req_gpt(model):
 async def test_send_req_gpt4(model):
     prompt = "how many hours are in a day?"
     res = await model.send_request(
-        prompt, None, is_chatgpt_request=True, model="gpt-4o"
+        prompt, None, model="gpt-4o"
     )
     assert "24" in res["choices"][0]["message"]["content"]
 

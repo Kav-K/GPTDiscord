@@ -13,7 +13,6 @@ class RedoUser:
         ctx,
         response,
         paginator,
-        dalle_3=False,
         quality=None,
         image_size=None,
         style=None,
@@ -26,7 +25,6 @@ class RedoUser:
         self.response = response
         self.paginator = paginator
         self.interactions = []
-        self.dalle_3 = dalle_3
         self.quality = quality
         self.image_size = image_size
         self.style = style

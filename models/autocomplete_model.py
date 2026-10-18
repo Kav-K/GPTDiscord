@@ -109,13 +109,13 @@ class Settings_autocompleter:
         """Gets all models"""
         return _matching_choices(ctx, Models.TEXT_MODELS)
 
-    async def get_dalle3_image_qualities(ctx: discord.AutocompleteContext):
+    async def get_image_qualities(ctx: discord.AutocompleteContext):
         return _matching_choices(ctx, ["auto", "low", "medium", "high", "xhigh", "max"])
 
-    async def get_dalle3_image_sizes(ctx: discord.AutocompleteContext):
-        return _matching_choices(ctx, ["auto", "1024x1024", "1536x1024", "1024x1536"])
+    async def get_image_sizes(ctx: discord.AutocompleteContext):
+        return _matching_choices(ctx, ImageSize.ALL_SIZES)
 
-    async def get_dalle3_image_styles(ctx: discord.AutocompleteContext):
+    async def get_image_styles(ctx: discord.AutocompleteContext):
         return _matching_choices(ctx, ["natural", "vivid"])
 
     async def get_value_moderations(

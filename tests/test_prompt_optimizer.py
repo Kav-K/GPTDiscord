@@ -258,7 +258,6 @@ async def test_draw_acknowledges_before_normal_image_workflow_with_current_key(
     assert request.args[3].interaction is interaction
     assert request.kwargs == {
         "custom_api_key": "rotated-image-key",
-        "dalle_3": True,
         "image_size": "1024x1024",
         "style": "vivid",
         "quality": "auto",
@@ -312,7 +311,6 @@ async def test_draw_delivers_real_image_followup_and_complete_image_retry_metada
         assert isinstance(redo.response, discord.Message)
         assert redo.response.id != interaction.id
         assert redo.prompt == message.content
-        assert redo.dalle_3 is True
         assert redo.quality == "auto"
         assert redo.image_size == "1024x1024"
         assert redo.style == "vivid"
@@ -328,7 +326,6 @@ async def test_draw_delivers_real_image_followup_and_complete_image_retry_metada
             and stored_view.message.id == redo.response.id
         ]
         assert image_views
-        assert image_views[0].dalle_3 is True
         assert getattr(image_views[0], "custom_api_key", None) is None
         assert flow.messages[redo.response.id]["components"]
     finally:

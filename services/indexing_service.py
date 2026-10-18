@@ -171,6 +171,7 @@ def create_index_context(api_key=None, model=None, llm=None, embedding_model=Non
     if Models.is_reasoning(model):
         kwargs.pop("temperature", None)
         kwargs["reasoning_options"] = {}
+    Models.validate_text_model(model)
     embedding_model = embedding_model or EnvService.get_openai_embedding_model()
     embed_kwargs = (
         {} if embedding_model == "text-embedding-ada-002" else {"dimensions": 1536}

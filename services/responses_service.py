@@ -8,6 +8,7 @@ from urllib.parse import quote, urlsplit
 from openai import AsyncOpenAI
 
 from services.environment_service import EnvService
+from utils.model_validation import validate_text_model
 
 
 @dataclass(frozen=True)
@@ -188,6 +189,7 @@ class ResponsesService:
     async def search(
         self, question: str, model: str, api_key: str | None = None
     ) -> SearchResponse:
+        validate_text_model(model)
         question = question.strip()
         if not question:
             raise ValueError("Enter a question to search for.")

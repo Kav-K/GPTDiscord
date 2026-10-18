@@ -291,15 +291,18 @@ async def test_embedding_and_moderation_use_current_models(model, fake_api):
 
 
 @pytest.mark.asyncio
-async def test_image_generation_uses_base64_and_current_parameters(model, fake_api):
+@pytest.mark.parametrize("quality", ["high", "xhigh", "max"])
+async def test_image_generation_uses_base64_and_current_parameters(
+    model, fake_api, quality
+):
     usage = {"input_tokens": 10, "output_tokens": 40, "total_tokens": 50}
     fake_api.queued.append(({"data": [{"b64_json": "aW1hZ2U="}], "usage": usage}, 200))
     references = await model.send_image_request_within_conversation(
-        "A cat", "hd", "1792x1024", "vivid", num_images=2
+        "A cat", quality, "1536x1024", "vivid", num_images=2
     )
     payload = fake_api.calls[0][1]["json"]
     assert payload["model"] == "gpt-image-2.5-flare"
-    assert payload["quality"] == "high"
+    assert payload["quality"] == quality
     assert payload["size"] == "1536x1024"
     assert payload["output_format"] == "png"
     assert payload["n"] == 2
@@ -308,6 +311,26 @@ async def test_image_generation_uses_base64_and_current_parameters(model, fake_a
     model.usage_service.update_usage_from_response.assert_awaited_once_with(
         usage, Models.IMAGE
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "quality,size",
+    [
+        ("standard", "1024x1024"),
+        ("hd", "1024x1024"),
+        ("high", "256x256"),
+        ("high", "512x512"),
+        ("high", "1792x1024"),
+        ("high", "1024x1792"),
+    ],
+)
+async def test_retired_image_parameters_fail_before_api(model, fake_api, quality, size):
+    with pytest.raises(ValueError, match="image (quality|size)"):
+        await model.send_image_request_within_conversation(
+            "A cat", quality, size, "natural"
+        )
+    assert fake_api.calls == []
 
 
 @pytest.mark.asyncio
@@ -334,21 +357,6 @@ async def test_base64_images_are_saved_and_combined_without_downloads(
         assert attachment.filename == "generated-images.png"
     finally:
         attachment.close()
-
-
-@pytest.mark.asyncio
-async def test_legacy_variation_alias_uses_current_image_edit_path(model, monkeypatch):
-    edit = AsyncMock(return_value=("attachment", ["saved.png"]))
-    monkeypatch.setattr(model, "send_image_edit_request", edit)
-
-    result = await model.send_image_request_old(
-        None, "A cat", vary="saved.png", custom_api_key="current-personal-key"
-    )
-
-    assert result == ("attachment", ["saved.png"])
-    edit.assert_awaited_once_with(
-        None, "A cat", "saved.png", custom_api_key="current-personal-key"
-    )
 
 
 def test_selecting_large_model_preserves_user_output_budget(model):

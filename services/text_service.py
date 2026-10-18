@@ -475,7 +475,6 @@ class TextService:
                     model=model,
                     stop=stop if not from_ask_command else None,
                     custom_api_key=custom_api_key,
-                    is_chatgpt_request=True,
                     system_instruction=system_instruction,
                 )
 

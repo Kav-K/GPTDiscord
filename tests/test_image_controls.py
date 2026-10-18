@@ -104,7 +104,6 @@ async def images(optimizer_flow, monkeypatch, tmp_path):
             prompt,
             ctx,
             custom_api_key="original-image-key",
-            dalle_3=True,
             quality="low",
             image_size="1024x1024",
             style="natural",
@@ -153,7 +152,6 @@ async def test_initial_delivery_binds_bot_authenticated_message_and_image_metada
     assert view.owner_id == MEMBER
     assert view.request.response.id == message.id
     assert view.request.prompt == "The image's own original prompt"
-    assert view.request.dalle_3 is True
     assert view.request.quality == "low"
     assert view.request.image_size == "1024x1024"
     assert view.request.style == "natural"
@@ -378,8 +376,9 @@ async def test_timeout_removes_only_retry_from_bound_message_without_expired_web
 @pytest.mark.parametrize(
     "saved_key", [False, True], ids=["setup-required", "saved-key"]
 )
-async def test_cacheless_draw_command_keeps_setup_acknowledgement_and_delivery_working(
-    images, saved_key
+@pytest.mark.parametrize("command", ["draw", "draw_old"])
+async def test_cacheless_image_commands_keep_setup_acknowledgement_and_delivery_working(
+    images, saved_key, command
 ):
     flow = images
     cog = flow.image_configuration.DrawDallEService(
@@ -397,14 +396,23 @@ async def test_cacheless_draw_command_keeps_setup_acknowledgement_and_delivery_w
     assert ctx.guild is None
     assert ctx.interaction.guild_id == GUILD
 
-    await cog.draw_command(
-        ctx, "A cacheless image prompt", "auto", "1024x1024", "vivid"
-    )
+    if command == "draw_old":
+        await cog.draw_old_command(ctx, "A cacheless image prompt")
+    else:
+        await cog.draw_command(
+            ctx, "A cacheless image prompt", "auto", "1024x1024", "vivid"
+        )
 
     acknowledgement = flow.adapter.initial[ctx.interaction.id]
     if saved_key:
         assert acknowledgement["type"] == 5
         flow.image_model.send_image_request.assert_awaited_once()
+        assert flow.image_model.send_image_request.await_args.args[1:] == (
+            "A cacheless image prompt",
+            "auto",
+            "1024x1024",
+            "vivid",
+        )
         request = cog.redo_users[MEMBER]
         assert len(request.response.attachments) == 1
         assert flow.usage.get_usage_memory(str(GUILD))["image_drawn"] == 1

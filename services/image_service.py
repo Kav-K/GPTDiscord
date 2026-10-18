@@ -21,7 +21,6 @@ class ImageService:
         vary=None,
         draw_from_optimizer=None,
         custom_api_key=None,
-        dalle_3=True,
         quality=None,
         image_size=None,
         style=None,
@@ -42,19 +41,13 @@ class ImageService:
                     style,
                     custom_api_key=custom_api_key,
                 )
-            elif dalle_3:
+            else:
                 file, image_urls = await model.send_image_request(
                     ctx,
                     prompt,
                     quality,
                     image_size,
                     style,
-                    custom_api_key=custom_api_key,
-                )
-            else:
-                file, image_urls = await model.send_image_request_old(
-                    ctx,
-                    prompt,
                     custom_api_key=custom_api_key,
                 )
             embed = discord.Embed(
@@ -95,7 +88,6 @@ class ImageService:
                 response=message,
                 instruction=None,
                 paginator=None,
-                dalle_3=dalle_3,
                 quality=quality,
                 image_size=image_size,
                 style=style,
@@ -108,7 +100,6 @@ class ImageService:
                     image_service_cog,
                     image_service_cog.converser_cog,
                     message,
-                    dalle_3=dalle_3,
                     request=request,
                     owner_id=user_id,
                     control_lock=control_lock,
@@ -144,7 +135,6 @@ class SaveView(discord.ui.View):
         no_retry=False,
         only_save=None,
         custom_api_key=None,
-        dalle_3=False,
         *,
         request=None,
         owner_id=None,
@@ -158,7 +148,6 @@ class SaveView(discord.ui.View):
         self.message = message
         self.request = request
         self.owner_id = owner_id
-        self.dalle_3 = dalle_3
         self.lock = control_lock if control_lock is not None else asyncio.Lock()
         for number, reference in enumerate(image_urls, 1):
             self.add_item(SaveButton(number, reference))
@@ -221,7 +210,6 @@ class SaveView(discord.ui.View):
                         else image_reference
                     ),
                     custom_api_key=user_api_key,
-                    dalle_3=request.dalle_3,
                     quality=request.quality,
                     image_size=request.image_size,
                     style=request.style,

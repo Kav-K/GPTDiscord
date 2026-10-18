@@ -25,12 +25,41 @@ async def test_command_groups_register_with_current_multicog(commands_module):
     groups = {command.name: command for command in bot.pending_application_commands}
     assert {"gpt", "dalle", "index", "internet", "transcribe"} <= groups.keys()
     assert "converse" in {command.name for command in groups["gpt"].subcommands}
-    assert "draw" in {command.name for command in groups["dalle"].subcommands}
+    assert {"draw", "draw_old"} <= {
+        command.name for command in groups["dalle"].subcommands
+    }
     chat = next(command for command in groups["internet"].subcommands if command.name == "chat")
     provider = next(option for option in chat.options if option.name == "provider")
     assert provider.default == "openai"
     assert {choice.value for choice in provider.choices} == {"openai", "google"}
     await bot.close()
+
+
+@pytest.mark.asyncio
+async def test_image_options_use_current_catalog_and_keep_prompt_styles(
+    commands_module,
+):
+    from models.autocomplete_model import Settings_autocompleter
+    from models.openai_model import ImageSize
+
+    ctx = SimpleNamespace(value="", options={"parameter": "image_size"})
+    assert (
+        await Settings_autocompleter.get_value(ctx)
+        == ImageSize.ALL_SIZES
+        == ["auto", "1024x1024", "1536x1024", "1024x1536"]
+    )
+    assert await Settings_autocompleter.get_image_sizes(ctx) == ImageSize.ALL_SIZES
+    assert await Settings_autocompleter.get_image_qualities(ctx) == [
+        "auto",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    ]
+    assert await Settings_autocompleter.get_image_styles(ctx) == ["natural", "vivid"]
+    ctx.value = "15"
+    assert await Settings_autocompleter.get_image_sizes(ctx) == ["1536x1024"]
 
 
 @pytest.mark.asyncio

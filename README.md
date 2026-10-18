@@ -132,9 +132,11 @@ CI builds both base and full images on pull requests. Registry publication is li
 5. Rebuild document indexes when changing embedding models. **Ada and embedding-3 vectors occupy different vector spaces even at the same dimension.** New Pinecone embedding namespaces keep these separate; selecting `text-embedding-ada-002` retains the legacy namespace. Re-ingest historical text to use the newer embeddings. Legacy Pinecone numeric conversation IDs above `2**53` must also be re-ingested; new records store exact string IDs. Old local LlamaIndex storage may also need re-ingestion after the library upgrade.
 6. Rebuild Docker images and check file ownership for existing volumes. Automatic deployment to the old hardcoded SSH host and formatter force-pushes have been removed. Configure deployment separately for your own host.
 
-Conversation sharing now uses an owner-only private TXT download instead of the obsolete ShareGPT service. Retired `best_of`, `mode`, and `use_org` settings are omitted from the settings UI.
+Conversation sharing now uses an owner-only private TXT download instead of the obsolete ShareGPT service. Retired `best_of`, `mode`, and `use_org` settings are no longer loaded or written. Old entries are ignored and removed when system settings are reset; conversations, indexes, and user API keys are preserved. API retirement decisions follow [OpenAI's API deprecations](https://developers.openai.com/api/docs/deprecations), reviewed on October 18, 2026.
 
 Generated images offer per-image **Vary** controls using the current GPT Image edit API. This creates a source-guided variation preserving the subject and style; it differs from retired DALL·E random variation sampling. Retry retains the source image. There is no general upload/edit slash command.
+
+Image sizes are `auto`, square `1024x1024`, landscape `1536x1024`, or portrait `1024x1536`. Saved `256x256` and `512x512` settings migrate to `1024x1024`.
 
 The local usage total is an **estimate**, not an OpenAI invoice. Known text models use separate input, cached-input, and output token rates. Unknown models are logged and excluded rather than billed at an unrelated legacy rate. Image/audio/tool fees are not included in this token estimate; use your provider's usage dashboard for billing.
 
