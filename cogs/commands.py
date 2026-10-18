@@ -1,5 +1,11 @@
+from copy import copy
+
 import discord
-from pycord.multicog import subcommand as add_to_group
+from pycord.multicog import (
+    multicog_commands,
+    multicog_metas,
+    subcommand as add_to_group,
+)
 from cogs.web_search_cog import web_models
 
 from services.environment_service import EnvService
@@ -55,6 +61,68 @@ class Commands(discord.Cog, name="Commands"):
         self.search_cog = search_cog
         self.transcribe_cog = transcribe_cog
         self.code_interpreter_cog = code_interpreter_cog
+        self._configure_commands()
+
+    def _configure_commands(self):
+        """Assemble an instance's command groups from its loaded services."""
+        unavailable_groups = {
+            name
+            for name, service in (
+                ("index", self.index_cog),
+                ("internet", self.search_cog),
+                ("code", self.code_interpreter_cog),
+                ("transcribe", self.transcribe_cog),
+            )
+            if service is None
+        }
+        unavailable_commands = set()
+        if self.translations_cog is None:
+            unavailable_commands.update({"translate", "languages", "translate_action"})
+        if not EnvService.get_user_input_api_keys():
+            unavailable_commands.add("setup")
+        google_available = bool(
+            EnvService.get_google_search_api_key()
+            and EnvService.get_google_search_engine_id()
+        )
+        if not google_available:
+            unavailable_commands.add("search")
+
+        # Multicog and Pycord retain class-level command objects. Build native
+        # groups from copies so one instance cannot alter another's availability.
+        group_names = {
+            command.callback: meta.group
+            for command, meta in zip(multicog_commands, multicog_metas, strict=True)
+        }
+        groups = {
+            command.name: command.copy()
+            for command in self.__cog_commands__
+            if isinstance(command, discord.SlashCommandGroup)
+            and command.name not in unavailable_groups
+        }
+        for group in groups.values():
+            group.subcommands = []
+        commands = list(groups.values())
+        for template in self.__cog_commands__:
+            if isinstance(template, discord.SlashCommandGroup):
+                continue
+            if template.callback.__name__ in unavailable_commands:
+                continue
+            group_name = group_names.get(template.callback)
+            if group_name in unavailable_groups:
+                continue
+            command = template.copy()
+            # Binding validates/rebuilds options; filter only after that step.
+            command._set_cog(self)
+            if template.callback.__name__ == "chat" and not google_available:
+                command.options = [copy(option) for option in command.options]
+                provider = next(option for option in command.options if option.name == "provider")
+                provider.choices = [choice for choice in provider.choices if choice.value == "openai"]
+            if group_name is None:
+                commands.append(command)
+            else:
+                command.parent = groups[group_name]
+                groups[group_name].add_command(command)
+        self.__cog_commands__ = commands
 
     async def _require_integration(self, ctx, name):
         if getattr(self, name) is not None:

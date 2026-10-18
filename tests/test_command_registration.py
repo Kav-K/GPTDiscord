@@ -18,6 +18,7 @@ def module(monkeypatch, tmp_path):
     monkeypatch.setenv("ALLOWED_GUILDS", "11,22")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("SHARE_DIR", str(tmp_path))
+    monkeypatch.setenv("USER_INPUT_API_KEYS", "false")
     result = importlib.import_module("cogs.text_service_cog")
     monkeypatch.setattr(result, "ALLOWED_GUILDS", [11, 22, 11])
     monkeypatch.setattr(result.asyncio, "sleep", AsyncMock())
@@ -40,10 +41,12 @@ async def test_ready_registers_real_commands_only_in_configured_guilds(
     module, monkeypatch
 ):
     from cogs.commands import Commands
+    from cogs.web_search_cog import WebSearchCog
 
     bot = Bot(intents=discord.Intents.none(), auto_sync_commands=False)
     bot._connection.user = SimpleNamespace(id=99)
-    bot.add_cog(Commands(*([None] * 11)))
+    bot.add_cog(Commands(bot, *([None] * 10), transcribe_cog=object()))
+    bot.add_cog(WebSearchCog(bot))
 
     @bot.slash_command(name="global_origin", description="Initially global")
     async def global_origin(ctx):
@@ -60,9 +63,22 @@ async def test_ready_registers_real_commands_only_in_configured_guilds(
     assert global_origin.guild_ids is None
     pending = list(bot.pending_application_commands)
     expected = {(command.name, command.type) for command in pending}
+    unavailable = {
+        ("index", 1), ("internet", 1), ("code", 1),
+        ("translate", 1), ("languages", 1), ("Translate", 3), ("setup", 1),
+    }
+    assert unavailable.isdisjoint(expected)
+    assert {("gpt", 1), ("dalle", 1), ("transcribe", 1), ("web", 1)} <= expected
     remote_global = [{"id": "900", "name": "existing_global", "type": 1}]
     remote_other = [{"id": "901", "name": "existing_other", "type": 1}]
-    remote = {11: [], 22: [], 33: remote_other}
+    remote = {
+        guild_id: [
+            {"id": str(guild_id * 1000 + number), "guild_id": str(guild_id), "name": name, "type": kind}
+            for number, (name, kind) in enumerate(sorted(unavailable))
+        ]
+        for guild_id in (11, 22)
+    }
+    remote[33] = remote_other
     requests = []
 
     async def get_guild(application_id, guild_id):
@@ -116,6 +132,10 @@ async def test_ready_registers_real_commands_only_in_configured_guilds(
             11,
             22,
         }
+        for guild_id in (11, 22):
+            names = {(command["name"], command["type"]) for command in remote[guild_id]}
+            assert names == expected
+            assert unavailable.isdisjoint(names)
         for command in remote[11] + remote[22]:
             cached = bot.all_commands[command["id"]]
             assert (cached.name, cached.type) == (command["name"], command["type"])

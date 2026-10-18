@@ -14,12 +14,17 @@ def commands_module(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_command_groups_register_with_current_multicog(commands_module):
+async def test_command_groups_register_with_current_multicog(commands_module, monkeypatch):
     import discord
     from pycord.multicog import Bot
 
     bot = Bot(intents=discord.Intents.none())
-    commands = commands_module.Commands(*([None] * 11))
+    monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "offline-google-key")
+    monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "offline-engine")
+    commands = commands_module.Commands(
+        *([None] * 9), index_cog=object(), search_cog=object(),
+        transcribe_cog=object(),
+    )
     bot.add_cog(commands)
 
     groups = {command.name: command for command in bot.pending_application_commands}
@@ -33,6 +38,100 @@ async def test_command_groups_register_with_current_multicog(commands_module):
     assert provider.default == "openai"
     assert {choice.value for choice in provider.choices} == {"openai", "google"}
     await bot.close()
+
+
+@pytest.mark.asyncio
+async def test_unloaded_integrations_have_no_registered_slash_or_context_commands(
+    commands_module, monkeypatch,
+):
+    import discord
+    from pycord.multicog import Bot
+
+    monkeypatch.setenv("USER_INPUT_API_KEYS", "false")
+    bot = Bot(intents=discord.Intents.none())
+    try:
+        bot.add_cog(commands_module.Commands(*([None] * 11)))
+        assert {command.name for command in bot.pending_application_commands} == {
+            "gpt", "dalle", "system", "mod", "private-test", "help",
+            "Ask GPT", "Draw", "Elaborate", "Summarize",
+        }
+    finally:
+        await bot.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key,engine", [(False, False), (True, False), (False, True), (True, True)])
+async def test_google_registration_keeps_openai_chat_and_its_bound_handler(
+    commands_module, monkeypatch, key, engine,
+):
+    import discord
+    from pycord.multicog import Bot
+
+    monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "offline-key" if key else "")
+    monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "offline-engine" if engine else "")
+    search = SimpleNamespace(search_chat_command=AsyncMock())
+    commands = commands_module.Commands(*([None] * 11), search_cog=search)
+    bot = Bot(intents=discord.Intents.none())
+    try:
+        bot.add_cog(commands)
+        group = next(command for command in bot.pending_application_commands if command.name == "internet")
+        assert {command.name for command in group.subcommands} == (
+            {"chat", "search"} if key and engine else {"chat"}
+        )
+        chat = next(command for command in group.subcommands if command.name == "chat")
+        provider = next(option for option in chat.options if option.name == "provider")
+        assert {choice.value for choice in provider.choices} == (
+            {"openai", "google"} if key and engine else {"openai"}
+        )
+        assert provider.default == "openai"
+        assert chat.parent is group and chat.cog is commands
+        ctx = object()
+        await chat.callback(chat.cog, ctx, "gpt-6.1-sol")
+        search.search_chat_command.assert_awaited_once_with(
+            ctx, search_scope=2, model="gpt-6.1-sol", temperature=0, top_p=1, provider="openai",
+        )
+    finally:
+        await bot.close()
+
+
+@pytest.mark.asyncio
+async def test_availability_is_isolated_across_enabled_and_disabled_instances(
+    commands_module, monkeypatch,
+):
+    import discord
+    from pycord.multicog import Bot
+
+    bots = []
+    snapshots = []
+    try:
+        for enabled in (True, False, True):
+            monkeypatch.setenv("USER_INPUT_API_KEYS", str(enabled).lower())
+            monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "offline-key" if enabled else "")
+            monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "offline-engine" if enabled else "")
+            service = object() if enabled else None
+            commands = commands_module.Commands(
+                *([None] * 9), index_cog=service, translations_cog=service,
+                search_cog=service, transcribe_cog=service, code_interpreter_cog=service,
+            )
+            bot = Bot(intents=discord.Intents.none())
+            bots.append(bot)
+            bot.add_cog(commands)
+            groups = {command.name: command for command in bot.pending_application_commands}
+            optional = {"index", "internet", "code", "transcribe", "translate", "languages", "Translate", "setup"}
+            assert optional.intersection(groups) == (optional if enabled else set())
+            snapshots.append([command.to_dict() for command in bot.pending_application_commands])
+        assert snapshots[0] == snapshots[2]
+        assert [command.to_dict() for command in bots[0].pending_application_commands] == snapshots[0]
+        for bot in bots:
+            owner = bot.get_cog("Commands")
+            for command in bot.pending_application_commands:
+                assert command.cog is owner
+                if isinstance(command, discord.SlashCommandGroup):
+                    assert all(child.cog is owner and child.parent is command for child in command.subcommands)
+                    assert len({child.name for child in command.subcommands}) == len(command.subcommands)
+    finally:
+        for bot in bots:
+            await bot.close()
 
 
 @pytest.mark.asyncio

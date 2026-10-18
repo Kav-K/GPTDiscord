@@ -61,7 +61,8 @@ def test_missing_extra_has_actionable_error():
 
 
 @pytest.mark.parametrize("enable_code", [False, True])
-def test_core_bot_assembles_without_optional_packages_or_network(tmp_path, enable_code):
+@pytest.mark.parametrize("personal_keys", [False, True])
+def test_core_bot_assembles_without_optional_packages_or_network(tmp_path, enable_code, personal_keys):
     root = Path(__file__).resolve().parents[1]
     env = {
         **os.environ,
@@ -72,18 +73,24 @@ def test_core_bot_assembles_without_optional_packages_or_network(tmp_path, enabl
         "DATA_DIR": str(tmp_path),
         "SHARE_DIR": str(tmp_path),
         "ENABLE_INDEXING": "false",
-        "USER_INPUT_API_KEYS": "false",
+        "USER_INPUT_API_KEYS": str(personal_keys).lower(),
         "HEALTH_SERVICE_ENABLED": "false",
     }
     for key in (
         "PINECONE_TOKEN",
         "E2B_API_KEY",
         "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_SEARCH_ENGINE_ID",
+        "GOOGLE_CSE_ID",
         "DEEPL_TOKEN",
     ):
         env.pop(key, None)
     if enable_code:
         env["E2B_API_KEY"] = "offline-e2b-key"
+    if personal_keys:
+        env.pop("OPENAI_API_KEY", None)
+        env.pop("OPENAI_TOKEN", None)
     code = """
 import asyncio
 import os
@@ -93,6 +100,7 @@ from pycord.multicog import Bot
 import gpt3discord
 
 code_enabled = bool(os.environ.get("E2B_API_KEY"))
+personal_keys = os.environ["USER_INPUT_API_KEYS"] == "true"
 closed = []
 class FakeCode(discord.Cog, name="CodeInterpreterService"):
     def __init__(self, *args):
@@ -109,6 +117,8 @@ gpt3discord.load_optional_service = optional_service
 def forbid_network(*args, **kwargs):
     raise AssertionError("Startup attempted a network request")
 socket.create_connection = forbid_network
+socket.socket.connect = forbid_network
+socket.socket.connect_ex = forbid_network
 async def fake_start(self, token, *args, **kwargs):
     assert token == "test-discord-token"
     assert self.auto_sync_commands is False
@@ -116,7 +126,18 @@ async def fake_start(self, token, *args, **kwargs):
     assert self.get_cog("WebSearchCog") is not None
     assert self.get_cog("IndexService") is None
     assert self.get_cog("SearchService") is None
+    assert self.get_cog("TranslationService") is None
     assert (self.get_cog("CodeInterpreterService") is not None) == code_enabled
+    commands = {command.name: command for command in self.pending_application_commands}
+    assert {"gpt", "dalle", "system", "mod", "web", "transcribe"} <= commands.keys()
+    assert {"index", "internet", "translate", "languages", "Translate"}.isdisjoint(commands)
+    assert ("code" in commands) == code_enabled
+    assert ("setup" in commands) == personal_keys
+    assert {command.name for command in commands["gpt"].subcommands} >= {"ask", "converse"}
+    assert {command.name for command in commands["dalle"].subcommands} == {"draw", "optimize"}
+    assert {command.name for command in commands["transcribe"].subcommands} == {"file", "link"}
+    if personal_keys:
+        assert gpt3discord.EnvService.get_openai_token() is None
     print("CORE_ASSEMBLED")
 Bot.start = fake_start
 # Simulate the base install even when this test runs in the full-extras matrix.
