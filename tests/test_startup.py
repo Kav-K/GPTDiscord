@@ -116,9 +116,6 @@ gpt3discord.load_optional_service = optional_service
 
 def forbid_network(*args, **kwargs):
     raise AssertionError("Startup attempted a network request")
-socket.create_connection = forbid_network
-socket.socket.connect = forbid_network
-socket.socket.connect_ex = forbid_network
 async def fake_start(self, token, *args, **kwargs):
     assert token == "test-discord-token"
     assert self.auto_sync_commands is False
@@ -147,7 +144,13 @@ def base_import(name, *args, **kwargs):
         raise ImportError("Optional search dependencies are not installed")
     return original_import(name, *args, **kwargs)
 gpt3discord.importlib.import_module = base_import
-asyncio.run(gpt3discord.main())
+async def offline_main():
+    # Windows creates its event loop's local self-pipe before this coroutine runs.
+    socket.create_connection = forbid_network
+    socket.socket.connect = forbid_network
+    socket.socket.connect_ex = forbid_network
+    await gpt3discord.main()
+asyncio.run(offline_main())
 assert closed == ([True] if code_enabled else [])
 """
     result = subprocess.run(
