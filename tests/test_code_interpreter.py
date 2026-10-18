@@ -715,6 +715,7 @@ async def test_starting_session_guidance_precedes_ready_activation(sandbox_modul
     command = asyncio.create_task(cog.code_interpreter_chat_command(ctx, "gpt-6.1-sol", 0, 1))
     try:
         assert await asyncio.to_thread(entered.wait, 1)
+        assert "Wait for the ready message" in ctx.send.await_args.kwargs["embed"].description
         await cog.on_message(message)
         assert "still starting" in message.reply.await_args.args[0]
         respond.assert_not_awaited()

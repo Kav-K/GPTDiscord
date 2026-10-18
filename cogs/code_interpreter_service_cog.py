@@ -502,7 +502,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         embed_title = f"{ctx.user.name}'s code interpreter conversation with GPT"
         message_embed = discord.Embed(
             title=embed_title,
-            description=f"The agent is able to execute Python code and manipulate its environment.\nModel: {model}\n\nType `end` to stop the conversation",
+            description=f"Preparing your code session. Wait for the ready message before sending requests.\nModel: {model}\n\nType `end` to stop the conversation",
             color=0xF82C45,
         )
         message_embed.set_thumbnail(url="https://i.imgur.com/qua6Bya.png")
