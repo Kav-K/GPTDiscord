@@ -102,7 +102,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     transcribe = discord.SlashCommandGroup(
         name="transcribe",
-        description="Transcription services using OpenAI Whisper",
+        description="Audio and video transcription using OpenAI",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_index_roles()],  # TODO new role checker for transcribe
     )
@@ -1020,21 +1020,21 @@ class Commands(discord.Cog, name="Commands"):
         description="Image quality",
         required=False,
         default="auto",
-        autocomplete=Settings_autocompleter.get_dalle3_image_qualities,
+        autocomplete=Settings_autocompleter.get_image_qualities,
     )
     @discord.option(
         name="image_size",
         description="How big you want the generated image to be",
         required=False,
         default="1024x1024",
-        autocomplete=Settings_autocompleter.get_dalle3_image_sizes,
+        autocomplete=Settings_autocompleter.get_image_sizes,
     )
     @discord.option(
         name="style",
         description="An optional style instruction to add to the image prompt",
         required=False,
         default="vivid",
-        autocomplete=Settings_autocompleter.get_dalle3_image_styles,
+        autocomplete=Settings_autocompleter.get_image_styles,
     )
     async def draw(
         self,

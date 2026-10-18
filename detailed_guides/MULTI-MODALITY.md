@@ -1,13 +1,11 @@
 # Multi-Modality
 
-This bot simulates GPT-4 multimodality by using a collection of services to obtain holistic image understanding during a conversation made with `/gpt converse`
+Start `/gpt converse` with a vision-capable model and attach images to your messages. The bot sends the images and your text directly to the model's native image input. Your OpenAI project needs access to the selected model; image input incurs OpenAI usage charges.
 
-For this functionality to work, you need a replicate account, and a corresponding replicate api token. You can sign up and get an api key at https://replicate.com/pricing. After getting the key, set `REPLICATE_API_KEY` in your environment file.
+Native OpenAI vision does not require Replicate or Google credentials. Use a model offered by the bot that supports image input; a text-only model cannot interpret attachments on its own.
 
-The cost to run replicate for image understanding is roughly $0.0032 per second, it will take on average 0.5-1.0 seconds per image. This is a small cost, but it will add up over time, so it's not recommended to release this feature to the public unless you're comfortable with it or have billing limits set on your replicate account.
+## Optional fallback for text-only models
 
-As a second part of multi-modality, the bot will do OCR on uploaded images. You need to have the 'Google Cloud Vision' API enabled, and put your API key in the `GOOGLE_SEARCH_API_KEY` field in your `.env` file for this to work.
+The separate Replicate integration can provide image captions and answers for models without native image input. Install `pip install '.[replicate]'` and set `REPLICATE_API_KEY` to enable it. Replicate charges separately; check its [current pricing](https://replicate.com/pricing).
 
-<p align="center">
-  <img src="https://i.imgur.com/LgJ58Ak.png"/>
-</p>
+Google Cloud Vision OCR is optional within that fallback. To include OCR, enable the Google Cloud Vision API and configure `GOOGLE_SEARCH_API_KEY`. These credentials are not needed for native OpenAI vision.

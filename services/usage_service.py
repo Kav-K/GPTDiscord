@@ -6,7 +6,6 @@ from pathlib import Path
 from weakref import WeakValueDictionary
 
 import aiofiles
-from typing import Literal
 import tiktoken
 from requests import RequestException
 
@@ -60,34 +59,22 @@ class UsageService:
 
     COST_MAPPING = {
         "gpt4": 0.06,
-        "gpt4-32": 0.12,
         "turbo": 0.002,
         "turbo-16": 0.002,
-        "davinci": 0.02,
-        "curie": 0.002,
         "embedding": 0.0001,
         "gpt-turbo": 0.03,
     }
 
     MODEL_COST_MAP = {
         "gpt-4": "gpt4",
-        "gpt-4-32k": "gpt4-32",
         "gpt-4-0613": "gpt4",
-        "gpt-4-32k-0613": "gpt4-32",
         "gpt-3.5-turbo": "turbo",
         "gpt-3.5-turbo-16k": "turbo-16",
-        "gpt-3.5-turbo-0613": "turbo",
-        "gpt-3.5-turbo-16k-0613": "turbo",
-        "text-davinci-003": "davinci",
-        "text-curie-001": "curie",
         "gpt-4-1106-preview": "gpt-turbo",
-        "gpt-4-1106-vision-preview": "gpt-turbo",
     }
 
-    ModeType = Literal["gpt4", "gpt4-32k", "turbo", "turbo-16k", "davinci", "embedding"]
-
     @staticmethod
-    async def get_model_cost(mode: ModeType) -> float:
+    async def get_model_cost(mode: str | None) -> float:
         if mode in UsageService.TOKEN_RATES:
             rates = UsageService.TOKEN_RATES[mode]
             return rates[0 if mode.startswith("text-embedding-") else 1] / 1000
@@ -97,7 +84,7 @@ class UsageService:
     async def get_cost_name(model) -> str:
         return UsageService.MODEL_COST_MAP.get(model, model)
 
-    async def get_price(self, tokens_used, mode: ModeType = None):
+    async def get_price(self, tokens_used, mode: str | None = None):
         if isinstance(tokens_used, str) or isinstance(tokens_used, int):
             tokens_used = int(tokens_used)
         else:
@@ -110,7 +97,7 @@ class UsageService:
 
     # USD per million tokens: input, output, cached input. Verified against
     # https://developers.openai.com/api/docs/models (October 2026).
-    # Unknown/custom models are explicitly excluded instead of using Davinci prices.
+    # Unknown/custom models are explicitly excluded from token estimates.
     TOKEN_RATES = {
         "gpt-6.1-sol": (2.0, 10.0, 0.10),
         "gpt-6-astra": (10.0, 50.0, 1.0),

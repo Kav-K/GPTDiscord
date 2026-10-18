@@ -153,7 +153,6 @@ class OptimizeView(discord.ui.View):
                     prompt,
                     ctx,
                     custom_api_key=user_api_key,
-                    dalle_3=True,
                     image_size="1024x1024",
                     style="vivid",
                     quality="auto",

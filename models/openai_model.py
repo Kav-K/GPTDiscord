@@ -12,9 +12,9 @@ import aiohttp
 import backoff
 import discord
 
-# An enum of two modes, TOP_P or TEMPERATURE
 import requests
 from services.environment_service import EnvService
+from utils.model_validation import RETIRED_TEXT_MODELS, validate_text_model
 from services.request_context import single_attempt_requests
 from services.discord_attachment_service import read_attachment_bytes
 from PIL import Image
@@ -31,13 +31,6 @@ try:
 except Exception as e:
     print("Failed to retrieve the settings DB. The bot is terminating.")
     raise e
-
-
-class Mode:
-    TEMPERATURE = "temperature"
-    TOP_P = "top_p"
-
-    ALL_MODES = [TEMPERATURE, TOP_P]
 
 
 class Override:
@@ -78,17 +71,13 @@ class Models:
     O1 = "o1"
     O3_MINI = "o3-mini"
 
-    # Kept as aliases for integrations importing these names. Retired IDs are
-    # deliberately excluded from slash-command choices and persisted settings.
+    # These API models remain available until their announced shutdown date.
     TURBO = "gpt-3.5-turbo"
-    TURBO_16 = "gpt-3.5-turbo-16k"
     GPT4 = "gpt-4"
-    GPT4_32 = "gpt-4-32k"
-    GPT_4_TURBO = "gpt-4-1106-preview"
-    GPT_4_TURBO_VISION = "gpt-4-vision-preview"
-    GPT_4_TURBO_CATCHALL = "gpt-4-turbo-preview"
     GPT_4_TURBO_REGULAR = "gpt-4-turbo"
-    O1_MINI = "o1-mini"
+
+    RETIRED_TEXT_MODELS = RETIRED_TEXT_MODELS
+    validate_text_model = staticmethod(validate_text_model)
 
     TEXT_MODELS = [
         GPT_6_1_SOL,
@@ -110,8 +99,6 @@ class Models:
         GPT_4_OMEGA_MINI,
         O3,
     ]
-    CHATGPT_MODELS = TEXT_MODELS.copy()
-    GPT4_MODELS = TEXT_MODELS.copy()
     WEB_SEARCH_MODELS = [
         GPT_6_1_SOL,
         GPT_6_LUNA,
@@ -218,11 +205,12 @@ class OpenAIAPIError(ValueError):
 
 
 class ImageSize:
-    SMALL = "256x256"
-    MEDIUM = "512x512"
-    LARGE = "1024x1024"
+    AUTO = "auto"
+    SQUARE = "1024x1024"
+    LANDSCAPE = "1536x1024"
+    PORTRAIT = "1024x1536"
 
-    ALL_SIZES = [SMALL, MEDIUM, LARGE]
+    ALL_SIZES = [AUTO, SQUARE, LANDSCAPE, PORTRAIT]
 
 
 class ModelLimits:
@@ -256,16 +244,12 @@ class ModelLimits:
     MIN_FREQUENCY_PENALTY = -2.0
     MAX_FREQUENCY_PENALTY = 2.0
 
-    MIN_BEST_OF = 1
-    MAX_BEST_OF = 3
-
     MIN_PROMPT_MIN_LENGTH = 5
     MAX_PROMPT_MIN_LENGTH = 4000
 
 
 class Model:
     def set_initial_state(self, usage_service):
-        self.mode = Mode.TEMPERATURE
         self.temp = (
             SETTINGS_DB["temp"] if "temp" in SETTINGS_DB else 0.85
         )  # Higher value means more random, lower value means more likely to be a coherent sentence
@@ -286,9 +270,6 @@ class Model:
             if "frequency_penalty" in SETTINGS_DB
             else 0.0
         )
-        self.best_of = (
-            SETTINGS_DB["best_of"] if "best_of" in SETTINGS_DB else 1
-        )  # Number of responses to compare the loglikelihoods of
         self.prompt_min_length = (
             SETTINGS_DB["prompt_min_length"]
             if "prompt_min_length" in SETTINGS_DB
@@ -316,11 +297,12 @@ class Model:
             self._apply_model(configured_model or Models.DEFAULT)
         self._low_usage_mode = False
         self.usage_service = usage_service
-        self.image_size = (
-            SETTINGS_DB["image_size"]
-            if "image_size" in SETTINGS_DB
-            else ImageSize.MEDIUM
-        )
+        saved_image_size = SETTINGS_DB.get("image_size", ImageSize.SQUARE)
+        if saved_image_size in ("256x256", "512x512"):
+            # Preserve existing settings bytes until the user makes a new selection.
+            self._image_size = ImageSize.SQUARE
+        else:
+            self.image_size = saved_image_size
         self.num_images = (
             SETTINGS_DB["num_images"] if "num_images" in SETTINGS_DB else 2
         )
@@ -349,9 +331,6 @@ class Model:
             if "num_conversation_lookback" in SETTINGS_DB
             else 5
         )
-        self.use_org = (
-            bool(SETTINGS_DB["use_org"]) if "use_org" in SETTINGS_DB else False
-        )
 
     def reset_settings(self):
         keys = [
@@ -361,6 +340,8 @@ class Model:
             "presence_penalty",
             "frequency_penalty",
             "best_of",
+            "mode",
+            "use_org",
             "prompt_min_length",
             "max_conversation_length",
             "model",
@@ -371,7 +352,6 @@ class Model:
             "welcome_message_enabled",
             "num_static_conversation_items",
             "num_conversation_lookback",
-            "use_org",
         ]
         for key in keys:
             try:
@@ -393,14 +373,11 @@ class Model:
         self._model = None
         self._max_conversation_length = None
         self._prompt_min_length = None
-        self._best_of = None
         self._frequency_penalty = None
         self._presence_penalty = None
         self._max_tokens = None
         self._top_p = None
         self._temp = None
-        self._mode = None
-        self._use_org = None
         self.set_initial_state(usage_service)
 
         try:
@@ -431,15 +408,6 @@ class Model:
         self.openai_base_url = EnvService.get_openai_base_url().rstrip("/")
 
     # Use the @property and @setter decorators for all the self fields to provide value checking
-
-    @property
-    def use_org(self):
-        return self._use_org
-
-    @use_org.setter
-    def use_org(self, value):
-        self._use_org = value
-        SETTINGS_DB["use_org"] = value
 
     @property
     def num_static_conversation_items(self):
@@ -584,6 +552,7 @@ class Model:
 
     def _apply_model(self, model):
         """Apply capabilities without turning a startup default into a choice."""
+        Models.validate_text_model(model)
         if model not in Models.TEXT_MODELS and model != EnvService.get_openai_model():
             raise ValueError(f"Invalid model, must be one of: {Models.TEXT_MODELS}")
         self._model = model
@@ -617,27 +586,6 @@ class Model:
             )
         self._max_conversation_length = value
         SETTINGS_DB["max_conversation_length"] = value
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @mode.setter
-    def mode(self, value):
-        if value not in Mode.ALL_MODES:
-            raise ValueError(f"Mode must be one of: {Mode.ALL_MODES}")
-
-        # Set the other mode to 1 (the default) so that it is not used
-        # See https://beta.openai.com/docs/api-reference/completions/create#completions/create-temperature
-        if value == Mode.TOP_P:
-            self._temp = 1
-        elif value == Mode.TEMPERATURE:
-            self._top_p = 1
-        else:
-            raise ValueError(f"Unknown mode: {value}")
-
-        self._mode = value
-        SETTINGS_DB["mode"] = value
 
     @property
     def temp(self):
@@ -715,20 +663,6 @@ class Model:
             )
         self._frequency_penalty = value
         SETTINGS_DB["frequency_penalty"] = value
-
-    @property
-    def best_of(self):
-        return self._best_of
-
-    @best_of.setter
-    def best_of(self, value):
-        value = int(value)
-        if value < ModelLimits.MIN_BEST_OF or value > ModelLimits.MAX_BEST_OF:
-            raise ValueError(
-                f"Best of must be between {ModelLimits.MIN_BEST_OF} and {ModelLimits.MAX_BEST_OF}, it is currently: {value}\nNote that increasing the value of this parameter will act as a multiplier on the number of tokens requested!"
-            )
-        self._best_of = value
-        SETTINGS_DB["best_of"] = value
 
     @property
     def prompt_min_length(self):
@@ -819,6 +753,7 @@ class Model:
         respond_json=False,
         input_tokens=None,
     ):
+        Models.validate_text_model(model)
         budget = (
             self.max_tokens if max_tokens_override is None else int(max_tokens_override)
         )
@@ -994,7 +929,6 @@ class Model:
         user_displayname,
         temp_override=None,
         top_p_override=None,
-        best_of_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
         max_tokens_override=None,
@@ -1114,14 +1048,12 @@ class Model:
         tokens,
         temp_override=None,
         top_p_override=None,
-        best_of_override=None,
         frequency_penalty_override=None,
         presence_penalty_override=None,
         max_tokens_override=None,
         model=None,
         stop=None,
         custom_api_key=None,
-        is_chatgpt_request=False,
         system_instruction=None,
     ):
         messages = []
@@ -1146,7 +1078,9 @@ class Model:
     @staticmethod
     async def send_test_request(api_key):
         # Called only after the user explicitly submits a key for validation.
-        selected_model = EnvService.get_openai_model() or Models.LOW_USAGE_MODEL
+        selected_model = Models.validate_text_model(
+            EnvService.get_openai_model() or Models.LOW_USAGE_MODEL
+        )
         url = f"{EnvService.get_openai_base_url().rstrip('/')}/chat/completions"
         async with aiohttp.ClientSession(
             raise_for_status=False,
@@ -1248,17 +1182,11 @@ class Model:
             raise ValueError(
                 "DALL-E models have been retired. Set OPENAI_IMAGE_MODEL to a GPT Image model."
             )
-        # Preserve existing slash command callers while using current Image API fields.
-        quality = {"standard": "medium", "hd": "high"}.get(quality, quality) or "auto"
-        image_size = {
-            "256x256": "1024x1024",
-            "512x512": "1024x1024",
-            "1792x1024": "1536x1024",
-            "1024x1792": "1024x1536",
-        }.get(image_size, image_size) or "auto"
+        quality = quality or "auto"
+        image_size = image_size or ImageSize.AUTO
         if quality not in ("auto", "low", "medium", "high", "xhigh", "max"):
             raise ValueError("Unknown image quality")
-        if image_size not in ("auto", "1024x1024", "1536x1024", "1024x1536"):
+        if image_size not in ImageSize.ALL_SIZES:
             raise ValueError("Unknown image size")
         if style in ("vivid", "natural"):
             prompt = f"{prompt}\n\nUse a {style} visual style."
@@ -1349,12 +1277,3 @@ class Model:
             image_reference=reference,
         )
         return await self.save_image_urls_and_return(references, ctx)
-
-    async def send_image_request_old(self, ctx, prompt, vary=None, custom_api_key=None):
-        if vary:
-            return await self.send_image_edit_request(
-                ctx, prompt, vary, custom_api_key=custom_api_key
-            )
-        return await self.send_image_request(
-            ctx, prompt, "auto", self.image_size, None, custom_api_key
-        )

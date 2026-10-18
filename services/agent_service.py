@@ -52,6 +52,7 @@ class AgentChatOpenAI(ChatOpenAI):
 
 
 def create_chat_llm(model, temperature=0, top_p=1, api_key=None, **kwargs):
+    Models.validate_text_model(model)
     if not Models.is_reasoning(model):
         kwargs.update(temperature=temperature, top_p=top_p)
     key = api_key or EnvService.get_openai_token()

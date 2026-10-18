@@ -67,7 +67,7 @@ def test_supported_legacy_selection_is_not_guessed_to_be_an_old_default(
 
 
 def test_retired_saved_model_returns_to_following_defaults(settings, monkeypatch):
-    settings["model"] = "gpt-4-1106-preview"
+    settings["model"] = "gpt-4-vision-preview"
     assert new_model().model == Models.DEFAULT
     assert "model" not in settings
 

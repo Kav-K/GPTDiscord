@@ -1,262 +1,28 @@
-# Requirements and Usage  
-**For OCR, and document functionalities**:  
-```  
-pip3 install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
-```
-OR  
-```
-python3.9 -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html  
-```  
-**For audio extraction for indexing from .mp3 and .mp4 files**:  
-```
-python3.9 -m pip install git+https://github.com/openai/whisper.git
-```
-**All other dependencies**:  
-```  
-python3.9 -m pip install -r requirements.txt  
-```
-**We recommend using python 3.9.**  
-  
-OpenAI API Key (https://platform.openai.com/docs/api-reference/introduction)  
-  
-Discord Bot Token (https://discord.com/developers/applications)  
+# Installation
 
-The bot uses an environment file named `.env` to configure it. This file must be named exactly `.env` and placed in the same directory as `gpt3discord.py`. Within this file, you need to fill in your `OPENAI_TOKEN`, `DISCORD_TOKEN`, `DEBUG_SERVER`, and `DEBUG_CHANNEL`, and `ALLOWED_GUILDS` to get the bot to work. There are also many other configurable options, an example `.env` file is shown below.  
-```shell  
-OPENAI_TOKEN = "<openai_api_token>"  
-DISCORD_TOKEN = "<discord_bot_token>"  
-#PINECONE_TOKEN = "<pinecone_token>" # pinecone token if you have it enabled. See readme  
-DEBUG_GUILD = "974519864045756446"  # discord_server_id  
-DEBUG_CHANNEL = "977697652147892304"  # discord_chanel_id  
-ALLOWED_GUILDS = "971268468148166697,971268468148166697"  
-# People with the roles in ADMIN_ROLES can use admin commands like /clear-local, and etc  
-ADMIN_ROLES = "Admin,Owner"  
-# People with the roles in DALLE_ROLES can use commands like /dalle draw or /dalle imgoptimize  
-DALLE_ROLES = "Admin,Openai,Dalle,gpt"  
-# People with the roles in GPT_ROLES can use commands like /gpt ask or /gpt converse  
-GPT_ROLES = "openai,gpt"  
-WELCOME_MESSAGE = "Hi There! Welcome to our Discord server. We hope you'll enjoy our server and we look forward to engaging with you!"  # This is a fallback message if gpt fails to generate a welcome message.  
-USER_INPUT_API_KEYS="False" # If True, users must use their own API keys for OpenAI. If False, the bot will use the API key in the .env file.  
-# Moderations Service alert channel, this is where moderation alerts will be sent as a default if enabled  
-MODERATIONS_ALERT_CHANNEL = "977697652147892304"  
-# User API key db path configuration. This is where the user API keys will be stored.  
-USER_KEY_DB_PATH = "user_key_db.sqlite"
-# Determines if the bot responds to messages that start with a mention of it
-BOT_TAGGABLE = "true"
-```  
-  
-# Installation  
-  
-### Create the bot  
-  
-https://discordpy.readthedocs.io/en/stable/discord.html  
-  
-- Create a new Bot on Discord Developer Portal:  
-  - Applications -> New Application  
-- Generate Token for the app (discord_bot_token)  
-  - Select App (Bot) -> Bot -> Reset Token  
-- Toggle PRESENCE INTENT:  
-  - Select App (Bot) -> Bot -> PRESENCE INTENT, SERVER MEMBERS INTENT, MESSAGES INTENT, (basically turn on all intents)  
-- Add Bot the server.  
-  - Select App (Bot) -> OAuth2 -> URL Generator -> Select Scope: Bot, applications.commands  
-  - Bot Permissions will appear, select the desired permissions  
-  - Copy the link generated below and paste it on the browser  
-  - On add to server select the desired server to add the bot  
-- Make sure you have updated your .env file with valid values for `DEBUG_GUILD`, `DEBUG_CHANNEL` and `ALLOWED_GUILDS`, otherwise the bot will not work. Guild IDs can be found by right clicking a server and clicking `Copy ID`, similarly, channel IDs can be found by right clicking a channel and clicking `Copy ID`.  
-  
-  
-### Server Creation
-  
-First, you want to get a server, for this guide, I will be using DigitalOcean as the host.   
+The [README](../README.md) contains the current installation instructions:
 
-[Instructions on how to get a server from start to finish.](https://github.com/Kav-K/GPTDiscord/blob/main/detailed_guides/DROPLET-GUIDE.md)
+- [Run from source](../README.md#run-from-source), including supported Python versions and virtual environment setup.
+- [Required configuration](../README.md#required-configuration), including credentials, server IDs, and data storage.
+- [Optional integrations](../README.md#optional-integrations) and their dependencies.
+- [Docker and Docker Compose](../README.md#docker).
+- [Upgrade from an older installation](../README.md#upgrade-from-v12), including backups and existing data.
 
-### Connect to Server
+## Create the Discord bot
 
-There are two ways to connect to your server, either through the DigitalOcean GUI, or through a terminal program via ssh.
+1. Create an application in the [Discord Developer Portal](https://discord.com/developers/applications), open its **Bot** page, and generate a bot token.
+2. Enable the **Server Members** and **Message Content** privileged gateway intents.
+3. Under **OAuth2 → URL Generator**, select the `bot` and `applications.commands` scopes. Choose the permissions described in the README's [required configuration](../README.md#required-configuration), open the generated URL, and invite the bot to your server.
+4. Set `DISCORD_TOKEN` and `ALLOWED_GUILDS` using the README instructions. Enable Discord's **Developer Mode** to copy server and role IDs. Review the [role restrictions](../README.md#role-restrictions) before enabling access.
 
-#### DigitalOcean GUI
+## Host the bot
 
-Open your DigitalOcean account, and click on the droplet you just created. Then, click on the "Access" tab, and click on "Launch Console". This will open a terminal window in your browser, and you will be able to interact with your server through this terminal window.
+You can run the bot on your own computer or a server from a provider such as DigitalOcean. Connect to a server through the provider's console or SSH, then follow the source or Docker instructions above. The [DigitalOcean guide](DROPLET-GUIDE.md) illustrates server provisioning; use the README for current runtime installation steps.
 
-#### SSH
+Use a service manager such as systemd, or run Docker Compose in detached mode, to keep the bot running after disconnecting. Set `DATA_DIR` and, if used, `SHARE_DIR` to persistent, writable storage so saved conversations and indexes survive restarts and upgrades.
 
-After you set up the server, the DigitalOcean GUI will give you an IP address, copy this IP address. Afterwards, you will need to SSH into the server. This can be done using a program such as "PuTTy", or by using your commandline, if it's supported. To login to the server, your username will be "root", your password will be the password that you defined earlier when setting up the droplet, and the IP address will be the IP address you copied after the droplet was finished creation.  
-  
-To connect with ssh, run the following command in terminal:  
-`ssh root@{IP ADDRESS}`  
-  
-It will then prompt you for your password, which you should enter, and then you will be logged in.   
-  
-## After login, we need to install the various dependencies that the bot needs. To do this, we will run the following commands:
+## Audio and video
 
-#### Clone the project files
-```shell
-git clone https://github.com/Kav-K/GPTDiscord.git
-cd GPTDiscord/
-````
+Transcription uses the hosted OpenAI API, with the model selected by `OPENAI_TRANSCRIPTION_MODEL`. A local Whisper package is unnecessary.
 
-#### Install system packages (python)  
-```shell
-sudo apt-get update
-sudo apt install software-properties-common
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt install python3.9
-sudo apt install python3.9-distutils # If this doesn't work, try sudo apt install python3-distutils  
-```
-
-#### Install Pip for python3.9  
-```shell
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.9 get-pip.py  
-```
-
-#### Create a Python Virtual Enviroment
-```shell
-pip install virtualenv
-python3.9 -m venv venv
-source venv/bin/activate
-```
-
-
-#### Install project dependencies  
-```
-python3.9 -m pip install --ignore-installed PyYAML
-python3.9 -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
-python3.9 -m pip install urllib3==1.26.7
-python3.9 -m pip install git+https://github.com/openai/whisper.git
-python3.9 -m pip install -r requirements.txt
-python3.9 -m pip install .  
-```
-
-#### Copy the sample.env file into a regular .env file. `DEBUG_GUILD` and the ID for `ALLOWED_GUILDS` can be found by right-clicking your server and choosing "Copy ID". Similarly, `DEBUG_CHANNEL` can be found by right-clicking your debug channel.  
-```shell 
-cp sample.env .env  
-```
-
-#### The command below is used to edit the .env file and to put in your API keys. You can right click within the editor after running this command to paste. When you are done editing, press CTRL + X, and then type Y, to save.  
-```shell
-nano .env
-```
-
-#### Run the bot using [screen](https://www.gnu.org/software/screen/manual/screen.html) to keep it running after you disconnect from your SSH session:  
-```shell
-screen gpt3discord  
-```
-
-#### Hit `Ctrl+a` then `d` to detach from the running bot. The bot's screen session can be reattached: `screen -r`
-
-  
-If the last few commands don't allow the bot to run `screen gpt3discord`, you can attempt to run the bot another way:  
-
-```  shell
-# First, navigate to the folder where the project files are 
-screen -dmS GPTBot bash -c 'python3.9 gpt3discord.py'  
-  
-# Reattach to screen session  
-screen -x # will reattach if this is the only screen session, if there are multiple, it will show IDs
-
-# If there are multiple IDs returned by screen -x:  
-screen -d -r {ID} # replace {ID} with the ID of the screen session you want to reattach to  
-```  
-
-As a last resort, you can try to run the bot using python in a basic way, with simply  
-```shell
-cd GPTDiscord
-
-python3.9 gpt3discord.py  
-```
-  
-### Docker and Docker Compose :  
-
-To use docker you can use the following command after [installing docker](https://docs.docker.com/get-docker/)
-- Make a .env file to mount to `/opt/gpt3discord/etc/environment` in docker 
-- `env_file` in the command should be replaced with where you have your .env file stored on your machine 
-- Add `DATA_DIR=/data` to your env file -> `usage.txt` is saved here
-- Add `SHARE_DIR=/data/share` to your env file -> this is where `conversation starters, optimizer pretext and the 'openers' folder` is alternatively loaded from for persistence
-- Make sure the path on the left side of the colon in the paths below is a valid path on your machibne
-
-```shell
-docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share ghcr.io/kav-k/gptdiscord:main-full  
-```  
-
-If you wish to build your own image then do the following commands instead
-
-```shell
-# build the image
-docker build --build-arg FULL=true -t gpt3discord .
-# run it
-docker run -d --name gpt3discord -v env_file:/opt/gpt3discord/etc/environment -v /containers/gpt3discord:/data -v /containers/gpt3discord/share:/data/share gpt3discord
-```
-
-Make sure all the paths are correct.  
-  
-  
-#### Docker Compose   
-To use Docker Compose, you need to have Docker and Docker Compose installed on your system. You can download and install them from the following links:  
-  
-- Docker  
-- Docker Compose  
-  
-[You will need to install Docker for Desktop if you are on a desktop machine such as Windows or Mac, trying to run this]  
-  
-  
-To start the gpt3discord container with Docker Compose, follow these steps:  
-  
-1. Rename the `sample.env` file to `.env` and fill it out
-2. Open a terminal or command prompt and navigate to the directory that contains the docker-compose.yml file.
-3. In the docker-compose.yml replace the volumes with a path on your machine if you don't use the ones listed, the path to replace is the one on the left side of the colon.
-4. Run the following command to start the container in detached mode:  
-  
-```  
-docker-compose up -d  
-```  
-  
-This will start the container and use the settings in the docker-compose.yml file. The -d option tells Docker Compose to run the container in the background (detached mode).  
-  
-  
-To stop the gpt3discord container, run the following command:  
-  
-```  
-docker-compose down  
-```  
-  
-This will stop the container and remove the services and networks defined in the docker-compose.yml file.  
-  
-That's it! With these simple steps, you can start and stop the gpt3discord container using Docker Compose.  
-  
-  
-### Non-Server, Non-Docker installation (Windows included)  
-  
-You need to install python3.9 and pip for python3.9 on your system.  
-  
-With python3.9 installed and the requirements installed, you can run this bot anywhere.   
-  
-Install the dependencies with:
-```
-pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
-
-python3.9 -m pip install -r requirements.txt  
-```
-
-Then, run the bot with:
-```
-python3.9 gpt3discord.py
-```
-
-Here's a great video from a community member that shows an installation on Windows: https://youtu.be/xLhwS2rQg14  
-  
-## Updating   
-  
-To update the bot, run (when working in the directory of GPTdiscord):  
-  
-```
-# To get the latest branch:  
-git pull  
-  
-# Install the latest modules so the bot keeps working.  
-python3.9 -m pip install -r requirements.txt
-
-python3.9 -m pip install .  
-```  
-  
+For audio/video indexing, install the optional `.[index]` integration described in the README and enable indexing. Install **FFmpeg** through your operating system's package manager to transcribe downloaded media. Transcription and indexing use your OpenAI API account.
