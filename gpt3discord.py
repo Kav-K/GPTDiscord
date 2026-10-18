@@ -12,7 +12,7 @@ from platform import system
 from services.environment_service import EnvService
 from services.access_service import get_access_role_ids, install_access_gate
 
-__version__ = "13.2.1"
+__version__ = "13.2.2"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
@@ -235,6 +235,9 @@ async def main():
         recovery = getattr(conversation, "conversation_recovery", None)
         if recovery is not None:
             await recovery.close()
+        code = bot.get_cog("CodeInterpreterService")
+        if code is not None:
+            await code.close_sessions()
         await bot.close()
         for worker in workers:
             worker.cancel()

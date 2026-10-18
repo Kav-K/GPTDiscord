@@ -60,7 +60,8 @@ def test_missing_extra_has_actionable_error():
         load_optional_service("gptdiscord_nonexistent_dependency", "Service", "index")
 
 
-def test_core_bot_assembles_without_optional_packages_or_network(tmp_path):
+@pytest.mark.parametrize("enable_code", [False, True])
+def test_core_bot_assembles_without_optional_packages_or_network(tmp_path, enable_code):
     root = Path(__file__).resolve().parents[1]
     env = {
         **os.environ,
@@ -81,11 +82,29 @@ def test_core_bot_assembles_without_optional_packages_or_network(tmp_path):
         "DEEPL_TOKEN",
     ):
         env.pop(key, None)
+    if enable_code:
+        env["E2B_API_KEY"] = "offline-e2b-key"
     code = """
 import asyncio
+import os
 import socket
+import discord
 from pycord.multicog import Bot
 import gpt3discord
+
+code_enabled = bool(os.environ.get("E2B_API_KEY"))
+closed = []
+class FakeCode(discord.Cog, name="CodeInterpreterService"):
+    def __init__(self, *args):
+        super().__init__()
+    async def close_sessions(self):
+        closed.append(True)
+original_optional = gpt3discord.load_optional_service
+def optional_service(module_name, *args, **kwargs):
+    if module_name == "cogs.code_interpreter_service_cog":
+        return FakeCode
+    return original_optional(module_name, *args, **kwargs)
+gpt3discord.load_optional_service = optional_service
 
 def forbid_network(*args, **kwargs):
     raise AssertionError("Startup attempted a network request")
@@ -97,7 +116,7 @@ async def fake_start(self, token, *args, **kwargs):
     assert self.get_cog("WebSearchCog") is not None
     assert self.get_cog("IndexService") is None
     assert self.get_cog("SearchService") is None
-    assert self.get_cog("CodeInterpreterService") is None
+    assert (self.get_cog("CodeInterpreterService") is not None) == code_enabled
     print("CORE_ASSEMBLED")
 Bot.start = fake_start
 # Simulate the base install even when this test runs in the full-extras matrix.
@@ -108,6 +127,7 @@ def base_import(name, *args, **kwargs):
     return original_import(name, *args, **kwargs)
 gpt3discord.importlib.import_module = base_import
 asyncio.run(gpt3discord.main())
+assert closed == ([True] if code_enabled else [])
 """
     result = subprocess.run(
         [sys.executable, "-c", code],

@@ -2,6 +2,7 @@
 
 import importlib
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import discord
 import pytest
@@ -73,7 +74,7 @@ class StrictInteraction:
 
     async def create_thread(self, **kwargs):
         self.events.append("create_thread")
-        return SimpleNamespace(id=1234)
+        return SimpleNamespace(id=1234, send=AsyncMock(), edit=AsyncMock())
 
 
 class StrictContext(discord.ApplicationContext):
