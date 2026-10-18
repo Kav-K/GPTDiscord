@@ -100,6 +100,13 @@ async def fake_start(self, token, *args, **kwargs):
     assert self.get_cog("CodeInterpreterService") is None
     print("CORE_ASSEMBLED")
 Bot.start = fake_start
+# Simulate the base install even when this test runs in the full-extras matrix.
+original_import = gpt3discord.importlib.import_module
+def base_import(name, *args, **kwargs):
+    if name == "cogs.search_service_cog":
+        raise ImportError("Optional search dependencies are not installed")
+    return original_import(name, *args, **kwargs)
+gpt3discord.importlib.import_module = base_import
 asyncio.run(gpt3discord.main())
 """
     result = subprocess.run(

@@ -173,7 +173,7 @@ def build_cogs(modules, monkeypatch, ctx, db):
         providers.append(("llm", (), kwargs))
         return object()
 
-    def agent(*args):
+    def agent(*args, **kwargs):
         return SimpleNamespace(memory=SimpleNamespace())
 
     for name in ("code", "search"):

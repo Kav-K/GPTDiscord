@@ -158,7 +158,7 @@ async def test_search_chat_uses_structured_tool_observations(
         },
     )
 
-    def create_agent(llm, tools, system_message):
+    def create_agent(llm, tools, system_message, **kwargs):
         captured["tools"] = tools
         return agent
 
@@ -181,7 +181,9 @@ async def test_search_chat_uses_structured_tool_observations(
     cog = module.SearchService(
         SimpleNamespace(user=SimpleNamespace(id=999)), None, usage, None, None
     )
-    await cog.search_chat_command(ctx, "gpt-6-luna")
+    monkeypatch.setattr(module, "GOOGLE_API_KEY", "offline-google")
+    monkeypatch.setattr(module, "GOOGLE_SEARCH_ENGINE_ID", "offline-engine")
+    await cog.search_chat_command(ctx, "gpt-6-luna", provider="google")
     message = SimpleNamespace(
         author=SimpleNamespace(id=123),
         guild=SimpleNamespace(name="Test server"),
@@ -355,4 +357,24 @@ async def test_search_reply_failure_releases_session(search_module, monkeypatch)
 
     with pytest.raises(RuntimeError, match="Discord unavailable"):
         await cog.on_message(message)
+    assert cog.thread_awaiting_responses == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("output", ["", [{"type": "reasoning", "summary": []}]])
+async def test_empty_model_answer_gives_guidance_and_releases_session(search_module, monkeypatch, output):
+    module = search_module
+    monkeypatch.setattr(module, "message_has_access", AsyncMock(return_value=True))
+    cog = module.SearchService(
+        None, None, SimpleNamespace(update_usage_memory=lambda *args: None), None, None,
+    )
+    cog.chat_agents[321] = SimpleNamespace(invoke=lambda *args: {"output": output})
+    message = SimpleNamespace(
+        author=SimpleNamespace(id=123, bot=False), guild=SimpleNamespace(name="Test"),
+        channel=SimpleNamespace(id=321, trigger_typing=AsyncMock()),
+        type=module.discord.MessageType.default, content="Search now", reply=AsyncMock(),
+    )
+    await cog.on_message(message)
+    assert "no text answer" in message.reply.await_args.args[0]
+    assert "embed" not in message.reply.await_args.kwargs
     assert cog.thread_awaiting_responses == []
