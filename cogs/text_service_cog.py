@@ -971,6 +971,20 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
 
         embed.add_field(name="/help", value="See this help text", inline=False)
+        registered = set()
+        for command in self.bot.pending_application_commands:
+            if isinstance(command, discord.SlashCommandGroup):
+                registered.add(f"/{command.qualified_name}")
+                registered.update(
+                    f"/{subcommand.qualified_name}"
+                    for subcommand in command.walk_commands()
+                )
+            elif isinstance(command, discord.SlashCommand):
+                registered.add(f"/{command.qualified_name}")
+        for index in reversed(range(len(embed.fields))):
+            name = embed.fields[index].name
+            if name.startswith("/") and name.split(" <", 1)[0] not in registered:
+                embed.remove_field(index)
         await ctx.respond(embed=embed, ephemeral=False)
 
     async def set_usage_command(

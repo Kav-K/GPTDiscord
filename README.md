@@ -84,7 +84,7 @@ Automatic model selection follows `OPENAI_MODEL`, or `gpt-6.1-sol` when it is un
 
 ## Optional integrations
 
-Install the extras you use and configure their keys. Missing configured dependencies produce an actionable startup error; disabled services respond with setup guidance.
+Install the extras you use and configure their keys. Missing configured dependencies produce an actionable startup error. Commands for unavailable optional services are not registered, and `/help` shows only registered commands. Existing interaction handlers retain setup guidance for stale interactions.
 
 | Feature | Install | Configuration |
 | --- | --- | --- |
@@ -93,12 +93,15 @@ Install the extras you use and configure their keys. Missing configured dependen
 | Pinecone memory | `pip install '.[pinecone]'` | `PINECONE_TOKEN`, `PINECONE_REGION` (default `us-east-1`) |
 | Qdrant memory | `pip install '.[qdrant]'` | `QDRANT_PATH` for persistent local storage, or `QDRANT_URL` and optional `QDRANT_API_KEY` |
 | E2B code execution | `pip install '.[code]'` | `E2B_API_KEY` |
+| DeepL translation | Included in the base install | `DEEPL_TOKEN` |
 | Replicate fallback vision | `pip install '.[replicate]'` | `REPLICATE_API_KEY` |
 | All integrations | `pip install '.[full]'` | Only configure the integrations you intend to enable |
 
 Configure either Qdrant or Pinecone memory, never both. Leave both unset to keep local conversation summaries. See the [memory guide](detailed_guides/PERMANENT-MEMORY.md) for collection and migration details.
 
-`/internet chat` defaults to **OpenAI web search** using your existing OpenAI key, with clickable citations, conversation memory, and optional page crawling. The search integration loads automatically when its dependencies are installed; Google credentials are not required for OpenAI chat. Choose `provider: google` to retain Google search (requires `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`). `search_scope` caps OpenAI web tool calls per model response or Google result links per search; it does not guarantee a number of sources. OpenAI hosted-search fees are separate from model token usage. `/web` remains available without optional dependencies.
+`/internet chat` defaults to **OpenAI web search** using your existing OpenAI key, with clickable citations, conversation memory, and optional page crawling. The search integration loads automatically when its dependencies are installed; Google credentials are not required for OpenAI chat. The `provider: google` choice and `/internet search` appear only when both `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are configured. `search_scope` caps OpenAI web tool calls per model response or Google result links per search; it does not guarantee a number of sources. OpenAI hosted-search fees are separate from model token usage. `/web` remains available without optional dependencies.
+
+`/setup` is registered only when `USER_INPUT_API_KEYS=true`. Individual users do not need to save a key before their OpenAI commands appear. After changing integration settings or installed dependencies, restart the bot: startup reloads configuration and synchronizes the available commands in `ALLOWED_GUILDS`, removing previously registered commands that are now unavailable.
 
 When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept messages from their creator only, so other thread participants cannot spend that person's API credits. Changing or deleting the saved key blocks further work in an existing session; end it and start a new one with the current key.
 

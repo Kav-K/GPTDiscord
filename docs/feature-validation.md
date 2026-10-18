@@ -14,6 +14,12 @@ command-error handling, artifact limits, and shutdown cleanup.
 The v13.2.5 cleanup removes the duplicate `/dalle draw_old` command and unused
 image flags and request bookkeeping. `/dalle draw`, `/dalle optimize`, context-menu
 Draw, per-image Vary/Retry, and Save after control expiry remain covered.
+The v13.2.6 follow-up registers commands only for available services, and help
+follows that registered manifest. OpenAI internet chat remains available without
+Google; Google search and its provider choice require both Google settings.
+`/setup` appears only in personal-key mode. Restarting reloads configuration and
+startup guild synchronization removes commands that are no longer available;
+runtime guards retain setup guidance for stale interactions.
 Offline tests exercise application handlers and actual Pycord/LlamaIndex objects
 with network boundaries simulated. Live checks use real OpenAI and Discord APIs,
 isolated storage, bounded request budgets, and temporary Discord resources.
@@ -45,8 +51,8 @@ isolated storage, bounded request budgets, and temporary Discord resources.
 | Pagination, tagging, diagnostics, health | Tests cover complete pagination, context actions, role checks, and diagnostic paths. Flask `/healthz` passed a local request; it is a liveness endpoint. Bot mentions require Gateway delivery. |
 | Installation, packages, containers, CI | Base/full dependency consistency, imports, offline suites, wheel/sdist builds, installed entry points, and packaged prompts are checked. CI covers Python 3.11–3.13, Windows/macOS, optional integrations, both Docker variants, and tests extracted source distributions. |
 
-The final local offline runs passed **687 tests** with the base installation
-(47 skips) and **973 tests** with all extras installed. Four opt-in paid
+The final local offline runs passed **699 tests** with the base installation
+(47 skips) and **985 tests** with all extras installed. Four opt-in paid
 pytest cases were skipped; the explicit live runners below exercised their API
 routes and broader features. Dependency and Ruff checks passed.
 
