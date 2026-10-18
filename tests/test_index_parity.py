@@ -490,7 +490,8 @@ async def test_data_chat_worker_preserves_single_attempt_request_policy(integrat
     usage = SimpleNamespace(update_usage_memory=lambda *args: None)
     handler = module.Index_handler(None, usage)
     handler.index_chat_chains[5] = SimpleNamespace(
-        agent_chain=SimpleNamespace(invoke=invoke)
+        agent_chain=SimpleNamespace(invoke=invoke),
+        tools=[SimpleNamespace(name="connected-dataset")],
     )
     message = SimpleNamespace(
         channel=SimpleNamespace(id=5), guild=SimpleNamespace(name="Test")
@@ -520,6 +521,52 @@ async def test_data_chat_extracts_only_the_url_from_a_natural_language_message(
     cog.process_indexing.assert_awaited_once_with(
         message, "link", link="https://example.com/report"
     )
+
+
+@pytest.mark.asyncio
+async def test_data_chat_connects_all_files_and_distinct_links(integrations, monkeypatch):
+    from tests.test_index_features import index_session
+
+    _, cog, message = index_session(integrations, monkeypatch)
+    first = SimpleNamespace(filename="first.txt")
+    second = SimpleNamespace(filename="second.txt")
+    message.attachments = [first, second]
+    message.content = "Compare https://example.com/a with https://example.com/b and https://example.com/a."
+    cog.process_indexing = AsyncMock(return_value=True)
+    await cog.on_message(message)
+    calls = cog.process_indexing.await_args_list
+    assert len(calls) == 4
+    assert calls[0].kwargs == {"content": first}
+    assert calls[1].kwargs == {"content": second}
+    assert calls[2].kwargs == {"link": "https://example.com/a"}
+    assert calls[3].kwargs == {"link": "https://example.com/b"}
+    assert not cog.thread_awaiting_responses
+
+
+@pytest.mark.asyncio
+async def test_data_chat_rejects_excess_sources_before_indexing(integrations, monkeypatch):
+    from tests.test_index_features import index_session
+
+    _, cog, message = index_session(integrations, monkeypatch)
+    message.attachments = [SimpleNamespace(filename=f"{i}.txt") for i in range(10)]
+    message.content = "Also read https://example.com/extra"
+    cog.process_indexing = AsyncMock()
+    await cog.on_message(message)
+    cog.process_indexing.assert_not_awaited()
+    cog.index_handler.execute_index_chat_message.assert_not_awaited()
+    assert "at most 10" in message.reply.await_args.args[0]
+    assert not cog.thread_awaiting_responses
+
+
+@pytest.mark.asyncio
+async def test_document_connection_survives_failed_progress_message(integrations):
+    module = importlib.import_module("cogs.index_service_cog")
+    cog = module.IndexService(None, None, None)
+    cog.index_handler.index_chat_file = AsyncMock(return_value=(True, "A short summary"))
+    message = SimpleNamespace(reply=AsyncMock(side_effect=[RuntimeError("Progress unavailable"), object()]))
+    attachment = SimpleNamespace(content_type="text/plain", filename="facts.txt")
+    assert await cog.process_indexing(message, "file", content=attachment)
+    assert "now connected" in message.reply.await_args.kwargs["embed"].description
 
 
 @pytest.mark.asyncio
@@ -586,7 +633,7 @@ async def test_media_provider_failures_do_not_expose_provider_body(
     )
     monkeypatch.setattr(module, "save_attachment", AsyncMock())
     ctx = SimpleNamespace(
-        respond=AsyncMock(), channel=SimpleNamespace(send=AsyncMock())
+        respond=AsyncMock(), channel=SimpleNamespace(id=7, send=AsyncMock())
     )
     file = SimpleNamespace(filename="recording.wav", content_type="audio/wav", size=10)
 

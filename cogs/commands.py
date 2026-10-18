@@ -757,6 +757,12 @@ class Commands(discord.Cog, name="Commands"):
         guild_ids=ALLOWED_GUILDS,
     )
     @discord.option(
+        name="user_index",
+        description="Saved index to connect (default: active index, otherwise most recently saved)",
+        required=False,
+        autocomplete=File_autocompleter.get_user_indexes,
+    )
+    @discord.option(
         name="model",
         description="The model to use for the conversation",
         required=False,
@@ -787,10 +793,13 @@ class Commands(discord.Cog, name="Commands"):
         model: str,
         temperature: float = 0,
         top_p: float = 1,
+        user_index: str = None,
     ):
         if not await self._require_integration(ctx, "index_cog"):
             return
-        await self.index_cog.index_chat_command(ctx, model, temperature, top_p)
+        await self.index_cog.index_chat_command(
+            ctx, model, temperature, top_p, user_index=user_index
+        )
 
     @add_to_group("index")
     @discord.slash_command(

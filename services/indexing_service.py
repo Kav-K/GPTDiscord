@@ -217,19 +217,46 @@ def read_web_documents(url):
 
 
 async def read_pdf_documents(url):
-    """Download and parse a PDF without blocking Discord or retaining its bytes."""
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=30)
-    ) as session:
-        async with session.get(url, proxy=EnvService.get_http_proxy(url)) as response:
-            response.raise_for_status()
-            data = await response.read()
+    """Read a bounded PDF download and reject unreadable or textless documents."""
+    max_bytes = 25 * 1024 * 1024
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "document.pdf"
-        path.write_bytes(data)
-        documents = await asyncio.to_thread(
-            lambda: SimpleDirectoryReader(input_files=[str(path)]).load_data()
-        )
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        ) as session:
+            async with session.get(
+                url, proxy=EnvService.get_http_proxy(url)
+            ) as response:
+                response.raise_for_status()
+                content_length = response.headers.get("Content-Length")
+                if content_length and int(content_length) > max_bytes:
+                    raise ValueError("PDF files must be 25 MiB or smaller.")
+                downloaded = 0
+                with path.open("wb") as destination:
+                    async for chunk in response.content.iter_chunked(64 * 1024):
+                        downloaded += len(chunk)
+                        if downloaded > max_bytes:
+                            raise ValueError("PDF files must be 25 MiB or smaller.")
+                        destination.write(chunk)
+        with path.open("rb") as source:
+            if b"%PDF-" not in source.read(1024):
+                raise ValueError("The URL did not return a valid PDF file.")
+        try:
+            documents = await asyncio.to_thread(
+                lambda: SimpleDirectoryReader(
+                    input_files=[str(path)], raise_on_error=True
+                ).load_data()
+            )
+        except ImportError:
+            raise
+        except Exception:
+            raise ValueError(
+                "Invalid PDF. Upload a valid, unlocked file or export it as text."
+            ) from None
+        if not any(document.get_content().strip() for document in documents):
+            raise ValueError(
+                "The PDF contains no extractable text. Run OCR on scanned pages or upload a text export."
+            )
     for document in documents:
         document.metadata["URL"] = url
     return documents
