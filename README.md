@@ -104,6 +104,8 @@ When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept mess
 
 The index extra includes GitHub and YouTube readers. GitHub repositories use `GITHUB_TOKEN` and their default branch. YouTube videos need an accessible English transcript. Public Google Docs links use text export; upload an exported document for private Docs. Uploaded images use native vision, while supported audio/video uploads use speech transcription before indexing. These media operations incur OpenAI charges; video frames are not indexed. Legacy Office files, SVG, and PSD require conversion first.
 
+`/index add` selects the saved document for `/index query` and your next `/index chat`. Use `/index chat user_index:<name>` or `/index load` to choose another saved index. After a restart, chat defaults to your most recently saved index. The opening message identifies the connected source. Adding or loading documents inside your own chat connects them to that chat while preserving its existing documents and history. Empty chats ask you to connect a document before answering. PDF links must contain extractable text and be 25 MiB or smaller; scanned pages need OCR first.
+
 LlamaIndex currently requires OpenAI SDK 2.x. Installing its extra selects the current compatible SDK; the core also supports SDK 3.x. Requirements files delegate to `pyproject.toml` so dependencies have one source of truth.
 
 ## Docker

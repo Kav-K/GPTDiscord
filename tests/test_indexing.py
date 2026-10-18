@@ -303,6 +303,7 @@ async def test_index_chat_requires_and_forwards_personal_key(integrations, monke
         0,
         1,
         user_api_key="personal-key",
+        user_index=None,
     )
     cog.index_handler.start_index_chat.reset_mock()
     key_lookup.return_value = None

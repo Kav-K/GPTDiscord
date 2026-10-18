@@ -120,16 +120,21 @@ def test_optional_agent_memory_survives_unavailable_vocabulary(monkeypatch, tmp_
 
 
 class Response:
-    def __init__(self, data=b"%PDF mocked", headers=None):
+    def __init__(self, data=b"%PDF-1.7 mocked", headers=None):
         self.headers = headers or {}
         self.data = data
         self.status = 200
+        self.content = self
 
     def raise_for_status(self):
         pass
 
     async def read(self):
         return self.data
+
+    async def iter_chunked(self, size):
+        for offset in range(0, len(self.data), size):
+            yield self.data[offset : offset + size]
 
     async def __aenter__(self):
         return self
@@ -166,11 +171,12 @@ async def test_pdf_reader_cleans_download_on_success_and_parse_failure(
     )
 
     class Reader:
-        def __init__(self, input_files):
+        def __init__(self, input_files, raise_on_error):
             files.extend(Path(path) for path in input_files)
+            assert raise_on_error is True
 
         def load_data(self):
-            assert files[0].read_bytes() == b"%PDF mocked"
+            assert files[0].read_bytes() == b"%PDF-1.7 mocked"
             if parse_fails:
                 raise ValueError("Invalid PDF")
             return [Document(text="Readable PDF document")]

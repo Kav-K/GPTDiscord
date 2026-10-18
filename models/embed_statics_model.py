@@ -125,7 +125,7 @@ class EmbedStatics:
     def get_index_set_success_embed(price="Unknown"):
         embed = discord.Embed(
             title="Index Added",
-            description=f"This index can now be queried and loaded with `/index query` and `/index load`\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
+            description=f"This index is now active for `/index query` and new `/index chat` sessions. Use `/index load` or `/index chat user_index:` to select another saved index.\n\n||Total cost: {round(float(price), 6) if price != 'Unknown' else 'Unknown'}||",
             color=discord.Color.green(),
         )
         # thumbnail of https://i.imgur.com/I5dIdg6.png

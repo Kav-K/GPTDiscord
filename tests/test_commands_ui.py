@@ -59,6 +59,32 @@ async def test_internet_chat_model_suggestions_match_provider(commands_module):
 
 
 @pytest.mark.asyncio
+async def test_data_chat_exposes_and_forwards_saved_index_selection(commands_module):
+    import discord
+    from pycord.multicog import Bot
+
+    index = SimpleNamespace(index_chat_command=AsyncMock())
+    commands = commands_module.Commands(*([None] * 9), index)
+    bot = Bot(intents=discord.Intents.none())
+    bot.add_cog(commands)
+    try:
+        group = next(c for c in bot.pending_application_commands if c.name == "index")
+        chat = next(c for c in group.subcommands if c.name == "chat")
+        option = next(o for o in chat.options if o.name == "user_index")
+        assert option.required is False
+        assert option.autocomplete is not None
+        ctx = object()
+        await commands_module.Commands.talk.callback(
+            commands, ctx, "gpt-6.1-sol", user_index="10_18_resume_pdf",
+        )
+        index.index_chat_command.assert_awaited_once_with(
+            ctx, "gpt-6.1-sol", 0, 1, user_index="10_18_resume_pdf",
+        )
+    finally:
+        await bot.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "command_name, args, expected_setup",
     [

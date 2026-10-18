@@ -74,6 +74,7 @@ class IndexService(discord.Cog, name="IndexService"):
             if description:
                 thinking_embed.description = description
 
+        thinking_message = None
         try:
             thinking_message = await message.reply(embed=thinking_embed)
         except:
@@ -87,10 +88,10 @@ class IndexService(discord.Cog, name="IndexService"):
             indexing_result, summary = await self.index_handler.index_link(
                 link, summarize=True, index_chat_ctx=message
             )
-            print("The summary is " + str(summary))
 
         try:
-            await thinking_message.delete()
+            if thinking_message is not None:
+                await thinking_message.delete()
         except:
             pass
 
@@ -106,7 +107,7 @@ class IndexService(discord.Cog, name="IndexService"):
 
         success_embed = discord.Embed(
             title=f"{index_type.capitalize()} Interpreted",
-            description=f"The {index_type} you've uploaded has successfully been interpreted. The summary is below:\n`{summary}`",
+            description=f"The {index_type} you've uploaded is now connected to this chat. The summary is below:\n{str(summary)[:3400]}",
             color=discord.Color.green(),
         )
         success_embed.set_thumbnail(url="https://i.imgur.com/I5dIdg6.png")
@@ -189,11 +190,16 @@ class IndexService(discord.Cog, name="IndexService"):
                 except:
                     pass
 
-                # Handle file uploads
-                file = message.attachments[0] if len(message.attachments) > 0 else None
+                files = list(message.attachments)
+                links = list(dict.fromkeys(
+                    value.rstrip(".,;!?)")
+                    for value in re.findall(r"https?://[^\s<>]+", prompt)
+                ))
+                if len(files) + len(links) > 10:
+                    await message.reply("Connect at most 10 files or links in one message.")
+                    return
 
-                # File operations, allow for user file upload
-                if file:
+                for file in files:
                     indexing_result = await self.process_indexing(
                         message, "file", content=file
                     )
@@ -207,11 +213,7 @@ class IndexService(discord.Cog, name="IndexService"):
                         + "\n"
                     )
 
-                # Link operations, allow for user link upload, we connect and download the content at the link.
-                link_match = re.search(r"https?://[^\s<>]+", prompt)
-                if link_match:
-                    link = link_match.group().rstrip(".,;!?)")
-
+                for link in links:
                     indexing_result = await self.process_indexing(
                         message, "link", link=link
                     )
@@ -261,7 +263,7 @@ class IndexService(discord.Cog, name="IndexService"):
         finally:
             safe_remove_list(self.thread_awaiting_responses, message.channel.id)
 
-    async def index_chat_command(self, ctx, model, temperature, top_p):
+    async def index_chat_command(self, ctx, model, temperature, top_p, user_index=None):
         user_api_key = None
         if USER_INPUT_API_KEYS:
             user_api_key = await TextService.get_user_api_key(
@@ -272,7 +274,8 @@ class IndexService(discord.Cog, name="IndexService"):
 
         await ctx.defer()
         await self.index_handler.start_index_chat(
-            ctx, model, temperature, top_p, user_api_key=user_api_key
+            ctx, model, temperature, top_p, user_api_key=user_api_key,
+            user_index=user_index,
         )
 
     async def rename_user_index_command(self, ctx, user_index, new_name):
