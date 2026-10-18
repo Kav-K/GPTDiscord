@@ -160,7 +160,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("system")
     @discord.slash_command(
         name="local-size",
-        description="Get the size of the dall-e images folder that we have on the current system",
+        description="Get the size of the saved images folder",
         guild_ids=ALLOWED_GUILDS,
     )
     async def local_size(self, ctx: discord.ApplicationContext):
@@ -169,7 +169,7 @@ class Commands(discord.Cog, name="Commands"):
     @add_to_group("system")
     @discord.slash_command(
         name="clear-local",
-        description="Clear the local dalleimages folder on system.",
+        description="Delete locally saved images",
         guild_ids=ALLOWED_GUILDS,
     )
     async def clear_local(self, ctx: discord.ApplicationContext):
@@ -995,18 +995,8 @@ class Commands(discord.Cog, name="Commands"):
         )
 
     #
-    # DALLE commands
+    # Image commands
     #
-
-    @add_to_group("dalle")
-    @discord.slash_command(
-        name="draw_old",
-        description="Legacy alias for image generation using the configured image model",
-        guild_ids=ALLOWED_GUILDS,
-    )
-    @discord.option(name="prompt", description="The prompt to draw from", required=True)
-    async def draw_old(self, ctx: discord.ApplicationContext, prompt: str):
-        await self.image_draw_cog.draw_old_command(ctx, prompt)
 
     @add_to_group("dalle")
     @discord.slash_command(

@@ -25,7 +25,7 @@ async def test_command_groups_register_with_current_multicog(commands_module):
     groups = {command.name: command for command in bot.pending_application_commands}
     assert {"gpt", "dalle", "index", "internet", "transcribe"} <= groups.keys()
     assert "converse" in {command.name for command in groups["gpt"].subcommands}
-    assert {"draw", "draw_old"} <= {
+    assert {"draw", "optimize"} == {
         command.name for command in groups["dalle"].subcommands
     }
     chat = next(command for command in groups["internet"].subcommands if command.name == "chat")

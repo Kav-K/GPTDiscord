@@ -44,7 +44,6 @@ async def images(optimizer_flow, monkeypatch, tmp_path):
     flow.image_module = module
     flow.image_configuration = configuration
     flow.image_cog.converser_cog = flow.cog
-    flow.image_cog.redo_users = {}
     flow.generated = []
     flow.generated_files = []
 
@@ -119,15 +118,10 @@ async def images(optimizer_flow, monkeypatch, tmp_path):
 
 
 def current_view(flow, message):
-    request = flow.image_cog.redo_users[MEMBER]
-    for view, _ in flow.state._view_store._views.values():
-        if (
-            isinstance(view, flow.image_module.SaveView)
-            and view.message.id == message.id
-            and view.request is request
-        ):
-            return view
-    pytest.fail("The delivered image must have its own registered controls")
+    view = flow.state._view_store._synced_message_views.get(message.id)
+    assert isinstance(view, flow.image_module.SaveView)
+    assert view.message.id == message.id
+    return view
 
 
 def retry(view):
@@ -180,7 +174,7 @@ async def test_retry_reads_current_key_and_replaces_original_attachment_once(ima
     assert flow.edit_files.await_args.kwargs["attachments"] == []
     assert len(flow.messages[message.id]["attachments"]) == 1
     assert flow.adapter.uploads[-1][1] == flow.generated[-1][1]
-    assert flow.image_cog.redo_users[MEMBER].response.id == message.id
+    assert current_view(flow, message).request.response.id == message.id
     assert current_view(flow, message).lock is view.lock
 
 
@@ -376,7 +370,7 @@ async def test_timeout_removes_only_retry_from_bound_message_without_expired_web
 @pytest.mark.parametrize(
     "saved_key", [False, True], ids=["setup-required", "saved-key"]
 )
-@pytest.mark.parametrize("command", ["draw", "draw_old"])
+@pytest.mark.parametrize("command", ["draw", "context-draw"])
 async def test_cacheless_image_commands_keep_setup_acknowledgement_and_delivery_working(
     images, saved_key, command
 ):
@@ -395,9 +389,10 @@ async def test_cacheless_image_commands_keep_setup_acknowledgement_and_delivery_
     flow.state._guilds.pop(GUILD)
     assert ctx.guild is None
     assert ctx.interaction.guild_id == GUILD
+    existing_messages = set(flow.messages)
 
-    if command == "draw_old":
-        await cog.draw_old_command(ctx, "A cacheless image prompt")
+    if command == "context-draw":
+        await cog.draw_action(ctx, SimpleNamespace(content="A cacheless image prompt"))
     else:
         await cog.draw_command(
             ctx, "A cacheless image prompt", "auto", "1024x1024", "vivid"
@@ -413,7 +408,11 @@ async def test_cacheless_image_commands_keep_setup_acknowledgement_and_delivery_
             "1024x1024",
             "vivid",
         )
-        request = cog.redo_users[MEMBER]
+        new_messages = set(flow.messages) - existing_messages
+        assert len(new_messages) == 1
+        view = current_view(flow, SimpleNamespace(id=new_messages.pop()))
+        assert view.cog is cog
+        request = view.request
         assert len(request.response.attachments) == 1
         assert flow.usage.get_usage_memory(str(GUILD))["image_drawn"] == 1
         assert flow.adapter.uploads == [("generated-images.png", flow.generated[0][1])]

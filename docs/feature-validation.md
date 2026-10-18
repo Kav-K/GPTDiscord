@@ -1,4 +1,4 @@
-# Feature validation — 2026-10-17
+# Feature validation — 2026-10-18
 
 This audit compares the feature list and guides at `2bf8e5c` with the modernized
 bot. The v13.1 follow-up restores gaps found after the original audit. A passing API check does not establish that Discord delivered a human event.
@@ -11,6 +11,9 @@ documents and memory. Empty or unreadable PDFs cannot report a successful index.
 The v13.2.2 follow-up verifies E2B code execution, package installation, uploaded
 files, and downloadable results with real sandboxes, and repairs startup,
 command-error handling, artifact limits, and shutdown cleanup.
+The v13.2.5 cleanup removes the duplicate `/dalle draw_old` command and unused
+image flags and request bookkeeping. `/dalle draw`, `/dalle optimize`, context-menu
+Draw, per-image Vary/Retry, and Save after control expiry remain covered.
 Offline tests exercise application handlers and actual Pycord/LlamaIndex objects
 with network boundaries simulated. Live checks use real OpenAI and Discord APIs,
 isolated storage, bounded request budgets, and temporary Discord resources.
@@ -43,7 +46,7 @@ isolated storage, bounded request budgets, and temporary Discord resources.
 | Installation, packages, containers, CI | Base/full dependency consistency, imports, offline suites, wheel/sdist builds, installed entry points, and packaged prompts are checked. CI covers Python 3.11–3.13, Windows/macOS, optional integrations, both Docker variants, and tests extracted source distributions. |
 
 The final local offline runs passed **687 tests** with the base installation
-(49 skips) and **973 tests** with all extras installed. Four opt-in paid
+(47 skips) and **973 tests** with all extras installed. Four opt-in paid
 pytest cases were skipped; the explicit live runners below exercised their API
 routes and broader features. Dependency and Ruff checks passed.
 

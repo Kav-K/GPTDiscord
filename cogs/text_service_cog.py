@@ -109,7 +109,6 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         self.deletion_queue = deletion_queue
 
         # Data specific to all text based GPT interactions
-        self.users_to_interactions = defaultdict(list)
         self.redo_users = {}
 
         # Pickle queue
