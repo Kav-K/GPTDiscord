@@ -26,7 +26,36 @@ async def test_command_groups_register_with_current_multicog(commands_module):
     assert {"gpt", "dalle", "index", "internet", "transcribe"} <= groups.keys()
     assert "converse" in {command.name for command in groups["gpt"].subcommands}
     assert "draw" in {command.name for command in groups["dalle"].subcommands}
+    chat = next(command for command in groups["internet"].subcommands if command.name == "chat")
+    provider = next(option for option in chat.options if option.name == "provider")
+    assert provider.default == "openai"
+    assert {choice.value for choice in provider.choices} == {"openai", "google"}
     await bot.close()
+
+
+@pytest.mark.asyncio
+async def test_internet_chat_forwards_provider(commands_module):
+    search = SimpleNamespace(search_chat_command=AsyncMock())
+    commands = commands_module.Commands(*([None] * 11), search_cog=search)
+    ctx = object()
+    await commands_module.Commands.chat.callback(
+        commands, ctx, "gpt-6.1-sol", provider="google", search_scope=4,
+    )
+    search.search_chat_command.assert_awaited_once_with(
+        ctx, model="gpt-6.1-sol", search_scope=4,
+        temperature=0, top_p=1, provider="google",
+    )
+
+
+@pytest.mark.asyncio
+async def test_internet_chat_model_suggestions_match_provider(commands_module):
+    from cogs.web_search_cog import configured_web_models
+    from models.openai_model import Models
+
+    ctx = SimpleNamespace(value="", options={})
+    assert await commands_module.internet_chat_models(ctx) == configured_web_models()[:25]
+    ctx.options["provider"] = "google"
+    assert await commands_module.internet_chat_models(ctx) == Models.TEXT_MODELS[:25]
 
 
 @pytest.mark.asyncio

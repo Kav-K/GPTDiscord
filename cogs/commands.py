@@ -1,5 +1,6 @@
 import discord
 from pycord.multicog import subcommand as add_to_group
+from cogs.web_search_cog import web_models
 
 from services.environment_service import EnvService
 from models.check_model import Check
@@ -11,6 +12,12 @@ from models.autocomplete_model import (
 )
 
 ALLOWED_GUILDS = EnvService.get_allowed_guilds()
+
+
+async def internet_chat_models(ctx):
+    if ctx.options.get("provider", "openai") == "google":
+        return await Settings_autocompleter.get_function_calling_models(ctx)
+    return await web_models(ctx)
 
 
 class Commands(discord.Cog, name="Commands"):
@@ -54,7 +61,7 @@ class Commands(discord.Cog, name="Commands"):
             return True
         setup = {
             "index_cog": "Document indexing is unavailable. Ask the bot administrator to install `pip install '.[index]'`, set ENABLE_INDEXING=true, and restart the bot.",
-            "search_cog": "Legacy Google search is unavailable. Use /web for OpenAI web search, or ask the bot administrator to install `pip install '.[index]'` and configure GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID.",
+            "search_cog": "Internet chat/search is unavailable. Ask the bot administrator to install `pip install '.[search]'` and restart the bot. `/web` provides OpenAI web search without these optional dependencies.",
             "translations_cog": "Translation is unavailable. Ask the bot administrator to configure DEEPL_TOKEN and restart the bot.",
             "transcribe_cog": "Transcription is unavailable. Ask the bot administrator to check the OpenAI credentials and transcription startup logs.",
             "code_interpreter_cog": "Code interpretation is unavailable. Ask the bot administrator to install `pip install '.[code]'`, configure E2B_API_KEY, and restart the bot.",
@@ -101,7 +108,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     internet = discord.SlashCommandGroup(
         name="internet",
-        description="Transcription services using OpenAI Whisper2",
+        description="Web search and conversations with current sources",
         guild_ids=ALLOWED_GUILDS,
         checks=[Check.check_index_roles()],  # TODO new role checker for internet
     )
@@ -1255,7 +1262,7 @@ class Commands(discord.Cog, name="Commands"):
     )
     @discord.option(
         name="search_scope",
-        description="How many top links to use for context",
+        description="OpenAI: web tool calls per response; Google: result links per search",
         required=False,
         input_type=discord.SlashCommandOptionType.integer,
         max_value=6,
@@ -1263,11 +1270,21 @@ class Commands(discord.Cog, name="Commands"):
         default=2,
     )
     @discord.option(
+        name="provider",
+        description="Search provider (OpenAI uses your existing OpenAI key)",
+        required=False,
+        choices=[
+            discord.OptionChoice(name="OpenAI web search", value="openai"),
+            discord.OptionChoice(name="Google", value="google"),
+        ],
+        default="openai",
+    )
+    @discord.option(
         name="model",
         description="The model to use for the request (querying, not composition)",
         required=False,
         default=Models.DEFAULT,
-        autocomplete=Settings_autocompleter.get_function_calling_models,
+        autocomplete=internet_chat_models,
     )
     @discord.option(
         name="temperature",
@@ -1294,6 +1311,7 @@ class Commands(discord.Cog, name="Commands"):
         search_scope: int = 2,
         temperature: float = 0,
         top_p: float = 1,
+        provider: str = "openai",
     ):
         if not await self._require_integration(ctx, "search_cog"):
             return
@@ -1303,6 +1321,7 @@ class Commands(discord.Cog, name="Commands"):
             model=model,
             temperature=temperature,
             top_p=top_p,
+            provider=provider,
         )
 
     # Search slash commands

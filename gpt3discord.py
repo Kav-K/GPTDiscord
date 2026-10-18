@@ -12,18 +12,21 @@ from platform import system
 from services.environment_service import EnvService
 from services.access_service import get_access_role_ids, install_access_gate
 
-__version__ = "13.1.0"
+__version__ = "13.2.0"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None
 logger = logging.getLogger(__name__)
 
 
-def load_optional_service(module_name, class_name, extra):
+def load_optional_service(module_name, class_name, extra, *, required=True):
     """Explain missing optional packages at startup, before connecting to Discord."""
     try:
         return getattr(importlib.import_module(module_name), class_name)
     except ImportError as exc:
+        if not required:
+            logger.info("Install gpt3discord[%s] to enable %s.", extra, class_name)
+            return None
         raise RuntimeError(
             f"Cannot load {class_name}. Install its dependencies with "
             f"pip install 'gpt3discord[{extra}]' and check the integration configuration."
@@ -179,13 +182,11 @@ async def main():
 
         bot.add_cog(TranslationService(bot, TranslationModel()))
 
-    if (
-        EnvService.get_google_search_api_key()
-        and EnvService.get_google_search_engine_id()
-    ):
-        SearchService = load_optional_service(
-            "cogs.search_service_cog", "SearchService", "search"
-        )
+    SearchService = load_optional_service(
+        "cogs.search_service_cog", "SearchService", "search",
+        required=bool(EnvService.get_google_search_api_key() and EnvService.get_google_search_engine_id()),
+    )
+    if SearchService is not None:
         bot.add_cog(
             SearchService(
                 bot, model, usage_service, deletion_queue, bot.get_cog("GPT3ComCon")

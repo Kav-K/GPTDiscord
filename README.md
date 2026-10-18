@@ -12,7 +12,7 @@ OpenAI chat, vision, image generation, transcription, moderation, and web search
 - `/web` uses the **Responses API with native web search** and visible source links for recent information. It needs an OpenAI key with access to the chosen model and web search, with no Google account required. Search tool calls incur additional OpenAI charges.
 - `/dalle draw` keeps the familiar command name and generates images with the current **GPT Image** API. Image bytes are sent as Discord attachments. Retired DALL·E endpoints are no longer used.
 - Transcription and moderation use current OpenAI APIs. Long conversations, per-user keys, server roles, prompt optimization, and saved conversations remain available.
-- Document indexing, Google/Wolfram chat, Qdrant/Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
+- Document indexing, internet chat, Qdrant/Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
 
 The default chat model is `gpt-6.1-sol`, the low-cost helper model is `gpt-6-luna`, and image generation defaults to `gpt-image-2.5-flare`. Availability depends on your OpenAI project. Override models using the environment settings below. Model names and prices change; consult the [OpenAI model catalog](https://developers.openai.com/api/docs/models) and [pricing](https://openai.com/api/pricing/).
 
@@ -89,7 +89,7 @@ Install the extras you use and configure their keys. Missing configured dependen
 | Feature | Install | Configuration |
 | --- | --- | --- |
 | Document Q&A / indexes | `pip install '.[index]'` | `ENABLE_INDEXING=true` and OpenAI access |
-| Google/Wolfram chat | `pip install '.[search]'` | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`; optionally `WOLFRAM_API_KEY` |
+| Internet chat / Google search | `pip install '.[search]'` | OpenAI access for chat; Google keys only for `provider: google` or `/internet search`; optionally `WOLFRAM_API_KEY` |
 | Pinecone memory | `pip install '.[pinecone]'` | `PINECONE_TOKEN`, `PINECONE_REGION` (default `us-east-1`) |
 | Qdrant memory | `pip install '.[qdrant]'` | `QDRANT_PATH` for persistent local storage, or `QDRANT_URL` and optional `QDRANT_API_KEY` |
 | E2B code execution | `pip install '.[code]'` | `E2B_API_KEY` |
@@ -97,6 +97,8 @@ Install the extras you use and configure their keys. Missing configured dependen
 | All integrations | `pip install '.[full]'` | Only configure the integrations you intend to enable |
 
 Configure either Qdrant or Pinecone memory, never both. Leave both unset to keep local conversation summaries. See the [memory guide](detailed_guides/PERMANENT-MEMORY.md) for collection and migration details.
+
+`/internet chat` defaults to **OpenAI web search** using your existing OpenAI key, with clickable citations, conversation memory, and optional page crawling. The search integration loads automatically when its dependencies are installed; Google credentials are not required for OpenAI chat. Choose `provider: google` to retain Google search (requires `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`). `search_scope` caps OpenAI web tool calls per model response or Google result links per search; it does not guarantee a number of sources. OpenAI hosted-search fees are separate from model token usage. `/web` remains available without optional dependencies.
 
 When `USER_INPUT_API_KEYS=true`, optional index/search/code sessions accept messages from their creator only, so other thread participants cannot spend that person's API credits. Changing or deleting the saved key blocks further work in an existing session; end it and start a new one with the current key.
 

@@ -19,6 +19,7 @@ from services.openai_client_service import (
     RequestAsyncOpenAI as _AgentAsyncOpenAI,
 )
 from services.usage_service import UsageService
+from services.responses_service import parse_search_response
 
 
 def personal_key_fingerprint(key):
@@ -74,7 +75,7 @@ def create_chat_llm(model, temperature=0, top_p=1, api_key=None, **kwargs):
     )
 
 
-def create_chat_agent(llm, tools, system_message, memory=None):
+def create_chat_agent(llm, tools, system_message, memory=None, builtin_tools=None):
     if memory is None:
         memory = ConversationSummaryBufferMemory(
             memory_key="memory",
@@ -93,7 +94,7 @@ def create_chat_agent(llm, tools, system_message, memory=None):
         ]
     )
     return AgentExecutor(
-        agent=create_tool_calling_agent(llm, tools, prompt),
+        agent=create_tool_calling_agent(llm, [*tools, *(builtin_tools or [])], prompt),
         tools=tools,
         memory=memory,
         max_iterations=5,
@@ -105,3 +106,33 @@ def create_chat_agent(llm, tools, system_message, memory=None):
 def agent_output_text(output):
     """Normalize both Chat Completions strings and Responses content blocks."""
     return AIMessage(content=output).text
+
+
+def agent_search_response(output):
+    """Retain hosted-search citations from LangChain's final content blocks."""
+    if not isinstance(output, list):
+        return None
+    response_output, content = [], []
+    for block in output:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "web_search_call":
+            response_output.append(block)
+        elif block.get("type") in {"text", "output_text"} and isinstance(
+            block.get("text"), str
+        ):
+            # Responses/v1 keeps url_citation; LangChain's standardized content
+            # blocks rename it citation while retaining the URL and offsets.
+            annotations = [
+                {**annotation, "type": "url_citation"}
+                for annotation in block.get("annotations", []) or []
+                if isinstance(annotation, dict)
+                and annotation.get("type") in {"url_citation", "citation"}
+            ]
+            content.append(
+                {"type": "output_text", "text": block["text"], "annotations": annotations}
+            )
+    if not content:
+        return None
+    response_output.append({"type": "message", "content": content})
+    return parse_search_response({"output": response_output})
