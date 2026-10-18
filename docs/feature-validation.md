@@ -8,6 +8,9 @@ The v13.2.1 follow-up connects saved indexes to document chats: an explicit
 `user_index` wins, otherwise chat uses the active selection or the latest saved
 user index after restart. Add/load inside an owned chat preserves its existing
 documents and memory. Empty or unreadable PDFs cannot report a successful index.
+The v13.2.2 follow-up verifies E2B code execution, package installation, uploaded
+files, and downloadable results with real sandboxes, and repairs startup,
+command-error handling, artifact limits, and shutdown cleanup.
 Offline tests exercise application handlers and actual Pycord/LlamaIndex objects
 with network boundaries simulated. Live checks use real OpenAI and Discord APIs,
 isolated storage, bounded request budgets, and temporary Discord resources.
@@ -31,7 +34,7 @@ isolated storage, bounded request budgets, and temporary Discord resources.
 | Media and specialized index readers | Image uploads extract text/visible information; supported audio/video uploads index speech, with 10/25 MiB limits. GitHub default-branch reading passed live. Current YouTube SDK objects, bounded requests, and URL forms are tested; transcript retrieval passed on the deployed host (61 caption segments). Public Google Docs links now reach text export; private Docs require exported uploads. Legacy Office/SVG/PSD need conversion. |
 | Pinecone permanent memory | Offline tests cover namespaces, embedding compatibility, and exact conversation IDs. No Pinecone credentials are configured, so remote persistence was not live tested. Legacy numeric conversation IDs above `2**53` require re-ingestion because Pinecone cannot preserve their exact value. |
 | Qdrant permanent memory | Implemented optional embedded/remote adapter. Real persistent-storage tests and a real authenticated Qdrant 1.19.2 HTTP server passed, including restart, idempotency, exact thread/model isolation, and wrong-key rejection. Real OpenAI embeddings also passed retrieval and local restart persistence. No Qdrant service or credentials were retained on the production host; installation alone does not enable it. |
-| E2B code interpreter and artifacts | Current SDK imports and offline agent/upload/artifact tests pass. Startup failures and cancellation close created or late-arriving sandboxes, clear session state, and archive dead threads. Changed/deleted personal keys stop future provider work while End remains available. No E2B key is configured; remote execution was not live tested. Registered chats can use scoped recovery. |
+| E2B code interpreter and artifacts | The actual code-chat command and registered tools passed live: persistent Python state, two CSV uploads and aggregation, generated PNG/CSV downloads through the actual button callback, Python package installation and import in the same kernel, nonzero shell exit diagnostics, and system package installation. The run used nine bounded Responses requests, one sandbox capped at 300 seconds, and eight executions/commands. Duplicate delivery added no calls; End killed the sandbox and cleanup deleted the owned thread/starter. Offline tests cover startup readiness, canceled/late creation, shutdown, single-close behavior, personal keys, stale downloads, and streamed size limits. Registered chats can use scoped recovery. |
 | DeepL translation and language selection | Offline tests cover free/pro endpoints, authentication, language selection, provider errors, ownership, and SDK acknowledgements. Expanded source/results are fully paginated within Discord embed limits. No DeepL key is configured; remote translation was not live tested. |
 | Replicate fallback image understanding | Current SDK import and offline integration checks pass. No Replicate key is configured; remote inference was not live tested. Native OpenAI vision passed live. |
 | ShareGPT conversation sharing | The obsolete external API was removed. End now offers an owner-only **Download Conversation** button delivering a private TXT transcript. New conversations export their full transcript; legacy conversations export retained context, which may contain summaries. SDK tests cover ownership, cacheless interactions, and private delivery. |
@@ -39,8 +42,8 @@ isolated storage, bounded request budgets, and temporary Discord resources.
 | Pagination, tagging, diagnostics, health | Tests cover complete pagination, context actions, role checks, and diagnostic paths. Flask `/healthz` passed a local request; it is a liveness endpoint. Bot mentions require Gateway delivery. |
 | Installation, packages, containers, CI | Base/full dependency consistency, imports, offline suites, wheel/sdist builds, installed entry points, and packaged prompts are checked. CI covers Python 3.11–3.13, Windows/macOS, optional integrations, both Docker variants, and tests extracted source distributions. |
 
-The final local offline runs passed **637 tests** with the base installation
-(49 skips) and **904 tests** with all extras installed. Four opt-in paid
+The final local offline runs passed **638 tests** with the base installation
+(49 skips) and **922 tests** with all extras installed. Four opt-in paid
 pytest cases were skipped; the explicit live runners below exercised their API
 routes and broader features. Dependency and Ruff checks passed.
 
@@ -64,7 +67,7 @@ conversations. Free mentions, general automatic moderation, and undelivered edit
 still require Gateway events. The cleanup command can list accessible active
 bot-owned conversation threads through REST; it does not enumerate archived threads.
 
-DeepL, Google/Wolfram, E2B, Pinecone, and Replicate remain unconfigured, not
+DeepL, Google/Wolfram, Pinecone, and Replicate remain unconfigured, not
 live-verified successes. GitHub and Qdrant were verified separately as described above. No credentials,
 prompts, generated responses, or raw provider exceptions are included in reports.
 

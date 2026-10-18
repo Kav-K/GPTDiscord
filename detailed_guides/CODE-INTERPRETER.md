@@ -1,28 +1,19 @@
-# Code Interpreter 
-This bot supports a full fledged version of Code Interpreter, where code in various languages can be executed directly in Discord. You can even install Python and system packages. Python is the preferred language for code interpreter, although it will still work relatively nicely with other popular languages.
+# Code Interpreter
 
-To get started with code interpreter, you need an E2B API key. You can find an E2B API key & more info on FoundryLabs [here](https://e2b.dev/docs/getting-started/api-key).
-```env  
-E2B_API_KEY="...."  
-```  
+`/code chat` runs Python in an E2B sandbox, with persistent variables and files for that session. The agent can also run shell commands and install Python or system packages.
 
-Like above, add the E2B API key to your `.env` file. E2B is a cloud-based isolated execution environment, so that you can run code safely and have a containerized environment to install packages and execute code, etc in.
-  
-Afterwards, to use code interpreter, simply use `/code chat`.
+Install the integration:
 
-When you begin a code interpreter instance, a new isolated environment to run your code is automatically created. Inside your chat, you can ask GPT to install Python or system packages into this environment, and ask GPT to run any sort of python (and other language) code within it as well. Unlike ChatGPT's code interpreter / advanced data analysis, this also has access to the internet so you can work with code that uses the network as well.
+```sh
+pip install '.[code]'
+```
 
+Configure `E2B_API_KEY` in the bot's environment, alongside its existing OpenAI configuration, and restart the bot. Obtain a key from the [E2B dashboard](https://e2b.dev/docs/getting-started/api-key). E2B compute and OpenAI model usage are billed by their respective providers.
 
-As per the E2B documentation, the free tier provides the following resources to a sandboxed code instance:
+Start `/code chat`, wait for the ready message, and ask it to execute code or analyze data. You can attach multiple files to a message; they are uploaded under `/home/user`. Python variables, installed packages, and files remain available for follow-up requests in that session. Shell commands run separately from the persistent Python kernel.
 
-> - 2 vCPU
-> - 512 MB RAM
-> - 1 GB free disk storage
-> - 24 hours max sandbox session length
+Ask the agent to save downloadable results under `/home/user/artifacts`. Generated plots are also made available there. Use **Download Artifacts** below a response to retrieve the files; each must fit the Discord server's upload limit. Failed commands return their exit code, stdout, and stderr so the agent can correct them.
 
-Given that it is possible to maintain and use a thread over multiple days with GPTDiscord, exceeding the instance limits of your E2B API key will cause the thread to break and not reply. In this case, you will need to end & restart the thread to continue conversing.
+Type `end` to terminate the sandbox and archive the thread. Files and Python state belong to the sandbox; download results you want to retain. The bot requests a one-hour sandbox lifetime, subject to E2B plan limits. Start a new `/code chat` after a sandbox expires or the bot restarts.
 
-
-When ChatGPT executes code, sometimes it will create files (especially if you ask it to within your instructions) in a folder called `artifacts`. If files are created, they can be downloaded from the "Download Artifacts" button that will pop up after the code is executed.
-
-Sometimes, ChatGPT will create files that are not placed in the upstream `artifacts` folder. To remedy this, simply ask it to ensure all files it makes are within `artifacts`. 
+Failed startup and bot shutdown also close sandboxes. Operators using a service manager should allow a 120-second graceful stop window for pending startup and cleanup requests.

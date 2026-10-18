@@ -423,7 +423,7 @@ async def test_optional_chats_register_prepare_and_enroll_scoped_recovery(monkey
             install_python_package=Mock(), install_system_package=Mock(), run_command_sync=Mock(),
         )
         monkeypatch.setattr(cog, "SessionedCodeExecutor", lambda: session)
-    thread = SimpleNamespace(id=123)
+    thread = SimpleNamespace(id=123, send=AsyncMock(), edit=AsyncMock())
 
     async def create_thread(**kwargs):
         recovery.prepare_context.assert_awaited_once()

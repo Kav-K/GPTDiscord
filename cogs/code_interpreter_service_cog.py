@@ -6,9 +6,11 @@ import io
 import posixpath
 import shlex
 import traceback
+import threading
 import uuid
 
 import discord
+from e2b import CommandExitException
 from e2b_code_interpreter import Sandbox
 
 from langchain_community.utilities.google_search import GoogleSearchAPIWrapper
@@ -65,19 +67,26 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         self.initial_messages = {}
         self.sessions = {}
         self._sandbox_tasks = set()
+        self._startup_tasks = set()
+        self._starting_threads = set()
+        self._closing = False
         # Make a mapping of all the country codes and their full country names:
 
     @discord.Cog.listener()
     async def on_message(self, message):
         if not await message_has_access(message):
             return
-        if self.recovery is not None:
+        if getattr(getattr(message, "channel", None), "id", None) in self._starting_threads:
+            await self._process_message(message)
+        elif self.recovery is not None:
             await self.recovery.dispatch(message, route="code")
         else:
             await self._process_message(message)
 
     async def _process_message(self, message):
         if not await message_has_access(message):
+            return
+        if self._closing:
             return
         # Check if the message is from a bot.
         if getattr(message.author, "bot", False):
@@ -92,6 +101,13 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return
 
         if message.content.strip().startswith("~"):
+            return
+
+        if message.channel.id in self._starting_threads:
+            await message.reply(
+                "The code interpreter sandbox is still starting. Please wait for the ready message, then send your request again.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
             return
 
         if message.channel.id not in self.chat_agents:
@@ -151,7 +167,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 except Exception:
                     print("Code interpreter sandbox cleanup failed.")
                 self.sessions.pop(message.channel.id, None)
-                self.chat_agents.pop(message.channel.id)
+                self.chat_agents.pop(message.channel.id, None)
                 self.thread_owners.pop(message.channel.id, None)
                 self.thread_key_fingerprints.pop(message.channel.id, None)
                 await message.reply("Code interpreter session ended.")
@@ -162,10 +178,8 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 await thread.edit(archived=True)
                 return
 
-            file = message.attachments[0] if len(message.attachments) > 0 else None
-
-            # File operations, allow for user file upload
-            if file:
+            for file in message.attachments:
+                thinking_message = None
                 # We will attempt to upload the file to the execution environment
                 thinking_embed = discord.Embed(
                     title="🤖💬 Uploading file to code interpreter environment...",
@@ -201,7 +215,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                     )
                     return
                 finally:
-                    if "thinking_message" in locals():
+                    if thinking_message is not None:
                         try:
                             await thinking_message.delete()
                         except discord.HTTPException:
@@ -282,20 +296,25 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
         def __init__(self):
             self.session = None
             self.sessioned = False
+            self._close_lock = threading.Lock()
             try:
                 self.session = Sandbox.create(
-                    api_key=EnvService.get_e2b_api_key(), timeout=3600
+                    api_key=EnvService.get_e2b_api_key(), timeout=3600,
+                    request_timeout=30, retries=0
                 )
-                self.session.files.make_dir(self.ARTIFACT_DIRECTORY)
+                self.session.files.make_dir(self.ARTIFACT_DIRECTORY, request_timeout=30)
                 self.sessioned = True
             except Exception:
-                traceback.print_exc()
+                print("Code interpreter sandbox initialization failed.")
                 if self.session is not None:
-                    self.session.kill()
+                    try:
+                        self.session.kill(request_timeout=30, retries=0)
+                    except Exception:
+                        print("Code interpreter sandbox cleanup failed.")
 
         def execute_code_sync(self, code: str):
             """Run Python in the session's persistent Jupyter kernel."""
-            execution = self.session.run_code(code, timeout=30)
+            execution = self.session.run_code(code, timeout=30, request_timeout=45)
             stdout = "".join(execution.logs.stdout)
             stderr = "".join(execution.logs.stderr)
 
@@ -312,7 +331,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                         path = (
                             f"{self.ARTIFACT_DIRECTORY}/{uuid.uuid4().hex}.{extension}"
                         )
-                        self.session.files.write(path, content)
+                        self.session.files.write(path, content, request_timeout=30)
 
             if execution.error:
                 stderr += (
@@ -331,7 +350,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             return await asyncio.to_thread(self.execute_code_sync, code)
 
         def get_artifact_names(self):
-            entries = self.session.files.list(self.ARTIFACT_DIRECTORY, depth=10)
+            entries = self.session.files.list(self.ARTIFACT_DIRECTORY, depth=10, request_timeout=30)
             return [
                 entry.path
                 for entry in entries
@@ -339,15 +358,27 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             ]
 
         def close(self):
-            try:
-                self.session.kill()
-            finally:
+            with self._close_lock:
+                if not self.sessioned:
+                    return
                 self.sessioned = False
+                self.session.kill(request_timeout=30, retries=0)
 
-        def download_file(self, filepath):
-            return bytes(
-                self.session.files.read(filepath, format="bytes", request_timeout=30)
-            )
+        def download_file(self, filepath, max_bytes=None):
+            path = posixpath.normpath(filepath)
+            if not path.startswith(self.ARTIFACT_DIRECTORY + "/"):
+                raise ValueError("Only files in the artifacts folder can be downloaded.")
+            if max_bytes is not None:
+                info = self.session.files.get_info(path, request_timeout=30)
+                if info.size > max_bytes:
+                    raise ValueError("This artifact exceeds the server's upload limit.")
+            content = bytearray()
+            with self.session.files.read(path, format="stream", request_timeout=30) as stream:
+                for chunk in stream:
+                    if max_bytes is not None and len(content) + len(chunk) > max_bytes:
+                        raise ValueError("This artifact exceeds the server's upload limit.")
+                    content.extend(chunk)
+            return bytes(content)
 
         def install_python_package(self, package):
             return self.run_command_sync(
@@ -355,16 +386,22 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             )
 
         def install_system_package(self, package):
-            result = self.session.commands.run(
+            return self._run_command(
                 f"apt-get update && apt-get install -y -- {shlex.quote(package)}",
                 user="root",
-                timeout=120,
             )
-            return f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+
+        def _run_command(self, command, **kwargs):
+            try:
+                result = self.session.commands.run(command, timeout=120, **kwargs)
+            except CommandExitException as error:
+                # Nonzero exits are tool output. Returning diagnostics lets the
+                # agent correct a command or package name in the same turn.
+                result = error
+            return f"EXIT CODE: {result.exit_code}\nSTDOUT: {result.stdout[:12000]}\nSTDERR: {result.stderr[:12000]}"
 
         def run_command_sync(self, command):
-            result = self.session.commands.run(command, timeout=120, cwd="/home/user")
-            return f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+            return self._run_command(command, cwd="/home/user")
 
         async def run_command_async(self, command):
             return await asyncio.to_thread(self.run_command_sync, command)
@@ -378,7 +415,7 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             if filename in ("", ".", ".."):
                 raise ValueError("A filename is required")
             destination = f"/home/user/{filename}"
-            self.session.files.write(destination, file)
+            self.session.files.write(destination, file, request_timeout=30)
             return destination
 
         async def upload_file_async(self, path, file):
@@ -397,9 +434,35 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             session = creation.result()
         except BaseException:
             return
+        if session is None or not session.is_sessioned():
+            return
         cleanup = asyncio.create_task(self._close_sandbox(session))
         self._sandbox_tasks.add(cleanup)
         cleanup.add_done_callback(self._sandbox_tasks.discard)
+
+    async def close_sessions(self):
+        self._closing = True
+        current = asyncio.current_task()
+        startups = {task for task in self._startup_tasks if task is not current}
+        for task in startups:
+            task.cancel()
+        sessions = [session for thread_id, session in self.sessions.items() if thread_id not in self._starting_threads]
+        self.sessions.clear()
+        self.chat_agents.clear()
+        self.thread_owners.clear()
+        self.thread_key_fingerprints.clear()
+        for session in sessions:
+            cleanup = asyncio.create_task(self._close_sandbox(session))
+            self._sandbox_tasks.add(cleanup)
+            cleanup.add_done_callback(self._sandbox_tasks.discard)
+        deadline = asyncio.get_running_loop().time() + 30
+        while True:
+            tasks = {task for task in startups | self._sandbox_tasks if not task.done()}
+            remaining = deadline - asyncio.get_running_loop().time()
+            if not tasks or remaining <= 0:
+                return
+            await asyncio.wait(tasks, timeout=remaining)
+            await asyncio.sleep(0)
 
     async def code_interpreter_chat_command(
         self,
@@ -419,6 +482,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 return
 
         await ctx.defer()
+        if self._closing:
+            await ctx.respond("The bot is shutting down. Please try again after it reconnects.", ephemeral=True)
+            return
         guild_id = getattr(ctx, "guild_id", None)
         if self.recovery is not None and self.bot.get_guild(guild_id) is None:
             prepared = False
@@ -448,9 +514,27 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
             name=ctx.user.name + "'s code interpreter conversation with GPT",
             auto_archive_duration=60,
         )
-        await safe_ctx_respond(ctx=ctx, content="Conversation started.")
+        if self._closing:
+            await thread.edit(name="Closed-GPT", archived=True)
+            return
+        startup = asyncio.current_task()
+        self._startup_tasks.add(startup)
+        self._starting_threads.add(thread.id)
+        abandoned = threading.Event()
 
-        creation = asyncio.create_task(asyncio.to_thread(self.SessionedCodeExecutor))
+        def create_sandbox():
+            if abandoned.is_set() or self._closing:
+                return None
+            session = self.SessionedCodeExecutor()
+            # The event-loop can finish before this worker. Close a late sandbox
+            # here as well, so cleanup does not depend on a running task callback.
+            if abandoned.is_set() or self._closing:
+                if session.is_sessioned():
+                    session.close()
+                return None
+            return session
+
+        creation = asyncio.create_task(asyncio.to_thread(create_sandbox))
         self._sandbox_tasks.add(creation)
         creation.add_done_callback(self._sandbox_tasks.discard)
         try:
@@ -505,26 +589,21 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 temperature=temperature,
                 top_p=top_p,
                 api_key=user_api_key,
+                store=False,
+                max_tokens=4096,
+                output_version="responses/v1",
             )
             system_message = (
-                "You are an expert programmer that is able to use the tools to your advantage to execute "
-                "python code. Help the user iterate on their code and test it through execution. "
-                "Always provide the full code output when asked for "
-                "when you execute code. Ensure that all your code is formatted with backticks followed by the "
-                "markdown identifier of the language that the code is in. For example ```python3 {code} ```. You are "
-                "able to search the internet to find the most up to date algorithms and practices. You are "
-                "also able to run commands in the execution environment such as to work with files, "
-                "make curl requests, or etc. The environment is Linux. When asked to write code that saves "
-                "files, always prefix the file with the artifacts/ folder. For example, if asked to create "
-                "test.txt, in the function call you make to whatever library that creates the file, "
-                "you would use artifacts/test.txt. However, when users upload files, they will by default be "
-                "in /home/user/, so if working with a user file, unless they give you the full path, "
-                "look in /home/user. Always show the output of code execution explicitly and separately at "
-                "the end of the rest of your output. You are also able to install system and python packages "
-                "using your tools. However, the tools can only install one package at a time, if you need to "
-                "install multiple packages, call the tools multiple times. Always first display your code to "
-                "the user BEFORE you execute it using your tools. The user should always explicitly ask you "
-                "to execute code. Never execute code before showing the user the code first."
+                "Help the user analyze data, write and run code in a persistent Linux sandbox. "
+                "Use the code execution tool when computation or verification helps with their request. "
+                "Python variables and installed packages persist for this session. "
+                "User uploads are saved under /home/user; use the exact paths supplied with their messages. "
+                "Save files the user should download under /home/user/artifacts, including reports and plots. "
+                "The Python execution tool uses a persistent Jupyter kernel; the command tool runs shell commands. "
+                "Install Python and system packages with their respective tools, one package per call. "
+                "Check tool exit codes and stderr, correct errors when possible, and report failures honestly. "
+                "Show useful code and its actual execution output in your answer. "
+                "Do not invent execution results or artifact paths."
             )
             self.chat_agents[thread.id] = create_chat_agent(llm, tools, system_message)
             self.thread_owners[thread.id] = ctx.user.id
@@ -532,7 +611,14 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 self.thread_key_fingerprints[thread.id] = personal_key_fingerprint(user_api_key)
             if self.recovery is not None:
                 await self.recovery.watch_thread(thread, new=True)
+            self._starting_threads.discard(thread.id)
+            await thread.send(
+                "Code interpreter is ready. Send a message or upload files to begin; type `end` to close the sandbox.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            await safe_ctx_respond(ctx=ctx, content="Conversation started.")
         except BaseException as error:
+            abandoned.set()
             self.chat_agents.pop(thread.id, None)
             self.thread_owners.pop(thread.id, None)
             self.thread_key_fingerprints.pop(thread.id, None)
@@ -554,7 +640,9 @@ class CodeInterpreterService(discord.Cog, name="CodeInterpreterService"):
                 print("Code interpreter failed thread cleanup.")
             if not isinstance(error, Exception):
                 raise
-
+        finally:
+            self._startup_tasks.discard(startup)
+            self._starting_threads.discard(thread.id)
 
 
 class CodeInterpreterDownloadArtifactsView(discord.ui.View):
@@ -598,27 +686,32 @@ class DownloadButton(discord.ui.Button["CodeInterpreterDownloadArtifactsView"]):
                 ephemeral=True,
             )
             return
+        if (
+            self.code_interpreter_cog.sessions.get(self.ctx.channel.id) is not self.session
+            or not self.session.is_sessioned()
+        ):
+            await interaction.response.send_message(
+                "This code interpreter session has ended. Start a new /code chat to create more artifacts.",
+                ephemeral=True,
+            )
+            return
         await interaction.response.send_message(
-            "Downloading the artifacts: "
-            + str(self.artifact_names)
-            + ". This may take a while.",
-            ephemeral=True,
-            delete_after=120,
+            "Downloading available artifacts.", ephemeral=True, delete_after=120,
         )
+        limit = getattr(getattr(self.ctx, "guild", None), "filesize_limit", 10 * 1024 * 1024)
         for artifact in self.artifact_names:
             try:
-                runner = functools.partial(
-                    self.session.download_file, filepath=artifact
-                )
-
-                content = await asyncio.get_running_loop().run_in_executor(None, runner)
+                runner = functools.partial(self.session.download_file, filepath=artifact, max_bytes=limit)
+                content = await asyncio.to_thread(runner)
                 await self.ctx.channel.send(
-                    file=discord.File(
-                        io.BytesIO(content), filename=posixpath.basename(artifact)
-                    )
+                    file=discord.File(io.BytesIO(content), filename=posixpath.basename(artifact)),
+                    allowed_mentions=discord.AllowedMentions.none(),
                 )
-            except:
-                traceback.print_exc()
-                await self.ctx.channel.send(
-                    "Failed to download artifact: " + artifact, delete_after=120
+            except ValueError as error:
+                await interaction.followup.send(str(error), ephemeral=True)
+            except Exception:
+                print("Code interpreter artifact download failed.")
+                await interaction.followup.send(
+                    "The artifact could not be downloaded. Try again or start a new session if it has expired.",
+                    ephemeral=True,
                 )
