@@ -89,7 +89,7 @@ Install the extras you use and configure their keys. Missing configured dependen
 | Feature | Install | Configuration |
 | --- | --- | --- |
 | Document Q&A / indexes | `pip install '.[index]'` | `ENABLE_INDEXING=true` and OpenAI access |
-| Internet chat / Google search | `pip install '.[search]'` | OpenAI access for chat; Google keys only for `provider: google` or `/internet search`; optionally `WOLFRAM_API_KEY` |
+| Internet chat / Google search | `pip install '.[search]'` | OpenAI access for chat; Google keys only for `provider: google` or `/internet search` |
 | Pinecone memory | `pip install '.[pinecone]'` | `PINECONE_TOKEN`, `PINECONE_REGION` (default `us-east-1`) |
 | Qdrant memory | `pip install '.[qdrant]'` | `QDRANT_PATH` for persistent local storage, or `QDRANT_URL` and optional `QDRANT_API_KEY` |
 | E2B code execution | `pip install '.[code]'` | `E2B_API_KEY` |

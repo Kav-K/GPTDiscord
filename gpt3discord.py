@@ -12,7 +12,7 @@ from platform import system
 from services.environment_service import EnvService
 from services.access_service import get_access_role_ids, install_access_gate
 
-__version__ = "13.2.2"
+__version__ = "13.2.3"
 
 PID_FILE = Path("bot.pid")
 PROCESS = None

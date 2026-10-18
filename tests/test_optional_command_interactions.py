@@ -181,7 +181,6 @@ def build_cogs(modules, monkeypatch, ctx, db):
         monkeypatch.setattr(modules[name], "create_chat_llm", llm)
         monkeypatch.setattr(modules[name], "create_chat_agent", agent)
         monkeypatch.setattr(modules[name], "GOOGLE_API_KEY", None)
-    monkeypatch.setattr(modules["search"], "WOLFRAM_API_KEY", None)
     monkeypatch.setattr(
         modules["search"],
         "GoogleSearchAPIWrapper",

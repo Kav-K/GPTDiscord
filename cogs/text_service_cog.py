@@ -898,7 +898,7 @@ class GPT3ComCon(discord.Cog, name="GPT3ComCon"):
         )
         embed.add_field(
             name="/internet chat",
-            value="AI-Assisted chatting connected to google, wolfram, and a crawler!",
+            value="Chat with OpenAI web search, optional Google search, and webpage crawling.",
             inline=False,
         )
         embed.add_field(
