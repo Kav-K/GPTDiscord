@@ -71,67 +71,52 @@ class WebSearchCog(discord.Cog):
         provider: str = None,
     ):
         allowed_mentions = discord.AllowedMentions.none()
+
+        async def refuse(message):
+            await ctx.respond(message, ephemeral=True, allowed_mentions=allowed_mentions)
+
         if not has_any_role(ctx, self.search_roles):
-            await ctx.respond(
-                "You need a configured SEARCH_ROLES role to use web search.",
-                ephemeral=True,
-                allowed_mentions=allowed_mentions,
+            return await refuse(
+                "You need a configured SEARCH_ROLES role to use web search."
             )
-            return
         try:
             configured_provider = EnvService.get_web_search_provider()
         except ValueError as exc:
-            await ctx.respond(str(exc), ephemeral=True, allowed_mentions=allowed_mentions)
-            return
+            return await refuse(str(exc))
         if configured_provider == "disabled":
-            await ctx.respond(
-                "Web search is disabled on this bot.", ephemeral=True,
-                allowed_mentions=allowed_mentions,
-            )
-            return
+            return await refuse("Web search is disabled on this bot.")
         if provider not in {None, "parallel", "openai"}:
-            await ctx.respond(
-                "Choose Parallel or OpenAI for web search.", ephemeral=True,
-                allowed_mentions=allowed_mentions,
-            )
-            return
+            return await refuse("Choose Parallel or OpenAI for web search.")
         if provider == "parallel" and model is not None:
-            await ctx.respond(
-                "The model option applies to OpenAI answers. Omit it for Parallel source excerpts.",
-                ephemeral=True, allowed_mentions=allowed_mentions,
+            return await refuse(
+                "The model option applies to OpenAI answers."
+                " Omit it for Parallel source excerpts."
             )
-            return
         # An explicit model continues to mean an OpenAI request. Auto preserves
         # applicable existing credentials and configured model choices.
         selected = provider or ("openai" if model is not None else configured_provider)
         api_key = None
         personal_keys = EnvService.get_user_input_api_keys()
-        if selected != "parallel":
-            if personal_keys:
-                database = EnvService.get_api_db()
-                try:
-                    api_key = database.get(ctx.user.id)
-                finally:
-                    database.close()
-            if selected == "auto":
-                configured_key = api_key if personal_keys else EnvService.get_openai_token()
-                selected = "openai" if (
-                    configured_key or EnvService.get_openai_model()
-                ) else "parallel"
+        if selected != "parallel" and personal_keys:
+            database = EnvService.get_api_db()
+            try:
+                api_key = database.get(ctx.user.id)
+            finally:
+                database.close()
+        if selected == "auto":
+            configured_key = api_key if personal_keys else EnvService.get_openai_token()
+            has_openai_setup = configured_key or EnvService.get_openai_model()
+            selected = "openai" if has_openai_setup else "parallel"
         if selected == "openai":
             model = model or EnvService.get_openai_model() or Models.DEFAULT
             if model not in configured_web_models():
-                await ctx.respond(
-                    "Choose a supported web search model from the model suggestions.",
-                    ephemeral=True, allowed_mentions=allowed_mentions,
+                return await refuse(
+                    "Choose a supported web search model from the model suggestions."
                 )
-                return
             if personal_keys and not api_key:
-                await ctx.respond(
-                    "Run `/setup` to configure your OpenAI API key before using web search.",
-                    ephemeral=True, allowed_mentions=allowed_mentions,
+                return await refuse(
+                    "Run `/setup` to configure your OpenAI API key before using web search."
                 )
-                return
         await ctx.defer()
         try:
             if selected == "parallel":
