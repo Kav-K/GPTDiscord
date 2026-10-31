@@ -9,7 +9,7 @@ OpenAI chat, vision, image generation, transcription, moderation, and web search
 ## Current API support
 
 - `/gpt ask` and `/gpt converse` use current Chat Completions models, including vision and reasoning models. Defaults and model limits are centralized; incompatible sampling options are omitted for reasoning models.
-- `/web` uses the **Responses API with native web search** and visible source links for recent information. It needs an OpenAI key with access to the chosen model and web search, with no Google account required. Search tool calls incur additional OpenAI charges.
+- `/web` offers **Parallel source excerpts** without an API key, or **OpenAI synthesized answers** with visible source links. Automatic selection preserves configured OpenAI credentials and model settings; otherwise it uses Parallel. Select `provider: parallel` for a free source lookup or `provider: openai` for a paid answer.
 - `/dalle draw` keeps the familiar command name and generates images with the current **GPT Image** API. Image bytes are sent as Discord attachments. Retired DALL·E endpoints are no longer used.
 - Transcription and moderation use current OpenAI APIs. Long conversations, per-user keys, server roles, prompt optimization, and saved conversations remain available.
 - Document indexing, internet chat, Qdrant/Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
@@ -80,7 +80,28 @@ OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 
 Automatic model selection follows `OPENAI_MODEL`, or `gpt-6.1-sol` when it is unset. A supported model saved through `/system settings` takes precedence across restarts; existing supported saved choices are preserved. Resetting all system settings or turning low-usage mode off resumes automatic selection.
 
-`OPENAI_BASE_URL` supports compatible providers. Only configure endpoints you trust with your API credentials. Core chat keeps the Chat Completions response shape; `/web` requires a provider implementing Responses and native web search.
+`OPENAI_BASE_URL` supports compatible providers. Only configure endpoints you trust with your API credentials. Core chat keeps the Chat Completions response shape; the OpenAI option in `/web` requires a provider implementing Responses and native web search.
+
+### Web search providers
+
+Use `/web question:<question> provider:parallel` to get up to five titled source
+excerpts and clickable links from [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp).
+Search uses Fast mode without a Parallel account, API key, or model request.
+These are source excerpts, not a synthesized answer. Free service limits can apply.
+
+With no provider option, automatic selection retains OpenAI when an applicable
+host key (`OPENAI_API_KEY` or `OPENAI_TOKEN`), saved personal key, or
+`OPENAI_MODEL` is configured. Otherwise it uses Parallel. Personal-key mode
+never borrows the host key. An explicit `model` selects OpenAI; omit it for
+Parallel. OpenAI answers require a key with Responses/web-search access and incur
+model and hosted-search charges. A failed provider request does not switch providers.
+
+Set `WEB_SEARCH_PROVIDER=parallel` or `openai` to choose the bot's default;
+the command's provider/model options override that selection. The default setting
+is `auto`. Set `WEB_SEARCH_PROVIDER=disabled` to block both providers, including
+explicit command selections. Existing `SEARCH_ROLES` and bot-access restrictions
+apply to either provider. Parallel is included in the base install; `/internet`
+conversations continue to use their existing OpenAI or Google provider.
 
 ## Optional integrations
 

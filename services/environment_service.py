@@ -497,6 +497,13 @@ class EnvService:
         return os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 
     @staticmethod
+    def get_web_search_provider():
+        provider = os.getenv("WEB_SEARCH_PROVIDER", "auto").strip().lower()
+        if provider not in {"auto", "parallel", "openai", "disabled"}:
+            raise ValueError("WEB_SEARCH_PROVIDER must be auto, parallel, openai, or disabled.")
+        return provider
+
+    @staticmethod
     def get_openai_model():
         return os.getenv("OPENAI_MODEL")
 
