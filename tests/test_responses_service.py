@@ -336,6 +336,8 @@ def web_cog(monkeypatch, tmp_path):
     monkeypatch.setattr(EnvService, "get_search_roles", lambda: [None])
     monkeypatch.setattr(EnvService, "get_user_input_api_keys", lambda: False)
     monkeypatch.setattr(EnvService, "get_openai_model", lambda: None)
+    monkeypatch.setattr(EnvService, "get_openai_token", lambda: "offline-host-key")
+    monkeypatch.delenv("WEB_SEARCH_PROVIDER", raising=False)
     monkeypatch.setattr(EnvService, "save_path", lambda: tmp_path)
     from cogs.web_search_cog import WebSearchCog
     from models.openai_model import Models
@@ -462,7 +464,7 @@ async def test_web_missing_user_key_never_bills_server_key(web_cog, monkeypatch)
     database.get.return_value = None
     monkeypatch.setattr(EnvService, "get_user_input_api_keys", lambda: True)
     monkeypatch.setattr(EnvService, "get_api_db", lambda: database)
-    await cog.web.callback(cog, ctx, "latest news")
+    await cog.web.callback(cog, ctx, "latest news", provider="openai")
     cog.responses_service.search.assert_not_awaited()
     assert "/setup" in ctx.respond.call_args.args[0]
     assert ctx.respond.call_args.kwargs["ephemeral"] is True

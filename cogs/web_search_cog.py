@@ -1,7 +1,8 @@
-"""A native OpenAI web command available in the base installation."""
+"""Selectable source lookups or synthesized web answers in the base install."""
 
 import io
 import logging
+import uuid
 
 import discord
 from openai import (
@@ -15,6 +16,7 @@ from openai import (
 from models.openai_model import Models
 from services.environment_service import EnvService
 from services.access_service import has_any_role
+from services.parallel_search_service import ParallelSearchService
 from services.responses_service import (
     ResponsesError,
     ResponsesService,
@@ -37,15 +39,16 @@ async def web_models(ctx):
 
 
 class WebSearchCog(discord.Cog):
-    def __init__(self, bot, usage_service=None, responses_service=None):
+    def __init__(self, bot, usage_service=None, responses_service=None, parallel_service=None):
         self.bot = bot
         self.usage_service = usage_service
         self.responses_service = responses_service or ResponsesService()
+        self.parallel_service = parallel_service or ParallelSearchService()
         self.search_roles = EnvService.get_search_roles()
 
     @discord.slash_command(
         name="web",
-        description="Search the current web with cited answers (paid OpenAI search + model usage).",
+        description="Look up web sources with Parallel or get a paid OpenAI answer.",
         guild_ids=EnvService.get_allowed_guilds(),
     )
     @discord.option(
@@ -54,48 +57,78 @@ class WebSearchCog(discord.Cog):
     @discord.option(
         "model",
         str,
-        description="OpenAI model with native web search",
+        description="OpenAI model; choosing a model selects paid OpenAI search",
         default=None,
         autocomplete=web_models,
     )
+    @discord.option(
+        "provider", str,
+        description="Parallel source excerpts (free) or an OpenAI answer (paid)",
+        choices=["parallel", "openai"], default=None,
+    )
     async def web(
-        self, ctx: discord.ApplicationContext, question: str, model: str = None
+        self, ctx: discord.ApplicationContext, question: str, model: str = None,
+        provider: str = None,
     ):
         allowed_mentions = discord.AllowedMentions.none()
+
+        async def refuse(message):
+            await ctx.respond(message, ephemeral=True, allowed_mentions=allowed_mentions)
+
         if not has_any_role(ctx, self.search_roles):
-            await ctx.respond(
-                "You need a configured SEARCH_ROLES role to use web search.",
-                ephemeral=True,
-                allowed_mentions=allowed_mentions,
+            return await refuse(
+                "You need a configured SEARCH_ROLES role to use web search."
             )
-            return
-        model = model or EnvService.get_openai_model() or Models.DEFAULT
-        if model not in configured_web_models():
-            await ctx.respond(
-                "Choose a supported web search model from the model suggestions.",
-                ephemeral=True,
-                allowed_mentions=allowed_mentions,
+        try:
+            configured_provider = EnvService.get_web_search_provider()
+        except ValueError as exc:
+            return await refuse(str(exc))
+        if configured_provider == "disabled":
+            return await refuse("Web search is disabled on this bot.")
+        if provider not in {None, "parallel", "openai"}:
+            return await refuse("Choose Parallel or OpenAI for web search.")
+        if provider == "parallel" and model is not None:
+            return await refuse(
+                "The model option applies to OpenAI answers."
+                " Omit it for Parallel source excerpts."
             )
-            return
+        # An explicit model continues to mean an OpenAI request. Auto preserves
+        # applicable existing credentials and configured model choices.
+        selected = provider or ("openai" if model is not None else configured_provider)
         api_key = None
-        if EnvService.get_user_input_api_keys():
+        personal_keys = EnvService.get_user_input_api_keys()
+        if selected != "parallel" and personal_keys:
             database = EnvService.get_api_db()
             try:
                 api_key = database.get(ctx.user.id)
             finally:
                 database.close()
-            if not api_key:
-                await ctx.respond(
-                    "Run `/setup` to configure your OpenAI API key before using web search.",
-                    ephemeral=True,
-                    allowed_mentions=allowed_mentions,
+        if selected == "auto":
+            configured_key = api_key if personal_keys else EnvService.get_openai_token()
+            has_openai_setup = configured_key or EnvService.get_openai_model()
+            selected = "openai" if has_openai_setup else "parallel"
+        if selected == "openai":
+            model = model or EnvService.get_openai_model() or Models.DEFAULT
+            if model not in configured_web_models():
+                return await refuse(
+                    "Choose a supported web search model from the model suggestions."
                 )
-                return
+            if personal_keys and not api_key:
+                return await refuse(
+                    "Run `/setup` to configure your OpenAI API key before using web search."
+                )
         await ctx.defer()
         try:
-            result = await self.responses_service.search(
-                question, model=model, api_key=api_key
-            )
+            if selected == "parallel":
+                # /web has no persistent conversation or follow-up controls:
+                # each invocation owns one new research-run identity.
+                result = await self.parallel_service.search(
+                    question, session_id=uuid.uuid4().hex
+                )
+            else:
+                result = await self.responses_service.search(
+                    question, model=model, api_key=api_key
+                )
             if self.usage_service and result.usage:
                 try:
                     await self.usage_service.update_usage_from_response(
