@@ -499,9 +499,15 @@ class EnvService:
     @staticmethod
     def get_web_search_provider():
         provider = os.getenv("WEB_SEARCH_PROVIDER", "auto").strip().lower()
-        if provider not in {"auto", "parallel", "openai", "disabled"}:
-            raise ValueError("WEB_SEARCH_PROVIDER must be auto, parallel, openai, or disabled.")
+        if provider not in {"auto", "parallel", "outcrawl", "openai", "disabled"}:
+            raise ValueError(
+                "WEB_SEARCH_PROVIDER must be auto, parallel, outcrawl, openai, or disabled."
+            )
         return provider
+
+    @staticmethod
+    def get_outcrawl_api_key():
+        return (os.getenv("OUTCRAWL_API_KEY") or "").strip() or None
 
     @staticmethod
     def get_openai_model():
