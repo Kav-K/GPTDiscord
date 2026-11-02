@@ -9,7 +9,7 @@ OpenAI chat, vision, image generation, transcription, moderation, and web search
 ## Current API support
 
 - `/gpt ask` and `/gpt converse` use current Chat Completions models, including vision and reasoning models. Defaults and model limits are centralized; incompatible sampling options are omitted for reasoning models.
-- `/web` offers **Parallel source excerpts** without an API key, or **OpenAI synthesized answers** with visible source links. Automatic selection preserves configured OpenAI credentials and model settings; otherwise it uses Parallel. Select `provider: parallel` for a free source lookup or `provider: openai` for a paid answer.
+- `/web` offers **Parallel source excerpts** without an API key, **Outcrawl source excerpts** with an Outcrawl API key, or **OpenAI synthesized answers** with visible source links. Automatic selection preserves configured OpenAI credentials and model settings; otherwise it uses Parallel. Select `provider: parallel` for a free source lookup, `provider: outcrawl` for an Outcrawl lookup, or `provider: openai` for a paid answer.
 - `/dalle draw` keeps the familiar command name and generates images with the current **GPT Image** API. Image bytes are sent as Discord attachments. Retired DALL·E endpoints are no longer used.
 - Transcription and moderation use current OpenAI APIs. Long conversations, per-user keys, server roles, prompt optimization, and saved conversations remain available.
 - Document indexing, internet chat, Qdrant/Pinecone memory, Replicate, and E2B code execution are optional integrations with separate dependencies.
@@ -89,6 +89,13 @@ excerpts and clickable links from [Parallel Search MCP](https://docs.parallel.ai
 Search uses Fast mode without a Parallel account, API key, or model request.
 These are source excerpts, not a synthesized answer. Free service limits can apply.
 
+Use `/web question:<question> provider:outcrawl` to get up to five titled source
+excerpts and clickable links from [Outcrawl Search](https://outcrawl.ai/docs/search/overview).
+It needs `OUTCRAWL_API_KEY` in the bot's environment (create one at
+[outcrawl.ai/console/keys](https://outcrawl.ai/console/keys); the free tier has
+1,000 credits a month). Every user's Outcrawl lookups run on that one bot key;
+personal-key mode applies to OpenAI only. Automatic selection never picks Outcrawl.
+
 With no provider option, automatic selection retains OpenAI when an applicable
 host key (`OPENAI_API_KEY` or `OPENAI_TOKEN`), saved personal key, or
 `OPENAI_MODEL` is configured. Otherwise it uses Parallel. Personal-key mode
@@ -96,11 +103,11 @@ never borrows the host key. An explicit `model` selects OpenAI; omit it for
 Parallel. OpenAI answers require a key with Responses/web-search access and incur
 model and hosted-search charges. A failed provider request does not switch providers.
 
-Set `WEB_SEARCH_PROVIDER=parallel` or `openai` to choose the bot's default;
+Set `WEB_SEARCH_PROVIDER=parallel`, `outcrawl` or `openai` to choose the bot's default;
 the command's provider/model options override that selection. The default setting
-is `auto`. Set `WEB_SEARCH_PROVIDER=disabled` to block both providers, including
+is `auto`. Set `WEB_SEARCH_PROVIDER=disabled` to block every provider, including
 explicit command selections. Existing `SEARCH_ROLES` and bot-access restrictions
-apply to either provider. Parallel is included in the base install; `/internet`
+apply to every provider. Parallel and Outcrawl are included in the base install; `/internet`
 conversations continue to use their existing OpenAI or Google provider.
 
 ## Optional integrations
