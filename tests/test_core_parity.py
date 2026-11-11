@@ -159,6 +159,7 @@ async def test_google_search_fetches_second_page_for_sixteen_sources(search, mon
 
     monkeypatch.setattr(module.aiohttp, "ClientSession", Session)
     monkeypatch.setattr(module.EnvService, "get_http_proxy", lambda url: "http://proxy.invalid")
+    monkeypatch.delenv("GOOGLE_SEARCH_BASE_URL", raising=False)
     model = module.Search(None, None)
     selected, fallback = await model.get_links("a&b?", 16)
 
@@ -166,6 +167,50 @@ async def test_google_search_fetches_second_page_for_sixteen_sources(search, mon
     assert [call[1]["params"]["start"] for call in calls] == [1, 11]
     assert all(call[1]["params"]["q"] == "a&b?" for call in calls)
     assert all(call[1]["proxy"] == "http://proxy.invalid" for call in calls)
+    assert all(call[0] == "https://www.googleapis.com/customsearch/v1" for call in calls)
+
+
+@pytest.mark.asyncio
+async def test_google_search_uses_configured_base_url(search, monkeypatch):
+    module = importlib.import_module("models.search_model")
+    calls = []
+    proxied = []
+
+    class Response:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def json(self):
+            return {"items": [{"link": "https://example.invalid/1"}]}
+
+    class Session:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            return Response()
+
+    monkeypatch.setattr(module.aiohttp, "ClientSession", Session)
+    monkeypatch.setattr(module.EnvService, "get_http_proxy", lambda url: proxied.append(url))
+    monkeypatch.setenv("GOOGLE_SEARCH_BASE_URL", "https://search.example.test/customsearch/v1/")
+    model = module.Search(None, None)
+    selected, _ = await model.get_links("query", 2)
+
+    assert selected == ["https://example.invalid/1"]
+    assert [call[0] for call in calls] == ["https://search.example.test/customsearch/v1"]
+    assert proxied == ["https://search.example.test/customsearch/v1"]
 
 
 def test_search_index_names_are_single_safe_path_components(search, monkeypatch, tmp_path):

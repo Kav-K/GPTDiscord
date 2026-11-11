@@ -9,6 +9,8 @@ You first need to create a programmable search engine and get the search engine 
   
 Then you can get the API key, click the "Get a key" button [on this page](https://developers.google.com/custom-search/v1/introduction).  
 
+To send these requests to another endpoint that takes the same Custom Search JSON API parameters, set `GOOGLE_SEARCH_BASE_URL` to its full URL. It defaults to `https://www.googleapis.com/customsearch/v1`.
+
 You can limit the max price that is charged for a single search request by setting `MAX_SEARCH_PRICE` in your `.env` file.
 
 
