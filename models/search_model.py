@@ -154,6 +154,7 @@ class Search:
 
     async def get_links(self, query, search_scope=2):
         """Search Google with properly encoded query parameters."""
+        url = EnvService.get_google_search_base_url()
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30)
         ) as session:
@@ -162,14 +163,14 @@ class Search:
             # search permits up to sixteen source pages.
             for start in range(1, min(max(search_scope, 1), 16) + 1, 10):
                 async with session.get(
-                    "https://www.googleapis.com/customsearch/v1",
+                    url,
                     params={
                         "key": self.google_search_api_key,
                         "cx": self.google_search_engine_id,
                         "q": query,
                         "start": start,
                     },
-                    proxy=EnvService.get_http_proxy("https://www.googleapis.com/customsearch/v1"),
+                    proxy=EnvService.get_http_proxy(url),
                 ) as response:
                     if response.status != 200:
                         raise SearchError(f"Google Search returned HTTP {response.status}.")

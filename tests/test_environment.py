@@ -30,6 +30,15 @@ def test_openai_configuration(monkeypatch):
     assert EnvService.get_indexing_enabled()
 
 
+def test_google_search_base_url(monkeypatch):
+    monkeypatch.delenv("GOOGLE_SEARCH_BASE_URL", raising=False)
+    assert EnvService.get_google_search_base_url() == "https://www.googleapis.com/customsearch/v1"
+    monkeypatch.setenv("GOOGLE_SEARCH_BASE_URL", "")
+    assert EnvService.get_google_search_base_url() == "https://www.googleapis.com/customsearch/v1"
+    monkeypatch.setenv("GOOGLE_SEARCH_BASE_URL", "https://search.example.test/customsearch/v1/")
+    assert EnvService.get_google_search_base_url() == "https://search.example.test/customsearch/v1"
+
+
 def test_discord_proxy_respects_configured_egress_and_no_proxy(monkeypatch):
     monkeypatch.delenv("https_proxy", raising=False)
     monkeypatch.delenv("no_proxy", raising=False)

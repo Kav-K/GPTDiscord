@@ -565,6 +565,13 @@ class EnvService:
             return None
 
     @staticmethod
+    def get_google_search_base_url():
+        return (
+            os.getenv("GOOGLE_SEARCH_BASE_URL")
+            or "https://www.googleapis.com/customsearch/v1"
+        ).rstrip("/")
+
+    @staticmethod
     def get_pinecone_region():
         try:
             pinecone_region = os.getenv("PINECONE_REGION", "us-east-1")
