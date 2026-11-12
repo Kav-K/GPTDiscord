@@ -16,6 +16,7 @@ from openai import (
 from models.openai_model import Models
 from services.environment_service import EnvService
 from services.access_service import has_any_role
+from services.keenable_search_service import KeenableSearchService
 from services.parallel_search_service import ParallelSearchService
 from services.responses_service import (
     ResponsesError,
@@ -39,16 +40,20 @@ async def web_models(ctx):
 
 
 class WebSearchCog(discord.Cog):
-    def __init__(self, bot, usage_service=None, responses_service=None, parallel_service=None):
+    def __init__(
+        self, bot, usage_service=None, responses_service=None, parallel_service=None,
+        keenable_service=None,
+    ):
         self.bot = bot
         self.usage_service = usage_service
         self.responses_service = responses_service or ResponsesService()
         self.parallel_service = parallel_service or ParallelSearchService()
+        self.keenable_service = keenable_service or KeenableSearchService()
         self.search_roles = EnvService.get_search_roles()
 
     @discord.slash_command(
         name="web",
-        description="Look up web sources with Parallel or get a paid OpenAI answer.",
+        description="Look up web sources with Parallel or Keenable, or get a paid OpenAI answer.",
         guild_ids=EnvService.get_allowed_guilds(),
     )
     @discord.option(
@@ -63,8 +68,8 @@ class WebSearchCog(discord.Cog):
     )
     @discord.option(
         "provider", str,
-        description="Parallel source excerpts (free) or an OpenAI answer (paid)",
-        choices=["parallel", "openai"], default=None,
+        description="Parallel or Keenable source excerpts (free) or an OpenAI answer (paid)",
+        choices=["parallel", "keenable", "openai"], default=None,
     )
     async def web(
         self, ctx: discord.ApplicationContext, question: str, model: str = None,
@@ -85,19 +90,19 @@ class WebSearchCog(discord.Cog):
             return await refuse(str(exc))
         if configured_provider == "disabled":
             return await refuse("Web search is disabled on this bot.")
-        if provider not in {None, "parallel", "openai"}:
-            return await refuse("Choose Parallel or OpenAI for web search.")
-        if provider == "parallel" and model is not None:
+        if provider not in {None, "parallel", "keenable", "openai"}:
+            return await refuse("Choose Parallel, Keenable, or OpenAI for web search.")
+        if provider in {"parallel", "keenable"} and model is not None:
             return await refuse(
                 "The model option applies to OpenAI answers."
-                " Omit it for Parallel source excerpts."
+                " Omit it for Parallel or Keenable source excerpts."
             )
         # An explicit model continues to mean an OpenAI request. Auto preserves
         # applicable existing credentials and configured model choices.
         selected = provider or ("openai" if model is not None else configured_provider)
         api_key = None
         personal_keys = EnvService.get_user_input_api_keys()
-        if selected != "parallel" and personal_keys:
+        if selected not in {"parallel", "keenable"} and personal_keys:
             database = EnvService.get_api_db()
             try:
                 api_key = database.get(ctx.user.id)
@@ -125,6 +130,8 @@ class WebSearchCog(discord.Cog):
                 result = await self.parallel_service.search(
                     question, session_id=uuid.uuid4().hex
                 )
+            elif selected == "keenable":
+                result = await self.keenable_service.search(question)
             else:
                 result = await self.responses_service.search(
                     question, model=model, api_key=api_key

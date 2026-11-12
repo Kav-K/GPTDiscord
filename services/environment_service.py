@@ -499,9 +499,16 @@ class EnvService:
     @staticmethod
     def get_web_search_provider():
         provider = os.getenv("WEB_SEARCH_PROVIDER", "auto").strip().lower()
-        if provider not in {"auto", "parallel", "openai", "disabled"}:
-            raise ValueError("WEB_SEARCH_PROVIDER must be auto, parallel, openai, or disabled.")
+        if provider not in {"auto", "parallel", "keenable", "openai", "disabled"}:
+            raise ValueError(
+                "WEB_SEARCH_PROVIDER must be auto, parallel, keenable, openai, or disabled."
+            )
         return provider
+
+    @staticmethod
+    def get_keenable_api_key():
+        """Optional; Keenable search works without a key at a lower rate limit."""
+        return (os.getenv("KEENABLE_API_KEY") or "").strip() or None
 
     @staticmethod
     def get_openai_model():

@@ -89,6 +89,13 @@ excerpts and clickable links from [Parallel Search MCP](https://docs.parallel.ai
 Search uses Fast mode without a Parallel account, API key, or model request.
 These are source excerpts, not a synthesized answer. Free service limits can apply.
 
+Use `provider:keenable` to get up to five titled source excerpts and links from the
+[Keenable Search API](https://docs.keenable.ai/api-reference/search). It works without
+an account or API key (1,000 requests per hour per IP, see
+[rate limits](https://docs.keenable.ai/rate-limits)). Set `KEENABLE_API_KEY` to use
+your own key and remove the hourly cap. Keenable is only used when selected; automatic
+selection does not change.
+
 With no provider option, automatic selection retains OpenAI when an applicable
 host key (`OPENAI_API_KEY` or `OPENAI_TOKEN`), saved personal key, or
 `OPENAI_MODEL` is configured. Otherwise it uses Parallel. Personal-key mode
@@ -96,11 +103,11 @@ never borrows the host key. An explicit `model` selects OpenAI; omit it for
 Parallel. OpenAI answers require a key with Responses/web-search access and incur
 model and hosted-search charges. A failed provider request does not switch providers.
 
-Set `WEB_SEARCH_PROVIDER=parallel` or `openai` to choose the bot's default;
+Set `WEB_SEARCH_PROVIDER=parallel`, `keenable`, or `openai` to choose the bot's default;
 the command's provider/model options override that selection. The default setting
-is `auto`. Set `WEB_SEARCH_PROVIDER=disabled` to block both providers, including
+is `auto`. Set `WEB_SEARCH_PROVIDER=disabled` to block all providers, including
 explicit command selections. Existing `SEARCH_ROLES` and bot-access restrictions
-apply to either provider. Parallel is included in the base install; `/internet`
+apply to every provider. Parallel and Keenable are included in the base install; `/internet`
 conversations continue to use their existing OpenAI or Google provider.
 
 ## Optional integrations
