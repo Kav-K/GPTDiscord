@@ -55,11 +55,30 @@ async def test_retired_configured_default_fails_before_key_validation(model, fak
     "gpt-3.5-turbo", "gpt-4", "gpt-4-1106-preview", "gpt-4-turbo",
     "gpt-4.1-nano", "o1", "o3-mini", "o4-mini", "gpt-4o", "gpt-4.1",
     "gpt-5.1", "gpt-5.4-nano", "custom-deployment",
+    "gpt-5", "gpt-5-mini", "gpt-5-nano", "o3",
 ])
 async def test_upcoming_shutdowns_and_custom_models_remain_requestable(model, fake_api, selected):
     fake_api.queued.append((completion(), 200))
     await model.send_request("Hello", None, model=selected)
     assert fake_api.calls[0][1]["json"]["model"] == selected
+
+
+def test_dec_11_shutdown_models_are_no_longer_selectable():
+    """OpenAI shuts gpt-5, gpt-5-mini, gpt-5-nano and o3 down on Dec 11, 2026."""
+    shutting_down = {
+        Models.GPT_5, Models.GPT_5_MINI, Models.GPT_5_NANO, Models.O3,
+    }
+    assert shutting_down.isdisjoint(Models.TEXT_MODELS)
+
+
+def test_saved_dec_11_shutdown_model_falls_back_to_default(model, monkeypatch):
+    """Saved selections of shutting-down models are dropped at startup."""
+    saved = {"model": Models.GPT_5_MINI}
+    monkeypatch.setattr(openai_model, "SETTINGS_DB", saved)
+    instance = Model(model.usage_service)
+
+    assert instance.model == Models.DEFAULT == "gpt-6.1-sol"
+    assert "model" not in saved
 
 
 @pytest.mark.asyncio
